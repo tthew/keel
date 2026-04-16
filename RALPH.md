@@ -1,4 +1,4 @@
-# Ralph.md — notes from Ralph, to Ralph
+# RALPH.md — notes from Ralph, to Ralph
 
 This file is Ralph's private workspace. It is **not** the authoritative agent guide (that's `AGENTS.md`, linked from `CLAUDE.md`). This is where Ralph leaves signposts, lessons, gotchas, and decisions for the next Ralph who picks up the loop.
 

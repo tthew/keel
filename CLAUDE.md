@@ -43,14 +43,14 @@ Three files serve distinct audiences. Don't conflate them.
 | File        | Audience                          | Contents                                                                  |
 | ----------- | --------------------------------- | ------------------------------------------------------------------------- |
 | `AGENTS.md` | Any AI agent (Claude, Codex, etc.)| Authoritative operational guide — conventions, paths, git rules           |
-| `CLAUDE.md` | Claude Code specifically          | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and Ralph.md |
-| `Ralph.md`  | Ralph (autonomous loop)           | Ralph's private journal — signposts, lessons, gotchas, decisions          |
+| `CLAUDE.md` | Claude Code specifically          | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and RALPH.md |
+| `RALPH.md`  | Ralph (autonomous loop)           | Ralph's private journal — signposts, lessons, gotchas, decisions          |
 
 When you discover something new during a session:
 
 - Applies to every agent → promote to `AGENTS.md`
 - Claude-Code-specific (skill behavior, `.claude/` config) → `CLAUDE.md`
-- Ralph-flavored (gotchas, iteration lessons, rationale for past choices) → `Ralph.md`
+- Ralph-flavored (gotchas, iteration lessons, rationale for past choices) → `RALPH.md`
 
 ## Claude Code specifics
 

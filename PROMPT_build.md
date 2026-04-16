@@ -6,7 +6,7 @@
 
 0a. Study `_bmad-output/planning-artifacts/epics/` to understand current epic/stories (may be empty in early phases).
 0b. Study @IMPLEMENTATION_PLAN.md for task state. Create if missing.
-0c. Study @AGENTS.md for operational commands. @CLAUDE.md points to it. Study @Ralph.md — the notes prior Ralphs left for you (signposts, lessons, gotchas, decisions). Do not repeat past-Ralph's mistakes.
+0c. Study @AGENTS.md for operational commands. @CLAUDE.md points to it. Study @RALPH.md — the notes prior Ralphs left for you (signposts, lessons, gotchas, decisions). Do not repeat past-Ralph's mistakes.
 0d. Run `/bmad-help` or read `_bmad/_config/bmad-help.csv` to confirm which BMad phase the project is in. Required-phase gates (PRD, Architecture, Epics & Stories, Implementation Readiness, Sprint Planning, Create Story, Dev Story) are blocking — don't skip.
 0e. Application source (once it exists): directories under the repo root other than `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`. Use Sonnet subagents for searches/reads; one Sonnet subagent at most for any build/test command (backpressure).
 0f. Verify the task in NOW fits within execution budget (~117K tokens). Use Opus subagents when complex reasoning is needed.
@@ -20,9 +20,9 @@
 2. If code was changed, run the project's tests (whatever has been configured in the repo at the time — there may be none yet). If tests fail, fix. If blocked, document in IP and skip to step 5. Capture the why — tests and implementation importance. Until a test runner is configured, this step is a no-op.
 3. Commit with a conventional message matching one of the allowed scopes (`chore/*`, `feat/*`, `fix/*`, `docs/*`). Update IP using a subagent: mark task done, move next QUEUE item to NOW.
 3a. **Keep knowledge files current.** Before committing, reflect on this iteration and update:
-   - **@Ralph.md** — if you hit a gotcha, learned a lesson, or made a non-obvious decision, append a dated line to the right section (Signposts / Lessons / Gotchas / Decisions). Prune obsolete notes. Terse, one-liner entries. This file is Ralph's private journal to the next Ralph.
+   - **@RALPH.md** — if you hit a gotcha, learned a lesson, or made a non-obvious decision, append a dated line to the right section (Signposts / Lessons / Gotchas / Decisions). Prune obsolete notes. Terse, one-liner entries. This file is Ralph's private journal to the next Ralph.
    - **@CLAUDE.md / @AGENTS.md** — if a convention, command, or path discovered this iteration applies to every future agent (not just Ralph), promote it to AGENTS.md (or, if Claude-Code-specific, CLAUDE.md). Keep AGENTS.md operational — bloated AGENTS.md pollutes every future loop's context.
-   Commit IP + Ralph.md + AGENTS.md/CLAUDE.md changes alongside the work (same commit is fine). Do NOT push — step 5 handles pushing after the CI gate check.
+   Commit IP + RALPH.md + AGENTS.md/CLAUDE.md changes alongside the work (same commit is fine). Do NOT push — step 5 handles pushing after the CI gate check.
 4. Pre-Push Quality Gate:
    a. Run the project's unit/integration test suite if one exists. Must pass. Exception: if ALL failing tests are listed in IP § ATDD Red Phase, proceed. If ANY failure is NOT in that list, treat as real failure.
    b. Run E2E tests if configured (use `tmux` with fail-fast; re-run failed only with `--last-failed`).
@@ -112,7 +112,7 @@ Native Tasks are your crash journal — update task status as you progress so th
 5. ONE task per iteration — execute, commit, push, exit. No looping back. Each BMad workflow = one full iteration. Never start a new task after completing one.
 6. Never cheat on tests (empty files, hardcoded data, skip verification). Never auto-compact context — exit cleanly instead.
 7. Implement functionality completely. Placeholders and stubs waste. Never suppress push output or ignore push failures.
-8. Keep @AGENTS.md operational only — bloated AGENTS.md pollutes every future loop's context. Document bugs in IP even if unrelated. @Ralph.md is where Ralph-flavored notes live (signposts, lessons, gotchas, decisions); AGENTS.md/CLAUDE.md is for shared operational truth. Never skip the upkeep step (3a) — a Ralph who learned something and didn't write it down wasted the iteration.
+8. Keep @AGENTS.md operational only — bloated AGENTS.md pollutes every future loop's context. Document bugs in IP even if unrelated. @RALPH.md is where Ralph-flavored notes live (signposts, lessons, gotchas, decisions); AGENTS.md/CLAUDE.md is for shared operational truth. Never skip the upkeep step (3a) — a Ralph who learned something and didn't write it down wasted the iteration.
 9. NOW tasks must NOT contain "AND" (compound). Exception: "… and update IP." Decompose: first part NOW, rest QUEUE.
 10. Push before exit — unless CI is in-progress on the PR (pre-push CI gate, step 5). If CI is running, commit IP locally and exit without pushing; unpushed commits carry to the next iteration. Add new tasks to TOP of QUEUE (priority stack).
 11. If inconsistencies in epic/story specs, use Opus subagent with ultrathink to resolve.

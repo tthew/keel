@@ -46,7 +46,7 @@ The install is fresh. There is no product code yet. The first real work is a pla
 
 - `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.
 - Loop prompts live at `PROMPT_build.md` and `PROMPT_plan.md`.
-- `Ralph.md` is Ralph's private journal — signposts, lessons, gotchas, decisions. Ralph reads it on orient and updates it before committing.
+- `RALPH.md` is Ralph's private journal — signposts, lessons, gotchas, decisions. Ralph reads it on orient and updates it before committing.
 - Full reference: [docs/ralph.md](./docs/ralph.md).
 
 ## When you're unsure
