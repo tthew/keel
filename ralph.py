@@ -231,12 +231,14 @@ DEFAULT_TOOL_PROFILES: dict[str, ToolProfile] = {
         binary="claude",
         base_args=["-p", "--output-format", "stream-json", "--verbose"],
         flag_map={
-            "model":    "--model",
-            "effort":   "--effort",
-            "unsafe":   "--dangerously-skip-permissions",
-            "worktree": "--worktree",
-            "debug":    "--debug",
-            "settings": "--settings",
+            "model":           "--model",
+            "effort":          "--effort",
+            "unsafe":          "--dangerously-skip-permissions",
+            "worktree":        "--worktree",
+            "debug":           "--debug",
+            "settings":        "--settings",
+            "max_budget_usd":  "--max-budget-usd",
+            "fallback_model":  "--fallback-model",
         },
         defaults={
             # Opus 4.7 recommends 'xhigh' as the starting point for
@@ -411,7 +413,9 @@ def build_config() -> RalphConfig:
         description="Ralph TUI — unified loop orchestrator + live dashboard",
         usage=(
             "uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]\n"
-            "                    [--tool TOOL] [--model MODEL] [--effort {low,medium,high}]\n"
+            "                    [--tool TOOL] [--model MODEL]\n"
+            "                    [--effort {low,medium,high,xhigh,max}]\n"
+            "                    [--max-budget-usd AMOUNT] [--fallback-model MODEL]\n"
             "                    [--safe | --unsafe] [--debug] [--worktree NAME]\n"
             "                    [--tool-arg KEY=VAL]... [--tool-flag FLAG]...\n"
             "                    [--tool-config PATH]"
@@ -473,6 +477,23 @@ def build_config() -> RalphConfig:
         default=None,
         type=str,
         help="Git worktree name (canonical: 'worktree')",
+    )
+    parser.add_argument(
+        "--max-budget-usd",
+        default=None,
+        type=float,
+        metavar="AMOUNT",
+        help="Cap API spend for each iteration in USD "
+             "(canonical: 'max_budget_usd'). Recommended when running at "
+             "xhigh/max effort.",
+    )
+    parser.add_argument(
+        "--fallback-model",
+        default=None,
+        type=str,
+        metavar="MODEL",
+        help="Fallback model when the primary is overloaded "
+             "(canonical: 'fallback_model').",
     )
     perm_group = parser.add_mutually_exclusive_group()
     perm_group.add_argument(
@@ -540,6 +561,10 @@ def build_config() -> RalphConfig:
         cli_canonicals["debug"] = args.debug
     if args.worktree is not None:
         cli_canonicals["worktree"] = args.worktree
+    if args.max_budget_usd is not None:
+        cli_canonicals["max_budget_usd"] = args.max_budget_usd
+    if args.fallback_model is not None:
+        cli_canonicals["fallback_model"] = args.fallback_model
 
     ignored = [k for k in cli_canonicals if k not in profile.flag_map]
     canonicals: dict[str, Any] = dict(profile.defaults)
