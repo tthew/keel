@@ -1,0 +1,29 @@
+{
+  "tools": {
+    "claude": {
+      "defaults": {
+        "model": "claude-opus-4-7",
+        "effort": "medium"
+      }
+    },
+    "codex": {
+      "defaults": {
+        "model": "gpt-5-codex"
+      }
+    },
+    "my-fork": {
+      "binary": "my-claude-fork",
+      "base_args": ["-p", "--output-format", "stream-json", "--verbose"],
+      "flag_map": {
+        "model": "--model",
+        "effort": "--effort",
+        "unsafe": "--dangerously-skip-permissions",
+        "debug": "--debug"
+      },
+      "defaults": {
+        "unsafe": true
+      },
+      "stream_format": "claude-stream-json"
+    }
+  }
+}
