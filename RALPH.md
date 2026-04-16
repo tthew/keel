@@ -14,7 +14,8 @@ Rules:
 
 Things the next Ralph should know before doing anything.
 
-- _(empty — first Ralph, leave a note here when you learn something another Ralph would want to know before touching this repo)_
+- 2026-04-16: Fresh BMad install — no product code, no planning artifacts. First real work is a planning artifact (PRD / product brief / PRFAQ), not code. Build-mode Ralph cannot produce these; run planning skills (`/bmad-product-brief`, `/bmad-create-prd`) in fresh contexts instead.
+- 2026-04-16: This repo runs Ralph inside worktrees under `.claude/worktrees/` (gitignored). Never `git worktree remove` on exit — the worktree preserves WIP for the next iteration.
 
 ## Lessons learned
 
@@ -32,7 +33,7 @@ Rough edges in tools, flaky tests, odd repo conventions, environment quirks.
 
 Choices made with rationale. Useful when a future Ralph wonders "why did past-Ralph do it this way?"
 
-- _(empty)_
+- 2026-04-16: Closed ralph-port as EPIC_DONE while PR #2 was still Open (not merged). Rationale: all implementation commits were already on the branch, CI was green, no review feedback pending, and merging is a user-authorization action. Halt signals the user to merge, then start planning.
 
 ## Open questions
 
