@@ -234,6 +234,7 @@ DEFAULT_TOOL_PROFILES: dict[str, ToolProfile] = {
             "model":           "--model",
             "effort":          "--effort",
             "unsafe":          "--dangerously-skip-permissions",
+            "permission_mode": "--permission-mode",
             "worktree":        "--worktree",
             "debug":           "--debug",
             "settings":        "--settings",
@@ -416,7 +417,8 @@ def build_config() -> RalphConfig:
             "                    [--tool TOOL] [--model MODEL]\n"
             "                    [--effort {low,medium,high,xhigh,max}]\n"
             "                    [--max-budget-usd AMOUNT] [--fallback-model MODEL]\n"
-            "                    [--safe | --unsafe] [--debug] [--worktree NAME]\n"
+            "                    [--permission-mode MODE] [--safe | --unsafe]\n"
+            "                    [--debug] [--worktree NAME]\n"
             "                    [--tool-arg KEY=VAL]... [--tool-flag FLAG]...\n"
             "                    [--tool-config PATH]"
         ),
@@ -495,6 +497,14 @@ def build_config() -> RalphConfig:
         help="Fallback model when the primary is overloaded "
              "(canonical: 'fallback_model').",
     )
+    parser.add_argument(
+        "--permission-mode",
+        default=None,
+        choices=["acceptEdits", "auto", "bypassPermissions", "default", "dontAsk", "plan"],
+        help="Claude permission mode (canonical: 'permission_mode'). "
+             "More granular than --safe/--unsafe — e.g. 'acceptEdits' to "
+             "auto-accept edits without permission-checking everything.",
+    )
     perm_group = parser.add_mutually_exclusive_group()
     perm_group.add_argument(
         "--safe",
@@ -565,6 +575,8 @@ def build_config() -> RalphConfig:
         cli_canonicals["max_budget_usd"] = args.max_budget_usd
     if args.fallback_model is not None:
         cli_canonicals["fallback_model"] = args.fallback_model
+    if args.permission_mode is not None:
+        cli_canonicals["permission_mode"] = args.permission_mode
 
     ignored = [k for k in cli_canonicals if k not in profile.flag_map]
     canonicals: dict[str, Any] = dict(profile.defaults)

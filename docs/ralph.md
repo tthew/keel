@@ -41,6 +41,7 @@ uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
 | `--effort {low,medium,high,xhigh,max}` | Canonical `effort` (reasoning level). Claude profile default: `xhigh` (per Anthropic's Opus 4.7 guidance for coding / agentic loops). |
 | `--max-budget-usd AMOUNT`  | Canonical `max_budget_usd`. Per-iteration spend cap in USD (claude `--max-budget-usd`). Recommended at `xhigh`/`max` effort.                    |
 | `--fallback-model MODEL`   | Canonical `fallback_model`. Fallback when the primary model is overloaded (claude `--fallback-model`).                                          |
+| `--permission-mode MODE`   | Canonical `permission_mode`. Claude permission mode: `acceptEdits`, `auto`, `bypassPermissions`, `default`, `dontAsk`, `plan`. More granular than `--safe`/`--unsafe`. |
 | `--safe` / `--unsafe`      | Canonical `unsafe` (e.g. claude `--dangerously-skip-permissions`, codex `--skip-git-repo-check`). Defaults to the tool's default (on). |
 | `--debug`, `-d`            | Canonical `debug` flag. claude-only today.                                                                                              |
 | `--worktree NAME`          | Canonical `worktree`. claude-only today.                                                                                                |
