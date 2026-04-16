@@ -42,6 +42,13 @@ The install is fresh. There is no product code yet. The first real work is a pla
 - Branch names: `chore/*`, `feat/*`, `fix/*`, or `docs/*` — match the scope.
 - Never force-push to `main`. Never skip hooks or signing.
 
+## Ralph loop
+
+- `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.
+- Loop prompts live at `PROMPT_build.md` and `PROMPT_plan.md`.
+- `RALPH.md` is Ralph's private journal — signposts, lessons, gotchas, decisions. Ralph reads it on orient and updates it before committing.
+- Full reference: [docs/ralph.md](./docs/ralph.md).
+
 ## When you're unsure
 
 Prefer `/bmad-help` over guessing. If that doesn't resolve it, read the relevant `SKILL.md` under `.claude/skills/` — every skill is self-describing.
