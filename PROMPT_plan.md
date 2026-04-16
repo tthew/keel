@@ -16,7 +16,8 @@
 0b. Study @IMPLEMENTATION_PLAN.md (if present) to understand current state.
 0c. Run `/bmad-help` or read `_bmad/_config/bmad-help.csv` to identify the current BMad phase and the next required gate (PRD, Architecture, Epics & Stories, Implementation Readiness, Sprint Planning, Create Story, Dev Story).
 0d. Study source dirs (anything outside `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`) — if any — to understand what's implemented.
-0e. Study @AGENTS.md for operational context.
+0e. Study @AGENTS.md for operational context. @CLAUDE.md points to it.
+0f. Study @Ralph.md — prior Ralphs may have left signposts, lessons, gotchas, or decisions relevant to planning. Factor them into the gap analysis.
 
 ## Analysis Phase (1-2)
 
@@ -33,6 +34,11 @@
    - Tasks derived from acceptance criteria
    - Discovered gaps and blockers
    - Notes for future Ralphs
+
+2a. **Keep knowledge files current.** Before exiting:
+   - **@Ralph.md** — append dated entries (Signposts / Lessons / Gotchas / Decisions) for anything you learned that the next Ralph should know but that doesn't belong in IP. Prune obsolete notes.
+   - **@CLAUDE.md / @AGENTS.md** — if you uncovered a convention or command that applies to every future agent, promote it to AGENTS.md (or CLAUDE.md if Claude-Code-specific). Keep AGENTS.md operational — no bloat.
+   Commit these alongside the IP update. Planning iterations still commit (to IP, Ralph.md, AGENTS.md/CLAUDE.md) even though they don't commit code.
 
 ## IMPORTANT Constraints
 
