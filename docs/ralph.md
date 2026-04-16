@@ -102,15 +102,3 @@ Since `ralph.py` owns the subprocess (not receiving piped stdin), Textual gets t
 | **Session tracking**   | Cumulative cost and elapsed time across all iterations.                                                                   |
 | **ccusage integration**| If `ccusage` is on `$PATH`, shows 5h billing-block spend and remaining time.                                              |
 | **Session logs**       | Every run writes a log to `ralph-logs/<branch>-<timestamp>.log`. `*.log` is already gitignored.                           |
-
-## Standalone dashboard
-
-`ralph-dashboard.py` still works for ad-hoc piping:
-
-```bash
-claude -p --output-format stream-json < PROMPT_build.md | uv run ralph-dashboard.py
-```
-
-## Legacy `loop.sh`
-
-`loop.sh` is kept as a reference for the pre-TUI workflow. Prefer `ralph.py`.

@@ -7,9 +7,9 @@
 # ///
 """Ralph TUI — Unified loop orchestrator + live dashboard.
 
-Replaces loop.sh + ralph-dashboard.py with a single full-screen Textual app.
-Spawns `claude -p` as a subprocess, reads stream-json stdout, manages the
-iteration loop, and renders everything in a rich TUI.
+Full-screen Textual app. Spawns `claude -p` as a subprocess, reads
+stream-json stdout, manages the iteration loop, and renders everything
+in a rich TUI.
 
 Usage:
     uv run ralph.py                    # build mode, unlimited
@@ -501,7 +501,7 @@ class RalphApp(App):
             f"  Last: {self.last_tool}" if self.last_tool else "  Last: (none)"
         )
 
-    # ── Event processing (ported from ralph-dashboard.py) ──────
+    # ── Event processing ──────────────────────────────────────
 
     def process_event(self, raw_line: str) -> None:
         """Parse a stream-json line and dispatch to handler."""
@@ -771,7 +771,7 @@ class RalphApp(App):
             finally:
                 timer.cancel()
 
-            # Map timeout termination to exit code 124 (matches loop.sh convention)
+            # Map timeout termination to exit code 124 (GNU timeout convention)
             if timed_out.is_set():
                 exit_code = 124
 
