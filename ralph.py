@@ -239,7 +239,9 @@ DEFAULT_TOOL_PROFILES: dict[str, ToolProfile] = {
             "settings": "--settings",
         },
         defaults={
-            "effort":   "medium",
+            # Opus 4.7 recommends 'xhigh' as the starting point for
+            # coding / agentic loops — see Anthropic's migration guide.
+            "effort":   "xhigh",
             "unsafe":   True,
             "settings": json.dumps({"thinking": "adaptive"}),
         },
@@ -456,8 +458,8 @@ def build_config() -> RalphConfig:
     parser.add_argument(
         "--effort",
         default=None,
-        choices=["low", "medium", "high"],
-        help="Reasoning effort (canonical: 'effort')",
+        choices=["low", "medium", "high", "xhigh", "max"],
+        help="Reasoning effort (canonical: 'effort'). Claude profile default: 'xhigh'.",
     )
     parser.add_argument(
         "--debug", "-d",

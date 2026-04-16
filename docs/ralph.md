@@ -38,7 +38,7 @@ uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
 | `--prompt STR`, `-p STR`   | One-shot initial instruction appended to the main prompt on iteration 1 only.                                                           |
 | `--tool TOOL`              | Which AI coding CLI to invoke. Built-ins: `claude`, `codex`, `gemini`. Extend via `.ralph-tools.json`.                                  |
 | `--model MODEL`            | Canonical `model`. Maps to `claude --model`, `codex --model`, `gemini -m`, etc.                                                         |
-| `--effort {low,medium,high}` | Canonical `effort` (reasoning level). Applies to tools that expose it — currently claude.                                             |
+| `--effort {low,medium,high,xhigh,max}` | Canonical `effort` (reasoning level). Claude profile default: `xhigh` (per Anthropic's Opus 4.7 guidance for coding / agentic loops). |
 | `--safe` / `--unsafe`      | Canonical `unsafe` (e.g. claude `--dangerously-skip-permissions`, codex `--skip-git-repo-check`). Defaults to the tool's default (on). |
 | `--debug`, `-d`            | Canonical `debug` flag. claude-only today.                                                                                              |
 | `--worktree NAME`          | Canonical `worktree`. claude-only today.                                                                                                |
