@@ -21,6 +21,8 @@ lastEdited: '2026-04-17'
 editHistory:
   - date: '2026-04-17'
     changes: 'Applied Top 3 polish improvements from validation report: (1) added Agent-Capability Substrate Absorption Risk sub-section to Domain-Specific Requirements; (2) added consolidated Out of Scope sub-section to Product Scope; (3) pinned invariants-sync mechanism sketch in Invariants § and FR43.'
+  - date: '2026-04-17'
+    changes: 'Incorporated upstream Ralph-wiggum (github.com/ghuntley/how-to-ralph-wiggum) canonical patterns and Opus 4.7 migration-guide findings. Added: Model-and-Tooling-Evolution delta catalogue (Domain §); sandbox-is-the-security-boundary preamble (Security-by-Default §); Ralph-prompt-conventions row (Invariants Coverage table); FR7 effort/adaptive-thinking clarification; FR9 task_budget advisory; FR9a stop-reason branching; FR13 thinking.display summarized; FR14a Acceptance-Driven Backpressure; FR14b plan-staleness trigger; FR14c subagent fan-out budget; FR14d per-iteration context meter; FR14e Non-Deterministic Backpressure scaffold; NFR4 tokenizer-aware budgets; NFR4a context-utilisation smart zone; NFR29a model-version-pinned prompt-set; NFR30 breaking-delta catalogue. BMAD upstream currently v6.3.0 (installed version) — no deltas to propagate.'
 inputDocuments:
   - _bmad-output/planning-artifacts/prfaq-ralph-bmad.md
   - _bmad-output/planning-artifacts/prfaq-ralph-bmad-distillate.md
@@ -309,6 +311,23 @@ Two libraries carry correlated-community risk at 1.0: TanStack Start (framework)
 
 Opus 4.7 broke prompts tuned for Opus 4.6 (April 2026 release). Policy: every Keel major version documents the model generation and tooling versions it was tested against. A breaking model upgrade is a triggering event for a major Keel release test-run — not a silent bump.
 
+**Concrete Opus 4.6 → 4.7 deltas that motivate this policy** (sourced from `platform.claude.com/docs/en/about-claude/models/migration-guide`):
+
+- **Extended-thinking API change.** `thinking: { type: "enabled", budget_tokens: N }` now returns 400. Replacement: `thinking: { type: "adaptive" }` with `output_config.effort` tuning. Adaptive thinking is off by default — bare requests run without thinking and appear to stall before first output if the harness waits on reasoning.
+- **Thinking display default.** Previously `summarized`; now `omitted`. Harnesses that treated streaming reasoning as a liveness signal must set `thinking.display = "summarized"` explicitly.
+- **Sampling knobs removed.** Non-default `temperature` / `top_p` / `top_k` return 400. Steering happens via prompt phrasing and `effort` alone.
+- **Assistant-message prefills removed.** Replaced by structured outputs, `output_config.format`, or explicit system instructions.
+- **Tokenizer re-baseline.** Up to ~35% more tokens per byte for the same text on Opus 4.7. `max_tokens`, compaction triggers, and the ~117K iteration budget must be re-calibrated per model version.
+- **More literal instruction following.** Opus 4.7 does not silently generalise one-item examples to siblings. Prompt scaffolding must spell out every rule.
+- **Fewer subagents and tool calls by default.** Ralph-style fan-out must be explicitly prompted; raise `effort` to `high`/`xhigh` to restore Opus-4.6-equivalent spawn rates.
+- **Positive examples preferred over negative instructions.** "Positive examples showing how Claude can communicate with the appropriate level of concision tend to be more effective than negative examples."
+- **New stop reason.** `model_context_window_exceeded` is now distinct from `max_tokens`. Harnesses must branch on it.
+- **`task_budget` beta advisory.** Header `task-budgets-2026-03-13`, 20K minimum; model-visible running counter distinct from `max_tokens` that paces thinking + tool calls + output across an iteration. Not a hard cap — a suggestion. Keel will adopt it for per-iteration token pacing where supported.
+- **Dropped beta headers.** `fine-grained-tool-streaming-2025-05-14`, `interleaved-thinking-2025-05-14`, `effort-2025-11-24` are all GA-merged. Keel prompts must not carry them.
+- **Expanded cybersecurity refusal class.** Legitimate pentest/vuln workflows require the Cyber Verification Program; relevant to forks in regulated-compliance or security-research territory, not substrate-default.
+
+Each delta above is a reason the substrate's prompt-set is pinned per major Keel version (see NFR29a) and why a breaking model upgrade is treated as a major-release test-run event (NFR30).
+
 ### Agent-Capability Substrate Absorption Risk
 
 The PRFAQ named this as Keel's top existential risk. As agent capability grows — larger context windows, better long-horizon coherence, more sophisticated tool use — the load-bearing decisions Keel encodes as invariants may become reproducible on-the-fly by a sufficiently capable agent operating directly on an empty repo. If that happens, the substrate category itself collapses.
@@ -565,6 +584,10 @@ Keel absorbs Ralph at a specific commit. Monthly upstream diff review (per `ralp
 
 Security is a non-negotiable core requirement — equivalent in status to i18n, quality gates, and RLS. Every Ralph iteration must implement and verify security with structured evidence. The sandbox from Execution Environment is the starting point, not the full story.
 
+### Sandbox is the security boundary
+
+Agent execution under `--dangerously-skip-permissions` has no recoverable operating mode — once the permission system is bypassed, the only thing between an agent-authored action and the host is the sandbox boundary. The substrate's contract, accordingly, is blast-radius minimization: scoped credentials (tokens live in the devbox volume, never the host), scoped network (default-deny DNS whitelist), scoped filesystem (tmpfs noexec/nosuid for ephemeral paths; read-only mounts where possible), scoped kernel capabilities (NET_ADMIN/NET_RAW only). This mirrors the upstream Ralph-wiggum canonical guidance (*"Use protection — the sandbox is your only security boundary; not if popped, but when"* — `github.com/ghuntley/how-to-ralph-wiggum`) but pins Keel's specific substrate controls rather than leaving the boundary to fork-operator judgement.
+
 ### Baseline reference
 
 Keel adopts **OWASP Top 10:2025**, **ASVS Level 1**, and **OWASP Top 10 for Agentic Applications (2026)** as the substrate security baseline (see `github.com/agamm/claude-code-owasp`). ASVS Level 2+ is a Tier-2 unstub for forks with regulated-compliance needs.
@@ -643,6 +666,7 @@ A pre-merge quality gate verifies the three layers don't drift. If `packages/kee
 | Repo structure / package boundaries       | ESLint `no-restricted-imports` + TS project refs                                                              | INVARIANTS.md §structure + CLAUDE.md package map       | docs/invariants/repo.md             |
 | Backend technology constraints            | Substrate packages physically depend on Prisma, better-auth, pg-boss, Paddle, Resend, OTel                    | INVARIANTS.md §backend                                 | docs/invariants/backend.md          |
 | Client technology constraints             | `apps/web` built on TanStack Start; UI uses Tailwind, tRPC, RHF, Zod, Zustand                                  | INVARIANTS.md §client                                  | docs/invariants/client.md           |
+| Ralph prompt conventions (model-pinned)   | `.ralph/PROMPT_*.md` template contract: adaptive thinking + explicit `effort`; `thinking.display = "summarized"`; no sampling knobs; no prefills; positive examples; explicit subagent-triggering phrasing; fan-out cap invariant (1 Sonnet per build/test) | INVARIANTS.md §prompts                                 | docs/invariants/prompts.md          |
 
 ### Extension / override model for forks
 
@@ -668,14 +692,20 @@ The thesis *"invariants beat conventions beat docs"* applies to the invariants t
 
 ### Autonomous Agent Loop
 
-- **FR7**: Agent can execute a multi-iteration loop against a committed plan (`.ralph/@plan.md`) inside the devbox.
+- **FR7**: Agent can execute a multi-iteration loop against a committed plan (`.ralph/@plan.md`) inside the devbox, invoking `claude -p` with adaptive thinking and an explicit `effort` setting (default `xhigh` for build iterations, `high` for plan iterations) per Opus 4.7 conventions.
 - **FR8**: System can halt the Ralph loop on a configurable threshold of consecutive test failures or security-verification failures (see Security Verification & Evidence).
-- **FR9**: System can halt the Ralph loop on task-budget exhaustion per iteration.
+- **FR9**: System can halt the Ralph loop on task-budget exhaustion per iteration, using the model-visible `task_budget` advisory counter (beta header `task-budgets-2026-03-13`, ≥ 20K) where available and `max_tokens` as the hard invisible ceiling.
+- **FR9a**: System can branch halt handling between `max_tokens` and `model_context_window_exceeded` stop reasons, persisting which applied to each iteration for budget-re-baseline analysis.
 - **FR10**: Developer can detach from a running Ralph loop (loop continues executing) and later re-attach to observe state.
 - **FR11**: Developer can query Ralph state without attaching via `pnpm ralph:status`.
 - **FR12**: Developer can halt the Ralph loop cleanly via `pnpm ralph:stop`.
-- **FR13**: System can persist Ralph iteration logs in `stream-json` format for replay and debugging.
+- **FR13**: System can persist Ralph iteration logs in `stream-json` format for replay and debugging, with `thinking.display = "summarized"` enabled so reasoning traces are preserved across the omitted-by-default Opus 4.7 behaviour.
 - **FR14**: System can require conventional-commit format for all commit messages, regardless of authorship.
+- **FR14a (Acceptance-Driven Backpressure)**: System can require the Ralph plan file to enumerate a `Required tests:` list per task (derived from story / spec acceptance criteria by the `bmad-create-story` and `bmad-agent-dev` skills). A build iteration cannot mark a task done until every listed test passes; the list covers functional, integration, RLS-policy, and security-verification tests uniformly (FR35–FR40).
+- **FR14b (Plan-staleness trigger)**: System can detect plan staleness (plan artefact older than a configured threshold relative to repo activity, or the same task advanced across N consecutive iterations without progress) and automatically schedule a plan-mode regeneration rather than silently looping. Default thresholds: 5 no-progress iterations, or 72 hours of plan-artefact age against an active repo.
+- **FR14c (Subagent fan-out budget)**: System can configure a substrate-default subagent fan-out cap (Sonnet-class read/search subagents) with a documented default of 250 parallel and a ceiling of 500. The build/test backpressure rule — **at most one Sonnet subagent for any build, test, or lint command per iteration** — is a non-toggle-able invariant enforced by the Ralph prompt contract, not a tunable.
+- **FR14d (Per-iteration context meter)**: Agent can emit structured context-utilisation metrics per iteration (advertised-vs-usable context window, specs load, orient load, execute load, output load, percentage utilisation) to `.ralph/logs/<iteration-id>/context-meter.json`. Triggers: exit cleanly above 80% utilisation; flag above 60% so loop-level observability can spot drift.
+- **FR14e (Non-Deterministic Backpressure scaffold)**: Developer can opt a task into LLM-as-judge acceptance via a fixture (pattern-named `lib/llm-review.ts`) that runs a scoped Opus-class subagent against the diff with the task's subjective acceptance criteria and returns pass/fail. Failure counts as a test failure under FR8 backpressure. Growth-tier default; 1.0 ships the pattern contract so fork-authored fixtures are interoperable.
 
 ### Tenant Isolation
 
@@ -768,7 +798,8 @@ These capabilities are pre-wired in every Keel-forked project. Forks can extend 
 - **NFR1**: The 60-minute CI integration test completes in under 60 minutes on a standard GitHub Actions runner. Non-toggle-able. Red build if exceeded.
 - **NFR2**: Devbox cold-start (first-run build) completes within 5 minutes on Apple-Silicon-class hardware; warm-start (container reuse) within 30 seconds. Targets to be validated during M0.5.
 - **NFR3**: RLS query overhead is measurable, monitored, and held below a threshold set in the architecture doc. Budget deferred.
-- **NFR4**: Ralph iteration startup (context load, task parse, agent spawn) completes within 20 seconds; iteration task-budget is enforced.
+- **NFR4**: Ralph iteration startup (context load, task parse, agent spawn) completes within 20 seconds; iteration task-budget is enforced. Token budgets (`max_tokens`, execution ceiling, compaction triggers) are tokenizer-aware and re-baselined per tested model version — Opus 4.7's tokenizer emits up to ~35% more tokens per byte than Opus 4.6 for the same text, so fixed numeric budgets cannot transfer across major model versions without re-measurement.
+- **NFR4a (Context utilisation smart zone)**: Ralph iterations aim for 40–60% utilisation of the advertised context window (200K advertised ≈ 176K usable for Opus 4.7; 117K execution budget target). Iterations exceeding 80% trigger a clean-exit budget signal; iterations below 30% are flagged as under-utilised for potential task-batching review. Smart-zone metrics are emitted by FR14d's per-iteration context meter.
 
 ### Security
 
@@ -812,7 +843,8 @@ These capabilities are pre-wired in every Keel-forked project. Forks can extend 
 ### Maintainability
 
 - **NFR29**: Substrate steady-state maintenance (triage, fixes, upgrades) stays at 5-10 hours per month. Sustained > 15 hours/month triggers scope-cut or archive per the Business Success kill criterion.
-- **NFR30**: Every Keel major version documents the tested model generation (e.g., Opus 4.7), Claude Code CLI version, BMad version, and Ralph version. A breaking upstream model upgrade triggers a new major version test-run.
+- **NFR29a (Model-version-pinned prompt-set)**: Keel's Ralph prompt templates (`.ralph/PROMPT_build.md`, `.ralph/PROMPT_plan.md`, and `packages/keel-templates/PROMPT_*.template.md`) are pinned to a specific model generation per major Keel version. Minor Keel versions inherit the prompt-set unchanged; major Keel versions may diverge and must record the tested model generation + prompt delta in release notes. This anchors the Opus-4.6→4.7-style breaking-prompt risk to major-version cadence rather than ambient drift.
+- **NFR30**: Every Keel major version documents the tested model generation (e.g., Opus 4.7), Claude Code CLI version, BMad version, and Ralph version. A breaking upstream model upgrade triggers a new major version test-run. "Breaking" is evaluated against Domain-Specific Requirements § Model and Tooling Evolution delta catalogue and includes, at minimum: extended-thinking API changes, thinking-display default flips, sampling-knob removals, tokenizer re-baselines, prefill-handling changes, instruction-following literality shifts, default subagent/tool-call spawn-rate changes, and new stop-reason introductions. Silent (non-breaking) upgrades do not trigger a major — but the policy defaults to "treat as breaking" if the delta is ambiguous.
 - **NFR31**: The Invariants stack's three layers (machine-enforced, agent-readable, documented) are kept in sync by a pre-merge gate; drift between layers fails the build.
 
 ### Observability

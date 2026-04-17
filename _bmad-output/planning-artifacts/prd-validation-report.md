@@ -29,10 +29,12 @@ validationStepsCompleted:
   - step-v-12-completeness-validation
   - step-v-13-report-complete
   - revalidation-post-edit
+  - revalidation-v3-upstream-ralph-opus47
 validationStatus: COMPLETE
 holisticQualityRating: '5/5 - Excellent'
 overallStatus: Pass
 revalidationStatus: Pass
+revalidationV3Status: Pass
 ---
 
 # PRD Validation Report
@@ -769,5 +771,140 @@ None.
 1. The substrate-invariant technology contract (per v1 implementation-leakage validator note).
 2. The manifest+hash sync mechanism (now PRD-level commitment, architecture-doc implementation scope).
 3. The four-concern Domain § framing for agentic-execution risk surface.
+
+---
+
+# Post-Edit Re-Validation (v3) — Upstream Ralph-wiggum + Opus 4.7 integration
+
+**Re-validation Date:** 2026-04-17
+**Edit Scope:** Incorporated canonical `github.com/ghuntley/how-to-ralph-wiggum` patterns and Claude Opus 4.7 migration-guide findings into the PRD. No BMAD upstream deltas propagated (v6.3.0 is installed version; no newer release). Full change set enumerated in prd.md frontmatter `editHistory[1]`.
+
+### Changes landed
+
+**New or expanded sections:**
+- Domain-Specific Requirements § Model and Tooling Evolution — added concrete Opus 4.6 → 4.7 breaking-change catalogue (extended-thinking API, thinking display default, sampling knobs, prefills, tokenizer re-baseline, literal instruction following, subagent/tool spawn-rate defaults, new stop reason, `task_budget` beta, dropped beta headers, expanded cybersecurity refusal class).
+- Security-by-Default § — new "Sandbox is the security boundary" preamble, paraphrased from upstream with explicit reference to `github.com/ghuntley/how-to-ralph-wiggum`.
+- Invariants § Coverage table — new row for "Ralph prompt conventions (model-pinned)".
+
+**New FRs:** FR9a (stop-reason branching), FR14a (Acceptance-Driven Backpressure), FR14b (Plan-staleness trigger), FR14c (Subagent fan-out budget), FR14d (Per-iteration context meter), FR14e (Non-Deterministic Backpressure scaffold).
+
+**Updated FRs:** FR7 (adaptive thinking + effort), FR9 (task_budget advisory), FR13 (thinking.display summarized).
+
+**New NFRs:** NFR4a (Context utilisation smart zone, 40–60% target), NFR29a (Model-version-pinned prompt-set).
+
+**Updated NFRs:** NFR4 (tokenizer-aware budgets, re-baseline per model version), NFR30 (enumerated breaking-delta catalogue + "default to breaking" tiebreaker).
+
+### Re-Validation Summary Table
+
+| Check                         | v2 Result                                         | v3 Result                                          | Δ         |
+|-------------------------------|---------------------------------------------------|----------------------------------------------------|-----------|
+| Format                        | BMAD Standard (6/6 + 9 supplementary)             | BMAD Standard (6/6 + 9 supplementary)              | unchanged |
+| Information Density           | Pass (0 violations)                               | Pass (0 violations)                                | unchanged |
+| Product Brief Coverage        | Excellent ~98%                                    | Excellent ~98%                                     | unchanged |
+| Measurability                 | Pass (0 FR, 2 NFR deferrals)                      | Pass (0 FR, 2 NFR deferrals)                       | unchanged |
+| Traceability                  | Pass (0 orphans)                                  | Pass (0 orphans)                                   | unchanged |
+| Implementation Leakage        | Pass (0 unintentional)                            | Pass (0 unintentional)                             | unchanged |
+| Domain Compliance             | Pass (4 concerns)                                 | Pass (4 concerns, delta catalogue now concrete)    | **improved** |
+| Project-Type Compliance       | 100%                                              | 100%                                               | unchanged |
+| SMART Quality                 | 100% ≥ 4 (avg 4.83/5)                             | 100% ≥ 4 (avg ~4.83/5; 70 FRs total)               | unchanged (scaled) |
+| Holistic Quality              | 5/5 — Excellent                                   | 5/5 — Excellent                                    | unchanged |
+| Completeness                  | 100%                                              | 100%                                               | unchanged |
+
+### Detailed Findings by Check
+
+**Format Detection:** All six core sections intact. New content lives inside existing `##` L2 parents (Domain §, Security-by-Default §, Invariants §, Functional Requirements §, Non-Functional Requirements §). No structural changes. ✓
+
+**Information Density:** 0 anti-pattern violations in added content (scanned: filler, wordy, redundant, subjective adjectives, vague quantifiers — clean). New FR/NFR phrasing keeps the active-voice capability style intact. ✓
+
+**Product Brief Coverage:** No new brief material to cover; improvements strengthen the PRD's alignment with the upstream Ralph-wiggum canonical — a source outside the original input-documents set. The addition of "sandbox is the security boundary" explicitly cites the upstream. ✓
+
+**Measurability:**
+- 6 new FRs (FR9a, FR14a, FR14b, FR14c, FR14d, FR14e): all use `[Actor] can [capability]` format. All have testable enforcement (manifest files, plan-file schema, log-file format, pre-merge gates).
+- 2 new NFRs (NFR4a, NFR29a): NFR4a has concrete percentages (40/60/80/30); NFR29a is enforced via release-notes + version-pinned template files.
+- Updated FR/NFRs (FR7, FR9, FR13, NFR4, NFR30): added concrete parameters (effort levels, beta-header names, display flags, tokenizer ratios, breaking-delta list).
+- Still 0 FR violations, 2 NFR explicit deferrals (NFR3, NFR19 — unchanged). ✓
+
+**Traceability:**
+- FR9a → Opus 4.7 `model_context_window_exceeded` stop reason (Domain § Model and Tooling Evolution).
+- FR14a (ADB) → upstream Ralph-wiggum canonical enhancement; couples to FR8 backpressure and FR35–FR40 security verifications — all pre-existing, now unified as "Required tests" regardless of category.
+- FR14b (plan-staleness) → Journey 3 backpressure branch; supports Executive Summary "agent coherence" mechanism.
+- FR14c (fan-out) → substrate default closing the v1 spec gap ("Our 0e just says 'use Sonnet subagents'" per research agent's delta report).
+- FR14d (context meter) → NFR4a smart-zone enforcement couple.
+- FR14e (NDB scaffold) → Growth-tier; traced to upstream non-deterministic backpressure pattern.
+- NFR4a (smart zone) → Ralph-wiggum canonical context math.
+- NFR29a (model-pinned prompts) → Domain § Model and Tooling Evolution + NFR30 major-version trigger.
+- NFR30 update → makes existing NFR30 concrete via Domain § delta catalogue.
+- No new orphan FRs; all chains intact. ✓
+
+**Implementation Leakage:**
+- Opus 4.7-specific technical terms (`thinking.display`, `task_budget`, `model_context_window_exceeded`, `effort`, `xhigh`, beta header strings): substrate-invariant contract surface. The whole point of the PRD's new Model and Tooling Evolution delta catalogue is that these are the substrate's pinned model-version commitments, not implementation detail.
+- `lib/llm-review.ts` (FR14e): pattern-name for NDB scaffold contract — capability-relevant, forks opt in by matching the pattern.
+- `.ralph/logs/<iteration-id>/context-meter.json` (FR14d): file-format contract surface, like the existing `security-evidence.json` contract.
+- No new unintentional leakage. ✓
+
+**Domain Compliance:**
+- Domain § Model and Tooling Evolution went from a 3-sentence sub-section to a full breaking-delta catalogue with 12 concrete items + governance rationale.
+- Voluntary coverage quality improves: the PRD now surfaces the Opus 4.7-specific risk surface (literal-instruction-following shift, fewer default subagents, new stop reason) rather than treating it as abstract "breaking upgrade" risk.
+- General domain classification unchanged; regulated-domain checks still N/A. ✓
+
+**Project-Type Compliance:** No structural changes to developer_tool / cli_tool / saas_b2b coverage. 100% maintained. ✓
+
+**SMART Quality:**
+- FR count rises from 64 to 70 (6 new FRs added).
+- NFR count rises from 33 to 35 (2 new NFRs added).
+- New FRs scored individually: all ≥ 4 on every SMART dimension.
+  - FR9a: 5/5/5/5/5 (Specific effort-parameter behaviour, measurable via persisted stop-reason log)
+  - FR14a: 5/5/5/5/5 (ADB schema + test-requirement tracking well-specified)
+  - FR14b: 5/5/4/5/5 (Attainable 4 because staleness heuristics need field-tuning; N and threshold defaults acknowledged as starting values)
+  - FR14c: 5/5/5/5/5 (fan-out default 250 / ceiling 500 / backpressure 1 — all concrete)
+  - FR14d: 5/5/5/5/5 (file-format contract + percentages concrete)
+  - FR14e: 4/5/4/4/5 (Growth-tier scaffold; Specific 4 because the fixture shape is sketched; Attainable 4 for Growth; Relevant 4 since some forks won't opt in)
+- New NFRs: NFR4a 5/5/5/5/5; NFR29a 5/5/5/5/5.
+- Updates: FR7, FR9, FR13, NFR4, NFR30 all gain Specificity (4→5 or 5→5 with richer content).
+- Overall FR average holds at ~4.83/5 with the 70-FR count. All 70 still ≥ 4 on every dimension. 0 flagged. ✓
+
+**Holistic Quality:**
+- Document flow: the Domain § delta catalogue replaces a short abstract sentence with a concrete enumeration — improves dual-audience effectiveness for both human maintainers (know exactly what broke) and downstream LLMs (have a grep-able list of Opus 4.7 behaviours to honour).
+- Ralph prompt conventions row in Invariants table gives a single locator for all prompt-related pinning commitments.
+- Security-by-Default preamble names what was previously implicit (sandbox-is-the-only-line) with an upstream reference — strengthens the "why" without bloating the "what".
+- BMAD principles: all 7 still Met. Rating: 5/5 maintained. ✓
+
+**Completeness:**
+- Zero template variables in added content (scanned: `{variable}`, `[TBD]`, `[TODO]`, `[FILL IN]`, `[PLACEHOLDER]`, `XXX`, `FIXME`).
+- Frontmatter updated with v3 `editHistory[1]` entry enumerating all changes.
+- All sections still complete. ✓
+
+### Re-Validation Verdict
+
+**Overall Status:** Pass (maintained across v1 → v2 → v3).
+
+**Regressions:** None.
+
+**Improvements:**
+- Opus 4.7 breaking changes now concretely catalogued rather than abstract.
+- Ralph canonical patterns (ADB, NDB, fan-out budget, context meter, plan staleness) now PRD-level commitments, not implicit.
+- Sandbox-as-security-boundary stance now explicit with upstream reference.
+- Model-version-pinned prompt-set makes NFR30's major-version trigger mechanical rather than judgement-based.
+
+**Remaining polish items (unchanged from v2, still non-blocking):**
+- Paddle-specific single-event risk not named.
+- Three pro-personas not named.
+- Date in body vs frontmatter.
+
+### Recommendation
+
+**Proceed to next BMad phase.** The PRD has now absorbed:
+1. Validation-driven polish (v2 edit pass).
+2. Upstream Ralph-wiggum canonical patterns (v3 edit pass).
+3. Opus 4.7 migration-guide delta catalogue (v3 edit pass).
+
+Architecture-doc inheritance obligations:
+- Substrate-invariant technology contract (unchanged).
+- Manifest+hash invariants-sync (unchanged).
+- Four-concern Domain § framing (unchanged).
+- **New:** Opus 4.7 prompt conventions pinned per major Keel version (NFR29a). Architecture doc should detail the version-pinning mechanism (e.g., `packages/keel-templates/PROMPT_*.template.md` naming scheme and major-version-aware template resolution).
+- **New:** Ralph plan-file schema extension for `Required tests:` (FR14a). Architecture doc should pin the plan-file grammar and the `bmad-create-story` / `bmad-agent-dev` emission of the list.
+- **New:** Per-iteration context-meter log format (FR14d). Architecture doc should define the JSON schema.
+
 
 
