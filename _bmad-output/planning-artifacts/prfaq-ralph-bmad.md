@@ -1,6 +1,6 @@
 ---
 title: "PRFAQ: Keel"
-status: "complete"
+status: "superseded-on-thesis"
 created: "2026-04-17"
 updated: "2026-04-17"
 stage: 5
@@ -9,6 +9,14 @@ inputs:
   - "AGENTS.md"
   - "CLAUDE.md"
   - "RALPH.md"
+postPivotNote: |
+  This PRFAQ predates the thesis pivot applied to the PRD on 2026-04-17.
+  The pivot reframes source-layer hardwired invariants as setup-time wizard-pinned invariants,
+  escalates the Keel CLI + wizard to MVP scope (M0.6, M0.7), and adds four product shapes
+  (SaaS-B2B default, Marketplace, B2C, API-first) as wizard choices.
+  Phrases in this PRFAQ like "hardwired", "adapter minimalism with exactly two deliberate exceptions",
+  and "no marketplace / B2C / API-first" reflect the pre-pivot positioning.
+  See `_bmad-output/planning-artifacts/prd.md` editHistory for authoritative current thesis.
 ---
 
 <!-- coaching-notes-stage-1 -->

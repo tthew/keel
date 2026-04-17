@@ -4,6 +4,13 @@ type: llm-distillate
 source: "prfaq-ralph-bmad.md"
 created: "2026-04-17"
 purpose: "Token-efficient context for downstream PRD creation"
+status: "superseded-on-thesis"
+postPivotNote: |
+  Distillate predates the thesis pivot applied to the PRD on 2026-04-17
+  (hardwired invariants → setup-time wizard-pinned invariants; Keel CLI + wizard escalated to MVP;
+  marketplace / B2C / API-first added as wizard shapes). Authoritative current thesis lives in
+  `_bmad-output/planning-artifacts/prd.md`; use the PRD (not this distillate) as downstream input
+  after 2026-04-17.
 ---
 
 # PRFAQ Distillate: Keel
