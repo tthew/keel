@@ -12,11 +12,21 @@ stream-json stdout, manages the iteration loop, and renders everything
 in a rich TUI.
 
 Usage:
-    uv run ralph.py                    # build mode, unlimited
-    uv run ralph.py build 5            # build mode, max 5 iterations
-    uv run ralph.py plan               # plan mode, unlimited
-    uv run ralph.py plan 3 --debug     # plan mode, 3 iters, debug
-    uv run ralph.py --timeout 30m      # custom per-iteration timeout
+    uv run ralph.py                                 # build mode, unlimited
+    uv run ralph.py build 5                         # build mode, 5 iterations
+    uv run ralph.py plan                            # plan mode, unlimited
+    uv run ralph.py plan 3 --debug                  # plan mode, 3 iters, debug
+    uv run ralph.py --timeout 30m                   # custom per-iteration timeout
+    uv run ralph.py plan -p "focus on Epic 2"       # seed first iteration
+    uv run ralph.py --tool codex                    # use codex instead of claude
+    uv run ralph.py --model claude-opus-4-7         # specific model
+    uv run ralph.py --effort high                   # claude reasoning effort
+    uv run ralph.py --safe                          # don't skip permissions
+    uv run ralph.py --tool-flag --resume            # raw flag passthrough
+    uv run ralph.py --tool-arg --allowed-tools=Bash # raw arg passthrough
+
+Per-project defaults and custom tools can live in .ralph-tools.json (CWD) —
+see docs/ralph.md for the schema.
 """
 
 from __future__ import annotations
@@ -30,10 +40,10 @@ import subprocess
 import sys
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 from textual.app import App, ComposeResult
 from textual.containers import Container
@@ -193,7 +203,162 @@ def extract_tool_detail(tool_input: dict) -> str:
     return ""
 
 
+# ── Tool profiles ──────────────────────────────────────────────
+
+# Canonical concept → per-tool CLI flag. Absence means the tool doesn't
+# expose that concept; Ralph silently skips it (and warns if the user
+# explicitly set it on the CLI).
+#
+# Value semantics inside the canonical dict:
+#   True     → emit the bare flag
+#   False/None → skip
+#   str/int  → emit [flag, str(value)]
+
+
+@dataclass
+class ToolProfile:
+    name: str
+    binary: str
+    base_args: list[str] = field(default_factory=list)
+    flag_map: dict[str, str] = field(default_factory=dict)
+    defaults: dict[str, Any] = field(default_factory=dict)
+    stream_format: str = "plain"  # "claude-stream-json" | "plain"
+
+
+DEFAULT_TOOL_PROFILES: dict[str, ToolProfile] = {
+    "claude": ToolProfile(
+        name="claude",
+        binary="claude",
+        base_args=["-p", "--output-format", "stream-json", "--verbose"],
+        flag_map={
+            "model":           "--model",
+            "effort":          "--effort",
+            "unsafe":          "--dangerously-skip-permissions",
+            "permission_mode": "--permission-mode",
+            "worktree":        "--worktree",
+            "debug":           "--debug",
+            "settings":        "--settings",
+            "max_budget_usd":  "--max-budget-usd",
+            "fallback_model":  "--fallback-model",
+        },
+        defaults={
+            # Opus 4.7 recommends 'xhigh' as the starting point for
+            # coding / agentic loops — see Anthropic's migration guide.
+            "effort":   "xhigh",
+            "unsafe":   True,
+            "settings": json.dumps({"thinking": "adaptive"}),
+        },
+        stream_format="claude-stream-json",
+    ),
+    "codex": ToolProfile(
+        name="codex",
+        binary="codex",
+        base_args=["exec"],
+        flag_map={
+            "model":  "--model",
+            "unsafe": "--skip-git-repo-check",
+        },
+        defaults={"unsafe": True},
+        stream_format="plain",
+    ),
+    "gemini": ToolProfile(
+        name="gemini",
+        binary="gemini",
+        base_args=[],
+        flag_map={"model": "-m"},
+        defaults={},
+        stream_format="plain",
+    ),
+}
+
+
+def _clone_profile(p: ToolProfile) -> ToolProfile:
+    return ToolProfile(
+        name=p.name,
+        binary=p.binary,
+        base_args=list(p.base_args),
+        flag_map=dict(p.flag_map),
+        defaults=dict(p.defaults),
+        stream_format=p.stream_format,
+    )
+
+
+def load_tool_profiles(config_path: Path) -> dict[str, ToolProfile]:
+    """Return merged tool profiles: in-code defaults + optional project config.
+
+    The config file shape:
+        {
+          "tools": {
+            "<known-name>": {
+              "defaults":         { "<canonical>": <value>, ... },
+              "base_args_append": [ ... ],
+              "flag_map_append":  { "<canonical>": "<flag>", ... },
+              "stream_format":    "plain" | "claude-stream-json"
+            },
+            "<new-name>": {
+              "binary":        "bin",
+              "base_args":     [ ... ],
+              "flag_map":      { ... },
+              "defaults":      { ... },
+              "stream_format": "plain"
+            }
+          }
+        }
+
+    Unknown tool entries register a brand-new profile (must supply `binary`).
+    """
+    profiles = {name: _clone_profile(p) for name, p in DEFAULT_TOOL_PROFILES.items()}
+
+    if not config_path.exists():
+        return profiles
+
+    try:
+        data = json.loads(config_path.read_text())
+    except json.JSONDecodeError as e:
+        print(f"Error: invalid JSON in {config_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    tools_data = data.get("tools", {})
+    if not isinstance(tools_data, dict):
+        print(f"Error: {config_path}: 'tools' must be an object", file=sys.stderr)
+        sys.exit(1)
+
+    for name, spec in tools_data.items():
+        if not isinstance(spec, dict):
+            print(f"Error: {config_path}: tools.{name} must be an object", file=sys.stderr)
+            sys.exit(1)
+
+        if name in profiles:
+            prof = profiles[name]
+            if "defaults" in spec:
+                prof.defaults.update(spec["defaults"])
+            if "base_args_append" in spec:
+                prof.base_args.extend(spec["base_args_append"])
+            if "flag_map_append" in spec:
+                prof.flag_map.update(spec["flag_map_append"])
+            if "stream_format" in spec:
+                prof.stream_format = spec["stream_format"]
+        else:
+            if "binary" not in spec:
+                print(
+                    f"Error: {config_path}: new tool '{name}' is missing 'binary'",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            profiles[name] = ToolProfile(
+                name=name,
+                binary=spec["binary"],
+                base_args=list(spec.get("base_args", [])),
+                flag_map=dict(spec.get("flag_map", {})),
+                defaults=dict(spec.get("defaults", {})),
+                stream_format=spec.get("stream_format", "plain"),
+            )
+
+    return profiles
+
+
 # ── Config ─────────────────────────────────────────────────────
+
 
 @dataclass
 class RalphConfig:
@@ -201,16 +366,62 @@ class RalphConfig:
     prompt_file: str = "PROMPT_build.md"
     max_iterations: int = 0
     timeout_seconds: float = 7200.0  # 120m default
-    debug: bool = False
     branch: str = ""
     task_list_id: str = ""
-    worktree: str = ""
+    initial_prompt: str = ""
+    tool: str = "claude"
+    profile: ToolProfile = field(default_factory=lambda: _clone_profile(DEFAULT_TOOL_PROFILES["claude"]))
+    canonicals: dict[str, Any] = field(default_factory=dict)
+    ignored_canonicals: list[str] = field(default_factory=list)
+    tool_args: list[tuple[str, str]] = field(default_factory=list)
+    tool_flags: list[str] = field(default_factory=list)
+
+
+def _parse_tool_arg(raw: str) -> tuple[str, str]:
+    if "=" not in raw:
+        raise argparse.ArgumentTypeError(
+            f"--tool-arg expects KEY=VAL (got {raw!r})"
+        )
+    k, v = raw.split("=", 1)
+    if not k:
+        raise argparse.ArgumentTypeError(f"--tool-arg KEY must be non-empty (got {raw!r})")
+    return (k, v)
+
+
+def build_cli_cmd(cfg: RalphConfig) -> list[str]:
+    """Render argv from the resolved profile + canonical overrides + passthrough."""
+    prof = cfg.profile
+    cmd = [prof.binary, *prof.base_args]
+    for key, value in cfg.canonicals.items():
+        flag = prof.flag_map.get(key)
+        if flag is None:
+            continue
+        if value is None or value is False:
+            continue
+        if value is True:
+            cmd.append(flag)
+        else:
+            cmd.extend([flag, str(value)])
+    for k, v in cfg.tool_args:
+        cmd.extend([k, v])
+    for f in cfg.tool_flags:
+        cmd.append(f)
+    return cmd
 
 
 def build_config() -> RalphConfig:
     parser = argparse.ArgumentParser(
         description="Ralph TUI — unified loop orchestrator + live dashboard",
-        usage="uv run ralph.py [build|plan] [N] [--debug] [--timeout T]",
+        usage=(
+            "uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]\n"
+            "                    [--tool TOOL] [--model MODEL]\n"
+            "                    [--effort {low,medium,high,xhigh,max}]\n"
+            "                    [--max-budget-usd AMOUNT] [--fallback-model MODEL]\n"
+            "                    [--permission-mode MODE] [--safe | --unsafe]\n"
+            "                    [--debug] [--worktree NAME]\n"
+            "                    [--tool-arg KEY=VAL]... [--tool-flag FLAG]...\n"
+            "                    [--tool-config PATH]"
+        ),
     )
     parser.add_argument(
         "mode",
@@ -227,24 +438,149 @@ def build_config() -> RalphConfig:
         help="Maximum iterations (default: unlimited)",
     )
     parser.add_argument(
-        "--debug", "-d",
-        action="store_true",
-        help="Pass --debug to claude",
-    )
-    parser.add_argument(
         "--timeout",
         default=os.environ.get("ITERATION_TIMEOUT", "120m"),
         help="Per-iteration timeout (e.g. 15m, 2h, 90s). Default: 120m",
     )
-
     parser.add_argument(
-        "--worktree",
+        "--prompt", "-p",
         default="",
         type=str,
-        help="Name of Git worktree to pass to Claude",
+        help="Initial instruction appended to the main prompt on the first iteration only",
+    )
+    parser.add_argument(
+        "--tool",
+        default="claude",
+        type=str,
+        help="AI coding CLI tool to invoke per iteration (default: claude). "
+             "Additional tools can be registered via .ralph-tools.json.",
+    )
+    parser.add_argument(
+        "--model",
+        default=None,
+        type=str,
+        help="Model name passed to the tool (canonical: 'model')",
+    )
+    parser.add_argument(
+        "--effort",
+        default=None,
+        choices=["low", "medium", "high", "xhigh", "max"],
+        help="Reasoning effort (canonical: 'effort'). Claude profile default: 'xhigh'.",
+    )
+    parser.add_argument(
+        "--debug", "-d",
+        action="store_const",
+        const=True,
+        default=None,
+        help="Pass the tool's debug flag (canonical: 'debug')",
+    )
+    parser.add_argument(
+        "--worktree",
+        default=None,
+        type=str,
+        help="Git worktree name (canonical: 'worktree')",
+    )
+    parser.add_argument(
+        "--max-budget-usd",
+        default=None,
+        type=float,
+        metavar="AMOUNT",
+        help="Cap API spend for each iteration in USD "
+             "(canonical: 'max_budget_usd'). Recommended when running at "
+             "xhigh/max effort.",
+    )
+    parser.add_argument(
+        "--fallback-model",
+        default=None,
+        type=str,
+        metavar="MODEL",
+        help="Fallback model when the primary is overloaded "
+             "(canonical: 'fallback_model').",
+    )
+    parser.add_argument(
+        "--permission-mode",
+        default=None,
+        choices=["acceptEdits", "auto", "bypassPermissions", "default", "dontAsk", "plan"],
+        help="Claude permission mode (canonical: 'permission_mode'). "
+             "More granular than --safe/--unsafe — e.g. 'acceptEdits' to "
+             "auto-accept edits without permission-checking everything.",
+    )
+    perm_group = parser.add_mutually_exclusive_group()
+    perm_group.add_argument(
+        "--safe",
+        dest="unsafe_override",
+        action="store_const",
+        const=False,
+        default=None,
+        help="Disable the tool's 'unsafe' flag (e.g. claude --dangerously-skip-permissions)",
+    )
+    perm_group.add_argument(
+        "--unsafe",
+        dest="unsafe_override",
+        action="store_const",
+        const=True,
+        default=None,
+        help="Force the tool's 'unsafe' flag on (overrides project config)",
+    )
+    parser.add_argument(
+        "--tool-arg",
+        action="append",
+        type=_parse_tool_arg,
+        default=[],
+        metavar="KEY=VAL",
+        help="Passthrough arg appended verbatim to the tool invocation "
+             "(e.g. --tool-arg --allowed-tools=Bash,Edit). Repeatable.",
+    )
+    parser.add_argument(
+        "--tool-flag",
+        action="append",
+        type=str,
+        default=[],
+        metavar="FLAG",
+        help="Passthrough bare flag appended verbatim to the tool invocation "
+             "(e.g. --tool-flag --resume). Repeatable.",
+    )
+    parser.add_argument(
+        "--tool-config",
+        default=".ralph-tools.json",
+        type=str,
+        help="Path to project tool-config JSON (default: .ralph-tools.json in CWD)",
     )
 
     args = parser.parse_args()
+
+    # Resolve profiles
+    profiles = load_tool_profiles(Path(args.tool_config))
+    if args.tool not in profiles:
+        print(
+            f"Error: unknown tool '{args.tool}'. Known: {', '.join(sorted(profiles))}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    profile = profiles[args.tool]
+
+    # Merge canonicals: profile.defaults ← CLI overrides
+    cli_canonicals: dict[str, Any] = {}
+    if args.model is not None:
+        cli_canonicals["model"] = args.model
+    if args.effort is not None:
+        cli_canonicals["effort"] = args.effort
+    if args.unsafe_override is not None:
+        cli_canonicals["unsafe"] = args.unsafe_override
+    if args.debug is not None:
+        cli_canonicals["debug"] = args.debug
+    if args.worktree is not None:
+        cli_canonicals["worktree"] = args.worktree
+    if args.max_budget_usd is not None:
+        cli_canonicals["max_budget_usd"] = args.max_budget_usd
+    if args.fallback_model is not None:
+        cli_canonicals["fallback_model"] = args.fallback_model
+    if args.permission_mode is not None:
+        cli_canonicals["permission_mode"] = args.permission_mode
+
+    ignored = [k for k in cli_canonicals if k not in profile.flag_map]
+    canonicals: dict[str, Any] = dict(profile.defaults)
+    canonicals.update(cli_canonicals)
 
     prompt_file = f"PROMPT_{args.mode}.md"
     if not Path(prompt_file).is_file():
@@ -262,7 +598,6 @@ def build_config() -> RalphConfig:
 
     task_list_id = f"ralph-{branch.replace('/', '-')}"
 
-    # Remove stale halt file
     halt = Path(".ralph-halt")
     if halt.exists():
         halt.unlink()
@@ -272,11 +607,194 @@ def build_config() -> RalphConfig:
         prompt_file=prompt_file,
         max_iterations=args.max_iterations,
         timeout_seconds=parse_timeout(args.timeout),
-        debug=args.debug,
         branch=branch,
         task_list_id=task_list_id,
-        worktree=args.worktree,
+        initial_prompt=args.prompt,
+        tool=args.tool,
+        profile=profile,
+        canonicals=canonicals,
+        ignored_canonicals=ignored,
+        tool_args=list(args.tool_arg),
+        tool_flags=list(args.tool_flag),
     )
+
+
+# ── Output adapters ────────────────────────────────────────────
+
+
+class OutputAdapter:
+    """Renders a subprocess's stdout stream into the TUI.
+
+    `capabilities` is a set of header fields the adapter can populate. The
+    RalphApp uses it to decide whether to show real numbers or em-dashes.
+    """
+
+    capabilities: set[str] = {"elapsed"}
+
+    def __init__(self, app: "RalphApp") -> None:
+        self.app = app
+
+    def handle_line(self, raw_line: str) -> None:  # pragma: no cover
+        raise NotImplementedError
+
+    def on_iteration_end(self, exit_code: int, duration_s: float) -> None:
+        pass
+
+
+class PlainTextAdapter(OutputAdapter):
+    """Dumb pass-through for tools without a structured event stream."""
+
+    capabilities = {"elapsed"}
+
+    def handle_line(self, raw_line: str) -> None:
+        self.app._log_write(raw_line)
+
+    def on_iteration_end(self, exit_code: int, duration_s: float) -> None:
+        # Skip the summary on error/timeout — the app already logs that.
+        if exit_code not in (0,):
+            return
+        app = self.app
+        app._log_write("")
+        app._log_write(app._section_header(f"Iteration {app.iteration} Summary"))
+        stats = Text()
+        stats.append("Duration ", style="dim")
+        stats.append(format_duration(duration_s))
+        app._log_write(stats)
+        app._log_write(app._dim_rule())
+        app._log_write("")
+
+
+class ClaudeStreamJsonAdapter(OutputAdapter):
+    """Parses claude's stream-json events into turns, tokens, cost, tool use."""
+
+    capabilities = {"elapsed", "turns", "cost", "tokens", "context", "tool_use"}
+
+    def handle_line(self, raw_line: str) -> None:
+        try:
+            event = json.loads(raw_line)
+        except json.JSONDecodeError:
+            self.app._log_write(raw_line)
+            return
+        event_type = event.get("type", "")
+        if event_type == "system":
+            self._handle_system(event)
+        elif event_type == "assistant":
+            self._handle_assistant(event)
+        elif event_type == "result":
+            self._handle_result(event)
+        # user events (tool results) are skipped — too verbose
+
+    def _handle_system(self, event: dict) -> None:
+        app = self.app
+        app.model_name = event.get("model", app.model_name)
+        if "contextWindow" in event:
+            app.context_window = event["contextWindow"]
+        app._update_header()
+
+    def _handle_assistant(self, event: dict) -> None:
+        app = self.app
+        app.turn_count += 1
+
+        if app.turn_count > 1:
+            app._log_write("")
+
+        usage = event.get("message", {}).get("usage", {})
+        if usage:
+            app.total_input = usage.get("input_tokens", app.total_input)
+            app.total_output = usage.get("output_tokens", app.total_output)
+            app.total_cache_create = usage.get("cache_creation_input_tokens", app.total_cache_create)
+            app.total_cache_read = usage.get("cache_read_input_tokens", app.total_cache_read)
+
+        content = event.get("message", {}).get("content", [])
+        for block in content:
+            block_type = block.get("type", "")
+            if block_type == "text":
+                text = block.get("text", "")
+                if text.strip():
+                    app._log_write(Markdown(text))
+            elif block_type == "tool_use":
+                tool_name = block.get("name", "unknown")
+                tool_input = block.get("input", {})
+                detail = extract_tool_detail(tool_input)
+                app.last_tool = f"{tool_name}{detail}"
+                app._log_write(Text(f"{WRENCH} {tool_name}{detail}"))
+
+        app._update_header()
+
+    def _handle_result(self, event: dict) -> None:
+        app = self.app
+        result_cost = event.get("cost_usd", 0.0)
+        app.iter_cost = result_cost
+        app.session_cost += result_cost
+        total_turns = event.get("num_turns", app.turn_count)
+        duration_s = event.get("duration_ms", 0) / 1000
+        duration_api_s = event.get("duration_api_ms", 0) / 1000
+
+        usage = event.get("usage", {})
+        if usage:
+            app.total_input = usage.get("input_tokens", app.total_input)
+            app.total_output = usage.get("output_tokens", app.total_output)
+            app.total_cache_create = usage.get("cache_creation_input_tokens", app.total_cache_create)
+            app.total_cache_read = usage.get("cache_read_input_tokens", app.total_cache_read)
+
+        total_tokens = (
+            app.total_input + app.total_output
+            + app.total_cache_create + app.total_cache_read
+        )
+        ctx_pct = (total_tokens / app.context_window * 100) if app.context_window > 0 else 0
+
+        app._log_write("")
+        app._log_write(app._section_header(f"Iteration {app.iteration} Summary"))
+
+        stats = Text()
+        stats.append("Turns ", style="dim")
+        stats.append(f"{total_turns}")
+        stats.append(f"  {LIGHT}  ", style="dim")
+        stats.append("Cost ", style="dim")
+        stats.append(format_cost(result_cost))
+        stats.append(f"  {LIGHT}  ", style="dim")
+        stats.append("Duration ", style="dim")
+        stats.append(format_duration(duration_s))
+        app._log_write(stats)
+
+        if duration_api_s > 0:
+            api = Text()
+            api.append("API ", style="dim")
+            api.append(format_duration(duration_api_s))
+            api.append(f"  {LIGHT}  ", style="dim")
+            api.append("Overhead ", style="dim")
+            api.append(format_duration(duration_s - duration_api_s))
+            app._log_write(api)
+
+        tokens = Text()
+        tokens.append("Tokens ", style="dim")
+        tokens.append(f"{total_tokens:,}")
+        tokens.append(f" ({ctx_pct:.0f}%)", style="dim")
+        tokens.append(f"  {LIGHT}  ", style="dim")
+        tokens.append("in ", style="dim")
+        tokens.append(f"{app.total_input:,}")
+        tokens.append("  out ", style="dim")
+        tokens.append(f"{app.total_output:,}")
+        tokens.append("  c_w ", style="dim")
+        tokens.append(f"{app.total_cache_create:,}")
+        tokens.append("  c_r ", style="dim")
+        tokens.append(f"{app.total_cache_read:,}")
+        app._log_write(tokens)
+
+        result_text = event.get("result", "")
+        if result_text:
+            app._log_write("")
+            app._log_write(Markdown(result_text))
+
+        app._log_write(app._dim_rule())
+        app._log_write("")
+        app._update_header()
+
+
+def make_adapter(profile: ToolProfile, app: "RalphApp") -> OutputAdapter:
+    if profile.stream_format == "claude-stream-json":
+        return ClaudeStreamJsonAdapter(app)
+    return PlainTextAdapter(app)
 
 
 # ── Textual App ────────────────────────────────────────────────
@@ -345,8 +863,11 @@ class RalphApp(App):
         self.iter_cost = 0.0
         self.iter_start = time.time()
         self.last_tool = ""
-        self.model_name = "claude-opus-4-5"
+        self.model_name = config.canonicals.get("model", "") or ""
         self.context_window = 200_000
+
+        # Output adapter (selected by tool profile)
+        self.adapter: OutputAdapter = make_adapter(config.profile, self)
 
         # Subprocess ref for cleanup
         self._proc: subprocess.Popen | None = None
@@ -455,27 +976,53 @@ class RalphApp(App):
 
     # ── Header updates ─────────────────────────────────────────
 
+    def _canonicals_summary(self) -> str:
+        """Render ' (key: value, flag, …)' for the session line."""
+        parts: list[str] = []
+        prof = self.config.profile
+        for key, val in self.config.canonicals.items():
+            if key not in prof.flag_map:
+                continue
+            if val is None or val is False:
+                continue
+            if key == "settings":
+                continue  # too long for a header
+            if val is True:
+                parts.append(key)
+            else:
+                s = str(val)
+                if len(s) > 24:
+                    s = s[:21] + "…"
+                parts.append(f"{key}: {s}")
+        return f"  ({', '.join(parts)})" if parts else ""
+
     def _update_header(self) -> None:
         cfg = self.config
+        caps = self.adapter.capabilities
         max_label = f"/{cfg.max_iterations}" if cfg.max_iterations > 0 else ""
 
         self.query_one("#session-line", Static).update(
-            f"  Ralph Loop  {LIGHT}  {cfg.mode}  {LIGHT}  {cfg.branch}"
+            f"  Ralph Loop  {LIGHT}  {cfg.tool}  {LIGHT}  {cfg.mode}  {LIGHT}  {cfg.branch}"
+            f"{self._canonicals_summary()}"
         )
+
+        turn_str = f"Turn {self.turn_count}" if "turns" in caps else "Turn —"
         self.query_one("#iter-line", Static).update(
             f"  Iteration {self.iteration}{max_label}"
-            f"  {LIGHT}  Turn {self.turn_count}"
+            f"  {LIGHT}  {turn_str}"
             f"  {LIGHT}  Task list: {cfg.task_list_id}"
         )
 
-        total_tokens = (
-            self.total_input + self.total_output
-            + self.total_cache_create + self.total_cache_read
-        )
-        ctx_pct = (total_tokens / self.context_window * 100) if self.context_window > 0 else 0
-        bar = make_bar(ctx_pct, width=12)
-
-        ctx_line = f"  Context: {bar} {ctx_pct:.0f}% ({total_tokens // 1000}K/{self.context_window // 1000}K)"
+        if "context" in caps:
+            total_tokens = (
+                self.total_input + self.total_output
+                + self.total_cache_create + self.total_cache_read
+            )
+            ctx_pct = (total_tokens / self.context_window * 100) if self.context_window > 0 else 0
+            bar = make_bar(ctx_pct, width=12)
+            ctx_line = f"  Context: {bar} {ctx_pct:.0f}% ({total_tokens // 1000}K/{self.context_window // 1000}K)"
+        else:
+            ctx_line = "  Context: —"
         if self.block_usage.available:
             bu = self.block_usage
             tok_m = bu.tokens / 1_000_000
@@ -484,152 +1031,36 @@ class RalphApp(App):
         elif not _read_block_cache():
             ctx_line += "  |  5h: Loading..."
         self.query_one("#context-bar", Static).update(ctx_line)
-        self.query_one("#token-line", Static).update(
-            f"  in: {self.total_input:,}  out: {self.total_output:,}"
-            f"  c_w: {self.total_cache_create:,}  c_r: {self.total_cache_read:,}"
-        )
+
+        if "tokens" in caps:
+            token_line = (
+                f"  in: {self.total_input:,}  out: {self.total_output:,}"
+                f"  c_w: {self.total_cache_create:,}  c_r: {self.total_cache_read:,}"
+            )
+        else:
+            token_line = "  in: —  out: —  c_w: —  c_r: —"
+        self.query_one("#token-line", Static).update(token_line)
 
         elapsed = time.time() - self.iter_start
         session_elapsed = time.time() - self.session_start
+        if "cost" in caps:
+            cost_part = (
+                f"  Cost: {format_cost(self.iter_cost)}"
+                f"  (session: {format_cost(self.session_cost)})"
+            )
+        else:
+            cost_part = "  Cost: —  (session: —)"
         self.query_one("#cost-line", Static).update(
-            f"  Cost: {format_cost(self.iter_cost)}"
-            f"  (session: {format_cost(self.session_cost)})"
+            f"{cost_part}"
             f"  {LIGHT}  Elapsed: {format_duration(elapsed)}"
             f"  (session: {format_duration(session_elapsed)})"
         )
-        self.query_one("#tool-line", Static).update(
-            f"  Last: {self.last_tool}" if self.last_tool else "  Last: (none)"
-        )
 
-    # ── Event processing ──────────────────────────────────────
-
-    def process_event(self, raw_line: str) -> None:
-        """Parse a stream-json line and dispatch to handler."""
-        try:
-            event = json.loads(raw_line)
-        except json.JSONDecodeError:
-            # Not JSON — debug output, pass through
-            self._log_write(raw_line)
-            return
-
-        event_type = event.get("type", "")
-
-        if event_type == "system":
-            self._handle_system(event)
-        elif event_type == "assistant":
-            self._handle_assistant(event)
-        elif event_type == "result":
-            self._handle_result(event)
-        # user events (tool results) are skipped — too verbose
-
-    def _handle_system(self, event: dict) -> None:
-        self.model_name = event.get("model", self.model_name)
-        if "contextWindow" in event:
-            self.context_window = event["contextWindow"]
-        self._update_header()
-
-    def _handle_assistant(self, event: dict) -> None:
-        self.turn_count += 1
-
-        # Blank line between turns
-        if self.turn_count > 1:
-            self._log_write("")
-
-        # Update token usage
-        usage = event.get("message", {}).get("usage", {})
-        if usage:
-            self.total_input = usage.get("input_tokens", self.total_input)
-            self.total_output = usage.get("output_tokens", self.total_output)
-            self.total_cache_create = usage.get("cache_creation_input_tokens", self.total_cache_create)
-            self.total_cache_read = usage.get("cache_read_input_tokens", self.total_cache_read)
-
-        # Process content blocks
-        content = event.get("message", {}).get("content", [])
-        for block in content:
-            block_type = block.get("type", "")
-
-            if block_type == "text":
-                text = block.get("text", "")
-                if text.strip():
-                    self._log_write(Markdown(text))
-
-            elif block_type == "tool_use":
-                tool_name = block.get("name", "unknown")
-                tool_input = block.get("input", {})
-                detail = extract_tool_detail(tool_input)
-                self.last_tool = f"{tool_name}{detail}"
-                self._log_write(Text(f"{WRENCH} {tool_name}{detail}"))
-
-        self._update_header()
-
-    def _handle_result(self, event: dict) -> None:
-        result_cost = event.get("cost_usd", 0.0)
-        self.iter_cost = result_cost
-        self.session_cost += result_cost
-        total_turns = event.get("num_turns", self.turn_count)
-        duration_s = event.get("duration_ms", 0) / 1000
-        duration_api_s = event.get("duration_api_ms", 0) / 1000
-
-        # Final usage
-        usage = event.get("usage", {})
-        if usage:
-            self.total_input = usage.get("input_tokens", self.total_input)
-            self.total_output = usage.get("output_tokens", self.total_output)
-            self.total_cache_create = usage.get("cache_creation_input_tokens", self.total_cache_create)
-            self.total_cache_read = usage.get("cache_read_input_tokens", self.total_cache_read)
-
-        total_tokens = (
-            self.total_input + self.total_output
-            + self.total_cache_create + self.total_cache_read
-        )
-        ctx_pct = (total_tokens / self.context_window * 100) if self.context_window > 0 else 0
-
-        self._log_write("")
-        self._log_write(self._section_header(f"Iteration {self.iteration} Summary"))
-
-        stats = Text()
-        stats.append("Turns ", style="dim")
-        stats.append(f"{total_turns}")
-        stats.append(f"  {LIGHT}  ", style="dim")
-        stats.append("Cost ", style="dim")
-        stats.append(format_cost(result_cost))
-        stats.append(f"  {LIGHT}  ", style="dim")
-        stats.append("Duration ", style="dim")
-        stats.append(format_duration(duration_s))
-        self._log_write(stats)
-
-        if duration_api_s > 0:
-            api = Text()
-            api.append("API ", style="dim")
-            api.append(format_duration(duration_api_s))
-            api.append(f"  {LIGHT}  ", style="dim")
-            api.append("Overhead ", style="dim")
-            api.append(format_duration(duration_s - duration_api_s))
-            self._log_write(api)
-
-        tokens = Text()
-        tokens.append("Tokens ", style="dim")
-        tokens.append(f"{total_tokens:,}")
-        tokens.append(f" ({ctx_pct:.0f}%)", style="dim")
-        tokens.append(f"  {LIGHT}  ", style="dim")
-        tokens.append("in ", style="dim")
-        tokens.append(f"{self.total_input:,}")
-        tokens.append("  out ", style="dim")
-        tokens.append(f"{self.total_output:,}")
-        tokens.append("  c_w ", style="dim")
-        tokens.append(f"{self.total_cache_create:,}")
-        tokens.append("  c_r ", style="dim")
-        tokens.append(f"{self.total_cache_read:,}")
-        self._log_write(tokens)
-
-        result_text = event.get("result", "")
-        if result_text:
-            self._log_write("")
-            self._log_write(Markdown(result_text))
-
-        self._log_write(self._dim_rule())
-        self._log_write("")
-        self._update_header()
+        if "tool_use" in caps:
+            tool_line = f"  Last: {self.last_tool}" if self.last_tool else "  Last: (none)"
+        else:
+            tool_line = "  Last: —"
+        self.query_one("#tool-line", Static).update(tool_line)
 
     # ── Iteration lifecycle ────────────────────────────────────
 
@@ -646,15 +1077,28 @@ class RalphApp(App):
         self._log_write("")
         self._log_write(self._section_header(f"ITERATION {self.iteration}"))
         self._log_write("")
+        if self.iteration == 1 and self.config.initial_prompt:
+            self._log_write(Text(f"Initial prompt: {self.config.initial_prompt}", style="dim"))
+            self._log_write("")
+        if self.iteration == 1 and self.config.ignored_canonicals:
+            for key in self.config.ignored_canonicals:
+                self._log_write(Text(
+                    f"--{key} ignored: {self.config.tool} has no '{key}' concept",
+                    style="yellow",
+                ))
+            self._log_write("")
         self._update_header()
 
-    def _on_iteration_end(self, exit_code: int) -> None:
+    def _on_iteration_end(self, exit_code: int, duration_s: float) -> None:
         if exit_code == 124:
             self._log_write(Text("⏰ Iteration timed out — context likely exhausted", style="yellow"))
             self._log_write(self._dim_rule())
         elif exit_code != 0 and exit_code != 130:
-            self._log_write(Text(f"⚠ Claude exited with code {exit_code}", style="red"))
+            self._log_write(Text(
+                f"⚠ {self.config.tool} exited with code {exit_code}", style="red"
+            ))
             self._log_write(self._dim_rule())
+        self.adapter.on_iteration_end(exit_code, duration_s)
         self._update_header()
 
     def _on_halt(self) -> None:
@@ -712,40 +1156,32 @@ class RalphApp(App):
             self.iteration += 1
             self.call_from_thread(self._on_iteration_start)
 
-            # Build command
-            cmd = [
-                "claude", "-p",
-                "--output-format", "stream-json",
-                "--dangerously-skip-permissions",
-                "--model", "opus",
-                "--effort", "medium",
-                "--verbose",
-                "--settings", json.dumps({
-                    "thinking": "adaptive"
-                }),
-            ]
-
-            if cfg.worktree:
-                cmd.extend(["--worktree", cfg.worktree])
-
-            if cfg.debug:
-                cmd.append("--debug")
+            cmd = build_cli_cmd(cfg)
 
             env = {**os.environ, "CLAUDE_CODE_TASK_LIST_ID": cfg.task_list_id}
 
-            # Open prompt file as stdin
-            prompt_fh = open(cfg.prompt_file, "r")
+            # Build prompt stdin content (optionally augmented with --prompt on iteration 1)
+            prompt_text = Path(cfg.prompt_file).read_text()
+            if cfg.initial_prompt and self.iteration == 1:
+                prompt_text = (
+                    f"{prompt_text.rstrip()}\n\n"
+                    "---\n\n"
+                    "## Initial Instruction (this run)\n\n"
+                    "After studying the prompt above, treat the following as your first concrete instruction for this iteration:\n\n"
+                    f"{cfg.initial_prompt}\n"
+                )
 
             proc = subprocess.Popen(
                 cmd,
-                stdin=prompt_fh,
+                stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True,
                 env=env,
             )
             self._proc = proc
-            prompt_fh.close()  # subprocess has inherited the fd
+            proc.stdin.write(prompt_text)
+            proc.stdin.close()
 
             # Timeout via timer thread
             timed_out = threading.Event()
@@ -765,7 +1201,7 @@ class RalphApp(App):
                         break
                     line = line.strip()
                     if line:
-                        self.call_from_thread(self.process_event, line)
+                        self.call_from_thread(self.adapter.handle_line, line)
 
                 exit_code = proc.wait()
             finally:
@@ -775,8 +1211,9 @@ class RalphApp(App):
             if timed_out.is_set():
                 exit_code = 124
 
+            duration_s = time.time() - self.iter_start
             self._proc = None
-            self.call_from_thread(self._on_iteration_end, exit_code)
+            self.call_from_thread(self._on_iteration_end, exit_code, duration_s)
 
             # Exit code handling
             if exit_code == 130:  # SIGINT

@@ -23,16 +23,60 @@ No `pip install`, no virtualenv. The PEP 723 `# /// script` block declares `text
 ## CLI reference
 
 ```
-uv run ralph.py [build|plan] [N] [--debug] [--timeout T] [--worktree NAME]
+uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
+                [--tool TOOL] [--model MODEL] [--effort LEVEL]
+                [--safe | --unsafe] [--debug] [--worktree NAME]
+                [--tool-arg KEY=VAL]... [--tool-flag FLAG]...
+                [--tool-config PATH]
 ```
 
-| Argument        | Description                                                                                                                |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `mode`          | `build` (default) or `plan`                                                                                                |
-| `N`             | Max iterations (default: unlimited)                                                                                        |
-| `--debug`, `-d` | Pass `--debug` to claude                                                                                                   |
-| `--timeout T`   | Per-iteration timeout. Accepts `15m`, `2h`, `90s`, or raw seconds. Default: `120m`. Also reads `ITERATION_TIMEOUT` env var.|
-| `--worktree`    | Name of Git worktree to pass to Claude                                                                                     |
+| Argument                   | Description                                                                                                                             |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `mode`                     | `build` (default) or `plan`                                                                                                             |
+| `N`                        | Max iterations (default: unlimited)                                                                                                     |
+| `--timeout T`              | Per-iteration timeout. Accepts `15m`, `2h`, `90s`, or raw seconds. Default: `120m`. Also reads `ITERATION_TIMEOUT` env var.             |
+| `--prompt STR`, `-p STR`   | One-shot initial instruction appended to the main prompt on iteration 1 only.                                                           |
+| `--tool TOOL`              | Which AI coding CLI to invoke. Built-ins: `claude`, `codex`, `gemini`. Extend via `.ralph-tools.json`.                                  |
+| `--model MODEL`            | Canonical `model`. Maps to `claude --model`, `codex --model`, `gemini -m`, etc.                                                         |
+| `--effort {low,medium,high,xhigh,max}` | Canonical `effort` (reasoning level). Claude profile default: `xhigh` (per Anthropic's Opus 4.7 guidance for coding / agentic loops). |
+| `--max-budget-usd AMOUNT`  | Canonical `max_budget_usd`. Per-iteration spend cap in USD (claude `--max-budget-usd`). Recommended at `xhigh`/`max` effort.                    |
+| `--fallback-model MODEL`   | Canonical `fallback_model`. Fallback when the primary model is overloaded (claude `--fallback-model`).                                          |
+| `--permission-mode MODE`   | Canonical `permission_mode`. Claude permission mode: `acceptEdits`, `auto`, `bypassPermissions`, `default`, `dontAsk`, `plan`. More granular than `--safe`/`--unsafe`. |
+| `--safe` / `--unsafe`      | Canonical `unsafe` (e.g. claude `--dangerously-skip-permissions`, codex `--skip-git-repo-check`). Defaults to the tool's default (on). |
+| `--debug`, `-d`            | Canonical `debug` flag. claude-only today.                                                                                              |
+| `--worktree NAME`          | Canonical `worktree`. claude-only today.                                                                                                |
+| `--tool-arg KEY=VAL`       | Passthrough; appends `[KEY, VAL]` to the subprocess argv. Repeatable.                                                                   |
+| `--tool-flag FLAG`         | Passthrough; appends a bare flag to the subprocess argv. Repeatable.                                                                    |
+| `--tool-config PATH`       | Alternate path for the project tool-config JSON (default: `.ralph-tools.json` in CWD).                                                  |
+
+### Project tool-config: `.ralph-tools.json`
+
+Optional, loaded from CWD. Layers on top of the in-code defaults (CLI flags still win):
+
+```json
+{
+  "tools": {
+    "claude": {
+      "defaults": { "model": "claude-opus-4-7", "effort": "high" },
+      "base_args_append": [],
+      "flag_map_append":  {}
+    },
+    "my-fork": {
+      "binary": "my-claude-fork",
+      "base_args": ["-p", "--output-format", "stream-json", "--verbose"],
+      "flag_map":  { "model": "--model", "effort": "--effort" },
+      "defaults":  { "effort": "medium" },
+      "stream_format": "claude-stream-json"
+    }
+  }
+}
+```
+
+- Known tool names (claude/codex/gemini) merge onto the in-code profile.
+- Unknown tool names register a new profile. `binary` is required; everything else is optional.
+- `stream_format` selects the output adapter — `claude-stream-json` enables full token/cost/tool tracking; `plain` (default) just pipes stdout to the log.
+
+Canonicals that a tool doesn't know about are silently dropped at command build time. When the user explicitly sets such a flag on the CLI (e.g. `--effort high --tool gemini`), Ralph logs a one-line dim warning under the first ITERATION header.
 
 ## Prompts
 
