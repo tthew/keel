@@ -37,6 +37,6 @@ Choices made with rationale. Useful when a future Ralph wonders "why did past-Ra
 
 ## Open questions
 
-Things Ralph couldn't resolve autonomously and left for a human — cross-reference with `IMPLEMENTATION_PLAN.md § BLOCKED`.
+Things Ralph couldn't resolve autonomously and left for a human — cross-reference with `.ralph/@plan.md § BLOCKED`.
 
 - _(empty)_

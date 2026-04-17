@@ -5,7 +5,7 @@
 ## Orient (0a-0g)
 
 0a. Study `_bmad-output/planning-artifacts/epics/` to understand current epic/stories (may be empty in early phases).
-0b. Study @IMPLEMENTATION_PLAN.md for task state. Create if missing.
+0b. Study `.ralph/@plan.md` (the iteration plan — "IP" throughout this prompt) for task state. Create if missing.
 0c. Study @AGENTS.md for operational commands. @CLAUDE.md points to it. Study @RALPH.md — the notes prior Ralphs left for you (signposts, lessons, gotchas, decisions). Do not repeat past-Ralph's mistakes.
 0d. Run `/bmad-help` or read `_bmad/_config/bmad-help.csv` to confirm which BMad phase the project is in. Required-phase gates (PRD, Architecture, Epics & Stories, Implementation Readiness, Sprint Planning, Create Story, Dev Story) are blocking — don't skip.
 0e. Application source (once it exists): directories under the repo root other than `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`. Use Sonnet subagents for searches/reads; one Sonnet subagent at most for any build/test command (backpressure).
@@ -101,7 +101,7 @@ Native Tasks are your crash journal — update task status as you progress so th
 
 ## Halt
 
-`echo '{"reason":"EPIC_DONE","epic":N,"pr":PR}' > .ralph-halt` then exit normally. ralph.py detects and stops.
+`echo '{"reason":"EPIC_DONE","epic":N,"pr":PR}' > .ralph/halt` then exit normally. ralph.py detects and stops.
 
 ## Guardrails
 
@@ -122,7 +122,7 @@ Native Tasks are your crash journal — update task status as you progress so th
 15. PR review feedback is addressed ONLY when the PR is Open. While Draft, reviews don't exist — do not read, study, or act on them.
 16. Worktree retention: when running in a worktree-based iteration, NEVER remove or clean up the worktree on exit. Do NOT call `ExitWorktree` or `git worktree remove`.
 
-## IMPLEMENTATION_PLAN.md template
+## `.ralph/@plan.md` template
 
 ```markdown
 # Implementation Plan

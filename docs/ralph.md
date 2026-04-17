@@ -36,7 +36,7 @@ uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
 | `N`                        | Max iterations (default: unlimited)                                                                                                     |
 | `--timeout T`              | Per-iteration timeout. Accepts `15m`, `2h`, `90s`, or raw seconds. Default: `120m`. Also reads `ITERATION_TIMEOUT` env var.             |
 | `--prompt STR`, `-p STR`   | One-shot initial instruction appended to the main prompt on iteration 1 only.                                                           |
-| `--tool TOOL`              | Which AI coding CLI to invoke. Built-ins: `claude`, `codex`, `gemini`. Extend via `.ralph-tools.json`.                                  |
+| `--tool TOOL`              | Which AI coding CLI to invoke. Built-ins: `claude`, `codex`, `gemini`. Extend via `.ralph/tools.json`.                                  |
 | `--model MODEL`            | Canonical `model`. Maps to `claude --model`, `codex --model`, `gemini -m`, etc.                                                         |
 | `--effort {low,medium,high,xhigh,max}` | Canonical `effort` (reasoning level). Claude profile default: `xhigh` (per Anthropic's Opus 4.7 guidance for coding / agentic loops). |
 | `--max-budget-usd AMOUNT`  | Canonical `max_budget_usd`. Per-iteration spend cap in USD (claude `--max-budget-usd`). Recommended at `xhigh`/`max` effort.                    |
@@ -47,9 +47,9 @@ uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
 | `--worktree NAME`          | Canonical `worktree`. claude-only today.                                                                                                |
 | `--tool-arg KEY=VAL`       | Passthrough; appends `[KEY, VAL]` to the subprocess argv. Repeatable.                                                                   |
 | `--tool-flag FLAG`         | Passthrough; appends a bare flag to the subprocess argv. Repeatable.                                                                    |
-| `--tool-config PATH`       | Alternate path for the project tool-config JSON (default: `.ralph-tools.json` in CWD).                                                  |
+| `--tool-config PATH`       | Alternate path for the project tool-config JSON (default: `.ralph/tools.json` in CWD).                                                  |
 
-### Project tool-config: `.ralph-tools.json`
+### Project tool-config: `.ralph/tools.json`
 
 Optional, loaded from CWD. Layers on top of the in-code defaults (CLI flags still win):
 
@@ -80,8 +80,8 @@ Canonicals that a tool doesn't know about are silently dropped at command build 
 
 ## Prompts
 
-- `PROMPT_build.md` — build mode loop instructions (BMad-driven, one task per iteration)
-- `PROMPT_plan.md` — planning mode loop instructions (gap analysis, no implementation)
+- `.ralph/PROMPT_build.md` — build mode loop instructions (BMad-driven, one task per iteration)
+- `.ralph/PROMPT_plan.md` — planning mode loop instructions (gap analysis, no implementation)
 
 Both are adapted for the `ralph-bmad` workflow: `bmad-*` skill naming, required-phase gates from `_bmad/_config/bmad-help.csv`, and `_bmad-output/` artifact locations.
 
@@ -106,7 +106,7 @@ Both are adapted for the `ralph-bmad` workflow: `bmad-*` skill naming, required-
 │                                                      │
 │  🔧 Glob → **/*.ts                                   │
 └──────────────────────────────────────────────────────┘
-  Shift+select to copy │ o: open log │ q: quit │ Log: ralph-logs/…
+  Shift+select to copy │ o: open log │ q: quit │ Log: .ralph/logs/…
 ```
 
 **Header** (top 7 lines) updates every second. **Output log** is a scrollable RichLog:
@@ -127,8 +127,8 @@ ralph.py (Textual App)
         ├── subprocess.Popen(claude -p --output-format stream-json < PROMPT)
         ├── read stdout line by line → call_from_thread(process_event)
         ├── wait for exit → handle exit code
-        ├── check .ralph-halt file
-        ├── check AWAIT_MERGE in IMPLEMENTATION_PLAN.md
+        ├── check .ralph/halt file
+        ├── check AWAIT_MERGE in .ralph/@plan.md
         └── continue or break
 ```
 
@@ -138,11 +138,11 @@ Since `ralph.py` owns the subprocess (not receiving piped stdin), Textual gets t
 
 | Feature                | Details                                                                                                                   |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Halt detection**     | Create `.ralph-halt` to stop the loop. Ralph reads and displays the halt reason.                                          |
-| **AWAIT_MERGE**        | Loop stops when `IMPLEMENTATION_PLAN.md` contains a line starting with `(AWAIT_MERGE`.                                    |
+| **Halt detection**     | Create `.ralph/halt` to stop the loop. Ralph reads and displays the halt reason.                                          |
+| **AWAIT_MERGE**        | Loop stops when `.ralph/@plan.md` contains a line starting with `(AWAIT_MERGE`.                                           |
 | **Timeout**            | Per-iteration timer. On timeout, subprocess is terminated and mapped to exit code 124. Next iteration gets fresh context. |
 | **Task persistence**   | Sets `CLAUDE_CODE_TASK_LIST_ID` so native Tasks survive across iterations. Cleaned up on halt.                            |
 | **Exit code handling** | 130 = SIGINT (break), 124 = timeout (continue), other non-zero = error (continue).                                        |
 | **Session tracking**   | Cumulative cost and elapsed time across all iterations.                                                                   |
 | **ccusage integration**| If `ccusage` is on `$PATH`, shows 5h billing-block spend and remaining time.                                              |
-| **Session logs**       | Every run writes a log to `ralph-logs/<branch>-<timestamp>.log`. `*.log` is already gitignored.                           |
+| **Session logs**       | Every run writes a log to `.ralph/logs/<branch>-<timestamp>.log`. `.ralph/logs/` is gitignored.                           |
