@@ -177,7 +177,7 @@ Vision is dogfood-first: the meta-framework is validated by Tthew shipping multi
 
 **Iteration flow.**
 
-1. Ralph (running inside the devbox) spawns `claude -p --dangerously-skip-permissions` with the story file as input. Claude reads the bind-mounted workspace, sees `packages/core/auth`, `packages/email`, and existing better-auth patterns. No decision is re-litigated.
+1. Ralph (running inside the devbox) spawns `claude -p --dangerously-skip-permissions`, piping the build-mode Ralph prompt (`.ralph/PROMPT_build.md`) as input. The Ralph prompt directs Claude to read the implementation plan at `.ralph/@plan.md`, pick the next pending item from the NOW/QUEUE sections (story #42: "Add email verification flow for new team invites"), and execute it. Claude reads the bind-mounted workspace, sees `packages/core/auth`, `packages/email`, and existing better-auth patterns. No decision is re-litigated.
 2. Claude writes a new tRPC mutation `team.inviteWithVerification`, adds a Zod schema, creates a Resend email template, wires pg-boss to enqueue the verification send.
 3. Tests run: unit (pass), integration (pass), RLS policy against the new `invite_tokens` table (fail — no policy exists yet).
 4. Ralph sees the failure. Claude generates the RLS policy based on the existing pattern, re-runs.
