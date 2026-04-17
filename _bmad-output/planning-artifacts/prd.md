@@ -14,6 +14,13 @@ stepsCompleted:
   - step-10-nonfunctional
   - step-11-polish
   - step-12-complete
+  - step-e-01-discovery
+  - step-e-02-review
+  - step-e-03-edit
+lastEdited: '2026-04-17'
+editHistory:
+  - date: '2026-04-17'
+    changes: 'Applied Top 3 polish improvements from validation report: (1) added Agent-Capability Substrate Absorption Risk sub-section to Domain-Specific Requirements; (2) added consolidated Out of Scope sub-section to Product Scope; (3) pinned invariants-sync mechanism sketch in Invariants § and FR43.'
 inputDocuments:
   - _bmad-output/planning-artifacts/prfaq-ralph-bmad.md
   - _bmad-output/planning-artifacts/prfaq-ralph-bmad-distillate.md
@@ -140,6 +147,60 @@ Keel 1.0 is the first codified substrate in a larger meta-framework for shipping
 
 Vision is dogfood-first: the meta-framework is validated by Tthew shipping multiple products on it, not by external adoption. Adoption signaling (blog post, peer-community share) is permitted but not planned.
 
+### Out of Scope
+
+Consolidated exclusions. Items here are explicitly not in 1.0 scope; most are either non-toggle-able invariants (fork-to-remove) or deliberate architectural non-commitments. Downstream Epics and Stories that propose any of these items must be rejected or escalated to a scope-change decision.
+
+**Languages & polyglot targets:**
+
+- No Python / Go / Rust / Ruby SDKs. TypeScript only, end-to-end.
+- No non-pnpm package managers. `pnpm` is the monorepo contract; npm and yarn are unsupported.
+
+**Framework & stack alternatives (at 1.0):**
+
+- No Stripe-by-default. Paddle is the MoR; Stripe lives behind the Tier-2 payment-adapter unstub.
+- No Next.js / Remix default. TanStack Start is the framework; Next.js lives behind the M8 unstub guide.
+- No Auth.js / Clerk default. better-auth is the auth library; Auth.js lives behind the M8 unstub guide; Clerk ↔ better-auth is a Growth-tier unstub.
+- No Drizzle default. Prisma is the ORM; Drizzle is a Growth-tier unstub.
+- No Redis / external queue. pg-boss is in-process, Postgres-native.
+- No multi-DB ORM abstraction. Postgres is the single database.
+- No Vercel deploy target at 1.0. Growth-tier unstub.
+
+**Product shapes not supported:**
+
+- No marketplace / two-sided platform shapes.
+- No B2C consumer-app shapes.
+- No API-first / developer-API-as-product shapes.
+- No clean learner / tutorial experience. Keel assumes prior SaaS shipping.
+
+**Enterprise affordances (explicit non-commitments):**
+
+- No SSO adapter (SAML / OIDC beyond Google OAuth).
+- No SIEM / audit-log shipping to external systems.
+- No SOC 2 / ISO 27001 / HIPAA / PCI-DSS compliance posture. ASVS Level 2+ lives behind a Tier-2 unstub for compliance-bound forks.
+
+**Capabilities deferred beyond 1.0:**
+
+- No admin dashboard.
+- No outbound webhooks / developer-facing webhook subscription.
+- No REST or GraphQL API surface from day one. (tRPC is the internal contract; external API is a per-product decision.)
+- No IDE plugin / extension. The agentic workflow is the IDE.
+- No shell completion for `pnpm` commands at 1.0.
+- No headless Ralph (`--no-tui`) mode at 1.0. Growth-tier candidate.
+- No global user-level config file. Per-project `.ralph/` dotfiles only.
+
+**Governance non-commitments:**
+
+- No toggle-able quality gates. Removal requires fork.
+- No backwards-compatibility guarantees across Keel major versions. Each major documents its tested model/tooling combination; breaking model upgrades trigger new majors.
+
+**Out of project (belongs to a separate follow-on):**
+
+- No distribution strategy / customer-acquisition playbook.
+- No `npm publish` of individual substrate packages. Fork-and-use only.
+- No planned adoption signaling (blog, peer-community push). Permitted but not planned.
+- No scope commitment for agent-authorship workflows outside the Claude Code + BMad + Ralph triad. Tests and docs assume this stack.
+
 ## User Journeys
 
 ### Journey 1 — Tthew: Product #2 Happy Path (validates T2NP ≤ 1 week)
@@ -218,7 +279,7 @@ The four journeys converge on the same capability set — which is the point, no
 
 ## Domain-Specific Requirements
 
-Keel's domain is general SaaS — no regulatory regime binds substrate code. Complexity is high on technical grounds. Three domain-novel concerns are captured here because they are not covered by Executive Summary, Technical Success, or standard NFRs.
+Keel's domain is general SaaS — no regulatory regime binds substrate code. Complexity is high on technical grounds. Four domain-novel concerns are captured here because they are not covered by Executive Summary, Technical Success, or standard NFRs.
 
 ### Autonomous-Code-Execution Risk Surface
 
@@ -247,6 +308,16 @@ Two libraries carry correlated-community risk at 1.0: TanStack Start (framework)
 ### Model and Tooling Evolution
 
 Opus 4.7 broke prompts tuned for Opus 4.6 (April 2026 release). Policy: every Keel major version documents the model generation and tooling versions it was tested against. A breaking model upgrade is a triggering event for a major Keel release test-run — not a silent bump.
+
+### Agent-Capability Substrate Absorption Risk
+
+The PRFAQ named this as Keel's top existential risk. As agent capability grows — larger context windows, better long-horizon coherence, more sophisticated tool use — the load-bearing decisions Keel encodes as invariants may become reproducible on-the-fly by a sufficiently capable agent operating directly on an empty repo. If that happens, the substrate category itself collapses.
+
+- **Probability / timing:** possible 2026, probable 2027. Relevance window: 12–18 months from 1.0 cut.
+- **Failure signature:** an agent given a plain `pnpm create …` starter produces substantively equivalent substrate output (Day-1 RLS, hardwired auth/payments/jobs, non-toggle-able gates, unstub guides) inside a single long-running session without Keel.
+- **Governance response (already in place):** the 12-month / 2-product kill criterion (Business Success) and the M4 checkpoint ritual (Journey 2) are the primary governance responses to this risk — both force an explicit keep-or-archive decision against real shipped-product signal rather than sunk-cost preservation.
+- **Mitigation principle (not stack):** what survives substrate absorption is the principle layer — YAGNI, DRY, NIH-refusal, invariants-beat-conventions, and the documented rationale behind the seven load-bearing axes — not the specific stack choices. Keel's internal docs preserve the *why* so the next substrate (or an agent recreating it) inherits the reasoning even if the code is obsolete.
+- **Triggering signals to watch:** an agent reliably producing a green 60-minute integration test from a blank starter inside one context window; Bmalph-class orchestration tools shipping substrate defaults; a major model release explicitly marketed as "SaaS-ready out of the box."
 
 ## Innovation & Novel Patterns
 
@@ -552,7 +623,15 @@ Keel ships a versioned invariants stack with three synchronised layers. Each lay
 
 ### Sync enforcement
 
-A pre-merge quality gate verifies the three layers don't drift. If `packages/keel-invariants/` changes without a corresponding `INVARIANTS.md` change, the build fails. The specific sync mechanism is deferred to the architecture doc.
+A pre-merge quality gate verifies the three layers don't drift. If `packages/keel-invariants/` changes without a corresponding `INVARIANTS.md` change, the build fails.
+
+**Mechanism sketch (PRD-level commitment; implementation details deferred to architecture doc):**
+
+- **Manifest contract.** `packages/keel-invariants/` exports an `invariants.manifest.ts` enumerating every rule as a typed record with a stable ID, a human-readable title, the enforcement layer (lint / typecheck / commit-hook / pre-merge / pre-deploy), and a content hash over the rule's normalized machine-readable definition (e.g., the ESLint rule body, the tsconfig stanza, the prek-hook config).
+- **Documentation anchors.** `INVARIANTS.md` addresses each invariant by the same stable ID using an anchored heading (e.g., `### <invariant-id> — <title>`). The `docs/invariants/*.md` per-invariant narrative files reference the same IDs.
+- **Sync check.** A pre-merge script reads the manifest, walks the three layers, and fails the build on any of: (a) an ID in the manifest that is missing an anchor in `INVARIANTS.md`; (b) an anchor in `INVARIANTS.md` with no corresponding manifest entry (orphaned documentation); (c) a manifest entry whose content hash has changed without a matching `INVARIANTS.md` edit in the same PR.
+- **Why these three signals.** Addition drift fails (a); removal drift fails (b); edit drift fails (c). No other drift mode exists between layers.
+- **Architecture-doc follow-up:** the hashing algorithm, CI hook placement, Ralph-backpressure integration, and the handling of transitively-generated rules (e.g., one ESLint rule expanded from a higher-level policy declaration) are architecture-doc territory.
 
 ### Coverage
 
@@ -643,7 +722,7 @@ The thesis *"invariants beat conventions beat docs"* applies to the invariants t
 
 - **FR41**: System can ship a versioned invariants package (`packages/keel-invariants/`) consumed by lint, format, type-check, commit, and merge gates across all substrate and product code.
 - **FR42**: System can expose invariants to agents via `INVARIANTS.md` at repo root, referenced by `CLAUDE.md`, providing an agent-readable index of machine-enforced rules.
-- **FR43**: System can enforce sync between the machine-enforced layer (`packages/keel-invariants/`) and the agent-readable layer (`INVARIANTS.md`) via a pre-merge gate that fails when one changes without the other.
+- **FR43**: System can enforce sync between the machine-enforced layer (`packages/keel-invariants/`) and the agent-readable layer (`INVARIANTS.md`) via a pre-merge gate that reads an exported `invariants.manifest.ts` (stable-ID + content-hash per rule) and fails the build on addition drift (manifest ID missing an `INVARIANTS.md` anchor), removal drift (orphaned `INVARIANTS.md` anchor), or edit drift (manifest hash change without matching `INVARIANTS.md` edit in the same PR).
 - **FR44**: Developer can extend invariants via extension configs that build on `packages/keel-invariants/` (e.g., `eslint.config.fork.js extends eslint.config.keel-invariants.js`) without modifying substrate files.
 - **FR45**: Developer can (Growth tier) scaffold a fork-specific `INVARIANTS.fork.md` that is referenced alongside the upstream `INVARIANTS.md` by `CLAUDE.md`.
 
