@@ -65,6 +65,8 @@ Thesis: *"Your agents are only as good as the decisions you've already made for 
 
 Keel ships a Docker-based devbox (absorbed from the author's prior `cc-devbox` project) inside which Ralph, Claude Code, and all agent-authored code execution run under `--dangerously-skip-permissions` — the sandbox is what makes the flag safe. The host-side entry point is `pnpm <subcommand>`, which proxies through a thin Python CLI (`keel.py`, uv-runnable) that manages container lifecycle and forwards commands. Users never invoke Docker, docker-compose, or SSH directly.
 
+Autonomous Ralph execution has two one-time auth prerequisites inside the devbox: Claude Code (`pnpm claude` triggers OAuth; tokens persist in `/home/dev/.claude/`) and `gh` CLI (`pnpm gh:auth` triggers `gh auth login`; tokens persist in `/home/dev/.config/gh/`). Ralph cannot push commits or open PRs autonomously until `gh` is authenticated. Both flows surface their OAuth URLs to the host terminal; the host browser completes the flow; tokens stay inside the container volume and never touch the host's own `~/.claude/` or `~/.config/gh/`.
+
 ## Project Classification
 
 - **Project Type:** `developer_tool` / `cli_tool`, `saas_b2b` content shape
@@ -168,6 +170,7 @@ Vision is dogfood-first: the meta-framework is validated by Tthew shipping multi
 
 - Repo at commit N with green 60-min CI, RLS policies validated, all four-layer gates passing.
 - Devbox container running (auto-started by `pnpm ralph:build` if not already up); DNS whitelist active; `--dangerously-skip-permissions` safe because sandboxed.
+- Claude Code and `gh` CLI both authenticated inside the devbox volume; tokens persist across container restarts; prerequisite check passed.
 - `.ralph/@plan.md` holds the current story: "Add email verification flow for new team invites" (story ID #42).
 - Claude Code context loaded with repo invariants (better-auth, Resend, pg-boss) via `CLAUDE.md` + skill definitions.
 - Ralph iteration budget: 30 minutes per iteration; 3 consecutive failures halts the loop.
@@ -334,7 +337,8 @@ No `npm publish` of individual packages. Fork-and-use model; packages are not di
 | `pnpm ralph:status`                      | Queries Ralph state from `.ralph/logs/` without attaching.                                                                   |
 | `pnpm ralph:stop`                        | Writes `.ralph/halt` sentinel to halt the loop cleanly.                                                                       |
 | `pnpm devbox:start` / `stop` / `shell`   | Container lifecycle (manual fallback; auto-start is the default).                                                             |
-| `pnpm claude`                            | Interactive Claude Code session inside devbox.                                                                                |
+| `pnpm claude`                            | Interactive Claude Code session inside devbox; first-run triggers OAuth.                                                     |
+| `pnpm gh:auth`                           | One-time `gh auth login` flow inside devbox; tokens persist in container volume (`/home/dev/.config/gh/`).                    |
 | `pnpm keel:scaffold`                     | Growth tier; command surface TBD during architecture doc.                                                                    |
 
 **Container-native commands (run after `pnpm devbox:shell`):**
@@ -397,6 +401,7 @@ Milestones M0-M9 (including M0.5) are fully enumerated in Product Scope. This se
 - Internationalization framework wired into TanStack Start with English baseline locale and typed-key enforcement (M7). Non-negotiable core requirement.
 - Per-iteration security verification with structured evidence: secret scan, dependency audit, SAST, prompt-injection scan; findings block commit; evidence persisted to `.ralph/logs/` (M0 + M9). Non-negotiable core requirement.
 - Invariants stack at M0: machine-enforced package (`packages/keel-invariants/`) + agent-readable `INVARIANTS.md` + documentation layer + sync pre-merge gate.
+- `gh` CLI authentication inside devbox volume with first-run prerequisite check that halts Ralph cleanly if auth is missing (M0.5). Prerequisite for autonomous push and PR creation.
 
 ### Post-MVP Features
 
@@ -577,9 +582,9 @@ The thesis *"invariants beat conventions beat docs"* applies to the invariants t
 
 - **FR1**: Developer can manage devbox lifecycle (start, stop, shell, attach) via pnpm-exposed commands.
 - **FR2**: Developer can invoke Ralph (`pnpm ralph:build` / `pnpm ralph:plan`) with the devbox auto-starting if not already running.
-- **FR3**: Developer can authenticate Claude Code once per devbox via browser OAuth flow surfaced to the host terminal.
+- **FR3**: Developer can authenticate Claude Code and `gh` CLI once per devbox via browser OAuth flows surfaced to the host terminal; tokens for both persist in the devbox volume.
 - **FR4**: Developer can select between per-fork devbox (default) and shared devbox mode via `.envrc` configuration.
-- **FR5**: System can enforce Docker as a prerequisite, failing fresh-fork first-run with an install-pointer error.
+- **FR5**: System can enforce prerequisites (Docker runtime, Claude Code authentication, `gh` CLI authentication) on fresh-fork first-run and on every Ralph invocation, failing with install-pointer or auth-pointer errors for missing items. Ralph cannot execute autonomously until all prerequisites are satisfied.
 - **FR6**: Developer can run substrate-internal tooling (tests, lints, RLS debugger) inside the devbox.
 
 ### Autonomous Agent Loop
@@ -693,7 +698,7 @@ These capabilities are pre-wired in every Keel-forked project. Forks can extend 
 - **NFR7**: Container runs as a non-root user (uid/gid ≠ 0). Kernel capabilities limited to NET_ADMIN and NET_RAW.
 - **NFR8**: `/tmp`, `/var/tmp`, and `/workspace/logs` are mounted tmpfs with noexec and nosuid flags.
 - **NFR9**: Secrets must never be committed. A pre-commit gate rejects commits that match known secret patterns (API keys, bearer tokens, private keys).
-- **NFR10**: Claude Code authentication tokens are persisted only inside the devbox volume (`/home/dev/.claude/`); the host's `~/.claude/` is never bind-mounted.
+- **NFR10**: Claude Code and `gh` CLI authentication tokens are persisted only inside the devbox volume (`/home/dev/.claude/` and `/home/dev/.config/gh/`); the host's `~/.claude/` and `~/.config/gh/` are never bind-mounted.
 - **NFR11**: Tenant isolation is enforced at the database layer (RLS), not the application layer. An application-layer bug cannot cross tenant boundaries.
 - **NFR12**: All authenticated sessions are DB-backed with revocation support. Stateless-JWT sessions are a documented Tier-2 unstub only.
 - **NFR13**: All audit log entries are append-only. Application code cannot delete or modify past entries.
