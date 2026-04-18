@@ -19,9 +19,9 @@ There is no build/test/lint suite yet (nothing to build). The operational surfac
 | Run Ralph in planning mode      | `uv run ralph.py plan [N]`                        |
 | Run Ralph in build mode         | `uv run ralph.py build [N]`                       |
 | Ralph with custom timeout       | `uv run ralph.py --timeout 30m`                   |
-| Stop the Ralph loop             | `echo '{"reason":"EPIC_DONE",...}' > .ralph-halt` |
+| Stop the Ralph loop             | `echo '{"reason":"EPIC_DONE",...}' > .ralph/halt` |
 
-Ralph writes session logs to `ralph-logs/` (gitignored). `.ralph-halt` is the halt sentinel (also gitignored). See [docs/ralph.md](./docs/ralph.md) for the full TUI reference.
+Ralph writes session logs to `.ralph/logs/` (gitignored). `.ralph/halt` is the halt sentinel (also gitignored). See [docs/ralph.md](./docs/ralph.md) for the full TUI reference.
 
 ## High-level architecture
 
@@ -31,10 +31,10 @@ Two overlapping systems in this repo:
 
 **2. Ralph loop.** `ralph.py` is a Textual TUI that spawns `claude -p` in a subprocess, reads `stream-json`, and manages an iteration loop. Per iteration it reads one of two prompt files:
 
-- `PROMPT_build.md` — one task per iteration, commit + push + exit
-- `PROMPT_plan.md` — gap analysis, IP update, no code changes
+- `.ralph/PROMPT_build.md` — one task per iteration, commit + push + exit
+- `.ralph/PROMPT_plan.md` — gap analysis, IP update, no code changes
 
-The loop halts on `.ralph-halt`, on `(AWAIT_MERGE` in `IMPLEMENTATION_PLAN.md`, or at `max_iterations`. State carries between iterations via `IMPLEMENTATION_PLAN.md` (committed) and native Claude Code tasks (via `CLAUDE_CODE_TASK_LIST_ID`).
+The loop halts on `.ralph/halt`, on `(AWAIT_MERGE` in `.ralph/@plan.md`, or at `max_iterations`. State carries between iterations via `.ralph/@plan.md` (committed) and native Claude Code tasks (via `CLAUDE_CODE_TASK_LIST_ID`).
 
 ## Knowledge-file contract
 

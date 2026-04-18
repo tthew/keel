@@ -29,8 +29,8 @@ yarn-error.log*
 pnpm-debug.log*
 
 # Ralph loop
-ralph-logs/
-.ralph-halt
+.ralph/logs/
+.ralph/halt
 
 # Environment / secrets
 .env

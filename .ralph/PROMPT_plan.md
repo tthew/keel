@@ -1,10 +1,10 @@
 # Ralph Planning Mode — ralph-bmad
 
-**Study BMad specs. Compare against the repo state. Update IMPLEMENTATION_PLAN.md. NO IMPLEMENTATION.**
+**Study BMad specs. Compare against the repo state. Update `.ralph/@plan.md`. NO IMPLEMENTATION.**
 
 ## Quick Reference
 
-**Files:** IP=IMPLEMENTATION_PLAN.md | C.md=CLAUDE.md | A.md=AGENTS.md | SS=sprint-status.yaml
+**Files:** IP=`.ralph/@plan.md` | C.md=CLAUDE.md | A.md=AGENTS.md | SS=sprint-status.yaml
 **Paths:** $EPICS=\_bmad-output/planning-artifacts/epics/ | $ARTIFACTS=\_bmad-output/implementation-artifacts/
 **Output:** Update IP with prioritized gaps and tasks
 
@@ -13,7 +13,7 @@
 ## Orient Phase (0a-0d)
 
 0a. Study `_bmad-output/planning-artifacts/epics/` to understand epics and stories (may be empty — project is still in planning).
-0b. Study @IMPLEMENTATION_PLAN.md (if present) to understand current state.
+0b. Study `.ralph/@plan.md` (if present) to understand current state.
 0c. Run `/bmad-help` or read `_bmad/_config/bmad-help.csv` to identify the current BMad phase and the next required gate (PRD, Architecture, Epics & Stories, Implementation Readiness, Sprint Planning, Create Story, Dev Story).
 0d. Study source dirs (anything outside `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`) — if any — to understand what's implemented.
 0e. Study @AGENTS.md for operational context. @CLAUDE.md points to it.
@@ -28,7 +28,7 @@
    - TODOs, placeholders, minimal implementations
    - Skipped/flaky tests, inconsistent patterns
 
-2. Update @IMPLEMENTATION_PLAN.md with prioritized findings:
+2. Update `.ralph/@plan.md` with prioritized findings:
    - Current BMad phase and next required gate
    - Epic/Story context (if any)
    - Tasks derived from acceptance criteria
@@ -42,9 +42,10 @@
 
 ## IMPORTANT Constraints
 
-⊗ **Plan only. Do NOT implement. Do NOT commit code changes.**
+⊗ **Plan only. Do NOT implement. Do NOT commit code changes.** IP + knowledge-file updates are the only commits allowed in plan mode.
 ⊗ **Confirm functionality is missing before documenting** — don't assume.
 ⊗ **Search before concluding** — use subagents to verify gaps exist.
+⊗ **Worktree retention.** If running in a git worktree (default path `.claude/worktrees/…`, gitignored), never remove or clean up the worktree on exit. Do NOT call `ExitWorktree` or `git worktree remove`. WIP survives across iterations.
 
 ---
 
@@ -97,7 +98,7 @@
 → Subagent 4: Check test coverage for story features (if tests configured)
 ```
 
-Synthesize findings into @IMPLEMENTATION_PLAN.md.
+Synthesize findings into `.ralph/@plan.md`.
 
 ---
 

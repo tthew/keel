@@ -25,7 +25,7 @@ Usage:
     uv run ralph.py --tool-flag --resume            # raw flag passthrough
     uv run ralph.py --tool-arg --allowed-tools=Bash # raw arg passthrough
 
-Per-project defaults and custom tools can live in .ralph-tools.json (CWD) —
+Per-project defaults and custom tools can live in .ralph/tools.json —
 see docs/ralph.md for the schema.
 """
 
@@ -363,7 +363,7 @@ def load_tool_profiles(config_path: Path) -> dict[str, ToolProfile]:
 @dataclass
 class RalphConfig:
     mode: str = "build"
-    prompt_file: str = "PROMPT_build.md"
+    prompt_file: str = ".ralph/PROMPT_build.md"
     max_iterations: int = 0
     timeout_seconds: float = 7200.0  # 120m default
     branch: str = ""
@@ -453,7 +453,7 @@ def build_config() -> RalphConfig:
         default="claude",
         type=str,
         help="AI coding CLI tool to invoke per iteration (default: claude). "
-             "Additional tools can be registered via .ralph-tools.json.",
+             "Additional tools can be registered via .ralph/tools.json.",
     )
     parser.add_argument(
         "--model",
@@ -542,9 +542,9 @@ def build_config() -> RalphConfig:
     )
     parser.add_argument(
         "--tool-config",
-        default=".ralph-tools.json",
+        default=".ralph/tools.json",
         type=str,
-        help="Path to project tool-config JSON (default: .ralph-tools.json in CWD)",
+        help="Path to project tool-config JSON (default: .ralph/tools.json)",
     )
 
     args = parser.parse_args()
@@ -582,7 +582,7 @@ def build_config() -> RalphConfig:
     canonicals: dict[str, Any] = dict(profile.defaults)
     canonicals.update(cli_canonicals)
 
-    prompt_file = f"PROMPT_{args.mode}.md"
+    prompt_file = f".ralph/PROMPT_{args.mode}.md"
     if not Path(prompt_file).is_file():
         print(f"Error: {prompt_file} not found", file=sys.stderr)
         sys.exit(1)
@@ -598,7 +598,7 @@ def build_config() -> RalphConfig:
 
     task_list_id = f"ralph-{branch.replace('/', '-')}"
 
-    halt = Path(".ralph-halt")
+    halt = Path(".ralph/halt")
     if halt.exists():
         halt.unlink()
 
@@ -892,10 +892,10 @@ class RalphApp(App):
 
     def on_mount(self) -> None:
         # Set up session log file
-        os.makedirs("ralph-logs", exist_ok=True)
+        os.makedirs(".ralph/logs", exist_ok=True)
         branch_slug = self.config.branch.replace("/", "-")
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self._log_path = f"ralph-logs/{branch_slug}-{timestamp}.log"
+        self._log_path = f".ralph/logs/{branch_slug}-{timestamp}.log"
         self._log_file = open(self._log_path, "w")
 
         self.query_one("#footer", Static).update(
@@ -1105,7 +1105,7 @@ class RalphApp(App):
         self._log_write("")
         self._log_write(self._section_header("HALT"))
         try:
-            with open(".ralph-halt") as f:
+            with open(".ralph/halt") as f:
                 self._log_write(f.read())
         except FileNotFoundError:
             pass
@@ -1220,13 +1220,13 @@ class RalphApp(App):
                 break
 
             # Halt detection
-            if Path(".ralph-halt").exists():
+            if Path(".ralph/halt").exists():
                 self.call_from_thread(self._on_halt)
                 break
 
             # AWAIT_MERGE detection
             try:
-                with open("IMPLEMENTATION_PLAN.md") as f:
+                with open(".ralph/@plan.md") as f:
                     for ip_line in f:
                         if ip_line.startswith("(AWAIT_MERGE"):
                             self.call_from_thread(self._on_await_merge)
