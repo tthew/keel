@@ -20,6 +20,8 @@ stepsCompleted:
 lastEdited: '2026-04-18'
 editHistory:
   - date: '2026-04-18'
+    changes: 'Ralph/BMad integration pass. Formalised the loop-control invariants that web-signals PROMPT_build.md validated in production and that the local `.ralph/PROMPT_build.md` already implements — previously distributed as prompt-file conventions rather than PRD-level contracts. Additions: (a) new § "Agent Workflow Contracts" between "The Line" and "Security-by-Default Requirements" — pins Orient-phase contract, Execute-phase contract, PR-lifecycle decision matrix (six rows + three ⊗ anti-constraints), Knowledge-file upkeep contract (RALPH.md / AGENTS.md / CLAUDE.md promotion rules), Crash-journal contract, Halt schema (closed-enum JSON), Planning-mode separation. (b) six new FRs in the Autonomous Agent Loop cluster — FR14f orient-phase, FR14g execute-phase, FR14h PR-lifecycle matrix, FR14i pre-push CI gate, FR14j knowledge-file upkeep, FR14k crash-journal + plan-file + halt schemas. (c) three new NFRs — NFR4b execution-budget headroom (25K push-buffer within 117K exec budget; XL decomposition rule; context-exhaustion signals), NFR28a worktree retention (never clean up on exit), NFR33a Ralph halt schema pinning. (d) FR7 tightened to reference the new FR14f-k spine. (e) Invariants Coverage table extended with two rows (Ralph execute-phase contract; knowledge-file upkeep contract). (f) Executive Summary mechanism #2 augmented to cite PR-lifecycle matrix + pre-push CI gate. (g) J3 iteration flow minimally polished — kept the narrative, added an explicit step 6 (exit), tightened step 5 to cite FR14i pre-push CI gate. No structural resection; numbering continues the FR9a/FR14a-e letter-suffix precedent. Traceability chain extends cleanly: FR14f-k → J3 + Technical Success Ralph backpressure; FR14i → Technical Success decomposed CI pyramid; FR14j → Invariants agent-readable layer; NFR4b → FR14d context meter; NFR33a → FR8/FR12; NFR28a → devbox + invariants framing. Peripheral artefacts (docs/ralph.md contracts sections, docs/invariants/ralph-execute.md and knowledge-files.md stubs, .ralph/PROMPT_plan.md worktree-retention polish) land in the same pass.'
+  - date: '2026-04-18'
     changes: 'Post-validation polish pass (Top 3 improvements from 2026-04-17 validation report, all LOW-severity, non-blocking). (1) Journey Requirements Summary table extended with "Observability + audit + feature-flags + i18n baseline (FR21-FR27, FR64)" row mapping to J1 + J3 (implicit) and milestones M5, M6, M7 — closes the LOW-informational traceability gap on journey-visibility of FR21/22/23/24-27. (2) Added "Scriptable / CI mode" subsection in CLI-Tool Surface § consolidating the three 1.0 non-interactive affordances (non-interactive bootstrap, headless Claude auth via ANTHROPIC_API_KEY env-var Tier-2 path, deferred-at-1.0 Growth-tier candidates) into one anchor — raises cli_tool `scripting_support` project-type requirement from Partial to Met. (3) FR65-FR68 rewritten to [Actor] can [capability] format while preserving structural-contract content: FR65 "Developer can declare...", FR66 "Developer can regenerate...", FR67 "System can normalize...", FR68 "System can enforce..." — eliminates the Measurability step''s format-deviation callout.'
   - date: '2026-04-17'
     changes: 'Wizard-reversal pivot (supersedes the 2026-04-17 wizard-pinning pivot below). Removed setup-time wizard-pinned invariants thesis; reverted to source-layer-pinned invariants with two hardwired shapes (B2B + B2C). Root cause (applied five-whys): wizard scope was sized for N>1 but persona is N=1=Tthew; Marcus peer-agency journey was vanity cover for narcissistic scope. Removed: FR65-FR74 (wizard/config-as-invariants FRs), NFR34-NFR37 (wizard UX/schema/idempotency NFRs), M0.6 (Keel CLI + wizard engine), M8 (migration-between-choices guides), Journey 4 (Marcus peer fork + monthly upstream rebase), adapter-surface multi-implementation scope in M2/M3/M7 (collapsed to better-auth/Paddle/TanStack Start/Prisma/pg-boss/Resend single-impl each). Narrowed M0.7 to a tenancy-template generator only (team + user templates for B2B + B2C). Preserved: three-layer invariants stack + sync gate, Day-1 RLS parameterised over tenancy (two templates), devbox sandbox + --dangerously-skip-permissions safety, four-layer gates, per-iteration security verification + evidence, Ralph + acceptance-driven backpressure, M4 checkpoint ritual. Shape scope at 1.0: B2B + B2C hardwired (pick via one-line keel.config.ts edit — no wizard UI, no interactive prompts); Marketplace + API-first deferred to 1.1/1.2. Success metrics: replaced RIAR (gameable; smaller tasks inflate the ratio) with TTGNA (time-to-green-on-novel-adapter — externally-bound clock); added Victor monthly blank-starter-sprint as quarterly-observable absorption-risk tripwire (research-output doubling as governance). CI decomposed per Murat: pre-commit ≤10s / pre-merge-fast ≤3min (deterministic) / pre-merge-slow ≤10min / nightly ≤60min (live-network hits live here, never pre-merge) / release-gated manual. Generator normalization contract pinned per Winston: pure function expand(policy,config)→Rule[], canonicalised output array hashing, order-independent, deterministic merge precedence. Python CLI (keel.py) demoted to internal orchestration-only; user-facing CLI is TypeScript. Revised MVP: ~29d (realistic-slip 30-34d), back inside the original pre-wizard-pivot posture. Research-project reframe explicit: Keel succeeds as agentic-dev research even if it fails as substrate, provided blank-starter-sprint logs accumulate.'
@@ -77,7 +79,7 @@ Keel is an opinionated SaaS substrate with **source-layer-pinned invariants**, b
 
 Three co-equal first-class principles form a causal chain. **Invariants enforced at the source layer** (RLS policies, import boundaries, non-toggle-able gates, hardwired stack choices materialised in committed substrate code) enable agent coherence — agents do not re-litigate settled decisions because the decisions are not options. Agent coherence is the precondition for staying on-the-loop rather than babysitting agents in-the-loop. On-the-loop work then compounds across products, because decisions survive forks as invariants and do not evaporate as conventions.
 
-Four load-bearing mechanisms implement the chain: (1) **source-layer invariant pinning** — substrate packages hardwire the stack choice (better-auth, Prisma + Postgres, TanStack Start, Paddle, pg-boss, Resend, English baseline) in committed code; a typed `keel.config.ts` carries only the values that genuinely vary per-fork (shape: `b2b` | `b2c`, tenancy: `team` | `user`, project identity, OTel exporter endpoint) and is consumed at build time by a narrow generator; (2) **non-toggle-able four-layer quality gates plus Ralph acceptance-driven backpressure** applied equally to agent-authored and human-authored commits; (3) **Day-1 RLS policies parameterised over two tenancy templates** (team for B2B, user for B2C) emitted by an idempotent generator with a pinned normalization contract — pure `expand(policy, config) → Rule[]`, canonicalised-output hashing, order-independent, deterministic merge precedence; (4) **decomposed CI pyramid** — pre-commit (≤10s), pre-merge-fast (≤3min, deterministic, no live network), pre-merge-slow (≤10min, ephemeral DB), nightly (≤60min, live-network sandbox hits quarantined here), release-gated (manual) — replacing any monolithic 60-minute gate on the critical path.
+Four load-bearing mechanisms implement the chain: (1) **source-layer invariant pinning** — substrate packages hardwire the stack choice (better-auth, Prisma + Postgres, TanStack Start, Paddle, pg-boss, Resend, English baseline) in committed code; a typed `keel.config.ts` carries only the values that genuinely vary per-fork (shape: `b2b` | `b2c`, tenancy: `team` | `user`, project identity, OTel exporter endpoint) and is consumed at build time by a narrow generator; (2) **non-toggle-able four-layer quality gates plus Ralph acceptance-driven backpressure, a pinned PR-lifecycle decision matrix, and a pre-push CI gate** (see § Agent Workflow Contracts) applied equally to agent-authored and human-authored commits; (3) **Day-1 RLS policies parameterised over two tenancy templates** (team for B2B, user for B2C) emitted by an idempotent generator with a pinned normalization contract — pure `expand(policy, config) → Rule[]`, canonicalised-output hashing, order-independent, deterministic merge precedence; (4) **decomposed CI pyramid** — pre-commit (≤10s), pre-merge-fast (≤3min, deterministic, no live network), pre-merge-slow (≤10min, ephemeral DB), nightly (≤60min, live-network sandbox hits quarantined here), release-gated (manual) — replacing any monolithic 60-minute gate on the critical path.
 
 Thesis: *"Your agents are only as good as the decisions you've already frozen for them."* The competitive category is adjacent but not coincident — ShipFast, Makerkit, Supastarter are human-optimised boilerplates at the $199–$299 tier with runtime-toggleable or convention-based configuration and no agentic affordances; Bmalph-class tools are orchestration-only, not a deployable substrate. The honest competitor, however, is *a patient solo builder with a sharper CLAUDE.md* — which is why absorption risk is treated as a quarterly falsification test, not a long-horizon existential (see Success Criteria → Absorption tripwire). Keel's differentiator is the combination of agent-coherent scaffolding, source-layer invariant pinning, security-by-default (sandbox + Day-1 RLS + per-iteration verification + structured evidence), and the Ralph loop — not specific library choices.
 
@@ -264,13 +266,14 @@ Consolidated exclusions. Items here are explicitly not in 1.0 scope; most are ei
 - Claude Code context loaded with the fork's invariants — hardwired stack choices (better-auth, Resend, pg-boss, Prisma, TanStack Start) exposed via `CLAUDE.md` + skill definitions + `INVARIANTS.md`; `keel.config.ts` values (shape, tenancy, projectIdentity) read from the same source. Agents treat all of this as invariants, not options.
 - Ralph iteration budget: 30 minutes per iteration; 3 consecutive failures of the same test halts the loop.
 
-**Iteration flow.**
+**Iteration flow.** The flow follows the orient → execute → commit → gate → push → exit spine pinned in FR14f–FR14k (see § Agent Workflow Contracts). Concretely for story #42:
 
-1. Ralph (running inside the devbox) spawns `claude -p --dangerously-skip-permissions` with adaptive thinking + explicit `effort: "xhigh"`, piping the build-mode Ralph prompt (`.ralph/PROMPT_build.md`) as input. The Ralph prompt directs Claude to read `.ralph/@plan.md`, pick story #42, and execute it. Claude reads the bind-mounted workspace, sees `packages/core/auth`, `packages/email`, and existing better-auth patterns. No decision is re-litigated.
-2. Claude writes a new tRPC mutation `team.inviteWithVerification`, adds a Zod schema, creates a Resend email template, wires pg-boss to enqueue the verification send.
-3. `Required tests:` list is driven in order. Unit tests pass. Integration tests pass. RLS policy test against the new `invite_tokens` table fails — no policy exists yet. Acceptance-driven backpressure blocks the task-done mark.
-4. Ralph sees the failure. Claude reads the generator's team-tenancy template, writes the RLS policy matching it, re-runs the RLS test. Pass. Security-evidence scan (secret scan + dep audit + SAST + prompt-injection scan on the diff) runs; evidence is persisted to `.ralph/logs/<iteration-id>/security-evidence.json`. All evidence green.
-5. All tests in `Required tests:` green. Conventional-commit message generated. Iteration commits and pushes.
+1. **Orient.** Ralph (running inside the devbox) spawns `claude -p --dangerously-skip-permissions` with adaptive thinking + explicit `effort: "xhigh"`, piping the build-mode Ralph prompt (`.ralph/PROMPT_build.md`) as input. The prompt directs Claude through the eight-step orient: reads `.ralph/@plan.md`, reads knowledge files (`AGENTS.md`, `CLAUDE.md`, `RALPH.md`), confirms phase-gate, sees `packages/core/auth` + `packages/email` + better-auth patterns, checks the native task list (empty — clean start), verifies no PR CI is in-progress.
+2. **Execute.** Claude picks story #42, writes a new tRPC mutation `team.inviteWithVerification`, adds a Zod schema, creates a Resend email template, wires pg-boss to enqueue the verification send. No decision is re-litigated — the hardwired stack is committed substrate.
+3. **Backpressure.** `Required tests:` list is driven in order. Unit tests pass. Integration tests pass. RLS policy test against the new `invite_tokens` table fails — no policy exists yet. Acceptance-driven backpressure (FR14a) blocks the task-done mark.
+4. **Recovery.** Ralph sees the failure. Claude reads the generator's team-tenancy template, writes the RLS policy matching it, re-runs the RLS test. Pass. Security-evidence scan (secret scan + dep audit + SAST + prompt-injection scan on the diff) runs; evidence is persisted to `.ralph/logs/<iteration-id>/security-evidence.json`. All evidence green.
+5. **Commit + gates + push.** All tests in `Required tests:` green. Conventional-commit message generated. Iteration commits locally; IP updated (story #42 → DONE, next story → NOW). Pre-push quality gate: full test suite passes. Pre-push CI gate (FR14i): `gh pr checks` shows no in-progress runs, so Ralph pushes. (Had CI been running, Ralph would queue "Monitor PR CI" at QUEUE top, commit IP, and exit without pushing — unpushed commits carry to the next iteration.)
+6. **Exit.** Ralph exits cleanly. The native Claude Code task list carries any in-flight sub-tasks to the next iteration (FR14k); `.ralph/@plan.md` carries prioritised QUEUE state; the next iteration re-orients against this state.
 
 **Backpressure branch (alternate path).**
 
@@ -636,6 +639,86 @@ Keel is self-hosting — the meta-framework used to build Keel is the framework 
 
 Keel absorbs Ralph at a specific commit. Monthly upstream diff review (per `ralphDisposition: fork` frontmatter) evaluates whether upstream changes are worth pulling. Maintainer-only concern; invisible to forkers in "development with Keel" mode.
 
+## Agent Workflow Contracts
+
+Keel pins the Ralph loop's control flow at the source layer, alongside security and quality gates. The loop is not a prompt convention — it is a set of invariants shipped in `packages/keel-templates/PROMPT_*.template.md`, seeded into `.ralph/` on fresh forks, and referenced from `INVARIANTS.md`. Forks that replace the runtime accept responsibility for honouring the same contracts (orient phase, execute phase, PR-lifecycle matrix, knowledge-file upkeep, halt schema). This section is the PRD-level home for FR14f–FR14k and NFR4b / NFR28a / NFR33a.
+
+### Orient-phase contract
+
+Every iteration begins with a pinned orient sequence before any work is executed. The sequence is ordered and non-skippable:
+
+1. **Epic/story orient** — read the current epic + story from `_bmad-output/planning-artifacts/epics/` (may be empty in early phases).
+2. **Plan-file orient** — read `.ralph/@plan.md` for NOW / QUEUE / BLOCKED / DONE state.
+3. **Knowledge-file orient** — read `AGENTS.md`, `CLAUDE.md`, `RALPH.md` for operational truth + prior-iteration signposts.
+4. **Phase-gate orient** — detect current BMad phase via `_bmad/_config/bmad-help.csv`; blocking gates (PRD, Architecture, Epics & Stories, Implementation Readiness, Sprint Planning, Create Story, Dev Story) cannot be skipped.
+5. **Application-source orient** — search source dirs (anything outside `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`) with Sonnet subagents to confirm current implementation state; one Sonnet subagent at most for any build/test/lint command (backpressure per FR14c).
+6. **Budget orient** — verify the NOW task fits the remaining execution budget per NFR4b (task estimate + 25K push-buffer within ~117K exec budget; exit if <25K remaining).
+7. **Task-list orient** — read the native Claude Code task list; in-flight tasks from a killed prior iteration are crash-journal signals (FR14k); stale tasks are cleared.
+8. **PR/CI orient** — if a PR exists, check `gh pr checks`; any in-progress or pending check routes the iteration to CI monitoring rather than new work (FR14i pre-push gate).
+
+### Execute-phase contract
+
+The execute phase is a fixed spine: **orient → one task → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit**. Rules:
+
+- **One task per iteration.** Compound NOW tasks ("do X AND Y") are rejected at orient and decomposed into NOW + QUEUE. Each BMad-workflow invocation (e.g., `/bmad-create-story`, `/bmad-dev-story`) consumes one full iteration — never chain workflows in one iteration.
+- **dev-story budget rule.** Before invoking `/bmad-dev-story`, the iteration counts the story's tasks. Stories with ≥ 3 tasks are decomposed: first task as NOW, remaining tasks to QUEUE. Prevents XL-task (60K+) context exhaustion mid-workflow.
+- **Commit before push.** Iteration work always commits locally before the push gate; pre-push failures leave committed work in place for the next iteration to carry.
+- **Update IP every iteration.** `.ralph/@plan.md` tracks NOW / QUEUE / BLOCKED / DONE / Context. Fix tasks enter QUEUE at the TOP (priority stack), not FIFO. Keep IP under 50 lines — prune completed items.
+- **Pre-push quality gate.** Full unit/integration test suite + E2E (if configured) must pass. Exception: ATDD-RED-phase failures listed in IP § ATDD Red Phase are expected and do not block push. Any failure not in that list is a real failure — add a fix task to QUEUE top, exit without pushing.
+- **Pre-push CI gate (FR14i).** Never push while CI is running on the PR. NFR1 covers CI tier wall-clock budgets; this gate prevents the push-race antipattern (a new push cancels an in-progress CI run; on Draft PRs, a doc-only push skips full CI entirely, so prior code changes never get validated). Check `gh pr checks` before every push; any in-progress/pending check routes to "Monitor PR CI" as NOW, commits IP, exits without pushing.
+
+### PR-lifecycle decision matrix
+
+Ralph applies the following matrix every iteration after Orient. The matrix is schema-versioned and shipped with the Keel template set; forks honour it or fork to deviate.
+
+| PR State | Epic State      | Action                                                                 |
+|----------|-----------------|------------------------------------------------------------------------|
+| No PR    | Tasks remain    | Push → create Draft PR (`gh pr create --base main --fill --draft`) → monitor CI. |
+| Draft    | Tasks remain    | Push (pre-push CI gate per FR14i) → monitor CI.                        |
+| Draft    | All tasks done  | Queue "Transition PR Draft → Open — final CI gate".                    |
+| Open     | CI running      | `gh pr checks --watch --fail-fast` → fix failures (root cause + fix approach at QUEUE top). |
+| Open     | CI green        | Check review feedback → address or mark EPIC_DONE.                     |
+| Open     | Review feedback | Queue fix tasks → implement → re-run CI gate.                          |
+
+Three anti-constraints are non-toggle-able invariants:
+
+- ⊗ **Never mark EPIC_DONE while PR is still Draft.**
+- ⊗ **Never transition Draft → Open until ALL implementation tasks (including queued CI fixes) are complete.**
+- ⊗ **Never address PR review feedback while PR is Draft** — Draft reviews are premature, and acting on them inverts the Draft → Open → review-feedback loop.
+
+### Knowledge-file upkeep contract
+
+Three knowledge files carry distinct audiences and update on every iteration that produces non-obvious learnings. Promotion rules are fixed:
+
+| File        | Audience                           | Contents                                                                          |
+|-------------|------------------------------------|-----------------------------------------------------------------------------------|
+| `AGENTS.md` | Any AI agent (Claude, Codex, etc.) | Operational truth — conventions, paths, git rules. Kept operational; no bloat.    |
+| `CLAUDE.md` | Claude Code specifically           | Claude-Code quirks (skills, settings). Points to `AGENTS.md` for shared truth.    |
+| `RALPH.md`  | Ralph (autonomous loop)            | Ralph's private journal — signposts, lessons, gotchas, decisions. One-line entries. |
+
+Promotion rule: learnings that apply to every agent go to `AGENTS.md`. Claude-Code-specific behaviour (skill quirks, settings) goes to `CLAUDE.md`. Ralph-flavoured notes (past-iteration rationale, gotchas) stay in `RALPH.md`. A "learned-but-did-not-write-down" iteration is by definition a wasted iteration — upkeep is commit-time, not optional.
+
+### Crash-journal contract
+
+The iteration's in-memory state is not the source of truth — the pair of `.ralph/@plan.md` + the native Claude Code task list is. The plan file is git-tracked (survives any crash); the native task list survives hard kills within a session and hydrates the next iteration via Orient step 7. Max three active native tasks per iteration (NOW + up to two sub-steps); more than three is a decomposition signal, not a planning achievement.
+
+### Halt schema
+
+The loop halts on the presence of a `.ralph/halt` sentinel. The sentinel is JSON with a pinned schema:
+
+```json
+{"reason": "EPIC_DONE" | "AWAIT_MERGE" | "BUDGET_EXHAUSTED" | "CI_BLOCKED" | "SECURITY_CRITICAL", "epic": <N | null>, "pr": "<url | null>"}
+```
+
+Named reasons are a closed set at 1.0: `EPIC_DONE` (epic shipped), `AWAIT_MERGE` (PR open and CI green, waiting on human merge), `BUDGET_EXHAUSTED` (execution budget crossed the 25K buffer floor mid-iteration — see NFR4b), `CI_BLOCKED` (pre-push CI gate blocks progress until human intervention), `SECURITY_CRITICAL` (critical-severity security finding halted the loop per NFR18). Additional reasons enter via a minor Keel version with a schema bump. `ralph.py` is the 1.0 reference runtime; forks that replace the runtime honour the schema or fork-and-diverge.
+
+### Planning mode separation
+
+Ralph has two modes pinned in separate prompt files under `packages/keel-templates/`:
+
+- `PROMPT_build.md` — build-mode contract described above. One task per iteration; commits code; invokes the execute phase.
+- `PROMPT_plan.md` — planning-mode contract. Reads BMad specs + repo state + knowledge files; updates `.ralph/@plan.md` with prioritised gaps and tasks. **Plan-mode iterations MUST NOT implement features or commit code changes** (only IP + knowledge-file updates commit). Prevents the plan-while-coding failure mode that manufactures stories mid-implementation.
+
 ## Security-by-Default Requirements
 
 Security is a non-negotiable core requirement — equivalent in status to i18n, quality gates, and RLS. Every Ralph iteration must implement and verify security with structured evidence. The sandbox from Execution Environment is the starting point, not the full story.
@@ -725,6 +808,8 @@ A pre-merge quality gate verifies the three layers don't drift. If `packages/kee
 | Client technology constraints             | `apps/web` built on TanStack Start; UI uses Tailwind, tRPC, RHF, Zod, Zustand                                  | INVARIANTS.md §client                                  | docs/invariants/client.md           |
 | Ralph prompt conventions (model-pinned)   | `.ralph/PROMPT_*.md` template contract: adaptive thinking + explicit `effort`; `thinking.display = "summarized"`; no sampling knobs; no prefills; positive examples; explicit subagent-triggering phrasing; fan-out cap invariant (1 Sonnet per build/test) | INVARIANTS.md §prompts                                 | docs/invariants/prompts.md          |
 | Shape-driven generated artefacts          | `keel.config.ts` → `pnpm generate` → `packages/core/rls/*.generated.ts` + `packages/billing/paddle/preset.generated.ts` + `invariants.manifest.ts`; pre-merge sync gate catches drift | INVARIANTS.md §shape (references `keel.config.ts`)     | docs/invariants/shape.md            |
+| Ralph execute-phase contract (orient → execute → commit → gate → push → exit; PR-lifecycle decision matrix; pre-push CI gate) | `.ralph/PROMPT_build.md` seeded from `packages/keel-templates/PROMPT_build.template.md`; `ralph.py` loop controller; CI path-based gate routing | INVARIANTS.md §ralph-execute | docs/invariants/ralph-execute.md    |
+| Knowledge-file upkeep contract (`RALPH.md` / `AGENTS.md` / `CLAUDE.md` promotion rules) | prek informational hook at 1.0 (hard gate deferred to 1.1 Growth-tier); commit-time reminder in `.ralph/PROMPT_*.md` | INVARIANTS.md §knowledge-files | docs/invariants/knowledge-files.md  |
 
 ### Extension / override model for forks
 
@@ -750,7 +835,7 @@ The thesis *"invariants beat conventions beat docs"* applies to the invariants t
 
 ### Autonomous Agent Loop
 
-- **FR7**: Agent can execute a multi-iteration loop against a committed plan (`.ralph/@plan.md`) inside the devbox, invoking `claude -p` with adaptive thinking and an explicit `effort` setting (default `xhigh` for build iterations, `high` for plan iterations) per Opus 4.7 conventions.
+- **FR7**: Agent can execute a multi-iteration loop against a committed plan (`.ralph/@plan.md`) inside the devbox, invoking `claude -p` with adaptive thinking and an explicit `effort` setting (default `xhigh` for build iterations, `high` for plan iterations) per Opus 4.7 conventions. Each iteration follows the orient → execute → commit → gate → push → exit spine defined by FR14f–FR14k (see § Agent Workflow Contracts) with the halt, backpressure, and budget behaviours of FR8–FR14e.
 - **FR8**: System can halt the Ralph loop on a configurable threshold of consecutive test failures or security-verification failures (see Security Verification & Evidence).
 - **FR9**: System can halt the Ralph loop on task-budget exhaustion per iteration, using the model-visible `task_budget` advisory counter (beta header `task-budgets-2026-03-13`, ≥ 20K) where available and `max_tokens` as the hard invisible ceiling.
 - **FR9a**: System can branch halt handling between `max_tokens` and `model_context_window_exceeded` stop reasons, persisting which applied to each iteration for budget-re-baseline analysis.
@@ -764,6 +849,12 @@ The thesis *"invariants beat conventions beat docs"* applies to the invariants t
 - **FR14c (Subagent fan-out budget)**: System can configure a substrate-default subagent fan-out cap (Sonnet-class read/search subagents) with a documented default of 250 parallel and a ceiling of 500. The build/test backpressure rule — **at most one Sonnet subagent for any build, test, or lint command per iteration** — is a non-toggle-able invariant enforced by the Ralph prompt contract, not a tunable.
 - **FR14d (Per-iteration context meter)**: Agent can emit structured context-utilisation metrics per iteration (advertised-vs-usable context window, specs load, orient load, execute load, output load, percentage utilisation) to `.ralph/logs/<iteration-id>/context-meter.json`. Triggers: exit cleanly above 80% utilisation; flag above 60% so loop-level observability can spot drift.
 - **FR14e (Non-Deterministic Backpressure scaffold)**: Developer can opt a task into LLM-as-judge acceptance via a fixture (pattern-named `lib/llm-review.ts`) that runs a scoped Opus-class subagent against the diff with the task's subjective acceptance criteria and returns pass/fail. Failure counts as a test failure under FR8 backpressure. Growth-tier default; 1.0 ships the pattern contract so fork-authored fixtures are interoperable.
+- **FR14f (Orient-phase contract)**: Agent can execute a pinned eight-step orient sequence (epic/story, plan file, knowledge files, phase-gate, application source, budget headroom, native task list, PR/CI state) before the execute phase. Skipping any step fails the iteration's self-check. Normative spec: § Agent Workflow Contracts → Orient-phase contract.
+- **FR14g (Execute-phase contract)**: Agent can execute exactly one task per iteration along the orient → execute → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit spine. Compound NOW tasks containing "AND" are rejected at orient and decomposed into NOW + QUEUE. Each BMad-workflow invocation consumes one full iteration. `/bmad-dev-story` invocations on stories with ≥ 3 tasks are rejected and decomposed per-iteration. Normative spec: § Agent Workflow Contracts → Execute-phase contract.
+- **FR14h (PR-lifecycle decision matrix)**: Agent can apply a schema-versioned six-row PR-state × Epic-state × CI-state decision matrix to select the next action per iteration. Three anti-constraints are non-toggle-able invariants: never mark EPIC_DONE while PR is Draft; never transition Draft→Open until all implementation tasks (including queued CI fixes) are complete; never address PR review feedback while Draft. Matrix is shipped in `packages/keel-templates/PROMPT_build.template.md` and referenced from `INVARIANTS.md`. Normative spec: § Agent Workflow Contracts → PR-lifecycle decision matrix.
+- **FR14i (Pre-push CI gate)**: System can block `git push` while any check on the current PR is in-progress or pending. Ralph queues "Monitor PR CI" at QUEUE top, commits the plan-file update locally, and exits without pushing; unpushed commits carry to the next iteration. CI failures produce a triage entry at QUEUE top with failing-check name, root-cause note, and fix approach. Prevents the push-race antipattern where a new push cancels in-progress CI (on Draft PRs, a doc-only push can skip full CI entirely, leaving prior code changes unvalidated).
+- **FR14j (Knowledge-file upkeep contract)**: Agent can maintain three audience-scoped knowledge files (`RALPH.md` private journal, `AGENTS.md` shared operational, `CLAUDE.md` Claude-Code-specific) with pinned promotion rules. Iterations that produce non-obvious learnings update at least one file and commit the change alongside the work. Promotion rule: learnings applying to every agent go to `AGENTS.md`; Claude-Code-specific behaviour goes to `CLAUDE.md`; Ralph-flavoured notes stay in `RALPH.md`. Normative spec: § Agent Workflow Contracts → Knowledge-file upkeep contract.
+- **FR14k (Crash-journal + plan-file + halt schemas)**: System can use the native Claude Code task list as the iteration's crash journal (max 3 active tasks; survives hard kills); agent can hydrate in-flight work via Orient step 7. `.ralph/@plan.md` follows a pinned schema (NOW / QUEUE / BLOCKED / DONE / Context sections; fix tasks enter QUEUE at the TOP as a priority stack). The `.ralph/halt` sentinel carries a pinned JSON schema `{reason: <closed enum>, epic: <N | null>, pr: <url | null>}` with a closed reason-set at 1.0 (`EPIC_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`). Additional reasons enter via a minor Keel version with a schema bump.
 
 ### Tenant Isolation
 
@@ -865,6 +956,7 @@ These capabilities are pre-wired in every Keel-forked project using hardwired su
 - **NFR3**: RLS query overhead is measurable, monitored, and held below a threshold set in the architecture doc. Budget deferred.
 - **NFR4**: Ralph iteration startup (context load, task parse, agent spawn) completes within 20 seconds; iteration task-budget is enforced. Token budgets (`max_tokens`, execution ceiling, compaction triggers) are tokenizer-aware and re-baselined per tested model version — Opus 4.7's tokenizer emits up to ~35% more tokens per byte than Opus 4.6 for the same text, so fixed numeric budgets cannot transfer across major model versions without re-measurement.
 - **NFR4a (Context utilisation smart zone)**: Ralph iterations aim for 40–60% utilisation of the advertised context window (200K advertised ≈ 176K usable for Opus 4.7; 117K execution budget target). Iterations exceeding 80% trigger a clean-exit budget signal; iterations below 30% are flagged as under-utilised for potential task-batching review. Smart-zone metrics are emitted by FR14d's per-iteration context meter.
+- **NFR4b (Execution budget headroom)**: Ralph iterations reserve a 25K push-buffer on top of the task estimate within the ~117K execution budget; an iteration with less than 25K remaining exits cleanly rather than starting new work. Tasks estimated at ≥ 60K ("XL") are decomposed into smaller QUEUE entries before start rather than attempted mid-context-window. Context-exhaustion signals (repeated tool-call failures, truncated/incoherent subagent responses, same operation retried ≥ 3 times without progress) trigger immediate clean-exit regardless of advertised headroom — the IP handoff is more important than completing the current workflow. Numeric targets are tokenizer-aware per NFR4 and re-baselined per tested model generation per NFR30.
 
 ### Security
 
@@ -904,6 +996,7 @@ These capabilities are pre-wired in every Keel-forked project using hardwired su
 - **NFR26**: Ralph iteration commits are atomic — an iteration commits a green-test-and-green-security-evidence state or leaves the repo unchanged. Partial-state commits are rejected at the pre-commit gate.
 - **NFR27**: Quality gates (pre-commit, pre-merge, pre-deploy) fail closed — any gate unreachable or misconfigured rejects the commit, PR, or deploy. No silent-success mode.
 - **NFR28**: Flake-rate budgets are tier-specific. **Pre-merge-fast + pre-merge-slow gates must be deterministic — flake rate > 0.1% across a 30-day window triggers immediate CI-hardening.** Nightly tier (live-network) tolerates up to 2% flake across a 30-day window; sustained > 2% triggers a review. This tier-specific budget resolves the pre-wizard-reversal arithmetic conflict where 2% flake on a 60-min monolithic E2E gate was incompatible with Ralph's 3-consecutive-failures halt.
+- **NFR28a (Worktree retention)**: When Ralph runs inside a git worktree (default path `.claude/worktrees/…`, gitignored), the iteration never removes or cleans up the worktree on exit. Worktree removal destroys work-in-progress that survives across iterations — uncommitted state, half-landed refactors, partial test results. Enforcement is at the prompt-contract layer (`.ralph/PROMPT_*.md` guardrails) with a source-layer invariant in `packages/keel-templates/PROMPT_*.template.md` preventing re-introduction of clean-up on scaffolded templates. Non-toggle-able; fork-to-remove.
 
 ### Maintainability
 
@@ -916,6 +1009,7 @@ These capabilities are pre-wired in every Keel-forked project using hardwired su
 
 - **NFR32**: Every request handled by a Keel-forked app emits OpenTelemetry traces correlated by request ID. Sampling rate is configurable per-deploy; exporter endpoint is read from `keel.config.ts → otelExporter` at build time.
 - **NFR33**: Ralph iterations emit structured stream-json logs to `.ralph/logs/` with per-iteration ID, start/stop timestamps, claude subprocess exit status, and test results.
+- **NFR33a (Ralph loop halt schema)**: The `.ralph/halt` sentinel is a JSON file with a pinned schema `{reason: <closed enum>, epic: <N | null>, pr: <url | null>}`; presence halts the loop cleanly. Closed reason enum at 1.0: `EPIC_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`. `ralph.py` is the 1.0 reference runtime; forks that replace the runtime honour the schema or fork-and-diverge. Additional reasons enter via a minor Keel version with a schema bump. See § Agent Workflow Contracts → Halt schema.
 
 ### Configuration & Generator UX
 

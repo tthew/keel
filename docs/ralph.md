@@ -146,3 +146,38 @@ Since `ralph.py` owns the subprocess (not receiving piped stdin), Textual gets t
 | **Session tracking**   | Cumulative cost and elapsed time across all iterations.                                                                   |
 | **ccusage integration**| If `ccusage` is on `$PATH`, shows 5h billing-block spend and remaining time.                                              |
 | **Session logs**       | Every run writes a log to `.ralph/logs/<branch>-<timestamp>.log`. `.ralph/logs/` is gitignored.                           |
+
+## Loop contracts
+
+This doc describes the Ralph TUI runtime. The loop's **behavioural contracts** — what every iteration MUST do — live elsewhere and are enforced by the prompt files, not by `ralph.py`:
+
+- **Normative spec:** `_bmad-output/planning-artifacts/prd.md` § Agent Workflow Contracts (FR14f–FR14k, NFR4b / NFR28a / NFR33a).
+- **Runtime enforcement:** `.ralph/PROMPT_build.md` and `.ralph/PROMPT_plan.md` — seeded at 1.0 from `packages/keel-templates/PROMPT_*.template.md`.
+- **Per-invariant narrative:** `docs/invariants/ralph-execute.md` + `docs/invariants/knowledge-files.md`.
+
+### Execute-phase spine (build mode)
+
+**orient → one task → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit**
+
+One task per iteration, no exceptions. Compound NOW tasks ("do X AND Y") decompose at orient. Each BMad-workflow invocation consumes one full iteration. Stories with ≥ 3 tasks decompose via the dev-story budget rule.
+
+### PR-lifecycle decision matrix (abridged)
+
+| PR State | Epic State      | Action                                                       |
+|----------|-----------------|--------------------------------------------------------------|
+| No PR    | Tasks remain    | Push → create Draft PR → monitor CI.                         |
+| Draft    | Tasks remain    | Push (pre-push CI gate) → monitor CI.                        |
+| Draft    | All tasks done  | Queue "Transition PR Draft → Open — final CI gate".          |
+| Open     | CI running      | `gh pr checks --watch --fail-fast` → fix failures.           |
+| Open     | CI green        | Check review feedback → address or mark EPIC_DONE.           |
+| Open     | Review feedback | Queue fix tasks → implement → re-run CI gate.                |
+
+Anti-constraints: never mark EPIC_DONE while Draft; never transition Draft → Open until all tasks done; never address review feedback while Draft.
+
+### Halt schema
+
+`.ralph/halt` is JSON: `{"reason": "<enum>", "epic": <N|null>, "pr": "<url|null>"}`. Closed reason enum at 1.0: `EPIC_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`. `ralph.py` reads and displays; forks that replace the runtime honour the schema.
+
+### Knowledge-file upkeep
+
+Three audience-scoped files update on every iteration that learned something non-obvious: `AGENTS.md` (shared operational), `CLAUDE.md` (Claude-Code-specific), `RALPH.md` (Ralph-private journal). A "learned-but-did-not-write-down" iteration is by definition wasted — upkeep is commit-time, not optional.

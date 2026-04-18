@@ -42,9 +42,10 @@
 
 ## IMPORTANT Constraints
 
-⊗ **Plan only. Do NOT implement. Do NOT commit code changes.**
+⊗ **Plan only. Do NOT implement. Do NOT commit code changes.** IP + knowledge-file updates are the only commits allowed in plan mode.
 ⊗ **Confirm functionality is missing before documenting** — don't assume.
 ⊗ **Search before concluding** — use subagents to verify gaps exist.
+⊗ **Worktree retention.** If running in a git worktree (default path `.claude/worktrees/…`, gitignored), never remove or clean up the worktree on exit. Do NOT call `ExitWorktree` or `git worktree remove`. WIP survives across iterations.
 
 ---
 
