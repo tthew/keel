@@ -83,7 +83,7 @@ Thesis: *"Your agents are only as good as the decisions you've already frozen fo
 
 ### Execution Environment
 
-Keel ships a Docker-based devbox (absorbed from the author's prior `cc-devbox` project) inside which Ralph, Claude Code, and all agent-authored code execution run under `--dangerously-skip-permissions` — the sandbox is what makes the flag safe. The host-side entry point is `pnpm <subcommand>`; pnpm scripts manage container lifecycle and forward commands. Ralph itself runs as a Python Textual TUI **inside** the devbox (orchestration runtime, not a user-facing 1.0 surface); users never invoke Docker, docker-compose, or SSH directly.
+Keel ships a Docker-based devbox (absorbed from the author's prior [`cc-devbox`](https://github.com/tthew/cc-devbox) project) inside which Ralph, Claude Code, and all agent-authored code execution run under `--dangerously-skip-permissions` — the sandbox is what makes the flag safe. The host-side entry point is `pnpm <subcommand>`; pnpm scripts manage container lifecycle and forward commands. Ralph itself runs as a Python Textual TUI **inside** the devbox (orchestration runtime, not a user-facing 1.0 surface); users never invoke Docker, docker-compose, or SSH directly.
 
 Autonomous Ralph execution has two one-time auth prerequisites inside the devbox: Claude Code (`pnpm claude` triggers OAuth; tokens persist in `/home/dev/.claude/`) and `gh` CLI (`pnpm gh:auth` triggers `gh auth login`; tokens persist in `/home/dev/.config/gh/`). Ralph cannot push commits or open PRs autonomously until `gh` is authenticated. Both flows surface their OAuth URLs to the host terminal; the host browser completes the flow; tokens stay inside the container volume and never touch the host's own `~/.claude/` or `~/.config/gh/`.
 
@@ -146,7 +146,7 @@ Secondary qualitative signal:
 **28-day milestone plan (30-34-day realistic-slip).** MVP gate: Launchpad. This budget restores the original pre-wizard-pivot posture (26d) and adds a narrow 2d increment for the tenancy-template generator and B2C shape support (two hardwired Paddle presets, two tenancy templates). Adapter-surface multi-implementation scope (the 22-day blowout from the wizard-pivot) is entirely removed; alternatives to any single-impl default are Growth-tier.
 
 - **M0 Repo foundation & tooling** (2d) — pnpm workspaces, Turborepo, prek, commitlint, release-please, ESLint + TS project refs, conventional-commits enforcement. ESLint config and tsconfig-base are **hardwired** in `packages/keel-invariants/`, not generated.
-- **M0.5 Devbox** (3d) — absorb `cc-devbox` into `packages/devbox/`; parameterise hardcoded paths; auto-start logic and TUI docker-attach UX.
+- **M0.5 Devbox** (3d) — absorb [`cc-devbox`](https://github.com/tthew/cc-devbox) into `packages/devbox/`; parameterise hardcoded paths; auto-start logic and TUI docker-attach UX.
 - **M0.7 Tenancy-template generator** (2d, was 3d config-as-invariants) — narrow-scope idempotent generator: reads `keel.config.ts` (typed schema carrying `shape`, `tenancy`, `projectIdentity`, OTel endpoint), emits the matching RLS tenancy template and the shape-specific Paddle billing preset. Normalization contract pinned: pure `expand(policy, config) → Rule[]`, canonicalised-output hashing, order-independent, deterministic merge precedence. Sync-enforcement pre-merge gate covers `keel.config.ts` → generator-output drift.
 - **M1 Data model + RLS tenancy** (3d) — Day-1 RLS policies for **two tenancy templates** (team for B2B, user for B2C); `tenantGuard()` as session-variable-setter keyed on `app.current_tenant_id`; `pnpm rls:explain` CLI; RLS policy unit tests against synthetic schemas and integration tests against ephemeral Postgres for both templates.
 - **M2 Auth & Identity** (3d) — **better-auth hardwired** (no adapter surface): DB-backed sessions, Google OAuth + email/password, step-up middleware, `requireRecentAuth` wrapper. A thin `packages/core/auth` re-export surface exists so `apps/web` imports are stable, but there is no second implementation scaffolded.
@@ -473,7 +473,7 @@ No `npm publish` of individual packages at 1.0. Fork-and-use model; packages are
 | `pnpm generate`                             | Runs the narrow-scope generator (RLS tenancy template + billing preset from `keel.config.ts`). Idempotent. Invoked by pre-commit hook; direct invocation for debugging only. |
 | `pnpm rls:explain <query> --tenant=<id>`    | RLS policy debugger. DB-bound; must run inside container network.  |
 
-**Devbox scope.** Per-fork by default — each Keel fork gets its own container mounted against that fork's workspace only. `KEEL_DEVBOX_SHARED=true` in `.envrc` enables shared-devbox mode (one container, parent-directory mount) for N=1 dogfood matching the current `cc-devbox` pattern.
+**Devbox scope.** Per-fork by default — each Keel fork gets its own container mounted against that fork's workspace only. `KEEL_DEVBOX_SHARED=true` in `.envrc` enables shared-devbox mode (one container, parent-directory mount) for N=1 dogfood matching the current [`cc-devbox`](https://github.com/tthew/cc-devbox) pattern.
 
 **Claude authentication.** Lives inside the devbox persistent volume (`/home/dev/.claude/`), not on the host. First `pnpm claude` invocation per devbox triggers OAuth; the URL is surfaced to the host; user completes OAuth in host browser; session persists in the container volume. CI and headless escape hatch: `ANTHROPIC_API_KEY` env var pass-through (Tier-2 deviation path, not the default UX).
 
@@ -569,7 +569,7 @@ Milestones M0-M9 (including M0.5 devbox and M0.7 tenancy-template generator) are
 - *Day-1 RLS policy parameterised over two tenancy templates* — pre-M1 spike budgeted at ≤ 1.5 days per template (team, user = up to 3d). If either does not converge, that template downgrades to Growth-tier (which for B2C with `user` tenancy means shipping B2C only at Phase 2). Accepted tradeoff.
 - *Generator idempotency + drift-detection complexity* — the generator is required to be deterministic and content-hashed so the sync gate can detect drift. Mitigation: treat `packages/keel-generator` as a load-bearing substrate package with its own test suite; pinned normalization contract (pure `expand(policy, config) → Rule[]`, canonicalised-output hashing, order-independent, deterministic merge precedence) closes the transitive-rule-expansion hole.
 - *Decomposed-CI pyramid engineering* — known first-slip candidate (4 planned days for M9 → 5-6 real). Mitigation: the pyramid is designed so pre-merge-fast can land first (≤3min deterministic gate) and pre-merge-slow / nightly / release-gated layers can follow incrementally without blocking the merge of earlier layers.
-- *Devbox cold-start and image size (~3.5 GB per cc-devbox baseline)* — affects Ralph iteration startup time on first invocation. Mitigation: persistent container across Ralph invocations; rebuild only on Dockerfile diffs; document pre-warming as an operational tip.
+- *Devbox cold-start and image size (~3.5 GB per [`cc-devbox`](https://github.com/tthew/cc-devbox) baseline)* — affects Ralph iteration startup time on first invocation. Mitigation: persistent container across Ralph invocations; rebuild only on Dockerfile diffs; document pre-warming as an operational tip.
 - *Bootstrap handoff at M0.5* — the cc-devbox → `packages/devbox/` migration lands mid-build. If the absorbed devbox fails, Keel's own build stalls. Mitigation: keep standalone `cc-devbox` functional on a `legacy-devbox` branch until after the M4 checkpoint.
 - *Security-verification overhead in the Ralph loop* — running SAST + secret scan + dependency audit + prompt-injection scan per iteration adds ~30-60s per iteration at typical scanner speeds and may compound to 7-13% iteration tax. Mitigation: cache-unchanged-file scan results is **load-bearing at M0** (not deferred); configurable severity threshold tuning per scanner category (architecture doc); recurring false-positive categories force an upstream scanner-config fix rather than an escape hatch.
 - *Correlated-library risk on hardwired defaults* — TanStack Start and better-auth are young relative to incumbents. Mitigation: quarterly maintenance-signal check per Domain-Specific § Correlated-Library Risk Policy; demotion-via-migration in next major if thresholds hit.
@@ -620,7 +620,7 @@ Keel is self-hosting — the meta-framework used to build Keel is the framework 
 ### The 1.0 cut ritual
 
 1. Move `_bmad-output/*` to `docs/archive/keel-1.0-planning/`.
-2. Retire `cc-devbox`; the absorbed `packages/devbox/` is canonical.
+2. Retire [`cc-devbox`](https://github.com/tthew/cc-devbox); the absorbed `packages/devbox/` is canonical.
 3. Empty `apps/web/features/*` (Launchpad seed only).
 4. Seed `packages/keel-templates/PROMPT_*.template.md` from current `.ralph/PROMPT_*.md`.
 5. Tag `v1.0.0` on the substrate.
