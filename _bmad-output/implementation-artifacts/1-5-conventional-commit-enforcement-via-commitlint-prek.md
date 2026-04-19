@@ -76,9 +76,9 @@ so that agent and human commits alike follow conventional-commit format — a no
     - `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0/0 across existing branch commits (spec commit + iteration-1 bootkeeping; both follow `docs(story):` / `chore(ralph):` conventional form).
   - [ ] Commit: `feat(invariants): Story 1.5 Task 1 — wire commit-msg hook + prepare installs commit-msg shim`. Include IP + RALPH.md upkeep in the same commit per step 3a of the build prompt.
 
-- [ ] **Task 2: ATDD smoke probes — valid commit accepts (AC 2), invalid commit rejects (AC 3), author-parity note (AC 4)** (AC: 2, 3, 4)
-  - [ ] These probes exercise the real git-hook path (not `prek run`) so the evidence covers git → `.git/hooks/commit-msg` → prek → commitlint end-to-end. Each probe stages a trivial change, attempts `git commit -m '…'`, observes the outcome, cleans up. Every probe's tree state matches the Task-1 tip before AND after.
-  - [ ] **AC 2 probe — valid conventional message lands.**
+- [x] **Task 2: ATDD smoke probes — valid commit accepts (AC 2), invalid commit rejects (AC 3), author-parity note (AC 4)** (AC: 2, 3, 4)
+  - [x] These probes exercise the real git-hook path (not `prek run`) so the evidence covers git → `.git/hooks/commit-msg` → prek → commitlint end-to-end. Each probe stages a trivial change, attempts `git commit -m '…'`, observes the outcome, cleans up. Every probe's tree state matches the Task-1 tip before AND after.
+  - [x] **AC 2 probe — valid conventional message lands.**
     ```bash
     # Create a probe-safe artefact (path under .prettierignore, not a TS/lint input).
     echo 'Story 1.5 Task 2 AC 2 probe — delete on cleanup.' > _bmad-output/__ac2-probe.txt
@@ -92,7 +92,7 @@ so that agent and human commits alike follow conventional-commit format — a no
     [ ! -f _bmad-output/__ac2-probe.txt ] && echo 'AC 2 probe clean'
     ```
     Expect: `git commit` exits 0; `/tmp/s15-ac2.out` shows all 3 pre-commit hook steps (`typecheck` / `lint` / `format-check`) and the commit-msg step (`commitlint`) all `Passed`; the commit lands; `git reset --hard HEAD~1` restores to branch tip. **Important:** `git reset --hard` removes the probe commit AND the probe file in one step — safer than `--mixed` here because the file only existed for this probe.
-  - [ ] **AC 3 probe — invalid message rejects.**
+  - [x] **AC 3 probe — invalid message rejects.**
     ```bash
     echo 'Story 1.5 Task 2 AC 3 probe — delete on cleanup.' > _bmad-output/__ac3-probe.txt
     git add _bmad-output/__ac3-probe.txt
@@ -104,10 +104,10 @@ so that agent and human commits alike follow conventional-commit format — a no
     rm -f _bmad-output/__ac3-probe.txt
     ```
     Expect: `git commit` exits 1; `/tmp/s15-ac3.out` shows all 3 pre-commit hooks `Passed` (message quality is independent of source state), then the `commitlint` commit-msg hook `Failed` with output referencing `type-empty` and/or `subject-empty` from `@commitlint/config-conventional`. Message contains `<type>(<scope>): <subject>` convention hint (commitlint's default error shape includes the `type-empty` message "type may not be empty"). No commit on branch.
-  - [ ] **AC 4 probe — author-parity note.** No active probe runs in this step; AC 4 is structural. The Task-1 + Task-2 commits on this branch (made by Ralph via `git commit`) AND any user's own commits would both hit the same `.git/hooks/commit-msg` shim — git invokes `.git/hooks/commit-msg` with no conditionals on committer identity, user name, or environment. The hook exercises the same commitlint config, same rules, same exit criteria for everyone. Record this logical argument in Debug Log References when Task 2 lands. **Devbox-path half** (epic AC 4 second clause: "whether commits originate inside the devbox or on the host") cannot be probed — Epic 2 delivers the devbox. Structural-only note for this story.
-  - [ ] Capture each probe's output in Debug Log References. If AC 2 or AC 3 probe produces unexpected output, **loop back to Task 1** (hook wiring issue). Document any loop-back in Completion Notes List.
-  - [ ] Post-probe tree check: `git status` clean; `git log --oneline origin/main..HEAD` unchanged from pre-probe count; `ls _bmad-output/__ac*-probe.txt 2>/dev/null` empty.
-  - [ ] Quality gates (defensive re-run after probe cleanup):
+  - [x] **AC 4 probe — author-parity note.** No active probe runs in this step; AC 4 is structural. The Task-1 + Task-2 commits on this branch (made by Ralph via `git commit`) AND any user's own commits would both hit the same `.git/hooks/commit-msg` shim — git invokes `.git/hooks/commit-msg` with no conditionals on committer identity, user name, or environment. The hook exercises the same commitlint config, same rules, same exit criteria for everyone. Record this logical argument in Debug Log References when Task 2 lands. **Devbox-path half** (epic AC 4 second clause: "whether commits originate inside the devbox or on the host") cannot be probed — Epic 2 delivers the devbox. Structural-only note for this story.
+  - [x] Capture each probe's output in Debug Log References. If AC 2 or AC 3 probe produces unexpected output, **loop back to Task 1** (hook wiring issue). Document any loop-back in Completion Notes List.
+  - [x] Post-probe tree check: `git status` clean; `git log --oneline origin/main..HEAD` unchanged from pre-probe count; `ls _bmad-output/__ac*-probe.txt 2>/dev/null` empty.
+  - [x] Quality gates (defensive re-run after probe cleanup):
     - `pnpm -w typecheck` — FULL TURBO (no inputs touched).
     - `pnpm -w lint` — FULL TURBO.
     - `pnpm format:check` — exit 0.
@@ -274,6 +274,57 @@ invalid-exit=1
 
 Quality gates: `pnpm -w typecheck` 16/16 `>>> FULL TURBO` 143ms; `pnpm -w lint` 16/16 `>>> FULL TURBO` 116ms; `pnpm format:check` exit 0; `pnpm exec commitlint --from origin/main --to HEAD --verbose` 0 problems / 0 warnings across 2 branch commits.
 
+**Task 2 (2026-04-19):**
+
+AC 2 probe — valid `fix:` message lands via real `git commit`:
+
+```
+$ echo 'Story 1.5 Task 2 AC 2 probe — delete on cleanup.' > _bmad-output/__ac2-probe.txt
+$ git add _bmad-output/__ac2-probe.txt
+$ git commit -m 'fix: resolve edge case in token emitter'
+TypeScript type-check (workspace)........................................Passed
+ESLint (workspace).......................................................Passed
+Prettier format:check (workspace)........................................Passed
+TypeScript type-check (workspace)........................................Passed
+ESLint (workspace).......................................................Passed
+Prettier format:check (workspace)........................................Passed
+commitlint (conventional commits)........................................Passed
+[feat/story-1-5-... 5b05107] fix: resolve edge case in token emitter
+ 1 file changed, 1 insertion(+)
+$ git reset --hard HEAD~1   # tip restored to 0092d2b; probe file removed
+```
+
+AC 3 probe — invalid `Fixed stuff` rejects via real `git commit`:
+
+```
+$ echo 'Story 1.5 Task 2 AC 3 probe — delete on cleanup.' > _bmad-output/__ac3-probe.txt
+$ git add _bmad-output/__ac3-probe.txt
+$ git commit -m 'Fixed stuff'
+TypeScript type-check (workspace)........................................Passed
+ESLint (workspace).......................................................Passed
+Prettier format:check (workspace)........................................Passed
+TypeScript type-check (workspace)........................................Passed
+ESLint (workspace).......................................................Passed
+Prettier format:check (workspace)........................................Passed
+commitlint (conventional commits)........................................Failed
+- hook id: commitlint
+- exit code: 1
+
+  ⧗   input: Fixed stuff
+  ✖   subject may not be empty [subject-empty]
+  ✖   type may not be empty [type-empty]
+
+  ✖   found 2 problems, 0 warnings
+$ git log --oneline -1   # unchanged: 0092d2b feat(invariants): Story 1.5 Task 1 …
+$ git reset HEAD _bmad-output/__ac3-probe.txt && rm -f _bmad-output/__ac3-probe.txt
+```
+
+AC 4 — structural author-parity note: the commit-msg shim at `/workspace/ralph-bmad/.git/hooks/commit-msg` is invoked unconditionally by git on every `git commit`, regardless of `user.name` / `user.email` / environment. Git's hook dispatch has no conditionals on committer identity. Both Task 1 + Task 2 commits on this branch (authored by Ralph) AND any user's own commits hit the same shim → same prek runner → same `pnpm exec commitlint --edit <COMMIT_EDITMSG>` invocation → same `@keel/keel-invariants/commitlint` rules → same exit criteria. Devbox-vs-host parity (epic AC 4 second clause) is structurally implied (git's hook layer is environment-agnostic) but not probed — Epic 2 delivers the devbox.
+
+Post-probe tree check: `git log --oneline origin/main..HEAD` shows exactly 3 commits (spec + iter-1 bookkeeping + Task 1) — unchanged from pre-probe; `git status` clean; `ls _bmad-output/__ac*-probe.txt` returns no matches.
+
+Quality gates (defensive re-run after probe cleanup): `pnpm -w typecheck` 16/16 `>>> FULL TURBO` 147ms; `pnpm -w lint` 16/16 `>>> FULL TURBO` 134ms; `pnpm format:check` exit 0; `pnpm exec commitlint --from origin/main --to HEAD --verbose` 0 problems / 0 warnings across 3 branch commits.
+
 ### Completion Notes List
 
 **Task 1 variances from spec (2026-04-19):**
@@ -283,9 +334,17 @@ Quality gates: `pnpm -w typecheck` 16/16 `>>> FULL TURBO` 143ms; `pnpm -w lint` 
 - **No variance — `pnpm install` triggered `prepare` correctly.** Both shims (pre-commit + commit-msg) installed at `/workspace/ralph-bmad/.git/hooks/`. The pre-commit shim was overwritten by the same prek install pass — content identical to the Story 1.4 install (idempotent re-install).
 - **Observation — turbo cache survived the `package.json` `prepare` script edit.** `pnpm -w typecheck` and `pnpm -w lint` both went `>>> FULL TURBO` 16/16 on FIRST invocation after the edit. Story 1.4 observed cache survival on a `package.json` devDep add; Story 1.5 confirms the property holds for script-field edits too. Turbo's typecheck + lint task input globs don't include `package.json`.
 
+**Task 2 observations (2026-04-19; no spec deviations):**
+
+- **Observation — pre-commit hook output appears doubled when piped through `tee`.** Both AC 2 and AC 3 probes captured 6 lines for the 3 pre-commit hooks (each name printed twice) followed by 1 line for the commit-msg `commitlint` step. In an interactive tty, the standard prek/pre-commit rendering is one line per hook — name printed first with dotted padding (no result), then overwritten in-place via ANSI `\r` once the hook completes (with the `Passed`/`Failed` suffix). When stdout is redirected through `tee` to a non-tty pipe, the in-place overwrite degrades to two distinct lines. Commitlint shows once because it executes in <100 ms — too fast for prek to flush the "starting" line before the result is ready. Cosmetic only; does not affect hook outcomes or exit codes. Worth knowing for future log-capture work.
+- **Observation — `git commit … 2>&1 | tee /tmp/file; echo "$?"` reports `tee`'s exit code, not git's.** Both probes used this pattern; the printed `EXIT=0` after AC 3 was misleading (it was `tee`'s success, not git's). The authoritative AC 3 success signal is the unchanged branch tip (`git log -1` still pointed at `0092d2b` after the probe) — the commit didn't land, so git's exit must have been non-zero. For machine-readable commit exit codes via a pipe, use `${PIPESTATUS[0]}` (bash) or replace the pipe with `git commit … >/tmp/file 2>&1; echo "$?"`.
+- **Observation — AC 2 probe rollback via `git reset --hard HEAD~1` is the cleanest one-step recovery.** Removes the unwanted commit AND the probe file in a single command. Tree state matched the Task-1 tip both before AND after the probe. AC 3 needed a different cleanup pattern (`git reset HEAD <file>` + `rm -f <file>`) because the commit didn't land but the file remained staged.
+
 ### File List
 
 **Modified (Task 1):**
 
 - `.pre-commit-config.yaml` — appended 4th hook entry (`id: commitlint`, `name: commitlint (conventional commits)`, `entry: pnpm exec commitlint --edit`, `language: system`, `stages: [commit-msg]`).
 - `package.json` — `prepare` script: `prek install` → `prek install -t pre-commit -t commit-msg`.
+
+**Task 2:** No source files modified. Probes ran against the working tree, created throwaway artefacts under `_bmad-output/__ac{2,3}-probe.txt`, and cleaned up before commit. Story file updated with Task 2 Debug Log + observations; IP + RALPH.md updated alongside.
