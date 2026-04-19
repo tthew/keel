@@ -1,0 +1,309 @@
+# Story 1.2: `packages/keel-invariants` bootstrap + shared ESLint/Prettier/commitlint configs
+
+Status: ready-for-dev
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As a fork operator,
+I want a versioned `packages/keel-invariants/` package exporting shared ESLint (flat config), Prettier, commitlint, and tsconfig-base configurations,
+so that every downstream package consumes one canonical ruleset and drift cannot hide (FR41).
+
+## Acceptance Criteria
+
+1. **Given** the Story 1.1 scaffold,
+   **When** `packages/keel-invariants/` is populated with `src/index.ts` (minimal re-exports), config files (`eslint.config.keel-invariants.js`, `prettier.config.keel-invariants.js`, `commitlint.config.keel-invariants.js`), and `tsconfig.base.json` physically relocated from the repo root,
+   **Then** the package publishes these configs under stable named subpath exports (`@keel/keel-invariants/eslint`, `@keel/keel-invariants/prettier`, `@keel/keel-invariants/commitlint`, `@keel/keel-invariants/tsconfig`)
+   **And** the `exports` field in `package.json` resolves each config via its subpath.
+
+2. **Given** the shared configs,
+   **When** another workspace package's `eslint.config.js` imports and extends `@keel/keel-invariants/eslint` (re-export / spread),
+   **Then** `pnpm lint` in that package runs using the shared rules
+   **And** removing the re-export changes lint behaviour detectably (proves the canonical config is actually in use; closes the "appears-but-isn't" gap that Story 1.6 bypass-prevention further hardens).
+
+3. **Given** the package is present and all 16 workspace members (15 packages + `apps/web`) carry their own `eslint.config.js` that re-exports `@keel/keel-invariants/eslint` plus a `"lint": "eslint ."` script,
+   **When** a developer runs `pnpm lint` at the root,
+   **Then** every package lints against the canonical ruleset with exit 0
+   **And** the lint config resolves in both ESM (via `type: "module"`) and TypeScript contexts (including `*.ts` + `*.tsx` linting via `typescript-eslint`).
+
+4. **Given** `tsconfig.base.json` has been moved from repo root to `packages/keel-invariants/tsconfig.base.json`,
+   **When** every per-package `tsconfig.json` updates its `extends` to `"@keel/keel-invariants/tsconfig"` (subpath export) and `packages/keel-invariants/tsconfig.json` extends `"./tsconfig.base.json"` (local),
+   **Then** `pnpm -w typecheck` remains green across all 16 packages
+   **And** a second run shows `>>> FULL TURBO` (cache still hits; no output shape change).
+
+5. **Given** the shared Prettier config and a root `prettier.config.js` that re-exports `@keel/keel-invariants/prettier`,
+   **When** a developer runs `pnpm format:check` at the root,
+   **Then** all committed files pass Prettier verification with exit 0
+   **And** running `pnpm format` (write-mode) is a no-op on a clean tree (idempotent).
+
+6. **Given** the shared commitlint config and a root `commitlint.config.js` that re-exports `@keel/keel-invariants/commitlint`,
+   **When** `pnpm exec commitlint --from HEAD~1 --to HEAD --verbose` runs against the current branch's latest commit,
+   **Then** commitlint validates successfully (every Story 1.2 commit conforms to conventional-commit format, which is already a Ralph invariant — the config just machine-enforces it).
+   **Note:** The `commit-msg` prek hook that invokes commitlint on every `git commit` is Story 1.5 scope — Story 1.2 establishes the shared config only.
+
+## Tasks / Subtasks
+
+- [ ] **Task 1: Relocate `tsconfig.base.json` into `packages/keel-invariants/` + expose via subpath export** (AC: 1, 4)
+  - [ ] `git mv tsconfig.base.json packages/keel-invariants/tsconfig.base.json`.
+  - [ ] Update `packages/keel-invariants/tsconfig.base.json` `paths` values: each was `"./packages/<pkg>/src/index.ts"` relative to repo root; after the move, the file lives two directories deeper, so each path must become `"../<pkg>/src/index.ts"` relative to the new file location. Verify by resolving mentally: `packages/keel-invariants/` + `../<pkg>/src/index.ts` = `packages/<pkg>/src/index.ts` ✓. Do NOT change the path for `@keel/web` — adjust to `"../../apps/web/src/index.ts"`.
+  - [ ] Update `packages/keel-invariants/tsconfig.json` `extends` from `"../../tsconfig.base.json"` to `"./tsconfig.base.json"` (self-extend; co-located).
+  - [ ] Update the remaining 15 per-package `tsconfig.json` `extends` fields to `"@keel/keel-invariants/tsconfig"`. Affected files: `apps/web/tsconfig.json` + each of `packages/{audit,billing,config,contracts,core,create-keel-app,db,devbox,email,flags,jobs,keel-generator,keel-templates,ui}/tsconfig.json`.
+  - [ ] Update root `tsconfig.json` (solution file): it has no `extends` (only `references`), but verify its `references` list is unchanged — all 16 references still valid.
+  - [ ] Add the subpath export to `packages/keel-invariants/package.json`: add `"./tsconfig": "./tsconfig.base.json"` to the `exports` field.
+  - [ ] Run `pnpm install` (exit 0 expected — no dep changes yet, just workspace resolution touched).
+  - [ ] Run `pnpm -w typecheck` — must be green across 16 packages. First run may invalidate turbo cache (path input change); second run MUST return `>>> FULL TURBO`. Capture both outputs in dev log.
+  - [ ] **Do NOT** add any eslint/prettier/commitlint deps in this task — those land in Task 2.
+
+- [ ] **Task 2: Install shared-config devDependencies in `packages/keel-invariants/`** (AC: 1, 2, 3, 5, 6)
+  - [ ] Add the following to `packages/keel-invariants/package.json` `devDependencies` (pinned exact-minor per I7, architecture lines 342–350):
+    - `eslint` — current stable v9 line (flat config native).
+    - `@eslint/js` — matches the `eslint` version (recommended rule sets).
+    - `typescript-eslint` — current stable v8 line (flat-config native, merges `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin`).
+    - `globals` — current stable (browser/node globals for flat config).
+    - `prettier` — current stable v3 line.
+    - `@commitlint/cli` — current stable v19 line.
+    - `@commitlint/config-conventional` — matches `@commitlint/cli`.
+  - [ ] Exact patch version is implementation-time detail; choose whatever `pnpm info <pkg> version` reports at run time. Document chosen versions in Completion Notes.
+  - [ ] **Also add these as root-level `devDependencies`** (in `{repo-root}/package.json`) so root scripts (`pnpm lint`, `pnpm format:check`, `pnpm exec commitlint ...`) can find the binaries. Use the same versions as in keel-invariants; pnpm will dedupe.
+  - [ ] Run `pnpm install` from repo root. Exit 0 required. `pnpm-lock.yaml` gets updated — commit the diff.
+  - [ ] **Do NOT** author any config files yet — those land in Tasks 3–5.
+
+- [ ] **Task 3: Author shared ESLint flat config + `./eslint` subpath export** (AC: 1, 2, 3)
+  - [ ] Create `packages/keel-invariants/eslint.config.keel-invariants.js` (ESM, `.js` extension since `packages/keel-invariants/package.json` has `type: "module"`).
+  - [ ] Import `@eslint/js` recommended config and `typescript-eslint` recommended config; spread them in a flat-config array.
+  - [ ] Scan targets: `**/*.{ts,tsx,js,jsx,mjs,cjs}`. Use `typescript-eslint.configs.recommended` for `*.ts` / `*.tsx` files and `@eslint/js.configs.recommended` for `*.js` / `*.jsx` / `*.mjs` / `*.cjs` files.
+  - [ ] Add `globals.node` + `globals.browser` as needed in `languageOptions.globals`.
+  - [ ] Add an `ignores` entry covering: `**/dist/**`, `**/node_modules/**`, `**/.turbo/**`, `**/*.tsbuildinfo`, `**/pnpm-lock.yaml`, `_bmad/**`, `_bmad-output/**`, `.claude/**`, `docs/**`, `.ralph/**`, `ralph.py`, `pyproject.toml`, `uv.lock`. Those are outside the TS/JS workspace.
+  - [ ] Export as default (`export default [ ... ]`).
+  - [ ] **Do NOT** add `no-restricted-imports` rules in this story — those land in Story 1.3. Keep the flat-config array composable so Story 1.3 can append a restricted-imports layer without rewriting the base.
+  - [ ] Add to `packages/keel-invariants/package.json` `exports`: `"./eslint": "./eslint.config.keel-invariants.js"`.
+  - [ ] Update `packages/keel-invariants/src/index.ts` to re-export nothing from the configs (configs are consumed via subpath `@keel/keel-invariants/<subpath>`, not the main entry). Leave `export {};` as-is unless a type is needed.
+
+- [ ] **Task 4: Author shared Prettier config + `./prettier` subpath export** (AC: 1, 5)
+  - [ ] Create `packages/keel-invariants/prettier.config.keel-invariants.js` (ESM, default-export a config object).
+  - [ ] Keel house style (modest choices — the important thing is CONSISTENCY, not bikeshedding): `printWidth: 100`, `tabWidth: 2`, `useTabs: false`, `semi: true`, `singleQuote: true`, `trailingComma: "all"`, `bracketSpacing: true`, `arrowParens: "always"`, `endOfLine: "lf"` (matches `.editorconfig`).
+  - [ ] Add to `packages/keel-invariants/package.json` `exports`: `"./prettier": "./prettier.config.keel-invariants.js"`.
+  - [ ] Create a root-level `.prettierignore` file (since Prettier honours `.prettierignore` separately from the config) covering the same dirs as the ESLint ignores: `**/dist/`, `**/node_modules/`, `**/.turbo/`, `**/*.tsbuildinfo`, `pnpm-lock.yaml`, `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`, `.ralph/`, `*.py`, `uv.lock`. Keep paths relative to repo root.
+
+- [ ] **Task 5: Author shared commitlint config + `./commitlint` subpath export** (AC: 1, 6)
+  - [ ] Create `packages/keel-invariants/commitlint.config.keel-invariants.js` (ESM, default-export). Extend `@commitlint/config-conventional`:
+    ```js
+    import conventional from '@commitlint/config-conventional';
+    export default {
+      extends: ['@commitlint/config-conventional'],
+      rules: {
+        // allow-list Keel's conventional-commit scope pattern: chore/*, feat/*, fix/*, docs/* type prefixes, plus any scope.
+        // No customisation needed at 1.0 beyond the conventional base; leave rules empty for forward-compat.
+      },
+    };
+    ```
+    Import is for readability — the `extends` field is what `@commitlint/cli` actually consumes at runtime.
+  - [ ] Add to `packages/keel-invariants/package.json` `exports`: `"./commitlint": "./commitlint.config.keel-invariants.js"`.
+
+- [ ] **Task 6: Wire consumers — root configs + per-package ESLint configs + package.json scripts** (AC: 2, 3, 5, 6)
+  - [ ] Create `eslint.config.js` at repo root (ESM, `type: "module"` in root `package.json`):
+    ```js
+    import shared from '@keel/keel-invariants/eslint';
+    export default shared;
+    ```
+  - [ ] Create `prettier.config.js` at repo root:
+    ```js
+    import shared from '@keel/keel-invariants/prettier';
+    export default shared;
+    ```
+  - [ ] Create `commitlint.config.js` at repo root:
+    ```js
+    import shared from '@keel/keel-invariants/commitlint';
+    export default shared;
+    ```
+  - [ ] Create `eslint.config.js` in each of the **16** workspace members: `apps/web/` + `packages/{audit,billing,config,contracts,core,create-keel-app,db,devbox,email,flags,jobs,keel-generator,keel-invariants,keel-templates,ui}/`. Each file is the same 2-line ESM re-export:
+    ```js
+    import shared from '@keel/keel-invariants/eslint';
+    export default shared;
+    ```
+    (Yes, `packages/keel-invariants/` gets one too — it lints itself with the config it exports, which is the simplest consistent rule.)
+  - [ ] Add `"lint": "eslint ."` to each of the 16 workspace members' `package.json` `scripts` block. Turbo will orchestrate these via `turbo run lint` (task already defined in Story 1.1's `turbo.json` Task 3 — no turbo.json change needed).
+  - [ ] Add to root `package.json` `scripts`:
+    - `"lint": "turbo run lint"` (verify it already exists from Story 1.1; leave as-is if so).
+    - `"format": "prettier --write ."`
+    - `"format:check": "prettier --check ."`
+  - [ ] Root-level `package.json` must have `"type": "module"` confirmed (it should from Story 1.1) — the `.js` re-export files assume ESM.
+
+- [ ] **Task 7: Verify all quality gates green + turbo cache intact** (AC: 3, 4, 5, 6)
+  - [ ] `pnpm install` — exit 0, no resolution warnings. Capture final line.
+  - [ ] `pnpm -w typecheck` — first run completes green across 16 packages; second run reports `>>> FULL TURBO` (16/16 cached). Capture both final lines.
+  - [ ] `pnpm -w lint` — first run completes green across 16 packages (the shared config on empty `src/index.ts` files should produce zero errors/warnings); second run MUST also report `>>> FULL TURBO`. If any warnings fire, fix the config — do not suppress files.
+  - [ ] `pnpm format:check` — exit 0 across the full committed tree. If it fails, run `pnpm format` once, review the diff, commit, and re-run until green. **Do not** add files to `.prettierignore` to mask failures unless they're genuinely outside the TS/JS workspace (Python, YAML, lockfiles, etc.).
+  - [ ] `pnpm exec commitlint --from origin/main --to HEAD` — validates every commit on this branch conforms to conventional-commit format. Exit 0 required. (Ralph's existing commit-message discipline from Story 1.1 already satisfies this; the check confirms the shared config works, not that the commits suddenly need to comply.)
+  - [ ] Run `git ls-files '*.generated.*' 'tsconfig.base.json'` at repo root — should show only `packages/keel-invariants/tsconfig.base.json`. Zero matches for `.generated.` (those don't land until Epic 1.9+).
+  - [ ] Capture all evidence (command transcripts) in Debug Log References. This task is VERIFICATION only — no source edits permitted here. If a gate fails, reopen the appropriate earlier Task, fix, commit, then re-run.
+
+## Dev Notes
+
+### Relevant architecture patterns and constraints
+
+**`packages/keel-invariants/` is the canonical hardwired-rules home.** Every shared lint/format/commit/tsconfig rule lives here and every downstream package consumes via subpath export. This is **Layer 1** of the three-layer invariant pattern (architecture lines 85–93): machine-enforced. Layers 2 (agent-readable `INVARIANTS.md`) + 3 (documentation) come in later stories (1.7, 1.8–1.9).
+[Source: architecture.md lines 85–93 (three-layer invariant pattern), 842 (machine-enforced layer), 461 (PRD: hardwired vs generated distinction)]
+
+**Subpath exports are the MECHANISM.** Consumers write `import shared from '@keel/keel-invariants/eslint'` — not a relative path, not a deep import. The `exports` field in `package.json` maps each subpath to its source file. No TypeScript types here — all config files are plain JS with default exports (tooling's de-facto interop pattern).
+
+**`no-restricted-imports` rules are Story 1.3 scope, NOT 1.2.** Epic 1 decomposes the boundary-rule work into two stories:
+- 1.2 — shared config PLUMBING (this story). Establishes the export mechanism + minimal recommended rules.
+- 1.3 — shared config CONTENT for boundaries. Layers `no-restricted-imports` rules on top of the 1.2 base to forbid cross-package relative imports and `@keel/<pkg>/internal/*` deep paths.
+
+Keep the flat-config array shape **composable** (array spread / append) so Story 1.3 can append a restricted-imports layer without rewriting the base. [Source: epics.md Story 1.3 AC, lines 721–744]
+
+**TypeScript extends via subpath export.** TS 5.x honours the `exports` field on `extends` when the value is a bare specifier like `"@keel/keel-invariants/tsconfig"`. This works because pnpm workspace symlinks make `@keel/keel-invariants` resolvable from any package's directory during tsc's module resolution. Verified pattern — no `baseUrl` change needed. [Source: TypeScript 5.0+ release notes on package-exports in `extends`]
+
+**File-structure invariants carry over from Story 1.1.** No `__tests__/`, no `lib/` split, no deep exports beyond what's declared in `package.json` `exports`. Each config file lives at the package root (not under `src/`) because they ship as JS (not TypeScript) and are consumed directly. [Source: architecture.md lines 1244, 557]
+
+**Versioning is exact-minor (I7).** Pin each devDep to its exact-minor in both `packages/keel-invariants/package.json` AND root `package.json`. Patch releases are allowed via pnpm's default range. No `^`, no `~` with major-wildcarding. Implementation-time picks specific versions available at install. [Source: architecture.md lines 342–350 (I7 pinning contract)]
+
+**Root-level dev deps vs keel-invariants dev deps.** Put each linter binary in BOTH locations:
+- `packages/keel-invariants/package.json` — because the package's own config files transitively require them (e.g. the eslint flat config imports `@eslint/js`).
+- `{repo-root}/package.json` — because root scripts (`pnpm lint` via turbo, `pnpm format:check`, `pnpm exec commitlint`) need the binaries resolvable from `node_modules/.bin/`.
+pnpm's default behaviour dedupes into a single `node_modules/.pnpm` store, so there's no duplication cost.
+
+### Source tree components to touch
+
+**Moved (Task 1):**
+- `tsconfig.base.json` → `packages/keel-invariants/tsconfig.base.json` (via `git mv` to preserve history).
+
+**Modified (Task 1):**
+- `packages/keel-invariants/tsconfig.base.json` — path values updated to be relative to the new location (see subtask for math).
+- `packages/keel-invariants/tsconfig.json` — `extends` updated to `"./tsconfig.base.json"`.
+- `apps/web/tsconfig.json` + `packages/{14 others}/tsconfig.json` — `extends` updated to `"@keel/keel-invariants/tsconfig"`. Total: 15 files.
+
+**Modified (Task 2):**
+- `packages/keel-invariants/package.json` — devDeps added (`eslint`, `@eslint/js`, `typescript-eslint`, `globals`, `prettier`, `@commitlint/cli`, `@commitlint/config-conventional`).
+- `{repo-root}/package.json` — same devDeps added (duplicate pin for root scripts).
+- `pnpm-lock.yaml` — regenerated by `pnpm install`.
+
+**Created (Task 3):**
+- `packages/keel-invariants/eslint.config.keel-invariants.js`.
+
+**Modified (Task 3):**
+- `packages/keel-invariants/package.json` `exports` — add `"./eslint"` subpath.
+
+**Created (Task 4):**
+- `packages/keel-invariants/prettier.config.keel-invariants.js`.
+- `{repo-root}/.prettierignore`.
+
+**Modified (Task 4):**
+- `packages/keel-invariants/package.json` `exports` — add `"./prettier"` subpath.
+
+**Created (Task 5):**
+- `packages/keel-invariants/commitlint.config.keel-invariants.js`.
+
+**Modified (Task 5):**
+- `packages/keel-invariants/package.json` `exports` — add `"./commitlint"` subpath.
+
+**Created (Task 6):**
+- `{repo-root}/eslint.config.js` (re-export root shim).
+- `{repo-root}/prettier.config.js` (re-export root shim).
+- `{repo-root}/commitlint.config.js` (re-export root shim).
+- 16 × `<member>/eslint.config.js` (one per workspace member — re-export shims).
+
+**Modified (Task 6):**
+- 16 × `<member>/package.json` — add `"lint": "eslint ."` script.
+- `{repo-root}/package.json` — add `format`, `format:check` scripts (lint already wired in Story 1.1).
+
+**Unchanged across the story:** `pnpm-workspace.yaml`, `turbo.json` (lint task already defined), root `tsconfig.json` (solution file), `.nvmrc`, `.editorconfig`, `.gitignore`, every package's `src/index.ts`.
+
+### Testing standards summary
+
+**No unit / integration tests land in Story 1.2.** This is infrastructure scaffolding — the test surface is the CI quality gates (typecheck + lint + format:check + commitlint) run in Task 7. No `*.test.ts` files should be written.
+
+**Verification by command evidence (Task 7):** every gate produces a deterministic exit-0 or exit-non-zero signal; capture the final-line output of each run in Debug Log References. Vitest installation is deferred to a later story (Story 1.4-ish, bundled with prek hooks), per Story 1.1 Dev Notes line 163.
+
+**ATDD red phase for this story is EMPTY.** The quality gates are the "tests" — they're run, not authored. If a future story wants red-phase tests for invariants (e.g., "`pnpm lint` should fail when a boundary is violated"), it lands in Story 1.3 or later.
+
+### Project Structure Notes
+
+**Alignment with unified project structure (paths, modules, naming):**
+
+- ✅ `packages/keel-invariants/` hosts the shared configs + tsconfig-base — matches architecture lines 461, 842, 1240.
+- ✅ Subpath exports match architecture's `exports`-only rule (no deep internal imports from consumers).
+- ✅ `tsconfig.base.json` location matches architecture line 1240 post-move (`extends keel-invariants/tsconfig.base.json`).
+- ✅ ESLint flat config (ESM `.js`) matches the project's `type: "module"` posture across the workspace.
+- ✅ Commit-message compliance already established by Ralph — commitlint config enforces what was already the norm.
+
+**Detected conflicts or variances (with rationale):**
+
+- **Variance — scope is narrower than the epic text implies.** The epic subtitle "packages/keel-invariants bootstrap" could be read as "populate every keel-invariants subdir architecture line 1422 lists" (`schemas/`, `semgrep-rules/`, `eslint-rules/`, `prompt-injection-rules/`). That's NOT this story's scope — those subdirs land in Stories 1.8 (invariants manifest), 1.10+ (design tokens), and later epics (semgrep rules in Epic 4, prompt-injection rules in Epic 6 or wherever agent-safety lands). Story 1.2's scope is the four shared configs only (eslint + prettier + commitlint + tsconfig). The epics.md AC is the authoritative scope — it enumerates exactly these four configs + exports — so when architecture-vs-epic conflicts appear, epic wins. [Rule: carry-forward from Story 1.1 Dev Notes variance pattern.]
+- **Variance — `commit-msg` hook NOT registered in Story 1.2.** Architecture line 1239 lists `.prek/hooks.yaml` as a root config file; epics.md Story 1.5 AC (lines 777–818) explicitly pins "`commit-msg` hook invoking commitlint" to Story 1.5. Story 1.2 ships the commitlint CONFIG only, no hook. The root `commitlint.config.js` re-export makes `pnpm exec commitlint ...` work standalone (AC 6); Story 1.5 wires the hook.
+- **Variance — ESLint boundary rules deferred to Story 1.3.** As noted in Dev Notes above; epics.md Story 1.3 (lines 721–744) is the dedicated home for `no-restricted-imports` + `@keel/<B>/internal/*` rejection rules. Story 1.2 must keep the flat-config composable so Story 1.3 can append cleanly.
+- **Variance — tsconfig path values require careful mental verification after move.** Story 1.1 fixed TS5090 by prefixing each `paths` value with `./` (RALPH.md lesson 2026-04-19). After moving `tsconfig.base.json` two directories deeper, every path reference now needs to walk UP via `../` + DOWN into the target package. Get this wrong and `pnpm -w typecheck` will fail with module-resolution errors, NOT TS5090. Count dots carefully: `packages/keel-invariants/tsconfig.base.json` → `../audit/src/index.ts` resolves to `packages/audit/src/index.ts` ✓. `../../apps/web/src/index.ts` resolves to `apps/web/src/index.ts` ✓. Every package that isn't `apps/web` uses the `../<pkg>/src/index.ts` pattern; `apps/web` uses `../../apps/web/src/index.ts`.
+
+### Previous Story Intelligence (from Story 1.1)
+
+**Files created / modified in Story 1.1 that Story 1.2 builds on:**
+- `{repo-root}/{package.json, pnpm-workspace.yaml, turbo.json, tsconfig.json, tsconfig.base.json, .nvmrc, .editorconfig, .gitignore}`.
+- 16 × `<member>/{package.json, tsconfig.json, src/index.ts, README.md}`.
+- `pnpm-lock.yaml`.
+
+**Patterns established in Story 1.1 that Story 1.2 follows:**
+- `type: "module"` everywhere (ESM).
+- Exact-minor version pins (I7 contract).
+- `composite: true` + `noEmit: false` override per-package tsconfig.
+- Turbo task pipeline runs `typecheck`, `build`, `test`, `lint` (lint task exists but has no content until this story).
+- One source of truth for rules, consumed via subpath / named import (not copy-paste).
+
+**Landmines Story 1.1 hit (RALPH.md lessons):**
+- **TS5090 with bare `paths` values.** After moving `tsconfig.base.json`, re-verify `paths` values still start with `./` or `../` (relative). TS 5.0+ demands this when `baseUrl` is absent. The `../<pkg>/src/index.ts` pattern is still relative — safe.
+- **Multi-commit story PRs drift metadata.** When the PR transitions Draft → Open at the end of Story 1.2, re-read the PR title/body and rewrite to cover all task commits. Don't rely on the initial `docs(story):` body.
+
+**Testing approaches validated in Story 1.1:**
+- `pnpm -w typecheck` twice → `>>> FULL TURBO` on second run is the cache-hit assertion.
+- `git ls-files` + grep for structural invariants works without an automated linter.
+- `pnpm -r list --depth -1 --json` enumerates workspace members deterministically.
+
+### Git Intelligence Summary (recent patterns)
+
+Last commits on feat/story-1-1-monorepo-scaffold (merged via PR #217):
+- `e8a158f chore(sprint): Story 1.1 done …` — local-only, did NOT reach `main` (merge used `96142bc` as second parent). Sprint-status.yaml on main still shows `1-1 → ready-for-dev` and needs to be corrected to `done` as part of this iteration's bookkeeping.
+- `96142bc feat(scaffold): Story 1.1 Task 8 — structural invariants verified`.
+- `00d7396 feat(scaffold): Story 1.1 Task 7 — pnpm -w typecheck green + FULL TURBO cache`.
+- `e456008 feat(scaffold): Story 1.1 Task 6 — pnpm install green + lockfile`.
+
+Convention observed: `feat(scaffold): Story X.Y Task N — <one-line summary>`. Story 1.2 commits should follow `feat(invariants): Story 1.2 Task N — <summary>` (scope = `invariants`, since the affected package is `keel-invariants`). Keep one task per commit.
+
+### Latest Technical Information
+
+- **ESLint v9 flat config** is the current mainline (v9 released Apr 2024, flat config default). Legacy `.eslintrc` is deprecated. No migration path needed — this is greenfield config.
+- **`typescript-eslint` v8** is the rename of the older split packages (`@typescript-eslint/{parser,eslint-plugin}`) into a single dependency. Use `import tseslint from 'typescript-eslint'` and spread `tseslint.configs.recommended` in the flat array.
+- **Prettier v3** is stable; no breaking changes worth flagging for a greenfield config. v3 default for `trailingComma` changed to `"all"` — matches Keel house style here, so no override needed.
+- **commitlint v19** default `extends: ['@commitlint/config-conventional']` exactly captures Ralph's existing commit discipline. No rule overrides needed at 1.0.
+
+### References
+
+- [Source: `_bmad-output/planning-artifacts/epics.md`#Epic-1-Story-1.2, lines 698–719] — Story AC (authoritative scope).
+- [Source: `_bmad-output/planning-artifacts/epics.md`#Epic-1-Story-1.3, lines 721–744] — Story 1.3 boundary-rule scope (what Story 1.2 must NOT include).
+- [Source: `_bmad-output/planning-artifacts/epics.md`#Epic-1-Story-1.5, lines 777–818] — Story 1.5 commit-msg hook scope (what Story 1.2's commitlint config enables but does not wire).
+- [Source: `_bmad-output/planning-artifacts/architecture.md`#Three-layer-invariant-pattern, lines 85–93] — why keel-invariants is the hardwired-rules home.
+- [Source: `_bmad-output/planning-artifacts/architecture.md`#Machine-enforced-layer, line 842] — keel-invariants as Layer 1.
+- [Source: `_bmad-output/planning-artifacts/architecture.md`#File-Organisation-Patterns, lines 1237–1244] — per-package tsconfig extends keel-invariants/tsconfig.base.json.
+- [Source: `_bmad-output/planning-artifacts/architecture.md`#Version-Pinning-I7, lines 342–350] — exact-minor pins for linter/formatter deps.
+- [Source: `_bmad-output/planning-artifacts/prd.md`#FR41, section "FR41–FR45 (Invariants)", lines 842, 848, 153–154, 529, 580, 842] — hardwired vs generated distinction; ESLint + TS project refs enforce boundaries.
+- [Source: `_bmad-output/planning-artifacts/prd.md`#I7, architecture.md lines 342–350] — exact-minor pinning contract.
+- [Source: `_bmad-output/implementation-artifacts/1-1-monorepo-scaffold-typescript-project-references.md`] — previous-story intelligence (variances, TS5090 fix, file layout).
+- [Source: `RALPH.md`#Signposts 2026-04-19] — "Story 1.2 will move `tsconfig.base.json` INTO `packages/keel-invariants/`" + tsconfig `./` prefix lesson.
+
+## Dev Agent Record
+
+### Agent Model Used
+
+claude-opus-4-7 (via Ralph build loop — one task per iteration).
+
+### Debug Log References
+
+_(To be populated by dev-story as tasks complete.)_
+
+### Completion Notes List
+
+_(To be populated by dev-story as tasks complete. Must include: exact versions pinned for each devDep; first + second `pnpm -w typecheck` final-line outputs; first + second `pnpm -w lint` final-line outputs; `pnpm format:check` exit status; `pnpm exec commitlint --from origin/main --to HEAD` exit status; any variance fixes applied.)_
+
+### File List
+
+_(To be populated by dev-story — files created + modified per task, cross-referenced against the "Source tree components to touch" section.)_
