@@ -5857,6 +5857,262 @@ So that future contributors have a baseline structure even though N=1 at 1.0.
 
 **Standalone delivery:** Every month produces a sprint-log entry; quarterly checkpoints commit markdown + JSON; flake data accumulates; aggregation emits consumable corpus. Research survives whether substrate lives or gets absorbed.
 
+#### Stories
+
+##### Story 14.1: RC1 corpus directory layout + README + test-ids ledger
+
+As a substrate maintainer,
+I want `docs/research/` with `sprint-logs/`, `checkpoints/`, `tripwire/`, `README.md`, `test-ids.md` (append-only), and `corpus.jsonl` (regenerated nightly),
+So that the research corpus has a canonical filesystem layout from day 1 (RC1).
+
+**Acceptance Criteria:**
+
+**Given** `docs/research/`,
+**When** I inspect it,
+**Then** subdirectories `sprint-logs/`, `checkpoints/`, `tripwire/` exist with `.gitkeep`
+**And** `README.md` documents the layout, schemas, aggregation, citation conventions.
+
+**Given** `test-ids.md`,
+**When** I inspect it,
+**Then** it is append-only (enforced via Story 3.23 lint)
+**And** every test ID (`T-0001` onward) maps to a human-readable title + current path.
+
+**Given** `corpus.jsonl`,
+**When** I inspect it,
+**Then** it is git-tracked but regenerated nightly by RC3 (Story 14.6).
+
+##### Story 14.2: RC2 typed schemas (sprint-log, checkpoint, tripwire)
+
+As a substrate maintainer,
+I want typed JSON schemas at `packages/keel-invariants/src/schemas/` for sprint-log, checkpoint, tripwire with `$schema` version headers,
+So that every research artefact validates against a canonical shape (RC2).
+
+**Acceptance Criteria:**
+
+**Given** `sprint-log.schema.json`,
+**When** I inspect it,
+**Then** it defines `{month, slice_id, model_version, keel_ttg_seconds, blank_ttg_seconds, keel_tokens_total, blank_tokens_total, keel_context_exhausted_count, blank_context_exhausted_count, keel_rework_rate, blank_rework_rate, delta_percent, notes}`.
+
+**Given** `checkpoint.schema.json`,
+**When** I inspect it,
+**Then** it defines `{quarter, date, decision_enum: continue|pause_and_ship|pivot|archive, evidence_paths[], next_evaluation_date, rationale}`.
+
+**Given** `tripwire.schema.json`,
+**When** I inspect it,
+**Then** it defines `{month, verdict_enum: pass|warn|breach, source_sprint_log_id, consecutive_breach_count, pivot_recommended, raw_datapoints[]}`.
+
+**Given** schemas are invariants,
+**When** Story 1.8 tracks them,
+**Then** each has a registered invariant ID
+**And** version bumps follow the `$schema` versioning rule.
+
+##### Story 14.3: M3 Flake-log schema freeze
+
+As a substrate maintainer,
+I want `packages/keel-invariants/src/schemas/flake-log.schema.json` frozen at 1.0 with `{test_id, iteration_id, outcome: pass|fail|skip, duration_ms, attempt_number, timestamp}` — jointly owned with Epic 13 Vitest reporter + workflow emitters,
+So that flake data has a single stable schema from day 1 (M3 party-mode amendment).
+
+**Acceptance Criteria:**
+
+**Given** `flake-log.schema.json`,
+**When** I inspect it,
+**Then** the 6 fields are present
+**And** `outcome` enum is strictly `pass | fail | skip`.
+
+**Given** Epic 13's Vitest reporter emits records,
+**When** they're validated,
+**Then** every record conforms to this schema
+**And** schema drift is caught by Story 1.9.
+
+##### Story 14.4: R5 Headless Ralph `--no-tui`
+
+As a substrate maintainer,
+I want `ralph.py --no-tui` suppressing Textual UI, writing structured JSON to `.ralph/logs/<iter-id>/`, concluding-summary single-line JSON to stdout, and a known exit code signalling outcome,
+So that monthly blank-starter-sprint harness, scheduled GH Actions, and RC3 aggregation runs can be shell-scripted (R5).
+
+**Acceptance Criteria:**
+
+**Given** `ralph.py --no-tui`,
+**When** I run it,
+**Then** no Textual UI renders
+**And** iteration logs still write to `.ralph/logs/<iter-id>/iteration.jsonl`
+**And** a final summary JSON line is emitted to stdout matching `sprint-log.schema.json` fields.
+
+**Given** a completed headless run,
+**When** I inspect the exit code,
+**Then** known codes signal outcome: 0 (EPIC_DONE), 1 (generic halt), 2 (SECURITY_CRITICAL), 3 (BUDGET_EXHAUSTED), 4 (RALPH_STAGE_REGRESSION).
+
+**Given** the `docs/research/sprint-logs/<YYYY-MM>.json` output,
+**When** a monthly sprint runs,
+**Then** the file is written on completion
+**And** schema-validates per Story 14.2.
+
+##### Story 14.5: R6 Flake measurement layer (Vitest reporter + workflow hook)
+
+As a substrate maintainer,
+I want `packages/keel-invariants/src/flake-reporter.ts` as a Vitest custom reporter emitting per-test JSON records to `.ralph/flake-log/YYYY-MM/<date>.jsonl` (schema per Story 14.3), with Epic 13 GH Actions workflows emitting the same shape — measurement at 1.0; enforcement (quarantine policy, pass-rate thresholds, PR gates) deferred until ≥500 iterations accrue,
+So that flake data exists from day 1 without premature policy overhead (R6).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/src/flake-reporter.ts`,
+**When** Vitest runs with the reporter registered,
+**Then** per-test records emit matching `flake-log.schema.json`
+**And** records stream to `.ralph/flake-log/YYYY-MM/<date>.jsonl`.
+
+**Given** GH Actions workflows (Epic 13),
+**When** they run Vitest,
+**Then** the reporter is active
+**And** records upload as workflow artefacts.
+
+**Given** 1.0 enforcement mode,
+**When** a test is flaky (e.g., pass-rate < 99%),
+**Then** no action is taken automatically
+**And** the data accumulates for M10 baseline.
+
+**Given** M10 (or first ≥500-iteration breach),
+**When** enforcement is activated,
+**Then** a dedicated 1.x epic flips thresholds
+**And** this story does NOT ship enforcement.
+
+##### Story 14.6: RC3 Aggregation tooling — `pnpm research:aggregate`
+
+As a substrate maintainer,
+I want `packages/keel-invariants/src/research-aggregate.ts` + `pnpm research:aggregate` CLI reading `docs/research/**/*.json`, validating against RC2 schemas, emitting flattened `docs/research/corpus.jsonl` — idempotent + deterministic — running as nightly CI step,
+So that the corpus is a consumable single-file feed (RC3).
+
+**Acceptance Criteria:**
+
+**Given** `pnpm research:aggregate`,
+**When** I run it,
+**Then** all JSON artefacts in `docs/research/**/*.json` are validated per RC2 schemas
+**And** a flattened `corpus.jsonl` is emitted.
+
+**Given** deterministic output,
+**When** I run twice,
+**Then** `git diff docs/research/corpus.jsonl` is empty
+**And** canonical-form discipline (same as Epic 5 G4) holds.
+
+**Given** the nightly workflow,
+**When** it runs,
+**Then** `pnpm research:aggregate` runs
+**And** a stale `corpus.jsonl` (differs from regen output) triggers a pre-merge-fast warning (not fail).
+
+##### Story 14.7: C4 Test-ID stability convention + ESLint rule
+
+As a substrate maintainer,
+I want every test using explicit `T-\d{4}` IDs in the title (e.g., `test('T-0042: inviteWithVerification_creates_token', ...)`) + IDs allocated from an append-only counter in `docs/research/test-ids.md` + ESLint rule `keel/stable-test-id` enforcing the pattern at pre-commit,
+So that test identity is stable even when test descriptions change (C4).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/eslint-rules/stable-test-id.cjs`,
+**When** the rule runs,
+**Then** a `test('<description>')` without a `T-\d{4}` prefix is flagged
+**And** the commit is rejected.
+
+**Given** `docs/research/test-ids.md`,
+**When** I inspect it,
+**Then** IDs are append-only
+**And** each entry maps `T-NNNN` → `<path>` + `<current description>`
+**And** IDs are never reused.
+
+**Given** Story 3.11's Required-tests manifest,
+**When** it stores test IDs,
+**Then** only `T-\d{4}` prefixes are used
+**And** human descriptions change freely.
+
+##### Story 14.8: Monthly blank-starter-sprint harness
+
+As Tthew,
+I want a monthly blank-starter-sprint harness: 2-hour timebox; same vertical slice built on vanilla starter (Next.js + Supabase + Vercel) AND on Keel + Invariant Pack; measured tokens, context exhaustion, rework, time-to-green; acceptance criteria pre-registered at `docs/absorption-tripwire/vertical-slice-acceptance.md` (already scaffolded); committed before first sprint,
+So that delta measurement is disciplined, not anecdotal (vertical-slice-acceptance).
+
+**Acceptance Criteria:**
+
+**Given** the harness scripts,
+**When** invoked,
+**Then** a 2-hour timeboxed run executes against both environments
+**And** structured telemetry is captured per `sprint-log.schema.json`.
+
+**Given** the amendment ceremony,
+**When** acceptance criteria need updating,
+**Then** a PR with rationale + 24h cooling-off is required
+**And** post-hoc editing to protect the project is structurally resisted.
+
+**Given** the falsification threshold,
+**When** blank-starter TTG falls within 20% of Keel TTG for two consecutive months,
+**Then** Epic 15b's Invariant Pack pivot is triggered
+**And** the decision is recorded in `docs/research/checkpoints/<quarter>.json`.
+
+##### Story 14.9: V4 Skip-trigger tripwire + `schedule.md` + skip-detection
+
+As Tthew,
+I want `docs/research/sprint-logs/schedule.md` pre-registering monthly sprint dates (first sprint ~M1; monthly cadence) plus a skip-detection check at pre-merge-fast — two consecutive skipped sprints = absorption by default → pivot to Invariant Pack within 30 days; three consecutive skipped sprints fails the build,
+So that unused measurement is worse than no measurement (V4 party-mode amendment; PRD clarification raised).
+
+**Acceptance Criteria:**
+
+**Given** `docs/research/sprint-logs/schedule.md`,
+**When** I inspect it,
+**Then** monthly sprint dates are pre-registered from M1 onward
+**And** each row has `{scheduled_date, completed_date?, verdict?}`.
+
+**Given** the pre-merge-fast check,
+**When** it runs,
+**Then** it compares `schedule.md` against `sprint-logs/*.json`
+**And** emits a warning if 2 months past due; fails the build if 3 months.
+
+**Given** a documented absorption verdict,
+**When** Tthew records it in `docs/research/checkpoints/<quarter>.md`,
+**Then** the skip-detection honours the decision
+**And** the Invariant Pack pivot path activates (Epic 15b).
+
+##### Story 14.10: FR33 M4 Checkpoint markdown template + schema consumer
+
+As a substrate maintainer,
+I want a committed template for quarterly M4 checkpoints at `docs/research/checkpoints/<YYYY-Q#>.md` with matching JSON per `checkpoint.schema.json` (Story 14.2), governance trigger (recurring quarterly post-1.0),
+So that governance + research artefact are captured together (FR33).
+
+**Acceptance Criteria:**
+
+**Given** a quarterly template,
+**When** a checkpoint is written,
+**Then** matching `.md` and `.json` files land in `docs/research/checkpoints/`
+**And** JSON validates per schema.
+
+**Given** the four decision types (`continue | pause_and_ship | pivot | archive`),
+**When** a checkpoint is written,
+**Then** exactly one is selected
+**And** evidence paths back the decision.
+
+**Given** `next_evaluation_date` is required,
+**When** the current quarter's checkpoint is written,
+**Then** the next review is scheduled 3 months later
+**And** it appears in `docs/research/sprint-logs/schedule.md`.
+
+##### Story 14.11: NFR29a per-major prompt-set pinning + NFR30 breaking-delta catalogue
+
+As a substrate maintainer,
+I want `docs/invariants/model-pinning.md` documenting NFR29a (Ralph prompts pinned per major Keel version; minor versions inherit unchanged; majors may diverge with recorded delta) + NFR30 breaking-delta catalogue (tested Claude model, Claude Code CLI version, BMad version, Ralph version per major),
+So that model evolution is tracked as research corpus metadata (NFR29a, NFR30).
+
+**Acceptance Criteria:**
+
+**Given** `docs/invariants/model-pinning.md`,
+**When** I read it,
+**Then** the prompt-pinning rule is pinned
+**And** the breaking-delta catalogue has one row per Keel major.
+
+**Given** a minor Keel version cut,
+**When** release notes are generated,
+**Then** they confirm "prompts unchanged; pinned to <generation>".
+
+**Given** a major Keel version cut,
+**When** prompts diverge,
+**Then** the delta is recorded in release notes + `model-pinning.md`
+**And** NFR30 catalogue is updated with the new row.
+
 ---
 
 ### Epic 15a: `create-keel-app` Bootstrap CLI (early — Tthew test-fork tool)
