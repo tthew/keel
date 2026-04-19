@@ -1,0 +1,25 @@
+# Pre-commit quality gates (Story 1.4).
+# Runs under @j178/prek — drop-in pre-commit framework reimplementation.
+# Hook budget: ≤10 s total (pre-commit tier per architecture.md § CI pyramid).
+# Cache-warm runs typically stay under 1 s via turbo FULL TURBO.
+repos:
+  - repo: local
+    hooks:
+      - id: typecheck
+        name: TypeScript type-check (workspace)
+        entry: pnpm -w typecheck
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: lint
+        name: ESLint (workspace)
+        entry: pnpm -w lint
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: format-check
+        name: Prettier format:check (workspace)
+        entry: pnpm -w format:check
+        language: system
+        pass_filenames: false
+        always_run: true

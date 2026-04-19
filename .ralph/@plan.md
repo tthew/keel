@@ -2,31 +2,30 @@
 
 ## NOW
 
-- [ ] _(none — Story 1.3 shipped; EPIC_DONE halt written this iteration)_
+_(none — Story 1.4 mini-epic shipped; halt EPIC_DONE)_
 
-## QUEUE (Story 1.3 mini-epic)
+## QUEUE
 
-_(empty)_
+_(none)_
 
 ## BLOCKED
 
 _(none)_
 
-## DONE (Story 1.3 mini-epic)
+## DONE (Story 1.4 mini-epic)
 
-- [x] Reconciled after user merge of PR #218 (main now `784fbd0`); fresh branch off `origin/main`; stale halt cleared
-- [x] Story 1.3 spec authored — 4-task decomposition; sprint-status `1-3 → ready-for-dev`
-- [x] Story 1.3 Task 1 — shared ESLint config extended (7th universal entry + `forPackage` factory)
-- [x] Story 1.3 Task 2 — 16 × per-package `eslint.config.js` migrated to `forPackage('<name>')`; keel-invariants self uses relative import (self-alias forbidden by its own AC 3 rule)
-- [x] Story 1.3 Task 3 — ATDD smoke probes; AC 1 pattern gap caught + broadened patterns in both 7th-entry and `forPackage` 8th-entry body; 5/5 probes correct post-fix
-- [x] Story 1.3 Task 4 — verification-only: typecheck/lint 16/16 FULL TURBO, format:check 0, commitlint 0/0 × 4 commits. Sprint-status `1-3 → done`. Story Status → `done`.
-- [x] PR #219 Draft→Open transition — title/body rewritten for full 6-commit range before `gh pr ready`; EPIC_DONE halt written (Open + MERGEABLE + CLEAN + 0 reviews + 0 checks).
+- [x] Story 1.4 spec authored — 3-task decomposition; sprint-status `1-4 → ready-for-dev`
+- [x] Draft PR #220 created
+- [x] Story 1.4 Task 1 shipped — `@j178/prek@0.3.9` pinned, `.pre-commit-config.yaml` authored, `prepare: prek install` wired
+- [x] Story 1.4 Task 2 shipped — 5 ATDD probes (AC 2/3/4/5/6) all green
+- [x] Story 1.4 Task 3 shipped — quality gates all FULL TURBO; sprint-status `1-4 → done` co-landed
+- [x] PR #220 Draft→Open — title/body rewritten for 5-commit range; `{isDraft:false, state:OPEN, mergeable:MERGEABLE, mergeStateStatus:CLEAN, reviews:[], statusCheckRollup:[]}`
 
 ## Context
 
 - **Phase:** 4-implementation
-- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (in-progress)
-- **Epic Branch:** `feat/story-1-3-eslint-no-restricted-imports-import-boundary-rules`
-- **Story:** 1.3 — ESLint `no-restricted-imports` import-boundary rules — **done**
-- **Story File:** `_bmad-output/implementation-artifacts/1-3-eslint-no-restricted-imports-import-boundary-rules.md`
-- **PR:** #219 Open, MERGEABLE, CLEAN, 0 reviews, 0 checks (no CI workflows until Story 1.16)
+- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (in-progress; Story 1.4 done, many stories remain)
+- **Epic Branch:** `feat/story-1-4-pre-commit-quality-gates-via-prek-type-check-lint-format`
+- **Story:** 1.4 — Pre-commit quality gates via prek — **done** (PR #220 Open; awaiting user merge)
+- **Story File:** `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md`
+- **PR:** #220 Open — 5 commits; EPIC_DONE halt set
