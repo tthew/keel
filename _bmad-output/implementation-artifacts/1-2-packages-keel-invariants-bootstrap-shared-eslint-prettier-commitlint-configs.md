@@ -57,19 +57,20 @@ so that every downstream package consumes one canonical ruleset and drift cannot
   - [x] `pnpm -w typecheck` → second run: `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 216ms >>> FULL TURBO`.
   - [x] **Did NOT** add any eslint/prettier/commitlint deps — those land in Task 2.
 
-- [ ] **Task 2: Install shared-config devDependencies in `packages/keel-invariants/`** (AC: 1, 2, 3, 5, 6)
-  - [ ] Add the following to `packages/keel-invariants/package.json` `devDependencies` (pinned exact-minor per I7, architecture lines 342–350):
-    - `eslint` — current stable v9 line (flat config native).
-    - `@eslint/js` — matches the `eslint` version (recommended rule sets).
-    - `typescript-eslint` — current stable v8 line (flat-config native, merges `@typescript-eslint/parser` + `@typescript-eslint/eslint-plugin`).
-    - `globals` — current stable (browser/node globals for flat config).
-    - `prettier` — current stable v3 line.
-    - `@commitlint/cli` — current stable v19 line.
-    - `@commitlint/config-conventional` — matches `@commitlint/cli`.
-  - [ ] Exact patch version is implementation-time detail; choose whatever `pnpm info <pkg> version` reports at run time. Document chosen versions in Completion Notes.
-  - [ ] **Also add these as root-level `devDependencies`** (in `{repo-root}/package.json`) so root scripts (`pnpm lint`, `pnpm format:check`, `pnpm exec commitlint ...`) can find the binaries. Use the same versions as in keel-invariants; pnpm will dedupe.
-  - [ ] Run `pnpm install` from repo root. Exit 0 required. `pnpm-lock.yaml` gets updated — commit the diff.
-  - [ ] **Do NOT** author any config files yet — those land in Tasks 3–5.
+- [x] **Task 2: Install shared-config devDependencies in `packages/keel-invariants/`** (AC: 1, 2, 3, 5, 6)
+  - [x] Added the following to `packages/keel-invariants/package.json` `devDependencies` (pinned exact-patch per Story 1.1's established convention — `typescript@5.7.3` / `turbo@2.3.3` style, i.e. plain pinned version with no `^`/`~`; satisfies architecture I7 "no major-wildcarding"):
+    - `eslint@10.2.1` — current stable line (flat config native; legacy eslintrc removed in v10).
+    - `@eslint/js@10.0.1` — matches eslint major; peerDep `eslint: ^10.0.0`.
+    - `typescript-eslint@8.58.2` — v8 line, peerDep `eslint: ^8.57.0 || ^9.0.0 || ^10.0.0` confirms forward-compat with eslint v10.
+    - `globals@17.5.0` — current stable.
+    - `prettier@3.8.3` — current stable v3 line.
+    - `@commitlint/cli@20.5.0` — current stable line.
+    - `@commitlint/config-conventional@20.5.0` — matches `@commitlint/cli`.
+  - [x] **Variance from original subtask text.** Subtasks prescribed "v9 line" for `eslint` / `@eslint/js` and "v19 line" for commitlint — those were the current stables when the spec was authored. At install time, `pnpm info` reported `eslint@10.2.1`, `@eslint/js@10.0.1`, `@commitlint/cli@20.5.0`, `@commitlint/config-conventional@20.5.0` as current stable. Story's "choose whatever `pnpm info <pkg> version` reports at run time" directive overrides the specific-major text — went with current stable. Ecosystem compat verified via peer-deps (see above). This is a knock-on for Story 1.3 scope reading: any "v9 ESLint" references in downstream story docs refer to flat-config-native ESLint (v9+); Story 1.3's `no-restricted-imports` composability is unaffected by the v9→v10 ecosystem bump (flat-config shape is identical).
+  - [x] Added the same 7 devDeps to root `{repo-root}/package.json` `devDependencies` alongside existing `turbo@2.3.3` + `typescript@5.7.3` so root scripts (`pnpm lint`, `pnpm format:check`, `pnpm exec commitlint ...`) resolve binaries from root `node_modules/.bin/`.
+  - [x] `pnpm install` from repo root — exit 0. `Done in 3m 9.7s using pnpm v10.29.2`. 172 new packages added across the dep tree. Registry was unusually slow (multiple `WARN Tarball download average speed 15 KiB/s` messages) — not a repo/config issue, transient network condition. `pnpm-lock.yaml` regenerated; diff staged for commit.
+  - [x] **Did NOT** author any config files — those land in Tasks 3–5 per spec.
+  - [x] Quality-gate check: `pnpm -w typecheck` first run post-install = 16/16 successful (1.48s, no cache hits — expected, since `pnpm-lock.yaml` is a turbo input); second run = `>>> FULL TURBO` 16/16 cached (168ms). No typecheck regression from the devDep additions.
 
 - [ ] **Task 3: Author shared ESLint flat config + `./eslint` subpath export** (AC: 1, 2, 3)
   - [ ] Create `packages/keel-invariants/eslint.config.keel-invariants.js` (ESM, `.js` extension since `packages/keel-invariants/package.json` has `type: "module"`).
@@ -306,6 +307,23 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 216ms >>> FULL TURBO`.
 - TS6053 regression checkpoint: first typecheck attempt (before the devDep additions) produced `tsconfig.json(2,14): error TS6053: File '@keel/keel-invariants/tsconfig' not found.` in every consuming package. Fixed by declaring `@keel/keel-invariants: workspace:*` as a devDep per consumer so pnpm would symlink the package into `node_modules/@keel/`.
 
+**Task 2 (2026-04-19):**
+- Version selection (`pnpm info <pkg> version` at install time): `eslint=10.2.1`, `@eslint/js=10.0.1`, `typescript-eslint=8.58.2`, `globals=17.5.0`, `prettier=3.8.3`, `@commitlint/cli=20.5.0`, `@commitlint/config-conventional=20.5.0`.
+- Compat verification (`pnpm info <pkg> peerDependencies`): `typescript-eslint@8.58.2.peerDeps.eslint = ^8.57.0 || ^9.0.0 || ^10.0.0`; `@eslint/js@10.0.1.peerDeps.eslint = ^10.0.0`; `eslint@10.2.1.engines.node = ^20.19.0 || ^22.13.0 || >=24`; host node `v20.20.0` satisfies.
+- `pnpm install` → `Done in 3m 9.7s using pnpm v10.29.2` — exit 0. Added 172 packages. Final output lines:
+  ```
+  devDependencies:
+  + @commitlint/cli 20.5.0
+  + @commitlint/config-conventional 20.5.0
+  + @eslint/js 10.0.1
+  + eslint 10.2.1
+  + globals 17.5.0
+  + prettier 3.8.3
+  + typescript-eslint 8.58.2
+  ```
+- `pnpm -w typecheck` (1st, post-install) → `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 1.48s` (cache invalidated by `pnpm-lock.yaml` change — expected).
+- `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 168ms >>> FULL TURBO`.
+
 ### Completion Notes List
 
 **Task 1 — Relocation + subpath export (2026-04-19):**
@@ -314,6 +332,13 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Turbo cache invalidated on first typecheck run (expected: tsconfig path inputs changed). Second run hit FULL TURBO as specified in AC 4.
 - Subpath export `"./tsconfig": "./tsconfig.base.json"` in `packages/keel-invariants/package.json` is the mechanism per AC 1.
 - All TS5090 lessons from Story 1.1 preserved: `paths` values remain relative (`../<pkg>/src/index.ts`, `../../apps/web/src/index.ts`) — no `baseUrl` added.
+
+**Task 2 — Shared-config devDeps install (2026-04-19):**
+- **Ecosystem-version variance.** Story subtask text prescribed "v9 line" for eslint / @eslint/js and "v19 line" for commitlint. At install time (2026-04-19), `pnpm info` reported v10.2.1 / v10.0.1 / v20.5.0 respectively as current stable. Story spec's fallback directive ("choose whatever `pnpm info <pkg> version` reports at run time") takes priority — went with current stable. Peer-dep compat confirmed: `typescript-eslint@8.58.2` accepts ESLint v8/v9/v10; `@eslint/js@10.0.1` requires ESLint ^10. No break in the flat-config shape between v9 and v10 (legacy eslintrc was removed; flat-config API identical), so Story 1.3 composability directive is preserved.
+- **Pinning style.** Chose plain pinned patch versions (`eslint@10.2.1`, not `^10.2.1` / `~10.2.1`) — matches Story 1.1's `typescript@5.7.3` / `turbo@2.3.3` convention. Story spec says "exact-minor per I7" + "no `^`, no `~` with major-wildcarding"; the strictest interpretation consistent with Story 1.1's established pattern is plain pinned versions. Patch bumps require intentional lockfile update via a future dependency-maintenance task — not automatic.
+- **Duplicate pinning.** Same 7 devDeps declared in BOTH `packages/keel-invariants/package.json` AND root `package.json` per spec. pnpm's default behavior dedupes into a single `node_modules/.pnpm` store — zero disk/install overhead; the duplication is purely declarative (root needs the binary path for `pnpm exec commitlint` / `pnpm format:check`; keel-invariants needs it for config-file `import` statements authored in Tasks 3–5).
+- **Install-time note.** 3m 9.7s install (typical: ~20s). Registry was unusually slow — repeated `WARN Tarball download average speed … below 50 KiB/s` messages. Not a repo/config concern; would resolve on a second run. No retry performed since exit code was 0.
+- No typecheck regression post-install: 16/16 green, FULL TURBO cache intact.
 
 ### File List
 
@@ -324,3 +349,9 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Modified: `apps/web/tsconfig.json` + 14 × `packages/<pkg>/tsconfig.json` (extends → `@keel/keel-invariants/tsconfig`). 15 files total.
 - Modified: `apps/web/package.json` + 14 × `packages/<pkg>/package.json` (added `devDependencies: { "@keel/keel-invariants": "workspace:*" }`). 15 files total. **Variance from original subtask list** — see Completion Notes.
 - Unchanged: root `tsconfig.json`, `pnpm-lock.yaml` (workspace symlinks created without lockfile churn), `pnpm-workspace.yaml`, `turbo.json`, all `src/index.ts`.
+
+**Task 2 (2026-04-19):**
+- Modified: `packages/keel-invariants/package.json` — added 7 devDeps (`eslint@10.2.1`, `@eslint/js@10.0.1`, `typescript-eslint@8.58.2`, `globals@17.5.0`, `prettier@3.8.3`, `@commitlint/cli@20.5.0`, `@commitlint/config-conventional@20.5.0`).
+- Modified: `package.json` (repo root) — added the same 7 devDeps alongside existing `turbo@2.3.3` + `typescript@5.7.3`.
+- Modified: `pnpm-lock.yaml` — regenerated by `pnpm install`; 172 new packages in the dep tree.
+- Unchanged: every `<member>/package.json` except keel-invariants (per-package consumers get their own lint deps wiring in Task 6); no tsconfig changes; no config-file authoring (that's Tasks 3–5).
