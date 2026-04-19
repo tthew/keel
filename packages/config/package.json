@@ -14,5 +14,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit"
+  },
+  "devDependencies": {
+    "@keel/keel-invariants": "workspace:*"
   }
 }

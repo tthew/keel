@@ -15,37 +15,97 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
-  apps/web: {}
+  apps/web:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../../packages/keel-invariants
 
-  packages/audit: {}
+  packages/audit:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/billing: {}
+  packages/billing:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/config: {}
+  packages/config:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/contracts: {}
+  packages/contracts:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/core: {}
+  packages/core:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/create-keel-app: {}
+  packages/create-keel-app:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/db: {}
+  packages/db:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/devbox: {}
+  packages/devbox:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/email: {}
+  packages/email:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/flags: {}
+  packages/flags:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/jobs: {}
+  packages/jobs:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/keel-generator: {}
+  packages/keel-generator:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
   packages/keel-invariants: {}
 
-  packages/keel-templates: {}
+  packages/keel-templates:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
-  packages/ui: {}
+  packages/ui:
+    devDependencies:
+      '@keel/keel-invariants':
+        specifier: workspace:*
+        version: link:../keel-invariants
 
 packages:
 

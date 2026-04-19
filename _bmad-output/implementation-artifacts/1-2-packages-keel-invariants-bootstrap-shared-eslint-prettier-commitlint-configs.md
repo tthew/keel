@@ -44,16 +44,18 @@ so that every downstream package consumes one canonical ruleset and drift cannot
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Relocate `tsconfig.base.json` into `packages/keel-invariants/` + expose via subpath export** (AC: 1, 4)
-  - [ ] `git mv tsconfig.base.json packages/keel-invariants/tsconfig.base.json`.
-  - [ ] Update `packages/keel-invariants/tsconfig.base.json` `paths` values: each was `"./packages/<pkg>/src/index.ts"` relative to repo root; after the move, the file lives two directories deeper, so each path must become `"../<pkg>/src/index.ts"` relative to the new file location. Verify by resolving mentally: `packages/keel-invariants/` + `../<pkg>/src/index.ts` = `packages/<pkg>/src/index.ts` ✓. Do NOT change the path for `@keel/web` — adjust to `"../../apps/web/src/index.ts"`.
-  - [ ] Update `packages/keel-invariants/tsconfig.json` `extends` from `"../../tsconfig.base.json"` to `"./tsconfig.base.json"` (self-extend; co-located).
-  - [ ] Update the remaining 15 per-package `tsconfig.json` `extends` fields to `"@keel/keel-invariants/tsconfig"`. Affected files: `apps/web/tsconfig.json` + each of `packages/{audit,billing,config,contracts,core,create-keel-app,db,devbox,email,flags,jobs,keel-generator,keel-templates,ui}/tsconfig.json`.
-  - [ ] Update root `tsconfig.json` (solution file): it has no `extends` (only `references`), but verify its `references` list is unchanged — all 16 references still valid.
-  - [ ] Add the subpath export to `packages/keel-invariants/package.json`: add `"./tsconfig": "./tsconfig.base.json"` to the `exports` field.
-  - [ ] Run `pnpm install` (exit 0 expected — no dep changes yet, just workspace resolution touched).
-  - [ ] Run `pnpm -w typecheck` — must be green across 16 packages. First run may invalidate turbo cache (path input change); second run MUST return `>>> FULL TURBO`. Capture both outputs in dev log.
-  - [ ] **Do NOT** add any eslint/prettier/commitlint deps in this task — those land in Task 2.
+- [x] **Task 1: Relocate `tsconfig.base.json` into `packages/keel-invariants/` + expose via subpath export** (AC: 1, 4)
+  - [x] `git mv tsconfig.base.json packages/keel-invariants/tsconfig.base.json`.
+  - [x] Update `packages/keel-invariants/tsconfig.base.json` `paths` values: each was `"./packages/<pkg>/src/index.ts"` relative to repo root; after the move, the file lives two directories deeper, so each path must become `"../<pkg>/src/index.ts"` relative to the new file location. `@keel/web` → `"../../apps/web/src/index.ts"`.
+  - [x] Update `packages/keel-invariants/tsconfig.json` `extends` from `"../../tsconfig.base.json"` to `"./tsconfig.base.json"` (self-extend; co-located).
+  - [x] Update the remaining 15 per-package `tsconfig.json` `extends` fields to `"@keel/keel-invariants/tsconfig"`. Files: `apps/web/tsconfig.json` + `packages/{audit,billing,config,contracts,core,create-keel-app,db,devbox,email,flags,jobs,keel-generator,keel-templates,ui}/tsconfig.json`.
+  - [x] Root `tsconfig.json` solution file references unchanged — all 16 references valid.
+  - [x] Added `"./tsconfig": "./tsconfig.base.json"` to `packages/keel-invariants/package.json` `exports`.
+  - [x] **Variance — not in original subtasks:** added `"@keel/keel-invariants": "workspace:*"` to `devDependencies` of all 15 consuming packages (apps/web + 14 packages). Required because TS's `extends` with a bare specifier goes through Node module resolution, which only creates `node_modules/@keel/keel-invariants` symlinks for packages that declare it as a dependency. Without this, typecheck fails with `TS6053: File '@keel/keel-invariants/tsconfig' not found.`. Story Dev Notes line 157 assumed the symlink would exist; pnpm's default behavior doesn't hoist un-depended workspace packages.
+  - [x] `pnpm install` → Done in 501ms, 17 workspace projects. `node_modules/@keel/keel-invariants` symlinks created under each consumer.
+  - [x] `pnpm -w typecheck` → first run: `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 2.515s`.
+  - [x] `pnpm -w typecheck` → second run: `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 216ms >>> FULL TURBO`.
+  - [x] **Did NOT** add any eslint/prettier/commitlint deps — those land in Task 2.
 
 - [ ] **Task 2: Install shared-config devDependencies in `packages/keel-invariants/`** (AC: 1, 2, 3, 5, 6)
   - [ ] Add the following to `packages/keel-invariants/package.json` `devDependencies` (pinned exact-minor per I7, architecture lines 342–350):
@@ -298,12 +300,27 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 
 ### Debug Log References
 
-_(To be populated by dev-story as tasks complete.)_
+**Task 1 (2026-04-19):**
+- `pnpm install` → `Done in 501ms using pnpm v10.29.2` (after the 15 `@keel/keel-invariants: workspace:*` devDep additions — `@keel/keel-invariants` symlink materialised under each consumer's `node_modules/@keel/`).
+- `pnpm -w typecheck` (1st) → `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 2.515s`.
+- `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 216ms >>> FULL TURBO`.
+- TS6053 regression checkpoint: first typecheck attempt (before the devDep additions) produced `tsconfig.json(2,14): error TS6053: File '@keel/keel-invariants/tsconfig' not found.` in every consuming package. Fixed by declaring `@keel/keel-invariants: workspace:*` as a devDep per consumer so pnpm would symlink the package into `node_modules/@keel/`.
 
 ### Completion Notes List
 
-_(To be populated by dev-story as tasks complete. Must include: exact versions pinned for each devDep; first + second `pnpm -w typecheck` final-line outputs; first + second `pnpm -w lint` final-line outputs; `pnpm format:check` exit status; `pnpm exec commitlint --from origin/main --to HEAD` exit status; any variance fixes applied.)_
+**Task 1 — Relocation + subpath export (2026-04-19):**
+- Zero source edits; only config plumbing.
+- **Variance applied:** added `@keel/keel-invariants: workspace:*` as `devDependencies` to 15 consuming packages (apps/web + packages/{audit,billing,config,contracts,core,create-keel-app,db,devbox,email,flags,jobs,keel-generator,keel-templates,ui}). This was NOT in the original subtask list but is required for `extends: "@keel/keel-invariants/tsconfig"` to resolve through Node module resolution. Documented in RALPH.md Lessons 2026-04-19 so future subpath-export stories don't hit the same TS6053 wall. Downstream impact: Story 1.3 (boundary rules) and any other keel-invariants consumer stories need this devDep on day 1.
+- Turbo cache invalidated on first typecheck run (expected: tsconfig path inputs changed). Second run hit FULL TURBO as specified in AC 4.
+- Subpath export `"./tsconfig": "./tsconfig.base.json"` in `packages/keel-invariants/package.json` is the mechanism per AC 1.
+- All TS5090 lessons from Story 1.1 preserved: `paths` values remain relative (`../<pkg>/src/index.ts`, `../../apps/web/src/index.ts`) — no `baseUrl` added.
 
 ### File List
 
-_(To be populated by dev-story — files created + modified per task, cross-referenced against the "Source tree components to touch" section.)_
+**Task 1 (2026-04-19):**
+- Moved: `tsconfig.base.json` → `packages/keel-invariants/tsconfig.base.json` (via `git mv`; paths rewritten to `../<pkg>/src/index.ts` and `../../apps/web/src/index.ts`).
+- Modified: `packages/keel-invariants/tsconfig.json` (extends → `./tsconfig.base.json`).
+- Modified: `packages/keel-invariants/package.json` (added `"./tsconfig"` subpath export).
+- Modified: `apps/web/tsconfig.json` + 14 × `packages/<pkg>/tsconfig.json` (extends → `@keel/keel-invariants/tsconfig`). 15 files total.
+- Modified: `apps/web/package.json` + 14 × `packages/<pkg>/package.json` (added `devDependencies: { "@keel/keel-invariants": "workspace:*" }`). 15 files total. **Variance from original subtask list** — see Completion Notes.
+- Unchanged: root `tsconfig.json`, `pnpm-lock.yaml` (workspace symlinks created without lockfile churn), `pnpm-workspace.yaml`, `turbo.json`, all `src/index.ts`.

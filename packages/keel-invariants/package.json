@@ -9,7 +9,8 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./tsconfig": "./tsconfig.base.json"
   },
   "scripts": {
     "build": "tsc -b",
