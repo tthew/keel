@@ -27,4 +27,4 @@ _(none)_
 - **Epic Branch:** `feat/story-1-3-eslint-no-restricted-imports-import-boundary-rules`
 - **Story:** 1.3 — ESLint `no-restricted-imports` import-boundary rules — **ready-for-dev**
 - **Story File:** `_bmad-output/implementation-artifacts/1-3-eslint-no-restricted-imports-import-boundary-rules.md`
-- **PR:** _(not yet created — opens after Task 1 first push)_
+- **PR:** #219 Draft, MERGEABLE, CLEAN, 0 reviews, 0 checks (no CI workflows until Story 1.16)
