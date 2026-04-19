@@ -2,30 +2,28 @@
 
 ## NOW
 
-_(none — Story 1.4 mini-epic shipped; halt EPIC_DONE)_
+- [ ] Author Story 1.5 spec + iteration-1 bootstrap (branch, sprint-status → ready-for-dev, Draft PR) ~medium
 
-## QUEUE
+## QUEUE (Story 1.5)
 
-_(none)_
+- [ ] Story 1.5 Task 1 — author commit-msg hook entry + update `prepare` script (`-t pre-commit -t commit-msg`); verify `.git/hooks/commit-msg` lands
+- [ ] Story 1.5 Task 2 — ATDD probes: valid commit accepts (AC 2), invalid commit rejects (AC 3), author parity note (AC 4)
+- [ ] Story 1.5 Task 3 — quality gates + sprint-status bump `1-5 → done`
+- [ ] PR Draft→Open transition — rewrite title/body for full commit range, `gh pr ready`, EPIC_DONE halt
 
 ## BLOCKED
 
 _(none)_
 
-## DONE (Story 1.4 mini-epic)
+## DONE
 
-- [x] Story 1.4 spec authored — 3-task decomposition; sprint-status `1-4 → ready-for-dev`
-- [x] Draft PR #220 created
-- [x] Story 1.4 Task 1 shipped — `@j178/prek@0.3.9` pinned, `.pre-commit-config.yaml` authored, `prepare: prek install` wired
-- [x] Story 1.4 Task 2 shipped — 5 ATDD probes (AC 2/3/4/5/6) all green
-- [x] Story 1.4 Task 3 shipped — quality gates all FULL TURBO; sprint-status `1-4 → done` co-landed
-- [x] PR #220 Draft→Open — title/body rewritten for 5-commit range; `{isDraft:false, state:OPEN, mergeable:MERGEABLE, mergeStateStatus:CLEAN, reviews:[], statusCheckRollup:[]}`
+_(fresh mini-epic; no iterations yet)_
 
 ## Context
 
 - **Phase:** 4-implementation
-- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (in-progress; Story 1.4 done, many stories remain)
-- **Epic Branch:** `feat/story-1-4-pre-commit-quality-gates-via-prek-type-check-lint-format`
-- **Story:** 1.4 — Pre-commit quality gates via prek — **done** (PR #220 Open; awaiting user merge)
-- **Story File:** `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md`
-- **PR:** #220 Open — 5 commits; EPIC_DONE halt set
+- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (in-progress; Stories 1.1–1.4 done)
+- **Epic Branch:** `feat/story-1-5-conventional-commit-enforcement-via-commitlint-prek`
+- **Story:** 1.5 — Conventional-commit enforcement via commitlint + prek (backlog → ready-for-dev this iteration)
+- **Story File:** `_bmad-output/implementation-artifacts/1-5-conventional-commit-enforcement-via-commitlint-prek.md`
+- **PR:** TBD (Draft created this iteration)
