@@ -6142,6 +6142,117 @@ So that model evolution is tracked as research corpus metadata (NFR29a, NFR30).
 
 **Standalone delivery:** Tthew runs `pnpm dlx create-keel-app test-product-idea --from=main` during mid-build, gets a clean fork, validates a speculative product idea in ~10 minutes without polluting the main Keel workspace. Major-version cut automation + correlated-library policy + Invariant Pack pivot are Epic 15b's scope.
 
+#### Stories
+
+##### Story 15a.1: `create-keel-app/` package + non-interactive CLI
+
+As Tthew (mid-build) and later forkers,
+I want `create-keel-app/` at the repo root (published to npm as `create-keel-app` for `pnpm dlx`) with `src/cli.ts` — non-interactive end-to-end; no prompts; specific exit codes — completing in < 2 min wall-clock (excluding devbox cold-start),
+So that fork scaffolding is fast and fully scriptable (FR47, NFR34).
+
+**Acceptance Criteria:**
+
+**Given** `create-keel-app/`,
+**When** I inspect it,
+**Then** `package.json` is configured for npm publish (bin = `src/cli.js`; name = `create-keel-app`)
+**And** `README.md` documents usage.
+
+**Given** `pnpm dlx create-keel-app <name>`,
+**When** I run it,
+**Then** it reads zero stdin
+**And** completes in < 2 min wall-clock on baseline hardware
+**And** returns specific exit codes on failure: 2 (Docker missing), 3 (network failure), 4 (dir conflict), 5 (`pnpm install` failure).
+
+**Given** success,
+**When** the command completes,
+**Then** a plain-text summary prints
+**And** the new fork is at `<name>/` with a first commit `chore: bootstrap from keel@<ref>`.
+
+##### Story 15a.2: `src/strip-planning.ts` fork-scaffolding state wipe (FR51)
+
+As Tthew,
+I want `src/strip-planning.ts` that strips `_bmad-output/` → `docs/archive/keel-<ref>-planning/`, empties `.ralph/@plan.md`, seeds `.ralph/PROMPT_build.md` + `.ralph/PROMPT_plan.md` from `packages/keel-templates/`,
+So that forks start with a clean slate (FR51).
+
+**Acceptance Criteria:**
+
+**Given** a fresh fork,
+**When** `strip-planning.ts` runs,
+**Then** `_bmad-output/` contents move to `docs/archive/keel-<ref>-planning/`
+**And** `.ralph/@plan.md` is emptied to a minimal skeleton conforming to `plan.schema.json` (Epic 3 Story 3.8).
+
+**Given** `packages/keel-templates/PROMPT_*.template.md`,
+**When** seeding runs,
+**Then** substitution per Story 3.3 placeholder convention is applied
+**And** `.ralph/PROMPT_build.md` + `.ralph/PROMPT_plan.md` materialise.
+
+**Given** the archive convention,
+**When** I inspect `docs/archive/keel-<ref>-planning/`,
+**Then** the ref used (tag/branch/SHA) is preserved in the directory name.
+
+##### Story 15a.3: Mid-build `--from=<branch|tag|sha>` flag (Tthew test-fork mode)
+
+As Tthew mid-build,
+I want `pnpm dlx create-keel-app <name> --from=<branch|tag|sha>` that clones from any ref (not just the latest substrate tag),
+So that I can spin up test forks from any in-progress branch without manual git-clone + strip (FR47 extension).
+
+**Acceptance Criteria:**
+
+**Given** `--from=main`,
+**When** I run the command,
+**Then** the CLI clones `main` (not the latest tag)
+**And** strip-planning still runs.
+
+**Given** `--from=<sha>`,
+**When** I run the command,
+**Then** the CLI clones the exact commit
+**And** the archive directory name reflects the SHA.
+
+**Given** no `--from=`,
+**When** I run the command,
+**Then** the CLI clones the latest substrate tag (default behaviour).
+
+##### Story 15a.4: `packages/keel-templates/` consumer seeding
+
+As a substrate maintainer,
+I want `create-keel-app` to consume `packages/keel-templates/` for `.ralph/PROMPT_*.md` seeding — the templates authored in Epic 3 Story 3.3 with substitutions materialised here,
+So that every fresh fork's Ralph prompts are generated from the substrate's pinned templates (NFR29a consumer).
+
+**Acceptance Criteria:**
+
+**Given** Epic 3 Story 3.3's templates,
+**When** `create-keel-app` reads them,
+**Then** substitution variables (`{{ fork.name }}`, `{{ fork.tenancy }}`) resolve from CLI input
+**And** the emitted `.ralph/PROMPT_*.md` file has NO unresolved placeholders.
+
+**Given** the content-hash pinning in `packages/devbox/ralph-version.json`,
+**When** `create-keel-app` materialises templates,
+**Then** the fork's `ralph-version.json` inherits the substrate's pinned hash
+**And** stage identity is preserved.
+
+##### Story 15a.5: Integration test (pre-merge-slow smoke)
+
+As a substrate maintainer,
+I want an integration test at pre-merge-slow exercising `pnpm dlx create-keel-app /tmp/test-fork-<uuid> --from=HEAD → cd /tmp/test-fork-<uuid> → pnpm devbox:start → pnpm test` end-to-end green on both shapes,
+So that `create-keel-app` regressions are caught before they ship (FR47 verification).
+
+**Acceptance Criteria:**
+
+**Given** a PR touching `create-keel-app/`,
+**When** pre-merge-slow runs,
+**Then** the integration test fires
+**And** both `{b2b, team}` and `{b2c, user}` scaffolds complete green.
+
+**Given** the test uses ephemeral temp dir,
+**When** it completes,
+**Then** the temp dir is cleaned up
+**And** no state bleeds into the CI workspace.
+
+**Given** the test is part of Epic 13's matrix,
+**When** failure occurs,
+**Then** the PR is blocked
+**And** the failure includes which shape + which step failed.
+
 ---
 
 ### Epic 15b: Fork Lifecycle Discipline & Distribution Policies (late — pre-1.0-cut)
