@@ -18,6 +18,7 @@ _(none)_
 
 - [x] Reconciled after user merge of PR #219 (main now `40507d9`); fresh branch off `origin/main`; stale halt cleared
 - [x] Story 1.4 spec authored — 3-task decomposition; sprint-status `1-4 → ready-for-dev`
+- [x] Draft PR #220 created — body covers spec-only state; title/body to be rewritten before `gh pr ready` per multi-commit precedent
 
 ## Context
 
@@ -26,4 +27,4 @@ _(none)_
 - **Epic Branch:** `feat/story-1-4-pre-commit-quality-gates-via-prek-type-check-lint-format`
 - **Story:** 1.4 — Pre-commit quality gates via prek (type-check, lint, format) — **ready-for-dev**
 - **Story File:** `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md`
-- **PR:** (to create this iteration — Draft; body reflects spec-only state)
+- **PR:** #220 Draft — spec-only; title/body to rewrite for full commit range before `gh pr ready`
