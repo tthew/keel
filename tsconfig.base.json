@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "strict": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "paths": {
+      "@keel/db": ["packages/db/src/index.ts"],
+      "@keel/contracts": ["packages/contracts/src/index.ts"],
+      "@keel/config": ["packages/config/src/index.ts"],
+      "@keel/core": ["packages/core/src/index.ts"],
+      "@keel/billing": ["packages/billing/src/index.ts"],
+      "@keel/email": ["packages/email/src/index.ts"],
+      "@keel/jobs": ["packages/jobs/src/index.ts"],
+      "@keel/flags": ["packages/flags/src/index.ts"],
+      "@keel/audit": ["packages/audit/src/index.ts"],
+      "@keel/ui": ["packages/ui/src/index.ts"],
+      "@keel/keel-invariants": ["packages/keel-invariants/src/index.ts"],
+      "@keel/devbox": ["packages/devbox/src/index.ts"],
+      "@keel/keel-generator": ["packages/keel-generator/src/index.ts"],
+      "@keel/keel-templates": ["packages/keel-templates/src/index.ts"],
+      "@keel/web": ["apps/web/src/index.ts"]
+    }
+  }
+}
