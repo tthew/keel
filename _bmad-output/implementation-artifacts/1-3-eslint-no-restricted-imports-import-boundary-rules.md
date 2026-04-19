@@ -1,6 +1,6 @@
 # Story 1.3: ESLint `no-restricted-imports` import-boundary rules
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -39,9 +39,9 @@ so that compile-time package boundaries cannot be violated by relative-path end-
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Extend shared ESLint config with universal `no-restricted-imports` rules + `forPackage(ownName)` factory** (AC: 1, 2, 3)
-  - [ ] Edit `packages/keel-invariants/eslint.config.keel-invariants.js`. Preserve the existing 6-entry array (Task 3 of Story 1.2 composability contract). Append a 7th entry with universal rules (AC 1 + 2) and add a NAMED export `forPackage(ownName)` that layers the self-import rule (AC 3).
-  - [ ] The universal 7th entry applies to `**/*.{ts,tsx,js,jsx,mjs,cjs}` and declares:
+- [x] **Task 1: Extend shared ESLint config with universal `no-restricted-imports` rules + `forPackage(ownName)` factory** (AC: 1, 2, 3)
+  - [x] Edit `packages/keel-invariants/eslint.config.keel-invariants.js`. Preserve the existing 6-entry array (Task 3 of Story 1.2 composability contract). Append a 7th entry with universal rules (AC 1 + 2) and add a NAMED export `forPackage(ownName)` that layers the self-import rule (AC 3).
+  - [x] The universal 7th entry applies to `**/*.{ts,tsx,js,jsx,mjs,cjs}` and declares:
     ```js
     {
       files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
@@ -65,7 +65,7 @@ so that compile-time package boundaries cannot be violated by relative-path end-
       },
     }
     ```
-  - [ ] Add a named export `forPackage(ownName)` at the bottom of the file. It returns a NEW array composed of the shared base array spread + an 8th entry with a per-package self-import rule (AC 3). The 8th entry uses the SAME `no-restricted-imports` rule shape but adds an extra pattern:
+  - [x] Add a named export `forPackage(ownName)` at the bottom of the file. It returns a NEW array composed of the shared base array spread + an 8th entry with a per-package self-import rule (AC 3). The 8th entry uses the SAME `no-restricted-imports` rule shape but adds an extra pattern:
     ```js
     export function forPackage(ownName) {
       return [
@@ -88,20 +88,20 @@ so that compile-time package boundaries cannot be violated by relative-path end-
     }
     ```
     **Why repeat patterns?** ESLint's `no-restricted-imports` rule is NOT additive across flat-config entries — the LAST entry that declares the rule wins entirely (shallow-merge semantics on rule options). To keep AC 1 + 2 active under `forPackage(...)`, the 8th entry must repeat them. Ref: <https://eslint.org/docs/latest/use/configure/rules#disabling-inline-configuration-comments> and flat-config rule-merge semantics. A sanity check: the default export (used by any consumer that doesn't call `forPackage`) still enforces AC 1 + 2; `forPackage` extends with AC 3 on top.
-  - [ ] Preserve existing imports (`@eslint/js`, `typescript-eslint`, `globals`) and the 6-entry base. Only append. Keep the module as an ESM file (package has `type: module`). The default export stays the 7-entry array.
-  - [ ] Verify `packages/keel-invariants/package.json` `exports` still has `"./eslint": "./eslint.config.keel-invariants.js"` — no change needed; consumers already import from `@keel/keel-invariants/eslint`. The `forPackage` named export is reachable from the same subpath: `import { forPackage } from '@keel/keel-invariants/eslint'`.
-  - [ ] No new devDeps. Everything needed is already installed (Task 2 of Story 1.2).
-  - [ ] **Self-verification probe (dev loop — not committed):** from `packages/audit/` run:
+  - [x] Preserve existing imports (`@eslint/js`, `typescript-eslint`, `globals`) and the 6-entry base. Only append. Keep the module as an ESM file (package has `type: module`). The default export stays the 7-entry array.
+  - [x] Verify `packages/keel-invariants/package.json` `exports` still has `"./eslint": "./eslint.config.keel-invariants.js"` — no change needed; consumers already import from `@keel/keel-invariants/eslint`. The `forPackage` named export is reachable from the same subpath: `import { forPackage } from '@keel/keel-invariants/eslint'`.
+  - [x] No new devDeps. Everything needed is already installed (Task 2 of Story 1.2).
+  - [x] **Self-verification probe (dev loop — not committed):** from `packages/audit/` run:
     ```bash
     node -e "import('@keel/keel-invariants/eslint').then(m => console.log('default-len=' + m.default.length + ' forPackage-type=' + typeof m.forPackage))"
     ```
     Expect: `default-len=7 forPackage-type=function`.
-  - [ ] Run `pnpm -w typecheck` — still 16/16 `>>> FULL TURBO` (package.json exports unchanged, config file is an input for the `lint` task only, not `typecheck`).
-  - [ ] Run `pnpm -w lint` — 16/16 green, 0 errors/warnings. Empty `src/index.ts` files have nothing to import — this confirms the rules don't fire false-positives on clean code.
-  - [ ] Commit per Ralph convention: `feat(invariants): Story 1.3 Task 1 — extend shared ESLint with no-restricted-imports + forPackage factory`. IP + RALPH.md upkeep in the same commit.
+  - [x] Run `pnpm -w typecheck` — still 16/16 `>>> FULL TURBO` (package.json exports unchanged, config file is an input for the `lint` task only, not `typecheck`).
+  - [x] Run `pnpm -w lint` — 16/16 green, 0 errors/warnings. Empty `src/index.ts` files have nothing to import — this confirms the rules don't fire false-positives on clean code.
+  - [x] Commit per Ralph convention: `feat(invariants): Story 1.3 Task 1 — extend shared ESLint with no-restricted-imports + forPackage factory`. IP + RALPH.md upkeep in the same commit.
 
-- [ ] **Task 2: Migrate all 16 per-package `eslint.config.js` files to `forPackage(<name>)`** (AC: 1, 2, 3, 5)
-  - [ ] Each of the 16 files currently reads:
+- [x] **Task 2: Migrate all 16 per-package `eslint.config.js` files to `forPackage(<name>)`** (AC: 1, 2, 3, 5)
+  - [x] Each of the 16 files currently reads:
     ```js
     import shared from '@keel/keel-invariants/eslint';
     export default shared;
@@ -112,7 +112,7 @@ so that compile-time package boundaries cannot be violated by relative-path end-
     export default forPackage('<own-name>');
     ```
     where `<own-name>` is the suffix after `@keel/` in the package's own `package.json` `name` field.
-  - [ ] Mapping (exhaustive, one line per file):
+  - [x] Mapping (exhaustive, one line per file):
     - `apps/web/eslint.config.js` → `forPackage('web')` (name = `@keel/web`).
     - `packages/audit/eslint.config.js` → `forPackage('audit')`.
     - `packages/billing/eslint.config.js` → `forPackage('billing')`.
@@ -129,50 +129,50 @@ so that compile-time package boundaries cannot be violated by relative-path end-
     - `packages/keel-invariants/eslint.config.js` → `forPackage('keel-invariants')`.
     - `packages/keel-templates/eslint.config.js` → `forPackage('keel-templates')`.
     - `packages/ui/eslint.config.js` → `forPackage('ui')`.
-  - [ ] Root `eslint.config.js` shim: **leave unchanged** (2-line default re-export of the 7-entry shared base). `eslint .` from root, if ever invoked directly, lints only repo-root `.js`/`.cjs` files (not per-package `src/`). Per-package configs run under `turbo run lint` from each member's own cwd, which picks up the local `eslint.config.js`. The root shim is effectively the "catch-all for stray repo-root scripts" — no self-package identity required.
-  - [ ] Verify `packages/<pkg>/package.json` still declares `@keel/keel-invariants` as a devDep (added in Story 1.2 Task 1). The subpath import `@keel/keel-invariants/eslint` only resolves if pnpm has symlinked the package into the consumer's `node_modules/` — which it does only for declared deps. This precondition is already met for all 16 members by Story 1.2 Task 1 + Task 6; no `package.json` edits needed here. **Verify** with `ls packages/audit/node_modules/@keel/` (expect symlink to `keel-invariants`). If absent for any member, add `"@keel/keel-invariants": "workspace:*"` to its `devDependencies` and re-run `pnpm install`.
-  - [ ] Run `pnpm -w lint` — expect 16/16 green. Empty `src/index.ts` everywhere → no import statements → no rule can fire. The config LOADS successfully is the verification here (any import/export typo in the 16 edits would blow up `forPackage is not a function` immediately).
-  - [ ] Commit: `feat(invariants): Story 1.3 Task 2 — wire 16 per-package eslint.config.js to forPackage(<name>)`.
+  - [x] Root `eslint.config.js` shim: **leave unchanged** (2-line default re-export of the 7-entry shared base). `eslint .` from root, if ever invoked directly, lints only repo-root `.js`/`.cjs` files (not per-package `src/`). Per-package configs run under `turbo run lint` from each member's own cwd, which picks up the local `eslint.config.js`. The root shim is effectively the "catch-all for stray repo-root scripts" — no self-package identity required.
+  - [x] Verify `packages/<pkg>/package.json` still declares `@keel/keel-invariants` as a devDep (added in Story 1.2 Task 1). The subpath import `@keel/keel-invariants/eslint` only resolves if pnpm has symlinked the package into the consumer's `node_modules/` — which it does only for declared deps. This precondition is already met for all 16 members by Story 1.2 Task 1 + Task 6; no `package.json` edits needed here. **Verify** with `ls packages/audit/node_modules/@keel/` (expect symlink to `keel-invariants`). If absent for any member, add `"@keel/keel-invariants": "workspace:*"` to its `devDependencies` and re-run `pnpm install`.
+  - [x] Run `pnpm -w lint` — expect 16/16 green. Empty `src/index.ts` everywhere → no import statements → no rule can fire. The config LOADS successfully is the verification here (any import/export typo in the 16 edits would blow up `forPackage is not a function` immediately).
+  - [x] Commit: `feat(invariants): Story 1.3 Task 2 — wire 16 per-package eslint.config.js to forPackage(<name>)`.
 
-- [ ] **Task 3: ATDD smoke probes proving each AC fires** (AC: 1, 2, 3)
-  - [ ] These probes are one-shot verifications using `eslint --stdin`. They produce NO committed fixture files. Each probe pipes synthetic source through ESLint against a specific package's config and grep's the output for the expected rule-id + message.
-  - [ ] **AC 1 probe (cross-package relative import):** from `packages/audit/`:
+- [x] **Task 3: ATDD smoke probes proving each AC fires** (AC: 1, 2, 3)
+  - [x] These probes are one-shot verifications using `eslint --stdin`. They produce NO committed fixture files. Each probe pipes synthetic source through ESLint against a specific package's config and grep's the output for the expected rule-id + message.
+  - [x] **AC 1 probe (cross-package relative import):** from `packages/audit/`:
     ```bash
     echo "import foo from '../../contracts/src/index.ts';" | pnpm exec eslint --stdin --stdin-filename src/ac1-probe.ts --no-warn-ignored 2>&1 | tee /tmp/ac1.out
     ```
     Expect stdout to contain: `no-restricted-imports` + "No relative imports crossing a package src/ boundary". Expect exit code 1.
-  - [ ] **AC 2 probe (internal/* import):** from `packages/audit/`:
+  - [x] **AC 2 probe (internal/* import):** from `packages/audit/`:
     ```bash
     echo "import { x } from '@keel/contracts/internal/foo';" | pnpm exec eslint --stdin --stdin-filename src/ac2-probe.ts --no-warn-ignored 2>&1 | tee /tmp/ac2.out
     ```
     Expect `no-restricted-imports` + "@keel/<pkg>/internal/* is forbidden across packages". Exit 1.
-  - [ ] **AC 3 probe (self-import via alias):** from `packages/audit/`:
+  - [x] **AC 3 probe (self-import via alias):** from `packages/audit/`:
     ```bash
     echo "import { x } from '@keel/audit';" | pnpm exec eslint --stdin --stdin-filename src/ac3-probe.ts --no-warn-ignored 2>&1 | tee /tmp/ac3.out
     ```
     Expect `no-restricted-imports` + "Self-import: use a relative path" + the literal string `'audit'`. Exit 1.
-  - [ ] **AC 3 probe (apps/web self-import):** from `apps/web/`:
+  - [x] **AC 3 probe (apps/web self-import):** from `apps/web/`:
     ```bash
     echo "import { x } from '@keel/web';" | pnpm exec eslint --stdin --stdin-filename src/ac3-web-probe.ts --no-warn-ignored 2>&1 | tee /tmp/ac3-web.out
     ```
     Expect same shape as above with `'web'` as the self-package name.
-  - [ ] **Negative probe (allowed import):** from `packages/audit/`:
+  - [x] **Negative probe (allowed import):** from `packages/audit/`:
     ```bash
     echo "import { x } from '@keel/contracts';" | pnpm exec eslint --stdin --stdin-filename src/ok-probe.ts --no-warn-ignored 2>&1
     ```
     Expect exit 0 (no errors — importing another package's public surface via alias is legal).
-  - [ ] Capture every probe's output in the story's Debug Log References when Task 3 lands. If ANY probe produces unexpected output, fix the rule (loop back to Task 1).
-  - [ ] **No commits at this step's verification loop** — probes are ephemeral. The Task 3 commit carries only the Debug Log entries documenting the probe evidence: `feat(invariants): Story 1.3 Task 3 — ATDD smoke probes verify boundary rules fire`.
-  - [ ] **ATDD red-phase note:** this story's red phase is the expectation that probes AC 1 / AC 2 / AC 3 produce non-zero exit codes with the correct error signatures BEFORE Task 1's rules land. Since Task 1 + 2 precede Task 3 in the implementation order, the red phase was implicit during the Task 1 dev loop (before adding the rule, the probe exits 0). Do not add any `*.probe.ts` files to the repo.
+  - [x] Capture every probe's output in the story's Debug Log References when Task 3 lands. If ANY probe produces unexpected output, fix the rule (loop back to Task 1).
+  - [x] **No commits at this step's verification loop** — probes are ephemeral. The Task 3 commit carries only the Debug Log entries documenting the probe evidence: `feat(invariants): Story 1.3 Task 3 — ATDD smoke probes verify boundary rules fire`.
+  - [x] **ATDD red-phase note:** this story's red phase is the expectation that probes AC 1 / AC 2 / AC 3 produce non-zero exit codes with the correct error signatures BEFORE Task 1's rules land. Since Task 1 + 2 precede Task 3 in the implementation order, the red phase was implicit during the Task 1 dev loop (before adding the rule, the probe exits 0). Do not add any `*.probe.ts` files to the repo.
 
-- [ ] **Task 4: Full quality-gate verification + sprint-status update** (AC: 4, 5)
-  - [ ] `pnpm install` — expect `Already up to date` / no lockfile churn (no new deps added by this story).
-  - [ ] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on second run. First run MAY invalidate cache if any source file was (however briefly) touched, but Tasks 1–3 only edit `eslint.config.js` files and one `.keel-invariants.js` config — none of these are TypeScript compiler inputs. Cache warm.
-  - [ ] `pnpm -w lint` — expect 16/16 green on first AND second run. Cache warmth depends on whether turbo's `lint` task has cache inputs declared; Story 1.1's `turbo.json` will dictate. Whether cached or not, exit 0 is the pass criterion.
-  - [ ] `pnpm format:check` — expect exit 0 (Story 1.2 normalized repo-root markdown; no new files in Story 1.3 aside from edits to existing JS configs, which should already match keel Prettier style).
-  - [ ] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — expect 0/0 across all branch commits (Story 1.3 commits follow the same `feat(invariants): Story 1.3 Task N — …` shape that passed for Story 1.2).
-  - [ ] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flip `1-3-eslint-no-restricted-imports-import-boundary-rules` from `ready-for-dev` → `done`, bump `last_updated`. **Land this before** the PR Draft→Open transition to avoid orphan bookkeeping commits (RALPH.md Lessons 2026-04-19 "Post-halt bookkeeping commits can orphan from main"; Story 1.2 applied this preemptively).
-  - [ ] Commit: `feat(invariants): Story 1.3 Task 4 — all quality gates green + sprint-status bump` (or, if the sprint-status update is a separate commit per IP preference, split: first `feat(invariants): Task 4 — quality gates green`, then `chore(sprint): Story 1.3 done — sprint-status bump`).
+- [x] **Task 4: Full quality-gate verification + sprint-status update** (AC: 4, 5)
+  - [x] `pnpm install` — expect `Already up to date` / no lockfile churn (no new deps added by this story).
+  - [x] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on second run. First run MAY invalidate cache if any source file was (however briefly) touched, but Tasks 1–3 only edit `eslint.config.js` files and one `.keel-invariants.js` config — none of these are TypeScript compiler inputs. Cache warm.
+  - [x] `pnpm -w lint` — expect 16/16 green on first AND second run. Cache warmth depends on whether turbo's `lint` task has cache inputs declared; Story 1.1's `turbo.json` will dictate. Whether cached or not, exit 0 is the pass criterion.
+  - [x] `pnpm format:check` — expect exit 0 (Story 1.2 normalized repo-root markdown; no new files in Story 1.3 aside from edits to existing JS configs, which should already match keel Prettier style).
+  - [x] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — expect 0/0 across all branch commits (Story 1.3 commits follow the same `feat(invariants): Story 1.3 Task N — …` shape that passed for Story 1.2).
+  - [x] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flip `1-3-eslint-no-restricted-imports-import-boundary-rules` from `ready-for-dev` → `done`, bump `last_updated`. **Land this before** the PR Draft→Open transition to avoid orphan bookkeeping commits (RALPH.md Lessons 2026-04-19 "Post-halt bookkeeping commits can orphan from main"; Story 1.2 applied this preemptively).
+  - [x] Commit: `feat(invariants): Story 1.3 Task 4 — all quality gates green + sprint-status bump` (or, if the sprint-status update is a separate commit per IP preference, split: first `feat(invariants): Task 4 — quality gates green`, then `chore(sprint): Story 1.3 done — sprint-status bump`).
 
 ## Dev Notes
 
@@ -340,10 +340,50 @@ No probe fixtures committed; every probe produced via shell heredoc + `eslint --
 - `pnpm format:check` → `All matched files use Prettier code style!` exit 0.
 - `pnpm exec commitlint --from origin/main --to HEAD --verbose` → 0 problems / 0 warnings across 4 branch commits.
 
+**Task 4 (2026-04-19) — re-verification quality gates (all green; cache warm).**
+- `pnpm install` → `Lockfile is up to date, resolution step is skipped. Already up to date. Done in 579ms`. No lockfile churn.
+- `pnpm -w typecheck` → 16/16 successful, **16 cached** — `>>> FULL TURBO` (151ms). Confirms Tasks 1–3 JS config edits are NOT typecheck inputs.
+- `pnpm -w lint` → 16/16 successful, **16 cached** — `>>> FULL TURBO` (138ms). Turbo `lint` task cached on the Task 3 final config state; re-running in this verification-only iteration warms from that cache with no invalidation.
+- `pnpm format:check` → `All matched files use Prettier code style!` exit 0.
+- `pnpm exec commitlint --from origin/main --to HEAD --verbose` → 0 problems / 0 warnings across 4 branch commits (spec commit + Tasks 1, 2, 3).
+
+Task 4 is a verification-only iteration (no source changes). The expected-FULL-TURBO outcome for both typecheck and lint confirms Story 1.3's cache-handoff contract matches Story 1.2's observation (RALPH.md Signposts 2026-04-19): an iteration that touches neither `package.json`, `tsconfig*.json`, `turbo.json`, nor any TS source → every gate hits FULL TURBO on first invocation.
+
 ### Completion Notes List
 
-_(to be populated on Task 4 completion — one line per variance from the spec, cite file + reason)_
+- **Task 1 variance — AC 1 `group` patterns broadened beyond spec.** Spec text (Task 1 subtask lines 50–62) listed `'**/packages/*/src'` + `'**/apps/*/src'` as the AC 1 patterns. Task 3 smoke probes exposed that realistic relative specifiers (`'../../contracts/src/index.ts'` from `packages/audit/src/`) contain no literal "packages" segment, so the original globs did not fire. Per Task 3's "loop back to Task 1" directive, appended six depth-prefixed globs (`'../../**/src{,/**}'`, `'../../../**/src{,/**}'`, `'../../../../**/src{,/**}'`) in BOTH the 7th default-export entry AND `forPackage`'s 8th entry body. Kept the original non-relative patterns as defense-in-depth. [File: `packages/keel-invariants/eslint.config.keel-invariants.js`.]
+- **Task 2 variance — `packages/keel-invariants/eslint.config.js` uses a relative import, not the `@keel/keel-invariants/eslint` alias.** Spec Task 2 mapping assumed every member uses the generic `import { forPackage } from '@keel/keel-invariants/eslint'` shape. For keel-invariants itself, that alias-import would violate its own AC 3 self-import rule (`Self-import: use a relative path within the same package ('keel-invariants')…`). One-file exception: `packages/keel-invariants/eslint.config.js` uses `import { forPackage } from './eslint.config.keel-invariants.js'`. The other 15 members follow the generic shape. [Carry-forward landmine for Story 1.6 and any future self-hosting keel-invariants subpath: alias self-imports are always rejected; relative sibling path is the escape hatch.]
+- **Task 3 variance — negative probe uses side-effect-only `import '@keel/contracts';` form.** Spec Task 3 subtask 159–163 suggested `import { x } from '@keel/contracts';` for the allowed-cross-package-alias probe, but `@typescript-eslint/no-unused-vars` fires on the bound identifier `x` (unrelated rule noise, not a boundary violation). Switched to side-effect-only form so exit 0 reflects genuine absence of `no-restricted-imports` reports. Real source imports bind identifiers and actually use them, so no-unused-vars is a non-issue in production code.
+- **No file deletions, no spec divergence beyond the three above.** All other Tasks-1-through-4 outputs matched the spec verbatim.
 
 ### File List
 
-_(to be populated on completion — enumerate every created / modified file across Tasks 1–4)_
+**Modified (Task 1 — commit `a2def5d`):**
+- `packages/keel-invariants/eslint.config.keel-invariants.js` — appended 7th entry (AC 1 + AC 2 universal rule, patterns broadened per Task 3 loop-back) and added named export `forPackage(ownName)` returning a NEW 8-entry array overlaying AC 3 self-import pattern.
+
+**Modified (Task 2 — commit `759a6fb`):**
+- `apps/web/eslint.config.js` — switched `export default shared` → `export default forPackage('web')`.
+- `packages/audit/eslint.config.js` — `forPackage('audit')`.
+- `packages/billing/eslint.config.js` — `forPackage('billing')`.
+- `packages/config/eslint.config.js` — `forPackage('config')`.
+- `packages/contracts/eslint.config.js` — `forPackage('contracts')`.
+- `packages/core/eslint.config.js` — `forPackage('core')`.
+- `packages/create-keel-app/eslint.config.js` — `forPackage('create-keel-app')`.
+- `packages/db/eslint.config.js` — `forPackage('db')`.
+- `packages/devbox/eslint.config.js` — `forPackage('devbox')`.
+- `packages/email/eslint.config.js` — `forPackage('email')`.
+- `packages/flags/eslint.config.js` — `forPackage('flags')`.
+- `packages/jobs/eslint.config.js` — `forPackage('jobs')`.
+- `packages/keel-generator/eslint.config.js` — `forPackage('keel-generator')`.
+- `packages/keel-invariants/eslint.config.js` — `forPackage('keel-invariants')` via **relative** `./eslint.config.keel-invariants.js` import (self-alias forbidden by AC 3).
+- `packages/keel-templates/eslint.config.js` — `forPackage('keel-templates')`.
+- `packages/ui/eslint.config.js` — `forPackage('ui')`.
+
+**Modified (Task 3 — commit `691ea80`):**
+- `packages/keel-invariants/eslint.config.keel-invariants.js` — broadened AC 1 `group` patterns in 7th entry + `forPackage` 8th entry body (see Task 1 variance above). Debug Log References updated with 5-probe evidence.
+
+**Modified (Task 4 — this commit):**
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — flipped `1-3-eslint-no-restricted-imports-import-boundary-rules` row from `ready-for-dev` → `done`; bumped `last_updated` to `2026-04-19 20:36 UTC`.
+- `_bmad-output/implementation-artifacts/1-3-eslint-no-restricted-imports-import-boundary-rules.md` — flipped Status `ready-for-dev` → `done`; marked all Tasks 1–4 subtasks complete; populated Completion Notes List and File List; appended Task 4 quality-gate evidence to Debug Log References.
+
+**Unchanged across the story:** root `eslint.config.js` (still 2-line default re-export of the 7-entry shared base); `packages/keel-invariants/package.json` `exports` (the `./eslint` subpath is unchanged — named export reachable via same path); all `tsconfig.json` files; any `src/*.ts` file; `turbo.json`; `pnpm-workspace.yaml`; `pnpm-lock.yaml` (no new devDeps).

@@ -2,11 +2,11 @@
 
 ## NOW
 
-- [ ] Story 1.3 Task 4 — sprint-status `1-3 → done` bump + re-verify quality gates (typecheck / lint / format:check / commitlint); land BEFORE Draft→Open ~small
+- [ ] Transition PR #219 Draft→Open — rewrite title/body to cover full 7-commit range (spec + Tasks 1–4 + sprint-status), then `gh pr ready`; EPIC_DONE halt on Open+clean+no-reviews (per RALPH.md precedent) ~small
 
 ## QUEUE (Story 1.3 mini-epic)
 
-- [ ] Transition PR Draft→Open — rewrite title/body to cover full commit range, then `gh pr ready` (per RALPH.md "Multi-commit story PRs drift PR metadata from reality")
+_(empty — Task 4 complete; only PR transition remains)_
 
 ## BLOCKED
 
@@ -14,17 +14,18 @@ _(none)_
 
 ## DONE (Story 1.3 mini-epic)
 
-- [x] Reconciled after user merge of PR #218 (main now `784fbd0`); fresh branch `feat/story-1-3-eslint-no-restricted-imports-import-boundary-rules` off `origin/main`; stale halt cleared
-- [x] Story 1.3 spec authored (`_bmad-output/implementation-artifacts/1-3-eslint-no-restricted-imports-import-boundary-rules.md`) — 4-task decomposition, AC 1–5; sprint-status `1-3 → ready-for-dev`
-- [x] Story 1.3 Task 1 — shared ESLint config appended: 7th universal entry (AC 1+2) + named `forPackage(ownName)` factory (AC 3). Self-verification probe from `packages/audit/`: `default-len=7 forPackage-type=function`. Typecheck 16/16 (FULL TURBO second run, 174ms); lint 16/16 green (13.76s cold). No false-positives on empty `src/index.ts` consumers.
-- [x] Story 1.3 Task 2 — 16 × per-package `eslint.config.js` migrated to `forPackage('<name>')`. **Landmine hit + fixed:** `packages/keel-invariants/eslint.config.js` with generic `import { forPackage } from '@keel/keel-invariants/eslint'` triggers its own self-import rule (keel-invariants can't alias-import itself under AC 3). Fix: for keel-invariants ONLY, use relative `import { forPackage } from './eslint.config.keel-invariants.js'`. Other 15 members use the generic `@keel/keel-invariants/eslint` form. Gates: lint 16/16 green (5.68s cold, 214ms FULL TURBO warm); typecheck 16/16 (1.54s cold, 245ms FULL TURBO warm); format:check exit 0; commitlint 0/0 across 3 branch commits. Consumer probe from `packages/audit/`: `default-len=7 forPackage-type=function forPackage("audit")-len=8`.
-- [x] Story 1.3 Task 3 — ATDD smoke probes via `eslint --stdin` (AC 1 / AC 2 / AC 3 audit + AC 3 web + negative). Initial AC 1 probe revealed real pattern gap: `**/packages/*/src/**` requires literal "packages" in specifier but realistic relative form `../../contracts/src/...` has none → rule did NOT fire. Per Task 3 directive, looped back to Task 1 and broadened AC 1 `group` in both the 7th entry and `forPackage`'s 8th entry with 6 depth-prefixed patterns (`../../**/src{,/**}`, `../../../**/src{,/**}`, `../../../../**/src{,/**}`). Post-fix probes all green: AC 1/2/3/web exit 1 with correct `no-restricted-imports` + message; negative (side-effect import `import '@keel/contracts';`) exit 0. Debug Log in story file captures all 5 probe outputs. Gates: lint 16/16 cold 6.955s; typecheck 16/16 cold 1.488s (both invalidated by the config-file edit, expected); format:check exit 0; commitlint 0/0 across 4 branch commits.
+- [x] Reconciled after user merge of PR #218 (main now `784fbd0`); fresh branch off `origin/main`; stale halt cleared
+- [x] Story 1.3 spec authored — 4-task decomposition; sprint-status `1-3 → ready-for-dev`
+- [x] Story 1.3 Task 1 — shared ESLint config extended (7th universal entry + `forPackage` factory)
+- [x] Story 1.3 Task 2 — 16 × per-package `eslint.config.js` migrated to `forPackage('<name>')`; keel-invariants self uses relative import (self-alias forbidden by its own AC 3 rule)
+- [x] Story 1.3 Task 3 — ATDD smoke probes; AC 1 pattern gap caught + broadened patterns in both 7th-entry and `forPackage` 8th-entry body; 5/5 probes correct post-fix
+- [x] Story 1.3 Task 4 — verification-only iteration: typecheck 16/16 FULL TURBO (151ms), lint 16/16 FULL TURBO (138ms), format:check exit 0, commitlint 0/0 across 4 branch commits. Sprint-status bumped `1-3 → done`, `last_updated` set to `2026-04-19 20:36 UTC`. Story file Status → `done`; Completion Notes + File List populated; Debug Log appended with Task 4 cache-warm evidence. Landed BEFORE Draft→Open to prevent orphan-bookkeeping-commit risk.
 
 ## Context
 
 - **Phase:** 4-implementation
 - **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (in-progress)
 - **Epic Branch:** `feat/story-1-3-eslint-no-restricted-imports-import-boundary-rules`
-- **Story:** 1.3 — ESLint `no-restricted-imports` import-boundary rules — **ready-for-dev**
+- **Story:** 1.3 — ESLint `no-restricted-imports` import-boundary rules — **done**
 - **Story File:** `_bmad-output/implementation-artifacts/1-3-eslint-no-restricted-imports-import-boundary-rules.md`
 - **PR:** #219 Draft, MERGEABLE, CLEAN, 0 reviews, 0 checks (no CI workflows until Story 1.16)
