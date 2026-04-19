@@ -4,6 +4,7 @@ stepsCompleted:
   - step-02-design-epics
   - step-02-party-mode-amendments
   - step-03-create-stories
+  - step-04-final-validation
 inputDocuments:
   - _bmad-output/planning-artifacts/prd.md
   - _bmad-output/planning-artifacts/architecture.md
