@@ -1,0 +1,280 @@
+# generated: 2026-04-19 17:43 UTC
+# last_updated: 2026-04-19 17:43 UTC
+# project: ralph-bmad
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: {project-root}/_bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: Automatically when first story is created (via create-story)
+#   - in-progress -> done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-19 17:43 UTC
+last_updated: 2026-04-19 17:43 UTC
+project: ralph-bmad
+project_key: NOKEY
+tracking_system: file-system
+story_location: "{project-root}/_bmad-output/implementation-artifacts"
+
+development_status:
+  epic-1: backlog
+  1-1-monorepo-scaffold-typescript-project-references: backlog
+  1-2-packages-keel-invariants-bootstrap-shared-eslint-prettier-commitlint-configs: backlog
+  1-3-eslint-no-restricted-imports-import-boundary-rules: backlog
+  1-4-pre-commit-quality-gates-via-prek-type-check-lint-format: backlog
+  1-5-conventional-commit-enforcement-via-commitlint-prek: backlog
+  1-6-quality-gate-bypass-prevention: backlog
+  1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: backlog
+  1-8-invariants-manifest-ts-contract-exporter: backlog
+  1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector: backlog
+  1-10-design-token-schema-semantic-rationale-contract: backlog
+  1-11-design-token-source-direction-a-baseline-with-motion-density-scales: backlog
+  1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme: backlog
+  1-13-token-quality-gates-schema-validation-wcag-aa-contrast-source-output-sync: backlog
+  1-14-release-please-monorepo-config-single-bundled-mode: backlog
+  1-15-renovate-config-with-version-pinning-rules-i7: backlog
+  1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access: backlog
+  2-2-envrc-parameterisation-contract: backlog
+  2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: backlog
+  2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: backlog
+  2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: backlog
+  2-6-host-side-pnpm-devbox-cli-surface: backlog
+  2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan: backlog
+  2-8-claude-code-oauth-via-pnpm-claude: backlog
+  2-9-gh-cli-oauth-via-pnpm-gh-auth: backlog
+  2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors: backlog
+  2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared: backlog
+  2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: backlog
+  2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: backlog
+  2-14-legacy-devbox-branch-retention-policy: backlog
+  2-15-committed-claude-settings-json-with-deny-allow-permission-policies: backlog
+  2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: backlog
+  2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-packages-ralph-package-install-boundary-via-uv-tool-install: backlog
+  3-2-ralph-multi-iteration-loop-with-claude-p-effort-settings: backlog
+  3-3-prompt-template-seeds-prompt-build-template-md-prompt-plan-template-md: backlog
+  3-4-orient-phase-contract-8-pinned-steps: backlog
+  3-5-execute-phase-contract-one-task-per-iteration-spine-compound-now-rejection-xl-decomposition: backlog
+  3-6-pr-lifecycle-state-machine-ralph-lib-pr-state-ts-3-anti-constraints: backlog
+  3-7-pre-push-ci-gate-gh-pr-checks-before-push-in-progress-queue-monitor-pr-ci: backlog
+  3-8-ralph-plan-md-schema-now-queue-blocked-done-context: backlog
+  3-9-ralph-halt-pinned-json-schema-closed-reason-enum: backlog
+  3-10-native-claude-code-task-list-as-crash-journal: backlog
+  3-11-required-tests-manifest-content-hashed-append-only-stable-test-id-in-plan-md: backlog
+  3-12-authorship-separation-expand-countersignature: backlog
+  3-13-pre-merge-fast-manifest-integrity-gate: backlog
+  3-14-mutation-floor-contract-at-1-0-warn-mode-stryker-mutmut-scanner-report: backlog
+  3-15-per-iteration-context-meter: backlog
+  3-16-execution-budget-headroom-25k-push-buffer-xl-decomposition-exhaustion-signals: backlog
+  3-17-halt-on-consecutive-same-test-failures-default-n-3: backlog
+  3-18-halt-on-task-budget-exhaustion: backlog
+  3-19-halt-branching-max-tokens-vs-model-context-window-exceeded: backlog
+  3-20-subagent-fan-out-budget-1-sonnet-per-build-test-lint-invariant: backlog
+  3-21-plan-staleness-trigger-auto-plan-mode-regeneration: backlog
+  3-22-knowledge-file-upkeep-contract-fr14j-warn-on-no-update: backlog
+  3-23-l3-lint-guardrails-tools-lint-knowledge-files-ts: backlog
+  3-24-ralph-safe-set-yaml-manifest-tools-check-safe-set-ts-orient-self-awareness: backlog
+  3-25-l2-auto-merge-on-bootstrap-validation-pass-fail-ralph-stage-regression: backlog
+  3-26-bootstrap-validation-at-1-0-schema-parse-30s-minimum-smoke-iteration: backlog
+  3-27-ralph-stage-upgrade-story-class-ralph-version-json-bump-pre-merge-slow-reinstall: backlog
+  3-28-ralph-operator-commands-detach-pnpm-ralph-status-pnpm-ralph-stop: backlog
+  3-29-stream-json-iteration-logs-thinking-display-summarized: backlog
+  3-30-atomic-iteration-commits-nfr26-pre-commit-green-only-gate: backlog
+  3-31-llm-as-judge-pattern-contract-lib-llm-review-ts-growth-tier-default: backlog
+  3-32-hook-self-protection-halt-threshold-wire-up: backlog
+  3-33-default-textual-tui-chrome-epic-7-re-theme-seam: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-security-evidence-contract-v1-m2-contract-freeze: backlog
+  4-2-gitleaks-scanner-integration-secrets-category: backlog
+  4-3-pnpm-audit-prod-scanner-integration-deps-category: backlog
+  4-4-semgrep-sast-scanner-integration-substrate-rules: backlog
+  4-5-prompt-injection-scanner-rule-source-regex-ast: backlog
+  4-6-prompt-injection-scan-invocation-at-pre-commit-s4-10s: backlog
+  4-7-severity-threshold-blocking-at-pre-commit-fr36: backlog
+  4-8-halt-on-consecutive-security-failures-fr38: backlog
+  4-9-critical-severity-immediate-halt-nfr18: backlog
+  4-10-owasp-asvs-l1-baseline-doc-docs-invariants-security-md: backlog
+  4-11-nightly-llm-based-deep-prompt-injection-scan: backlog
+  4-12-gitleaksignore-lint-rule-forbidden-in-packages: backlog
+  4-13-hook-denials-feed-wired-into-security-evidence-json: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-keel-config-ts-typed-schema-zod-parser: backlog
+  5-2-generator-g1-g6-contract-in-packages-keel-generator: backlog
+  5-3-tenancy-templates-rls-team-b2b-rls-user-b2c: backlog
+  5-4-billing-presets-paddle-team-seats-paddle-individual: backlog
+  5-5-pnpm-generate-emission-pipeline: backlog
+  5-6-reorder-stability-test-c2-idempotence-proof-g6: backlog
+  5-7-pre-merge-fast-config-generated-artefact-sync-gate: backlog
+  5-8-generated-migration-contract-w3-party-mode-amendment: backlog
+  5-9-one-line-shape-change-workflow-validated-fr46-fr48: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-prisma-schema-baseline-uuidv7-pks: backlog
+  6-2-tenantguard-prisma-client-extension-with-tx-wrapped-set-local: backlog
+  6-3-rls-policies-consumed-from-epic-5-generator: backlog
+  6-4-migration-strategy-generated-migration-contract-assertion-tests-w3: backlog
+  6-5-pnpm-rls-explain-debugging-cli: backlog
+  6-6-ci-check-new-tenant-scoped-tables-must-ship-with-rls: backlog
+  6-7-d3-synthetic-schema-testing-pglite-pre-merge-fast-testcontainers-pre-merge-slow: backlog
+  6-8-d4-rls-performance-budget-benchmark-harness-nfr3: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-packages-ui-scaffolding-epic-1-token-consumption: backlog
+  7-2-24-shadcn-ui-radix-primitives-vendored-ux-dr16: backlog
+  7-3-4-custom-web-primitives-ux-dr17: backlog
+  7-4-catalog-doc-at-docs-design-catalog-md-ux-dr7: backlog
+  7-5-8-interaction-pattern-recipes-at-docs-design-patterns-md-e7-ux-dr64: backlog
+  7-6-fork-token-overrides-direction-b-c-preset-overlays-ux-dr8: backlog
+  7-7-f4-zustand-posture-enforcement-no-persist-tenant-id-persist-middleware-lint: backlog
+  7-8-accessibility-primitives-baked-in-ux-dr32-44: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-packages-jobs-typed-pg-boss-registry-worker-bootstrap: backlog
+  8-2-pg-boss-retry-idempotency-dlq-posture-c1: backlog
+  8-3-otel-tenant-propagation-across-pg-boss-boundary-c3: backlog
+  8-4-packages-email-resend-wrapper-baseline-templates: backlog
+  8-5-packages-audit-append-only-log-api: backlog
+  8-6-scheduled-jobs-scaffold-session-cleanup-rls-bench: backlog
+  8-7-enforcement-lint-rules-no-direct-resend-no-direct-audit-table-no-ad-hoc-job-names: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-packages-core-auth-better-auth-config: backlog
+  9-2-session-account-prisma-schema-session-cleanup-wire-up-s1: backlog
+  9-3-a2-trpc-middleware-stack-order: backlog
+  9-4-a3-error-code-enum-i18n-key-mapping: backlog
+  9-5-signup-flow-email-password-email-verification: backlog
+  9-6-google-oauth-pkce-state: backlog
+  9-7-password-reset-flow-prd-clarification: backlog
+  9-8-db-backed-session-revocation-fr57: backlog
+  9-9-step-up-middleware-for-sensitive-actions-s2: backlog
+  9-10-log-out-all-sessions-fr59: backlog
+  9-11-auth-ui-screens-signup-login-verify-reset-password: backlog
+  9-12-auth-audit-events-wire-up: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-packages-billing-paddle-integration-two-shape-presets: backlog
+  10-2-paddle-webhook-endpoint-signature-verification-fr61-nfr23: backlog
+  10-3-webhook-events-idempotency-table-layer-a4-nfr22: backlog
+  10-4-lifecycle-handlers-subscription-webhook-events: backlog
+  10-5-subscription-gated-middleware-fr62: backlog
+  10-6-billing-ui-confirmation-cancel-portal-with-step-up-on-cancel: backlog
+  10-7-webhook-contract-tests-at-pre-merge-fast-recorded-fixtures: backlog
+  10-8-release-gated-live-paddle-sandbox-end-to-end-test: backlog
+  10-9-growth-tier-second-billing-provider-fr63-migration-guide: backlog
+  epic-10-retrospective: optional
+
+  epic-11: backlog
+  11-1-packages-core-otel-ts-otel-sdk-init-middleware: backlog
+  11-2-span-naming-conventions-attribute-keys: backlog
+  11-3-configurable-sampling-100-errors-10-non-error: backlog
+  11-4-packages-flags-feature-flag-evaluator-server-side-route-loader-scoped: backlog
+  11-5-i18n-framework-baseline-en-json-typed-keys-codegen: backlog
+  11-6-bare-strings-lint-rule-fr27-teeth: backlog
+  11-7-accept-language-detection-user-preference-override-fr25: backlog
+  11-8-rtl-logical-css-html-lang-dir-ux-dr49: backlog
+  11-9-i18n-key-parity-check-at-pre-commit-ux-dr56: backlog
+  11-10-end-user-locale-persistence-fr64: backlog
+  epic-11-retrospective: optional
+
+  epic-12: backlog
+  12-1-shape-aware-template-resolution-build-time-no-runtime-branching: backlog
+  12-2-shared-screen-templates-audit-log-billing-sessions-locale-settings-shell-app-shell: backlog
+  12-3-b2b-screen-templates-onboarding-team-team-members-team-invite-billing-team-seats: backlog
+  12-4-b2c-screen-templates-onboarding-profile-profile-billing-individual: backlog
+  12-5-route-shims-catalog-id-citations: backlog
+  12-6-shape-aware-nav-ux-dr29: backlog
+  12-7-team-crud-invite-flow-fr56-b2b: backlog
+  12-8-individual-profile-flow-fr56-b2c: backlog
+  12-9-accessibility-responsive-48-combo-snapshot-matrix: backlog
+  12-10-zustand-posture-enforcement-f4-consumer: backlog
+  epic-12-retrospective: optional
+
+  epic-13: backlog
+  13-1-pre-merge-fast-yml-3min-deterministic-zero-external-secrets: backlog
+  13-2-pre-merge-slow-yml-10min-ephemeral-pg-dsn: backlog
+  13-3-nightly-yml-60min-full-shape-tenancy-live-network-quarantined-e2e-pa11y-d4-rc3: backlog
+  13-4-release-gated-yml-manual-full-lifecycle-on-both-shapes-production-adjacents: backlog
+  13-5-release-please-yml-release-please-pr-tag-automation: backlog
+  13-6-path-profile-yml-fr53-path-based-gate-profile-router: backlog
+  13-7-w2-sync-gate-ci-wiring-manifest-reader-anchor-walker-drift-detector: backlog
+  13-8-rs5-safe-set-bootstrap-validation-path-filtered-wiring: backlog
+  13-9-ralph-stage-upgrade-yml-workflow: backlog
+  13-10-design-system-ci-checks-axe-core-lighthouse-pa11y: backlog
+  13-11-18-combo-screenshot-matrix-at-nightly-v2-scope-adjustment: backlog
+  13-12-m4-nightly-ux-matrix-budget-envelope-sharding-axis-collapse: backlog
+  13-13-nfr28b-empirical-budget-reframe-nfr28c-monthly-review: backlog
+  13-14-github-codeowners-pr-templates: backlog
+  epic-13-retrospective: optional
+
+  epic-14: backlog
+  14-1-rc1-corpus-directory-layout-readme-test-ids-ledger: backlog
+  14-2-rc2-typed-schemas-sprint-log-checkpoint-tripwire: backlog
+  14-3-m3-flake-log-schema-freeze: backlog
+  14-4-r5-headless-ralph-no-tui: backlog
+  14-5-r6-flake-measurement-layer-vitest-reporter-workflow-hook: backlog
+  14-6-rc3-aggregation-tooling-pnpm-research-aggregate: backlog
+  14-7-c4-test-id-stability-convention-eslint-rule: backlog
+  14-8-monthly-blank-starter-sprint-harness: backlog
+  14-9-v4-skip-trigger-tripwire-schedule-md-skip-detection: backlog
+  14-10-fr33-m4-checkpoint-markdown-template-schema-consumer: backlog
+  14-11-nfr29a-per-major-prompt-set-pinning-nfr30-breaking-delta-catalogue: backlog
+  epic-14-retrospective: optional
+
+  epic-15a: backlog
+  15a-1-create-keel-app-package-non-interactive-cli: backlog
+  15a-2-src-strip-planning-ts-fork-scaffolding-state-wipe-fr51: backlog
+  15a-3-mid-build-from-branch-tag-sha-flag-tthew-test-fork-mode: backlog
+  15a-4-packages-keel-templates-consumer-seeding: backlog
+  15a-5-integration-test-pre-merge-slow-smoke: backlog
+  epic-15a-retrospective: optional
+
+  epic-15b: backlog
+  15b-1-scripts-major-cut-sh-fr52-archive-ritual: backlog
+  15b-2-fr50-major-version-discipline-tested-model-generation-release-notes-template: backlog
+  15b-3-fr49-growth-tier-migration-guide-placeholder-at-docs-upgrades: backlog
+  15b-4-correlated-library-maintenance-signal-quarterly-review: backlog
+  15b-5-ralph-monthly-upstream-diff-review-workflow: backlog
+  15b-6-invariant-pack-pivot-contingency-release-config-readiness: backlog
+  15b-7-no-npm-publish-policy-at-1-0-documented: backlog
+  epic-15b-retrospective: optional

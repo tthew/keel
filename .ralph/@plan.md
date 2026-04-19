@@ -2,29 +2,27 @@
 
 ## NOW
 
-- [x] Close out ralph-gh-project-tracking mini-epic — PR #215 Open, CI green, no reviews → EPIC_DONE ~small
+- [x] Transition PR #216 Draft→Open — final CI gate (done: OPEN/CLEAN/MERGEABLE, WIP check green, no reviews)
 
-## QUEUE (next phase: Keel implementation)
+## QUEUE (Keel Epic 1 — Monorepo Scaffold & Platform Bootstrap)
 
-- [ ] After PR #215 merges, start Keel Epic 1 — invoke `/bmad-sprint-planning` in a fresh context to generate sprint status, then `/bmad-create-story` for Story 1.1
+1. (awaiting PR #216 merge by user) Run `/bmad-create-story` — create Story 1.1 (Monorepo scaffold + TypeScript project references)
 
 ## BLOCKED
 
 _(none)_
 
-## DONE (ralph-gh-project-tracking mini-epic)
+## DONE (sprint-planning mini-epic)
 
-- [x] Discover GH Project on startup; map Story/Epic issues by title
-- [x] Drive `Status` field: Story→In Progress at iteration start; Epic→Done on EPIC_DONE halt
-- [x] Per-iteration env vars (`RALPH_ISSUE_*`, `RALPH_EPIC_ISSUE_*`, `RALPH_PROJECT_URL`) + prepended Issue Tracking prompt block
-- [x] Positional iterations arg → `--iterations N` / `-n N`; `--gh-project URL` override; `--no-gh-project` escape hatch
-- [x] Failures degrade to warnings; loop never halts on gh/auth/network issues
-- [x] `docs/ralph.md` documents discovery, mapping, state-transition table, env vars
+- [x] Generated `_bmad-output/implementation-artifacts/sprint-status.yaml` (16 epics, 189 stories, 16 retros, all `backlog`/`optional`)
+- [x] Decomposed previous compound QUEUE item (`sprint-planning THEN create-story`) into two iterations per guardrail 9
+- [x] Created draft PR #216 targeting `main` from `docs/keel-sprint-planning`
+- [x] Transitioned PR #216 Draft→Open; final CI gate passed (WIP check green); EPIC_DONE halt
 
 ## Context
 
-- **Phase:** 3-solutioning complete (PRD/architecture/UX/epics done) → 4-implementation not yet started; Ralph-tooling mini-epic closing this iteration
-- **Epic:** ralph-gh-project-tracking (closing with EPIC_DONE this iteration)
-- **Epic Branch:** feat/ralph-gh-project-tracking → PR #215 (Open, MERGEABLE, CLEAN, CI green)
-- **Story:** n/a (feat on Ralph tooling, not a BMad story)
+- **Phase:** 4-implementation (sprint-planning gate cleared; next required gate is `/bmad-create-story`)
+- **Epic:** sprint-planning (mini-epic CLOSED — halt)
+- **Epic Branch:** `docs/keel-sprint-planning` → PR #216 (Open, CLEAN, awaiting user merge)
+- **Story:** n/a (this is a planning-artifact PR, not a BMad story)
 - **Story File:** n/a
