@@ -14,19 +14,19 @@ Pre-1.0. Planning artefacts complete — [PRD](_bmad-output/planning-artifacts/p
 
 Single implementation per axis. No wizard, no runtime toggles, no adapter surfaces at 1.0. Second implementations enter post-1.0 on a consumption-driven basis.
 
-| Axis                | Choice                                                                    |
-| ------------------- | ------------------------------------------------------------------------- |
-| Framework           | TanStack Start on Vite                                                    |
-| Language            | TypeScript end-to-end (pnpm workspaces + Turborepo)                       |
-| Database            | Postgres + Prisma with Row-Level Security                                 |
-| Contracts           | tRPC + Zod                                                                |
-| Auth                | better-auth (email/password + Google OAuth, DB-backed sessions)           |
-| Billing             | Paddle (Merchant of Record) — B2B team-seats or B2C individual            |
-| Jobs                | pg-boss (in-process, same Postgres)                                       |
-| Email               | Resend with baseline templates                                            |
-| UI                  | Tailwind v4 + shadcn-vendored components                                  |
-| Observability       | OpenTelemetry traces + append-only audit log                              |
-| Release             | prek + commitlint + release-please                                        |
+| Axis          | Choice                                                          |
+| ------------- | --------------------------------------------------------------- |
+| Framework     | TanStack Start on Vite                                          |
+| Language      | TypeScript end-to-end (pnpm workspaces + Turborepo)             |
+| Database      | Postgres + Prisma with Row-Level Security                       |
+| Contracts     | tRPC + Zod                                                      |
+| Auth          | better-auth (email/password + Google OAuth, DB-backed sessions) |
+| Billing       | Paddle (Merchant of Record) — B2B team-seats or B2C individual  |
+| Jobs          | pg-boss (in-process, same Postgres)                             |
+| Email         | Resend with baseline templates                                  |
+| UI            | Tailwind v4 + shadcn-vendored components                        |
+| Observability | OpenTelemetry traces + append-only audit log                    |
+| Release       | prek + commitlint + release-please                              |
 
 ## Shapes (1.0)
 
