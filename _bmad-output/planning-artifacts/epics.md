@@ -38,6 +38,8 @@ prdClarificationsRaised:
   - UX spec clarification - matrix scope at 1.0 is 18 combos (RTL kept, dark visual verification deferred to 1.1; dark tokens + class-toggle still ship at 1.0)
   - NEW FR14m - Ralph three-layer safe-set self-modification policy (L1 install-boundary-snapshot; L2 auto-merge on bootstrap-validation pass; L3 lint-guarded Ralph-editable); .ralph-safe-set.yaml manifest + pre-commit hook + Ralph-orient-reads-manifest self-awareness
   - NEW NFR - Ralph harness runs from install-boundary-snapshot (packages/ralph installed as non-editable via uv tool install --from packages/ralph ralph-harness==pin); source edits in packages/ralph do not affect current iteration; stage-upgrade requires bootstrap-validation pass before stage-N+1 runs
+  - NEW NFR5a - Claude Code hooks + committed `.claude/settings.json` deny rules form a secret-access barrier inside the devbox (complement to NFR5 devbox isolation); barrier is non-toggle-able at config layer; the ONLY in-session defense when Ralph runs with --dangerously-skip-permissions since permissions layer is bypassed; forks can extend denylist but cannot weaken substrate
+  - NEW NFR5b - Hook + settings bypass-resistance: the in-session hook self-protects by denying Edit/Write to `.claude/settings*.json`, `.claude/hooks/**`, `.git/hooks/**` and Bash mutations (rm/mv/chmod/tee/sed -i/echo >) against those paths; git-layer catches tampering via `INV-claude-hook-secret-denylist` content-hash in the invariants manifest (Story 1.8/1.9); S4 prompt-injection scan flags suspicious diffs touching hook/settings files; N hook-self-protection blocks per iteration (default N=3) trigger `SECURITY_CRITICAL` halt
 ---
 
 # Keel - Epic Breakdown
@@ -1156,8 +1158,615 @@ So that forks can layer rules on top of substrate without touching `packages/kee
 - **I6 Secrets & env management** (dev-container bits land here; `packages/config` typed accessors land in Epic 1 scaffold but are wired to devbox here): `packages/devbox/docker-compose.yml` uses `env_file: ../../.envrc`; `.envrc` (gitignored) + `.envrc.example` (committed) as canonical schema; `.secrets.example` for `act` local runner.
 - NFR2 (cold-start ≤ 5min Apple-Silicon; warm-start ≤ 30s) validated at epic completion.
 - Keep standalone `cc-devbox` functional on a `legacy-devbox` branch until after the M4 checkpoint (mitigation per PRD Technical Risks).
+- **[NFR5a — NEW, PRD clarification raised]** In-devbox secret-access barrier via committed `.claude/settings.json` (permissions.deny + permissions.allow) and `.claude/hooks/block-secret-access.sh` PreToolUse hooks on Bash/Read/Grep/Glob. Blocks reads of `.envrc*`, `**/.env*`, `.secrets*`, `/home/dev/.claude/**`, `/home/dev/.config/gh/**`, `/proc/*/environ`, and Bash invocations `env`/`printenv*`/`cat .envrc*`/`cat /proc/*/environ*`. Hooks execute regardless of `--dangerously-skip-permissions`, providing the ONLY in-session defense during Ralph iterations. Forks extend via `.claude/hooks/block-secret-access.fork.sh`; cannot weaken substrate denylist. Blocked-call events feed `.ralph/logs/<iter-id>/blocked-tool-calls.jsonl` for FR37 security-evidence consumption (Epic 4). Invariant `INV-claude-hook-secret-denylist` registered in Epic 1's manifest.
 
-**Standalone delivery:** Developer can `pnpm devbox:start`, get a sandboxed container, authenticate Claude Code + gh once, run `pnpm test` / `pnpm lint` inside. No Ralph or agent loop yet.
+**Standalone delivery:** Developer can `pnpm devbox:start`, get a sandboxed container, authenticate Claude Code + gh once, run `pnpm test` / `pnpm lint` inside, and Claude sessions inside the container cannot read secrets or dump env. No Ralph or agent loop yet.
+
+#### Stories
+
+##### Story 2.1: `packages/devbox/` absorb from cc-devbox — image + compose + substrate tooling access
+
+As a fork operator,
+I want `packages/devbox/` to absorb the upstream `cc-devbox` per the PRD M0.5 five-deliverable sub-scope (image, compose, entrypoint, egress-policy fix, pnpm lifecycle bridge) with a pinned Ubuntu 24.04 LTS base and baked toolchain,
+So that I can run substrate tooling (tests, lints, RLS debugger in Epic 6) inside a reproducible container (FR1, FR6, NFR2).
+
+**Acceptance Criteria:**
+
+**Given** the monorepo scaffold from Epic 1,
+**When** I inspect `packages/devbox/`,
+**Then** I find `Dockerfile`, `docker-compose.yml`, `entrypoint.sh`, and `scripts/` for the host CLI (wired in Story 2.6)
+**And** the Dockerfile `FROM ubuntu:24.04` with a documented pin rationale in a comment header.
+
+**Given** the Dockerfile,
+**When** the image builds,
+**Then** `node@20-lts`, `pnpm`, `@anthropic-ai/claude-code`, `gh`, `uv`, `aws-cli`, `supabase-cli`, `delta`, and Playwright browser deps are baked at image-build time
+**And** no runtime network installs occur in `entrypoint.sh`.
+
+**Given** the baked image,
+**When** I run `pnpm test` or `pnpm lint` inside the container (via `pnpm devbox:shell` from Story 2.6),
+**Then** both commands execute against the workspace mounted at `/workspace`
+**And** the RLS debugger (landing in Epic 6) can be invoked without additional image changes.
+
+**Given** the NFR2 cold-start budget,
+**When** I measure first `pnpm devbox:start` on an Apple-Silicon M4-Pro baseline,
+**Then** cold start completes in ≤ 5 minutes
+**And** a subsequent warm start completes in ≤ 30 seconds
+**And** the measurement method + baseline hardware are documented in `packages/devbox/README.md`.
+
+##### Story 2.2: `.envrc` parameterisation contract
+
+As a fork operator,
+I want `.envrc` (gitignored) and `.envrc.example` + `.secrets.example` (committed) that parameterise every tunable devbox variable,
+So that I can retune the devbox for my hardware and secrets without editing compose or Dockerfile (I5/I6).
+
+**Acceptance Criteria:**
+
+**Given** `packages/devbox/.envrc.example`,
+**When** I read the file,
+**Then** every `KEEL_DEVBOX_*` knob is listed with a default value and inline comment: `KEEL_DEVBOX_ARCH`, `KEEL_DEVBOX_CPUS`, `KEEL_DEVBOX_MEMORY_GB`, `KEEL_DEVBOX_SHM_GB`, `KEEL_DEVBOX_NOFILE`, `KEEL_DEVBOX_TMPFS_TMP_MB`, `KEEL_DEVBOX_TMPFS_VARTMP_MB`, port knobs, `KEEL_DEVBOX_SSH`, `KEEL_DEVBOX_SHARED`
+**And** the defaults match an Apple-Silicon M4-Pro baseline (documented in the file header).
+
+**Given** `packages/devbox/docker-compose.yml`,
+**When** I inspect it,
+**Then** it uses `env_file: ../../.envrc` to consume the top-level `.envrc`
+**And** every tunable value in compose is referenced via `${KEEL_DEVBOX_*}`.
+
+**Given** a fork operator who wants to retune memory,
+**When** they edit `.envrc` (not compose) and run `pnpm devbox:restart` (from Story 2.6),
+**Then** the new memory value takes effect
+**And** no PRD amendment is required (NFR8a).
+
+**Given** `packages/devbox/.secrets.example`,
+**When** I read it,
+**Then** it lists env vars that `act` (local GitHub-Actions runner) needs
+**And** it serves as the committed schema for the gitignored `.secrets` file.
+
+**Given** `.envrc` is gitignored,
+**When** a PR tries to commit it,
+**Then** `.gitignore` rejects the addition
+**And** a lint rule in `keel-invariants` (from Story 1.2) flags any attempt to commit `.envrc` or `.secrets`.
+
+##### Story 2.3: Egress policy — dnsmasq + nftables (fail-closed, IPv4 + IPv6 parity, atomic reload)
+
+As a substrate maintainer,
+I want the devbox egress enforced by dnsmasq (DNS authority + JSONL query log) and nftables (layer-3 default-deny IPv4 + IPv6) with atomic reload semantics,
+So that a runtime compromise inside the container cannot reach arbitrary external hosts (FR1a, NFR6).
+
+**Acceptance Criteria:**
+
+**Given** the baked image from Story 2.1,
+**When** the container starts,
+**Then** dnsmasq runs as the in-container DNS authority
+**And** the container's `/etc/resolv.conf` points only at `127.0.0.1:53`
+**And** upstream's fail-open `resolv.conf` gap is closed.
+
+**Given** nftables is configured at entrypoint,
+**When** I inspect the ruleset,
+**Then** the default policy is `DROP` for both IPv4 (`ip`) and IPv6 (`ip6`) filter output chains
+**And** upstream's IPv6 gap is closed (policy parity verified by an in-container test).
+
+**Given** dnsmasq's JSONL query log,
+**When** DNS queries execute,
+**Then** each query is written to a structured JSONL file at a pinned path suitable for FR37 security-evidence persistence (Epic 4)
+**And** log rotation is configured to prevent unbounded growth.
+
+**Given** an atomic reload is triggered via file-lock (mechanism used by Story 2.4's CLI),
+**When** the whitelist is updated,
+**Then** dnsmasq + nftables are re-loaded without dropping in-flight connections
+**And** the reload is atomic (either both layers apply the new policy, or neither does).
+
+**Given** a container with the policy active,
+**When** I attempt to `curl` an unwhitelisted domain,
+**Then** the DNS resolution fails (dnsmasq NXDOMAIN) AND the TCP connection is rejected (nftables default-deny)
+**And** upstream's divergent-whitelist-script problem is closed (one mechanism, two enforcement layers).
+
+##### Story 2.4: Whitelist source-of-truth + `pnpm devbox:whitelist` atomic-reload CLI
+
+As a fork operator,
+I want a repo-tracked whitelist source-of-truth (`packages/devbox/whitelist.default.txt` + per-category fragments + per-fork override) plus a `pnpm devbox:whitelist sync` CLI that reloads atomically under file-lock,
+So that egress policy changes are reviewable in git and applied without container restart (FR1a).
+
+**Acceptance Criteria:**
+
+**Given** `packages/devbox/`,
+**When** I read the whitelist layout,
+**Then** `whitelist.default.txt` holds the substrate baseline
+**And** per-category fragments (e.g., `whitelist.github.txt`, `whitelist.npm.txt`, `whitelist.anthropic.txt`) compose into the final policy
+**And** a per-fork override file (gitignored path documented in `AGENTS.md`) can add fork-specific domains.
+
+**Given** `pnpm devbox:whitelist sync`,
+**When** I run it,
+**Then** the CLI reads the composed whitelist, validates domain syntax, acquires a file-lock, and reloads dnsmasq + nftables atomically (reusing Story 2.3's mechanism)
+**And** the CLI exits zero on successful reload with a diff summary (domains added/removed).
+
+**Given** a syntax-invalid entry in any whitelist file,
+**When** the CLI runs,
+**Then** it exits non-zero with a line/file pointer
+**And** the previous policy remains active (fail-closed).
+
+**Given** concurrent sync attempts,
+**When** two `pnpm devbox:whitelist sync` commands run simultaneously,
+**Then** the file-lock serialises them
+**And** no partial policy state is ever active.
+
+**Given** the whitelist is tracked in git,
+**When** a PR edits any whitelist file,
+**Then** the commit is subject to standard prek gates (Story 1.4/1.5)
+**And** reviewers see exactly which domains were added/removed.
+
+##### Story 2.5: Container hardening (non-root user + capabilities + tmpfs noexec + named volume)
+
+As a substrate maintainer,
+I want the devbox container hardened — non-root `dev` user, `NET_ADMIN` + `NET_RAW`-only caps, `no-new-privileges`, tmpfs mounts with `noexec,nosuid`, named Docker volume for `/home/dev`,
+So that a runtime compromise faces meaningful layered barriers to escape or persistence (NFR7, NFR8/8a, NFR10).
+
+**Acceptance Criteria:**
+
+**Given** the Dockerfile from Story 2.1,
+**When** the image is built,
+**Then** a non-root `dev` user is created with a stable UID/GID
+**And** the image `USER` directive switches to `dev` before the entrypoint runs.
+
+**Given** `docker-compose.yml`,
+**When** I inspect it,
+**Then** `cap_drop: [ALL]` is set
+**And** `cap_add` lists only `NET_ADMIN` and `NET_RAW` (required by nftables in Story 2.3)
+**And** `security_opt: [no-new-privileges]` is set.
+
+**Given** tmpfs mounts in compose,
+**When** I inspect them,
+**Then** `/tmp` and `/var/tmp` are tmpfs-mounted with `noexec,nosuid` options
+**And** the sizes are parameterised via `KEEL_DEVBOX_TMPFS_TMP_MB` and `KEEL_DEVBOX_TMPFS_VARTMP_MB` (from Story 2.2).
+
+**Given** `/home/dev` persistence,
+**When** I inspect the compose volume definition,
+**Then** a named Docker volume (e.g., `keel_home_dev`) is mounted at `/home/dev`
+**And** no host bind-mount is used for `/home/dev` under any `KEEL_DEVBOX_*` setting
+**And** this invariant is non-toggle-able (enforced by a compose-shape check in the invariants manifest).
+
+**Given** the hardening is in place,
+**When** I attempt to execute a binary from `/tmp` inside the container,
+**Then** execution fails with `noexec`
+**And** any attempt to gain privileges via setuid binaries is blocked by `nosuid` + `no-new-privileges`.
+
+##### Story 2.6: Host-side `pnpm devbox:*` CLI surface
+
+As a fork operator,
+I want host-side `pnpm devbox:{build,rebuild,clean,status,logs,shell,attach,start,stop,restart,whitelist,monitor,env:check}` commands driving the devbox lifecycle,
+So that I never need to learn raw `docker compose` incantations to operate my devbox (FR1).
+
+**Acceptance Criteria:**
+
+**Given** the devbox package,
+**When** I inspect `packages/devbox/scripts/`,
+**Then** there is one script per command (or a single CLI entry dispatching by subcommand) and `package.json` exposes each as a `pnpm devbox:<cmd>`.
+
+**Given** `pnpm devbox:build`,
+**When** I run it,
+**Then** the image is built from `packages/devbox/Dockerfile`
+**And** `pnpm devbox:rebuild` rebuilds with `--no-cache`.
+
+**Given** `pnpm devbox:start`,
+**When** I run it,
+**Then** the container comes up via compose (from Story 2.1)
+**And** healthchecks (Story 2.13) must pass before the command returns zero.
+
+**Given** `pnpm devbox:stop` / `pnpm devbox:restart` / `pnpm devbox:clean`,
+**When** I run each,
+**Then** `stop` halts without destroying the named volume, `restart` is `stop && start`, and `clean` removes the container and image but keeps the named volume from Story 2.5 (prompting for explicit confirmation before volume deletion).
+
+**Given** `pnpm devbox:shell`,
+**When** I run it,
+**Then** it opens an interactive shell as the `dev` user inside the running container.
+
+**Given** `pnpm devbox:attach`,
+**When** I run it,
+**Then** it attaches to the container's stdout/stderr (for observing Ralph TUI from Story 2.7)
+**And** supports `Ctrl+P Ctrl+Q` detach without killing the container (Story 2.7 prereq).
+
+**Given** `pnpm devbox:status` / `pnpm devbox:logs` / `pnpm devbox:monitor`,
+**When** I run each,
+**Then** `status` prints container state + healthcheck, `logs` tails container stdout/stderr, `monitor` displays a live resource snapshot (cpu/memory/network).
+
+**Given** `pnpm devbox:env:check`,
+**When** I run it,
+**Then** it validates that `.envrc` is present and every required `KEEL_DEVBOX_*` variable is defined
+**And** exits non-zero with a missing-var report if any are absent.
+
+**Given** `pnpm devbox:whitelist`,
+**When** I run it (wired in Story 2.4),
+**Then** it invokes the atomic-reload flow from Story 2.4.
+
+##### Story 2.7: Ralph auto-start + TUI attach/detach via `pnpm ralph:build` / `pnpm ralph:plan`
+
+As a fork operator,
+I want `pnpm ralph:build` and `pnpm ralph:plan` to check container state, auto-start the devbox if needed, and attach the Textual TUI with `Ctrl+P Ctrl+Q` detach preserving the running loop,
+So that I can invoke Ralph without manual container lifecycle management (FR2).
+
+**Acceptance Criteria:**
+
+**Given** the devbox is not running,
+**When** I run `pnpm ralph:build`,
+**Then** the command invokes `pnpm devbox:start` (from Story 2.6) internally
+**And** waits for the container to become healthy before attaching.
+
+**Given** the devbox is already running,
+**When** I run `pnpm ralph:build` or `pnpm ralph:plan`,
+**Then** the command skips the start step and attaches directly.
+
+**Given** the TUI is attached inside the container (Textual-based, consuming `packages/devbox/tui/theme.py` from Story 1.12),
+**When** I press `Ctrl+P Ctrl+Q`,
+**Then** I detach from the container
+**And** the Ralph loop continues running inside.
+
+**Given** a detached Ralph loop is running,
+**When** I re-attach via `pnpm devbox:attach` (or re-invoking `pnpm ralph:build`),
+**Then** the TUI state is preserved (scroll position, current iteration)
+**And** no state is lost.
+
+**Given** build mode vs plan mode,
+**When** `pnpm ralph:build` invokes the loop,
+**Then** the harness (Epic 3) reads `.ralph/PROMPT_build.md`
+**And** `pnpm ralph:plan` reads `.ralph/PROMPT_plan.md`
+**And** this Epic 2 story only ensures the invocation path; prompt-file semantics land in Epic 3.
+
+##### Story 2.8: Claude Code OAuth via `pnpm claude`
+
+As a fork operator,
+I want `pnpm claude` to trigger the Claude Code browser OAuth flow surfaced to my host terminal, with tokens persisted in the named Docker volume at `/home/dev/.claude/`,
+So that I authenticate once per devbox and the token survives container restarts (FR3 Claude side).
+
+**Acceptance Criteria:**
+
+**Given** a fresh devbox,
+**When** I run `pnpm claude`,
+**Then** the command invokes `claude` inside the container
+**And** the OAuth URL is surfaced to my host terminal
+**And** following the URL in a host browser completes the flow.
+
+**Given** the flow completes,
+**When** tokens are stored,
+**Then** they persist at `/home/dev/.claude/` inside the named volume from Story 2.5
+**And** the token file is never bind-mounted to the host filesystem.
+
+**Given** a subsequent `pnpm devbox:restart` or `pnpm devbox:stop && start`,
+**When** I run any Claude Code invocation,
+**Then** the existing token is reused (no re-auth required).
+
+**Given** the token is expired or revoked,
+**When** Ralph or a manual `claude` invocation runs,
+**Then** the failure surfaces a clear re-auth pointer
+**And** `pnpm claude` can be re-run to refresh the token without affecting other devbox state.
+
+**Given** a `pnpm devbox:clean` with volume-deletion confirmed,
+**When** I next run the devbox,
+**Then** tokens are gone and `pnpm claude` must be re-run (expected per NFR10 / fresh-fork behaviour).
+
+##### Story 2.9: `gh` CLI OAuth via `pnpm gh:auth`
+
+As a fork operator,
+I want `pnpm gh:auth` to trigger the `gh auth login` browser flow surfaced to my host terminal, with tokens persisted in the named Docker volume at `/home/dev/.config/gh/`,
+So that Ralph can push commits and read PR state without per-iteration re-auth (FR3 gh side).
+
+**Acceptance Criteria:**
+
+**Given** a fresh devbox,
+**When** I run `pnpm gh:auth`,
+**Then** the command invokes `gh auth login` inside the container
+**And** the OAuth URL is surfaced to my host terminal
+**And** completing the flow in a host browser returns control to the CLI.
+
+**Given** the flow completes,
+**When** tokens are stored,
+**Then** they persist at `/home/dev/.config/gh/` inside the named volume
+**And** no host bind-mount is involved.
+
+**Given** a subsequent devbox restart,
+**When** Ralph runs `gh pr view` or `git push`,
+**Then** the token is reused (no re-auth required).
+
+**Given** an expired or revoked token,
+**When** `gh` invocations fail,
+**Then** the failure surfaces a clear pointer to re-run `pnpm gh:auth`
+**And** Ralph's pre-push gate (Epic 3) treats this as a halt-able condition rather than silently retrying.
+
+##### Story 2.10: Prerequisite check (Docker runtime + Claude auth + gh auth) with pointer errors
+
+As a fork operator,
+I want a prerequisite check that runs on fresh-fork first-run and on every Ralph invocation, failing with install-pointer or auth-pointer errors if Docker runtime is missing, Claude Code is not authed, or `gh` is not authed,
+So that Ralph cannot execute autonomously in a broken environment (FR5).
+
+**Acceptance Criteria:**
+
+**Given** a host without Docker installed,
+**When** I run `pnpm ralph:build` or any devbox command,
+**Then** the prerequisite check fails with a message pointing at Docker Desktop install instructions (URL in message)
+**And** the command exits non-zero before starting the devbox.
+
+**Given** Docker is running but Claude Code is not authed inside the devbox,
+**When** `pnpm ralph:build` runs its prerequisite check,
+**Then** the check detects the missing token (by probing `/home/dev/.claude/` state)
+**And** surfaces a pointer error: `"Claude Code not authed — run 'pnpm claude' first"`
+**And** exits non-zero.
+
+**Given** Claude Code is authed but `gh` is not,
+**When** `pnpm ralph:build` runs its prerequisite check,
+**Then** the check detects the missing gh token
+**And** surfaces `"gh CLI not authed — run 'pnpm gh:auth' first"`
+**And** exits non-zero.
+
+**Given** all three prerequisites are satisfied,
+**When** `pnpm ralph:build` runs,
+**Then** the prerequisite check passes silently
+**And** the Ralph loop starts normally.
+
+**Given** fresh-fork first-run (no previous devbox state),
+**When** a new fork operator runs any `pnpm devbox:*` or `pnpm ralph:*` command,
+**Then** the prerequisite check runs and surfaces the missing-item list as a single message
+**And** an exit-zero path requires all three to be satisfied (no partial bypass).
+
+##### Story 2.11: Per-fork vs shared devbox mode (`KEEL_DEVBOX_SHARED`)
+
+As a fork operator running multiple worktrees or forks,
+I want `.envrc`'s `KEEL_DEVBOX_SHARED` flag to switch between per-fork devbox (default) and shared-devbox mode,
+So that I can choose between strict isolation per fork and a shared long-running devbox across forks (FR4).
+
+**Acceptance Criteria:**
+
+**Given** `KEEL_DEVBOX_SHARED=false` (or unset default) in `.envrc`,
+**When** I run `pnpm devbox:start` from fork A and fork B,
+**Then** each fork gets its own container + named volume (names derived from the fork's path or slug)
+**And** the two devboxes are isolated.
+
+**Given** `KEEL_DEVBOX_SHARED=true` in `.envrc` of both forks,
+**When** I run `pnpm devbox:start` from fork A and fork B,
+**Then** both forks attach to a single shared container
+**And** a shared workspace mount strategy is documented in `AGENTS.md`.
+
+**Given** I flip the flag mid-use,
+**When** I switch `KEEL_DEVBOX_SHARED` from `false` to `true`,
+**Then** `pnpm devbox:env:check` (Story 2.6) surfaces a warning about orphaned containers from the previous mode
+**And** points at `pnpm devbox:clean` as the resolution path.
+
+**Given** shared mode is active,
+**When** two forks invoke Ralph simultaneously,
+**Then** the behaviour is documented (either locked/serialised or parallel with per-fork working-tree isolation — decision pinned in Story 2.11's implementation note)
+**And** conflicting writes to `/home/dev/` are avoided by design.
+
+##### Story 2.12: Loopback-bound port publication + opt-in `KEEL_DEVBOX_SSH` sshd
+
+As a substrate maintainer,
+I want every published devbox port bound to `127.0.0.1` (no `0.0.0.0`) and an opt-in sshd (enabled via `KEEL_DEVBOX_SSH=true`) that is pubkey-only and loopback-bound at `127.0.0.1:2222`,
+So that the devbox's attack surface is limited to the host loopback, never a LAN or internet-reachable interface.
+
+**Acceptance Criteria:**
+
+**Given** `docker-compose.yml`,
+**When** I inspect the `ports` section,
+**Then** every port mapping uses `127.0.0.1:<host>:<container>` form
+**And** no `0.0.0.0:...` or bare-port bindings exist.
+
+**Given** `KEEL_DEVBOX_SSH=false` (default),
+**When** the container starts,
+**Then** sshd does NOT run inside the container
+**And** port 2222 is not published.
+
+**Given** `KEEL_DEVBOX_SSH=true`,
+**When** the container starts,
+**Then** sshd runs inside the container bound to `127.0.0.1:2222`
+**And** password auth is disabled — only pubkey auth is allowed
+**And** host keys auto-generate on first boot and persist in the named volume.
+
+**Given** sshd is enabled,
+**When** an external (non-loopback) client attempts to connect,
+**Then** the connection is refused
+**And** only `ssh -p 2222 dev@127.0.0.1` from the host succeeds with a registered pubkey.
+
+**Given** a fork operator wants to add their pubkey,
+**When** they follow the documented flow,
+**Then** the pubkey is written to `/home/dev/.ssh/authorized_keys` inside the named volume
+**And** persists across devbox restarts.
+
+##### Story 2.13: Healthcheck on dnsmasq + sshd (replaces upstream's broken `curl :3000` healthcheck)
+
+As a substrate maintainer,
+I want `docker-compose.yml`'s healthcheck to probe dnsmasq liveness (and sshd when enabled) rather than upstream's broken `curl :3000`,
+So that container state reflects actual service health and `pnpm devbox:status` is reliable.
+
+**Acceptance Criteria:**
+
+**Given** the compose file,
+**When** I inspect the `healthcheck:` block,
+**Then** it does NOT invoke `curl localhost:3000`
+**And** it probes dnsmasq liveness (e.g., a DNS query against `127.0.0.1:53` that resolves a known-whitelisted domain).
+
+**Given** `KEEL_DEVBOX_SSH=true`,
+**When** the healthcheck runs,
+**Then** it additionally probes sshd liveness on `127.0.0.1:2222`
+**And** the healthcheck fails if either service is down.
+
+**Given** dnsmasq crashes mid-run,
+**When** the healthcheck next executes,
+**Then** the container status transitions to `unhealthy`
+**And** `pnpm devbox:status` (from Story 2.6) surfaces the state.
+
+**Given** the healthcheck interval + timeout,
+**When** I inspect compose,
+**Then** values are reasonable (e.g., `interval: 10s`, `timeout: 5s`, `retries: 3`, `start_period: 30s`)
+**And** values are documented in `packages/devbox/README.md` with rationale.
+
+##### Story 2.14: Legacy-devbox branch retention policy
+
+As Tthew (substrate maintainer carrying PRD technical-risk mitigation),
+I want the standalone `cc-devbox` functionality preserved on a `legacy-devbox` branch until after the M4 checkpoint,
+So that if the absorbed-into-`packages/devbox/` version hits a regression, there is a working fallback with no scramble (PRD Technical Risks mitigation).
+
+**Acceptance Criteria:**
+
+**Given** the `legacy-devbox` branch exists,
+**When** I check it out,
+**Then** it carries the pre-absorption standalone `cc-devbox` layout
+**And** `README.md` on that branch names its scope and sunset date.
+
+**Given** the absorbed `packages/devbox/` is in main,
+**When** the legacy branch is maintained,
+**Then** security-critical upstream patches are cherry-picked from `main`'s `packages/devbox/` to `legacy-devbox` (a documented workflow, not an automated one)
+**And** the expectation is "minimal drift," not feature parity.
+
+**Given** the M4 checkpoint has passed without regressions,
+**When** Tthew decides to retire the branch,
+**Then** `RALPH.md` records the decision with the M4 retrospective reference
+**And** the branch is tagged (`legacy-devbox-final`) and removed from active tracking.
+
+**Given** the legacy branch exists during the retention window,
+**When** anyone opens an issue about devbox regressions,
+**Then** the triage path is documented: "try `legacy-devbox` branch as a canary; if the regression is absent there, bisect to find the introducing commit."
+
+##### Story 2.15: Committed `.claude/settings.json` with deny/allow permission policies
+
+As a substrate maintainer,
+I want a committed `.claude/settings.json` at the repo root declaring `permissions.deny` rules for secret files and `permissions.allow` for common dev commands,
+So that Claude sessions (both interactive and Ralph) inherit a hardened default policy on fresh-fork clone, not opt-in per-user (NFR5a — new PRD clarification).
+
+**Acceptance Criteria:**
+
+**Given** a fresh clone,
+**When** I open the repo root,
+**Then** `.claude/settings.json` exists and is tracked in git
+**And** its schema matches Claude Code's official settings schema (permissions, hooks, env, etc.).
+
+**Given** the `permissions.deny` block,
+**When** I read it,
+**Then** it lists at minimum: `Read(.envrc*)`, `Read(**/.env*)`, `Read(.secrets*)`, `Read(/home/dev/.claude/**)`, `Read(/home/dev/.config/gh/**)`, `Bash(env)`, `Bash(env:*)`, `Bash(printenv*)`, `Bash(cat .envrc*)`, `Bash(cat **/.env*)`, `Bash(cat /proc/*/environ*)`, `Grep(**/.env*)`, `Glob(**/.env*)`.
+
+**Given** the `permissions.allow` block (positive allowlist to reduce prompts),
+**When** I read it,
+**Then** it lists common dev commands — `Bash(pnpm *)`, `Bash(git status)`, `Bash(git diff*)`, `Bash(git log*)`, `Bash(ls *)`, `Bash(tsc *)` — per Claude Code's glob syntax.
+
+**Given** `.claude/settings.local.json` is user-specific (gitignored),
+**When** a fork operator wants to extend locally,
+**Then** `.claude/settings.local.json` overrides the committed settings per Claude Code's precedence rules
+**And** `AGENTS.md` documents that fork operators must NOT weaken the committed deny list locally (honour system, lint-flagged where detectable).
+
+**Given** a Claude session (interactive or Ralph),
+**When** Claude attempts a denied tool call in a permission-prompt-enabled session (non-Ralph),
+**Then** the tool call is rejected by Claude Code's permission layer
+**And** the rejection surfaces a deny-rule pointer.
+
+**Given** a Ralph session running with `--dangerously-skip-permissions`,
+**When** Claude attempts a denied tool call,
+**Then** the permissions layer is bypassed but the Story 2.16 hook catches it
+**And** NFR5a holds because hooks are the Ralph-path defense.
+
+**Given** the fresh-fork template path,
+**When** `packages/keel-templates/` ships the seed `.claude/settings.json`,
+**Then** a fresh `create-keel-app` (Epic 15a) materialises it at the new fork's repo root
+**And** no manual setup is required.
+
+##### Story 2.16: Claude PreToolUse hooks for secret-file denylist (Ralph-compatible)
+
+As a substrate maintainer,
+I want Claude Code PreToolUse hooks at `.claude/hooks/block-secret-access.sh` that intercept `Bash`, `Read`, `Grep`, `Glob` tool calls and reject patterns matching secret files or environment dumps,
+So that the secret-access barrier holds even when Ralph runs with `--dangerously-skip-permissions` — hooks execute regardless of permission mode (NFR5a).
+
+**Acceptance Criteria:**
+
+**Given** the committed `.claude/settings.json` from Story 2.15,
+**When** I read its `hooks` block,
+**Then** `PreToolUse` hooks are registered for `Bash`, `Read`, `Grep`, `Glob`
+**And** each invokes `.claude/hooks/block-secret-access.sh` with the tool name + arguments on stdin (per Claude Code's hook protocol).
+
+**Given** the hook script at `.claude/hooks/block-secret-access.sh`,
+**When** it is invoked,
+**Then** it reads the tool-call JSON from stdin and rejects calls matching any of:
+- **Secret-access denylist:**
+  - Bash commands: `env` (bare), `printenv*`, `cat .envrc*`, `cat **/.env*`, `cat /proc/*/environ*`, `export` (bare), `set` (bare)
+  - Read paths: `.envrc*`, `**/.env*`, `.secrets*`, `/home/dev/.claude/**`, `/home/dev/.config/gh/**`, `/proc/*/environ`
+  - Grep / Glob patterns: anything resolving into the above paths
+- **Self-protection denylist (hook + settings cannot be tampered from inside the session):**
+  - Edit / Write paths: `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks/**`, `.git/hooks/**`
+  - Bash commands mutating those paths: `rm .claude/settings*`, `rm .claude/hooks/*`, `rm .git/hooks/*`, `mv .claude/settings*`, `mv .claude/hooks/*`, `chmod * .claude/hooks/*`, `chmod * .git/hooks/*`, `tee .claude/settings*`, `tee .claude/hooks/*`, `sed -i * .claude/settings*`, `sed -i * .claude/hooks/*`, `echo * > .claude/settings*`, `echo * > .claude/hooks/*`, `cp * .claude/settings*`, `cp * .claude/hooks/*`
+  - Bash commands that would bypass git gates: `git commit * --no-verify`, `git push * --no-verify`
+
+**And** rejected calls return a structured JSON response `{"decision": "block", "reason": "<rule-id>", "match": "<matched-pattern>"}` where rule-id is one of `secret-access-denylist` or `hook-self-protection`.
+
+**Given** a rejected tool call during a Ralph iteration,
+**When** the block occurs,
+**Then** the event is appended to `.ralph/logs/<iter-id>/blocked-tool-calls.jsonl`
+**And** the line schema is `{timestamp, iteration_id, tool, args_redacted, rule_id}` (args_redacted = args with any secret-ish values replaced by `<redacted>`).
+
+**Given** the Ralph iteration continues after blocks accumulate,
+**When** the halt-logic in Epic 3 inspects the blocked-calls log,
+**Then** N blocks within a single iteration (default N=3, configurable in `.ralph/config.toml`) halt the iteration with `reason: "SECURITY_CRITICAL"`
+**And** this threshold is pinned here; Epic 3 wires the halt path.
+
+**Given** the hook is a non-toggle-able invariant,
+**When** Story 1.8's manifest tracks it,
+**Then** an entry `INV-claude-hook-secret-denylist` registers `.claude/hooks/block-secret-access.sh` + `.claude/settings.json` hooks block
+**And** Story 1.9's sync-gate catches drift.
+
+**Given** a fork operator wants to extend the denylist (add fork-specific secret paths),
+**When** they follow the documented pattern in `AGENTS.md`,
+**Then** they create `.claude/hooks/block-secret-access.fork.sh` that the main script invokes
+**And** they CANNOT weaken the substrate denylist (hook script hard-codes substrate paths; only additions honoured).
+
+**Given** the hook script is the Ralph-only defense when permissions are skipped,
+**When** the security-evidence feed (Epic 4 FR37) consumes `.ralph/logs/<iter-id>/blocked-tool-calls.jsonl`,
+**Then** each entry is propagated to `security-evidence.json` under `scans.hook_denials[]`
+**And** `severity_max` escalates to `high` if N blocks occurred in an iteration (Epic 4 semantics).
+
+##### Story 2.17: Hook + settings bypass-resistance (git-layer + manifest + S4 + halt)
+
+As a substrate maintainer,
+I want the Claude hook + `.claude/settings.json` barrier protected at the git-layer (invariants manifest + pre-merge sync-gate + S4 prompt-injection scan + Ralph halt threshold), not just in-session,
+So that even if the in-session hook self-protection is somehow circumvented (novel Claude bypass, race condition, hook-script bug), the tampering cannot land in a commit or survive across iterations (NFR5b).
+
+**Acceptance Criteria:**
+
+**Given** the invariants manifest from Story 1.8,
+**When** I inspect it,
+**Then** entries exist for each bypass-surface file:
+- `INV-claude-hook-secret-denylist` → `.claude/hooks/block-secret-access.sh`
+- `INV-claude-settings-deny-rules` → `.claude/settings.json` (with an anchor-delimited region containing the non-toggle-able substrate deny rules)
+- `INV-git-hooks-preservation` → `.git/hooks/*` (the prek-installed hooks; tracked indirectly via `packages/keel-invariants/src/prek-hook-manifest.ts` which enumerates the expected hook names and shebang patterns)
+
+**And** each entry carries a `contentHash` scoped to the protected region (allowing fork-specific additions outside anchors without triggering drift).
+
+**Given** Story 1.9's sync-gate,
+**When** a PR modifies any of those files within protected regions,
+**Then** the sync-gate runs on pre-merge and fails with `content-hash-mismatch` naming the specific invariant ID
+**And** the PR cannot be merged without a source-level fork of `packages/keel-invariants/` (per Story 1.6 bypass-prevention pattern).
+
+**Given** the S4 prompt-injection scan from Epic 4,
+**When** a commit diff touches `.claude/settings*.json`, `.claude/hooks/**`, or `.git/hooks/**`,
+**Then** the scan emits a structured finding (severity: `high`) in `security-evidence.json` under `scans.prompt_injection.findings[]`
+**And** the commit is blocked at pre-commit per FR36 severity-threshold
+**And** Ralph iteration halts with `reason: "SECURITY_CRITICAL"` (Epic 4 feeds the halt decision).
+
+**Given** the Ralph iteration-level halt logic,
+**When** in-session hook-self-protection blocks accumulate (rule-id `hook-self-protection`) at N=3 default per `.ralph/config.toml`,
+**Then** the halt-logic writes `.ralph/halt` with `reason: "SECURITY_CRITICAL"` + bypass-attempt context
+**And** the next iteration refuses to start until Tthew reviews `blocked-tool-calls.jsonl`.
+
+**Given** a fork operator with a legitimate need to modify the denylist (e.g., removing a rule that causes false positives),
+**When** they change `packages/keel-invariants/src/`-level source + update `invariants.manifest.ts` content-hash + update `INVARIANTS.md` anchor + author a signed conventional commit with `feat!:` + PR to `packages/keel-invariants/`,
+**Then** the sync-gate passes because source + manifest + docs are in sync
+**And** this is the ONLY path to weakening the substrate denylist (requires deliberate intent, git history, and human review).
+
+**Given** Ralph is NOT permitted to author that modification under Epic 3's RS1 3-layer safe-set,
+**When** Ralph's PreToolUse hook intercepts an attempted `packages/keel-invariants/src/` edit that touches denylist sources,
+**Then** the edit is blocked (L1 install-boundary protection)
+**And** only a human committer can authorise the change.
+
+**Given** the `.claude/settings.local.json` user-override path,
+**When** a PR attempts to commit `.claude/settings.local.json`,
+**Then** the pre-commit gate rejects it (file is gitignored)
+**And** the hook self-protection (Story 2.16) blocks in-session creation of the file via Write/Edit.
+
+**Given** CI visibility into bypass attempts,
+**When** hook-denial events land in `security-evidence.json`,
+**Then** a dedicated dashboard panel (or nightly report — Epic 14 research corpus terrain) surfaces the event count trend
+**And** an unusually high bypass-attempt rate is a leading signal of Claude-prompt-injection attack or Ralph regression worth investigating.
 
 ---
 
