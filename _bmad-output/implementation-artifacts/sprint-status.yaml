@@ -1,5 +1,5 @@
 # generated: 2026-04-19 17:43 UTC
-# last_updated: 2026-04-19 22:00 UTC
+# last_updated: 2026-04-19 22:30 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-19 22:00 UTC
+last_updated: 2026-04-19 22:30 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -45,7 +45,7 @@ development_status:
   epic-1: in-progress
   1-1-monorepo-scaffold-typescript-project-references: done
   1-2-packages-keel-invariants-bootstrap-shared-eslint-prettier-commitlint-configs: done
-  1-3-eslint-no-restricted-imports-import-boundary-rules: backlog
+  1-3-eslint-no-restricted-imports-import-boundary-rules: ready-for-dev
   1-4-pre-commit-quality-gates-via-prek-type-check-lint-format: backlog
   1-5-conventional-commit-enforcement-via-commitlint-prek: backlog
   1-6-quality-gate-bypass-prevention: backlog
