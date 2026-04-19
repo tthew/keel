@@ -1,6 +1,6 @@
 # Story 1.5: Conventional-commit enforcement via commitlint + prek
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -114,15 +114,15 @@ so that agent and human commits alike follow conventional-commit format — a no
     - `pnpm exec commitlint --from origin/main --to HEAD` — 0/0 across all branch commits.
   - [ ] Commit: `feat(invariants): Story 1.5 Task 2 — ATDD probes verify commit-msg hook fires + rejects non-conventional messages`.
 
-- [ ] **Task 3: Full quality-gate verification + sprint-status bump** (AC: 5)
-  - [ ] `pnpm install` — expect `Lockfile is up to date`; `prepare` re-runs idempotently (hooks already in place).
-  - [ ] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on FIRST call (no TS inputs moved across Tasks 1/2).
-  - [ ] `pnpm -w lint` — expect 16/16 `>>> FULL TURBO` on FIRST call.
-  - [ ] `pnpm format:check` — `All matched files use Prettier code style!` exit 0.
-  - [ ] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems / 0 warnings across all branch commits (spec + iteration-1 bookkeeping + Task 1 + Task 2 = 4 commits).
-  - [ ] `pnpm exec prek run --all-files` — runs the 3 pre-commit hooks against the tree; expect all 3 `Passed`. The commit-msg hook is NOT run by `--all-files` (it's a different stage) — parity for commit-msg was confirmed in Task 1's self-verification probe + Task 2's AC 2/3 probes via real `git commit`. No additional commit-msg probe needed here.
-  - [ ] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flip `1-5-conventional-commit-enforcement-via-commitlint-prek: ready-for-dev → done`; bump `last_updated`. Land this BEFORE the PR Draft→Open transition — prevents the orphan-bookkeeping risk documented in RALPH.md Lessons 2026-04-19 "Post-halt bookkeeping commits can orphan from main" (Stories 1.2/1.3/1.4 precedents).
-  - [ ] Commit: `feat(invariants): Story 1.5 Task 3 — all quality gates green + sprint-status bump`.
+- [x] **Task 3: Full quality-gate verification + sprint-status bump** (AC: 5)
+  - [x] `pnpm install` — `Lockfile is up to date`; `prepare` re-ran `prek install -t pre-commit -t commit-msg` idempotently (both shims already in place from Task 1); 690ms.
+  - [x] `pnpm -w typecheck` — 16/16 `>>> FULL TURBO` 141ms on FIRST call (no TS inputs moved across Tasks 1/2).
+  - [x] `pnpm -w lint` — 16/16 `>>> FULL TURBO` 164ms on FIRST call.
+  - [x] `pnpm format:check` — `All matched files use Prettier code style!` exit 0.
+  - [x] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems / 0 warnings across 4 branch commits (`0557ee8` spec + `42839de` iter-1 bookkeeping + `0092d2b` Task 1 + `6e0a6af` Task 2).
+  - [x] `pnpm exec prek run --all-files` — all 3 pre-commit-stage hooks `Passed` (TypeScript type-check / ESLint / Prettier format:check). Commit-msg stage parity already proven in Task 1's self-verification probe + Task 2's AC 2/3 probes via real `git commit`.
+  - [x] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flipped `1-5-conventional-commit-enforcement-via-commitlint-prek: ready-for-dev → done`; `last_updated: 2026-04-19 22:10 UTC`. Co-landed in this commit per Stories 1.2/1.3/1.4 orphan-prevention precedent.
+  - [x] Commit: `feat(invariants): Story 1.5 Task 3 — all quality gates green + sprint-status bump`.
 
 ## Dev Notes
 
@@ -325,6 +325,44 @@ Post-probe tree check: `git log --oneline origin/main..HEAD` shows exactly 3 com
 
 Quality gates (defensive re-run after probe cleanup): `pnpm -w typecheck` 16/16 `>>> FULL TURBO` 147ms; `pnpm -w lint` 16/16 `>>> FULL TURBO` 134ms; `pnpm format:check` exit 0; `pnpm exec commitlint --from origin/main --to HEAD --verbose` 0 problems / 0 warnings across 3 branch commits.
 
+**Task 3 (2026-04-19):**
+
+Verification-only iteration — no source changes. `pnpm install` → `Lockfile is up to date` + `Already up to date`; `prepare` re-ran `prek install -t pre-commit -t commit-msg` idempotently; both shims already at `/workspace/ralph-bmad/.git/hooks/{pre-commit,commit-msg}`; total install time 690ms.
+
+Quality gates:
+
+```
+$ pnpm -w typecheck
+ Tasks:    16 successful, 16 total
+Cached:    16 cached, 16 total
+  Time:    141ms >>> FULL TURBO
+
+$ pnpm -w lint
+ Tasks:    16 successful, 16 total
+Cached:    16 cached, 16 total
+  Time:    164ms >>> FULL TURBO
+
+$ pnpm format:check
+All matched files use Prettier code style!
+
+$ pnpm exec commitlint --from origin/main --to HEAD --verbose
+⧗   input: feat(invariants): Story 1.5 Task 2 — ATDD probes verify commit-msg hook fires + rejects non-conventional messages
+✔   found 0 problems, 0 warnings
+⧗   input: feat(invariants): Story 1.5 Task 1 — wire commit-msg hook + prepare installs commit-msg shim
+✔   found 0 problems, 0 warnings
+⧗   input: chore(ralph): Story 1.5 iteration 1 — IP reflects Draft PR #221 creation
+✔   found 0 problems, 0 warnings
+⧗   input: docs(story): Story 1.5 spec — conventional-commit enforcement via commitlint + prek (spec only — Draft)
+✔   found 0 problems, 0 warnings
+
+$ pnpm exec prek run --all-files
+TypeScript type-check (workspace)........................................Passed
+ESLint (workspace).......................................................Passed
+Prettier format:check (workspace)........................................Passed
+```
+
+All gates FULL TURBO on FIRST call (Task 2's commit touched only `_bmad-output/` artefacts under `.prettierignore` — not a turbo input, so cache stayed warm end-to-end). Fourth verification-only-iteration confirmation of the pattern (Stories 1.2 Task 7 + 1.3 Task 4 + 1.4 Task 3 + 1.5 Task 3).
+
 ### Completion Notes List
 
 **Task 1 variances from spec (2026-04-19):**
@@ -348,3 +386,8 @@ Quality gates (defensive re-run after probe cleanup): `pnpm -w typecheck` 16/16 
 - `package.json` — `prepare` script: `prek install` → `prek install -t pre-commit -t commit-msg`.
 
 **Task 2:** No source files modified. Probes ran against the working tree, created throwaway artefacts under `_bmad-output/__ac{2,3}-probe.txt`, and cleaned up before commit. Story file updated with Task 2 Debug Log + observations; IP + RALPH.md updated alongside.
+
+**Modified (Task 3):**
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — flipped `1-5-conventional-commit-enforcement-via-commitlint-prek: ready-for-dev → done`; bumped `last_updated: 2026-04-19 22:10 UTC`.
+- `_bmad-output/implementation-artifacts/1-5-conventional-commit-enforcement-via-commitlint-prek.md` — Status `ready-for-dev → done`; Task 3 subtasks marked `[x]`; Task 3 Debug Log entry added; File List extended.
