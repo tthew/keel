@@ -1,12 +1,14 @@
 # Implementation Plan
 
+(AWAIT_MERGE — PR #221 Open, CLEAN, MERGEABLE, 0 reviews, 0 checks; `.ralph/halt` already carries `EPIC_DONE` payload. Awaiting user merge before Story 1.6.)
+
 ## NOW
 
-- [x] PR #221 Draft→Open — rewrite title/body for full 5-commit range, `gh pr ready`, then EPIC_DONE halt ~small
+_(none — Story 1.5 mini-epic shipped; loop awaits user merge)_
 
 ## QUEUE
 
-_(empty — Story 1.5 mini-epic done; halt EPIC_DONE; user merges; next iteration picks up Story 1.6)_
+_(empty — post-merge iteration picks up Story 1.6)_
 
 ## BLOCKED
 
@@ -20,6 +22,7 @@ _(none)_
 - [x] Story 1.5 Task 2 — ATDD probes via real `git commit`: AC 2 lands exit 0; AC 3 rejects with `subject-empty` + `type-empty`; AC 4 structural note recorded; tree clean
 - [x] Story 1.5 Task 3 — verification gates all FULL TURBO on FIRST call; sprint-status `1-5 → done` co-landed (pre-transition orphan-prevention)
 - [x] PR #221 Draft→Open — title/body rewritten for full 5-commit scope; `gh pr ready`; MERGEABLE / CLEAN / no-reviews / no-checks; EPIC_DONE halt signalled
+- [x] Halt reinforcement — `(AWAIT_MERGE` marker added (belt-and-suspenders — ralph.py:1758 guarantees loop stop if halt file detection at :1750 was missed)
 
 ## Context
 
@@ -28,4 +31,4 @@ _(none)_
 - **Epic Branch:** `feat/story-1-5-conventional-commit-enforcement-via-commitlint-prek`
 - **Story:** 1.5 — Conventional-commit enforcement via commitlint + prek (done)
 - **Story File:** `_bmad-output/implementation-artifacts/1-5-conventional-commit-enforcement-via-commitlint-prek.md`
-- **PR:** #221 Open (5 impl commits + this iter's bookkeeping)
+- **PR:** #221 Open (5 impl commits + 2 bookkeeping commits)
