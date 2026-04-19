@@ -6286,6 +6286,155 @@ So that `create-keel-app` regressions are caught before they ship (FR47 verifica
 
 **Standalone delivery:** 1.0 cut ritual automation ready when `v1.0.0` is tagged; correlated-library monitoring cadence established; Invariant Pack pivot can execute in 30 days if tripwire fires.
 
+#### Stories
+
+##### Story 15b.1: `scripts/major-cut.sh` + FR52 archive ritual
+
+As Tthew,
+I want `scripts/major-cut.sh` automating the 1.0-cut ritual — (1) move `_bmad-output/*` to `docs/archive/keel-1.0-planning/`, (2) retire `legacy-devbox` branch, (3) empty `apps/web/features/*`, (4) seed `packages/keel-templates/PROMPT_*.template.md` from current `.ralph/PROMPT_*.md`, (5) tag `v1.0.0` on substrate,
+So that major cuts are checkpointed + reviewed before run (FR52).
+
+**Acceptance Criteria:**
+
+**Given** `scripts/major-cut.sh`,
+**When** I inspect it,
+**Then** the 5 steps are encoded
+**And** each step has a confirmation prompt or CI-checked precondition.
+
+**Given** the script is invoked,
+**When** each step runs,
+**Then** the step is logged to `docs/archive/keel-1.0-planning/cut-log.md`
+**And** failure at any step halts the script with state preserved.
+
+**Given** `v1.0.0` is tagged,
+**When** release-please runs,
+**Then** the release is published.
+
+**Given** `legacy-devbox` branch retirement,
+**When** the step runs,
+**Then** the branch is tagged (`legacy-devbox-final`) and removed from active tracking per Epic 2 Story 2.14.
+
+##### Story 15b.2: FR50 major-version discipline + tested-model-generation release-notes template
+
+As a substrate maintainer,
+I want `docs/upgrades/major-releases.md` documenting every major release's tested model generation (e.g., Opus 4.7), Claude Code CLI version, BMad version, Ralph version, plus `.github/PULL_REQUEST_TEMPLATE/major-release.md`,
+So that upstream model breaking changes trigger disciplined major cuts (FR50).
+
+**Acceptance Criteria:**
+
+**Given** `docs/upgrades/major-releases.md`,
+**When** I inspect it,
+**Then** a row per Keel major exists with the 4 dimensions (model / Claude CLI / BMad / Ralph).
+
+**Given** `.github/PULL_REQUEST_TEMPLATE/major-release.md`,
+**When** a major-release PR is opened with `?template=major-release.md`,
+**Then** the template's 4-dimension checklist prompts the author to fill the delta.
+
+**Given** a breaking model upgrade,
+**When** a new major is triggered,
+**Then** test-runs verify every dimension
+**And** release notes cite the evidence.
+
+##### Story 15b.3: FR49 Growth-tier migration-guide placeholder at `docs/upgrades/`
+
+As a substrate maintainer,
+I want `docs/upgrades/` with a scaffolded structure for future migration guides (empty at 1.0; ready to accept a Next.js-alongside-TanStack-Start or similar Growth-tier second impl),
+So that second-impl axes land with a canonical migration path (FR49).
+
+**Acceptance Criteria:**
+
+**Given** `docs/upgrades/`,
+**When** I inspect it,
+**Then** a `README.md` documents the migration-guide structure (sections: scope, codemod, manual steps, CI-tested path)
+**And** a `_template.md` exists for future guides.
+
+**Given** no second-impl axis exists at 1.0,
+**When** `docs/upgrades/` is inspected,
+**Then** only scaffold + template are present
+**And** activation awaits the first Growth-tier shape.
+
+##### Story 15b.4: Correlated-library maintenance-signal quarterly review
+
+As a substrate maintainer,
+I want `docs/upgrades/correlated-library-policy.md` documenting hardwired libraries (TanStack Start, better-auth at 1.0) + demotion triggers (no release in 6 months OR security advisory unpatched > 14 days OR maintainer abandonment) + quarterly review cadence,
+So that correlated-library risk is proactively monitored (PRD § Correlated-Library Risk Policy).
+
+**Acceptance Criteria:**
+
+**Given** `docs/upgrades/correlated-library-policy.md`,
+**When** I read it,
+**Then** each hardwired library is listed with its signals (release cadence, CVE status, maintainer activity).
+
+**Given** the quarterly review cadence,
+**When** a review runs,
+**Then** the verdict per library is recorded in the next `docs/research/checkpoints/<quarter>.md`
+**And** a demotion trigger fires a next-major replacement ticket.
+
+##### Story 15b.5: Ralph monthly upstream-diff review workflow
+
+As Tthew (maintainer-only concern),
+I want `docs/upgrades/ralph-upstream-review.md` documenting the monthly upstream-diff review workflow for `packages/ralph/` (`ralphDisposition: fork`),
+So that Ralph's fork stays current without derailing forkers (invisible to forkers in "development with Keel" mode).
+
+**Acceptance Criteria:**
+
+**Given** the workflow doc,
+**When** I read it,
+**Then** monthly steps are enumerated: diff against upstream, triage, cherry-pick critical fixes, record in `RALPH.md`.
+
+**Given** the review outcome,
+**When** recorded,
+**Then** a `packages/ralph/upstream-review-<YYYY-MM>.md` artefact lands in `docs/research/ralph-journal/`.
+
+**Given** an important upstream change,
+**When** it lands,
+**Then** a `ralph-stage-upgrade` story (Epic 3 Story 3.27) is created.
+
+##### Story 15b.6: Invariant Pack pivot contingency (release-config readiness)
+
+As Tthew,
+I want `docs/upgrades/invariant-pack-pivot.md` pre-committing the exit path: within 30 days of tripwire firing, publish `packages/keel-invariants/` + research corpus principle layer to npm as versioned Invariant Pack,
+So that the pivot can execute on the clock (Epic 14 tripwire consumer).
+
+**Acceptance Criteria:**
+
+**Given** the pivot doc,
+**When** I read it,
+**Then** the 30-day schedule is enumerated (days 1-7 config; 8-21 docs; 22-28 publish; 29-30 announce).
+
+**Given** release-please-monorepo reconfiguration,
+**When** the pivot activates,
+**Then** `packages/keel-invariants/` is marked for npm publish
+**And** the published name + semver policy are defined.
+
+**Given** the pivot is pre-committed but not executed at 1.0,
+**When** I inspect the repo,
+**Then** the `release-please-config.json` has a commented-out Invariant Pack section
+**And** activation is a single config edit.
+
+##### Story 15b.7: No-npm-publish policy at 1.0 (documented)
+
+As a substrate maintainer,
+I want `docs/distribution.md` documenting that NO individual substrate packages are `npm publish`-ed at 1.0 (fork-and-use model), with the exception path for the Invariant Pack pivot,
+So that the distribution stance is unambiguous (PRD Distribution policy).
+
+**Acceptance Criteria:**
+
+**Given** `docs/distribution.md`,
+**When** I read it,
+**Then** the fork-and-use policy is pinned
+**And** the exception (Invariant Pack pivot) is named.
+
+**Given** a pre-merge-fast check,
+**When** someone adds an `npm publish` hook to any `packages/*/package.json`,
+**Then** the check flags the change
+**And** requires an explicit "Invariant Pack pivot" annotation in the commit body.
+
+**Given** `create-keel-app` is the one exception (npm-published per Epic 15a),
+**When** inspected,
+**Then** it is explicitly allowlisted in the lint rule
+**And** no other package may publish without amendment.
+
 ---
 
 ## Epic-to-Milestone Mapping
