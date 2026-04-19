@@ -1877,6 +1877,1094 @@ Ralph executes implementation of all 16 epics INCLUDING this one (Epic 3 — Ral
 
 **Standalone delivery:** Ralph runs autonomously inside the devbox, honours orient/execute/gate contracts + safe-set policy, produces structured logs, halts with pinned reasons (including new `RALPH_STAGE_REGRESSION`). Ralph edits its own L2/L3 surfaces autonomously within the safe-set; L1 runtime is install-boundary-snapshot-protected. No RLS, no auth, no UI — a bounded autonomous loop that safely evolves its own harness.
 
+#### Stories
+
+##### Story 3.1: `packages/ralph/` package + install-boundary via `uv tool install`
+
+As a substrate maintainer,
+I want Ralph sourced as a monorepo package at `packages/ralph/` (Python via uv) and installed into the devbox as a non-editable snapshot via `uv tool install --from packages/ralph ralph-harness==<pin>` at container startup,
+So that the running Ralph is an install-time snapshot and edits to `packages/ralph/` source within the workspace do not affect the current iteration (RS2 compiler-bootstrap-problem solution; Layer 1 safe-set boundary).
+
+**Acceptance Criteria:**
+
+**Given** the monorepo scaffold from Epic 1,
+**When** I inspect `packages/ralph/`,
+**Then** the package has `pyproject.toml`, `src/ralph_harness/`, and pnpm+turbo integration (package.json script bridges for lint/test)
+**And** it is CI-gated + lint-gated + typecheck-gated like any other workspace package.
+
+**Given** `packages/devbox/ralph-version.json`,
+**When** I read it,
+**Then** it pins `{ "ralph-harness": "<semver>", "prompt-template-hash": "<sha256>" }`
+**And** this file is the stage-identity source of truth.
+
+**Given** the devbox entrypoint (Story 2.1),
+**When** the container starts,
+**Then** `uv tool install --from packages/ralph ralph-harness==<pin-from-ralph-version.json>` runs as a non-editable install
+**And** the installed tool lives at `/home/dev/.local/share/uv/tools/ralph-harness/` in the named Docker volume (NFR10).
+
+**Given** Ralph is installed,
+**When** `pnpm ralph:build` or `pnpm ralph:plan` runs inside the devbox,
+**Then** execution invokes the installed snapshot (not `packages/ralph/src/`)
+**And** edits to `packages/ralph/src/` in the workspace have no effect on the current iteration.
+
+**Given** a user attempts editable install (`uv tool install -e`),
+**When** the devbox entrypoint detects it,
+**Then** the install is rejected and the entrypoint fails with a pointer to the stage-upgrade story (Story 3.27).
+
+##### Story 3.2: Ralph multi-iteration loop with `claude -p` + effort settings
+
+As a fork operator,
+I want `ralph.py` (inherited from the current `ralph-bmad` repo) running inside the devbox as a Textual TUI, spawning `claude -p` subprocesses with adaptive thinking and explicit `effort` settings (default `xhigh` for build, `high` for plan),
+So that Ralph executes multi-iteration loops against `.ralph/@plan.md` with the foundational harness wiring in place (FR7 base).
+
+**Acceptance Criteria:**
+
+**Given** the installed ralph-harness snapshot (Story 3.1),
+**When** I run `pnpm ralph:build` inside the devbox,
+**Then** `ralph.py` starts, reads `.ralph/@plan.md`, and spawns `claude -p` as a subprocess
+**And** the subprocess receives `--effort xhigh` plus `--permission-mode` set to the documented Ralph-mode default.
+
+**Given** `pnpm ralph:plan`,
+**When** I run it,
+**Then** `claude -p` is spawned with `--effort high` (not `xhigh`).
+
+**Given** a running iteration,
+**When** the subprocess emits stream-json,
+**Then** `ralph.py` reads it, renders progress in the TUI (baseline chrome; re-themed in Story 3.33), and writes to `.ralph/logs/<iter-id>/iteration.jsonl`.
+
+**Given** an iteration completes normally,
+**When** the subprocess exits zero,
+**Then** `ralph.py` loops to the next iteration
+**And** the loop continues until a halt condition (Stories 3.17–3.19) or `max_iterations` is reached.
+
+**Given** Ralph is inherited from `ralph-bmad`,
+**When** I inspect `packages/ralph/src/ralph_harness/`,
+**Then** `ralphDisposition: fork` is documented in `packages/ralph/README.md` with monthly upstream-diff review obligation (Epic 15 territory).
+
+##### Story 3.3: Prompt template seeds (`PROMPT_build.template.md`, `PROMPT_plan.template.md`)
+
+As a substrate maintainer,
+I want `packages/keel-templates/src/{PROMPT_build,PROMPT_plan}.template.md` as pinned seed files that Epic 15's `create-keel-app` materialises into `.ralph/PROMPT_build.md` + `.ralph/PROMPT_plan.md` on fresh forks,
+So that every fork starts from the substrate's pinned prompt-set — non-drift-able per major Keel version (NFR29a).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-templates/src/`,
+**When** I inspect the directory,
+**Then** `PROMPT_build.template.md` and `PROMPT_plan.template.md` exist
+**And** each file's header names the Keel version + tested Claude model generation (Opus 4.7 at 1.0 cut).
+
+**Given** a templated variable syntax,
+**When** I read the template files,
+**Then** fork-specific substitutions (e.g., `{{ fork.name }}`, `{{ fork.tenancy }}`) use a documented placeholder convention
+**And** `packages/keel-templates/README.md` documents the substitution shape.
+
+**Given** the materialisation contract,
+**When** Epic 15's `create-keel-app` runs,
+**Then** it copies the templates into `.ralph/` and performs substitutions (Epic 15's job; this story provides the source)
+**And** the fork's `.ralph/PROMPT_build.md` + `PROMPT_plan.md` match the templates minus substitutions.
+
+**Given** NFR29a pins prompts per major Keel version,
+**When** a minor Keel version ships,
+**Then** prompt-set is unchanged (verified by CI against a pinned content-hash in `packages/devbox/ralph-version.json`'s `prompt-template-hash`).
+
+**Given** a major Keel version cuts,
+**When** prompts diverge,
+**Then** the delta is recorded in release notes with tested-model-generation reference.
+
+##### Story 3.4: Orient-phase contract (8 pinned steps)
+
+As Ralph,
+I want a pinned 8-step orient sequence at the top of every iteration — (1) epic/story, (2) plan file, (3) knowledge files, (4) phase-gate, (5) application source, (6) budget headroom, (7) native task list, (8) PR/CI state — documented in `docs/invariants/ralph-execute.md` and hard-coded in `PROMPT_build.md`,
+So that every iteration starts from the same authoritative context and skipping any step fails the iteration self-check (FR14f).
+
+**Acceptance Criteria:**
+
+**Given** `PROMPT_build.template.md` from Story 3.3,
+**When** I read the orient section,
+**Then** the 8 steps are enumerated verbatim
+**And** each step has a one-line purpose + required output (e.g., "Step 1: read current epic+story; output: epic id, story id, acceptance criteria summary").
+
+**Given** `docs/invariants/ralph-execute.md`,
+**When** I read it,
+**Then** the 8-step sequence is documented with rationale for each step
+**And** the doc is registered as an invariant (`INV-ralph-orient-8-step`) in Story 1.8's manifest.
+
+**Given** Ralph is mid-iteration,
+**When** the orient phase runs,
+**Then** each step's output is logged to `.ralph/logs/<iter-id>/orient.jsonl`
+**And** any missing step fails the iteration self-check (Ralph halts or surfaces the skip in stream-json for the halt-detection layer).
+
+**Given** orient step 3 reads knowledge files (`AGENTS.md`, `CLAUDE.md`, `RALPH.md`),
+**When** Ralph reads them,
+**Then** Ralph also reads `.ralph-safe-set.yaml` (Story 3.24) as part of step 3 — self-aware safety boundary.
+
+**Given** orient step 7 reads the native task list,
+**When** Ralph hydrates in-flight work (Story 3.10),
+**Then** active tasks (max 3) are surfaced as the starting context for this iteration.
+
+##### Story 3.5: Execute-phase contract (one task per iteration; spine; compound NOW rejection; XL decomposition)
+
+As Ralph,
+I want a pinned execute-phase spine — orient → execute → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit — enforced as exactly ONE task per iteration, with compound NOW tasks rejected at orient, XL tasks (≥60K tokens) decomposed before start, and each BMad-workflow invocation consuming one full iteration,
+So that iteration atomicity + budget predictability hold (FR14g, NFR4b XL decomposition).
+
+**Acceptance Criteria:**
+
+**Given** `PROMPT_build.template.md`,
+**When** I read the execute section,
+**Then** the 7-step spine is pinned verbatim (orient → execute → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit)
+**And** the "ONE task per iteration" rule is pinned as non-toggle-able.
+
+**Given** an iteration's orient reads the NOW task,
+**When** the task contains "AND" (compound task),
+**Then** Ralph rejects the task at orient
+**And** the task is decomposed into separate NOW items in `.ralph/@plan.md` (the iteration exits; decomposition lands in the plan file for the next iteration).
+
+**Given** an iteration estimates task size,
+**When** the estimated token cost is ≥60K,
+**Then** the task is rejected as XL
+**And** decomposed pre-start per NFR4b (iteration exits cleanly; decomposed tasks land in @plan.md).
+
+**Given** a story invoked via `/bmad-dev-story` has ≥3 tasks,
+**When** orient reads the story,
+**Then** Ralph rejects the bulk invocation
+**And** decomposes per-iteration (each task in its own iteration).
+
+**Given** a BMad-workflow skill invocation (e.g., `/bmad-create-story`),
+**When** Ralph picks it up,
+**Then** the entire invocation consumes one full iteration
+**And** no other task executes in that iteration.
+
+**Given** the spine completes successfully,
+**When** the commit + push land,
+**Then** the iteration exits with `exit 0`
+**And** Ralph loops to the next iteration.
+
+##### Story 3.6: PR-lifecycle state machine `.ralph/lib/pr-state.ts` + 3 anti-constraints
+
+As Ralph,
+I want a pure TypeScript state-machine function `transition(pr_state, epic_state) → action` at `.ralph/lib/pr-state.ts`, invoked via `tsx`, reading authoritative PR state from `gh pr view --json state,isDraft,reviewDecision,statusCheckRollup`,
+So that iteration actions are schema-versioned and the 3 anti-constraints (no EPIC_DONE while Draft; no Draft→Open until all tasks complete; no Draft review-feedback) are non-toggle-able invariants (FR14h, R3).
+
+**Acceptance Criteria:**
+
+**Given** `.ralph/lib/pr-state.ts`,
+**When** I inspect it,
+**Then** it exports `transition(pr_state, epic_state): Action`
+**And** the function is pure (no I/O; no randomness; no Date.now()).
+
+**Given** the function is invoked via `tsx`,
+**When** Ralph calls it mid-iteration,
+**Then** Ralph first runs `gh pr view --json state,isDraft,reviewDecision,statusCheckRollup` and passes the JSON output as input
+**And** the function returns a typed `Action` (e.g., `merge | push-and-continue | monitor-ci | halt-epic-done | await-merge`).
+
+**Given** the 6-row decision matrix,
+**When** I read the function's internal switch (or data-driven implementation),
+**Then** all 6 rows are documented with input conditions and output actions
+**And** the matrix is schema-versioned (`PR_STATE_MATRIX_VERSION = "1.0"` constant).
+
+**Given** the 3 anti-constraints,
+**When** the function encounters these inputs, each returns `halt` with the named violation error:
+- PR state = Draft AND Ralph intends EPIC_DONE → "anti-constraint-1 violated"
+- Implementation tasks incomplete AND Ralph intends Draft→Open → "anti-constraint-2 violated"
+- PR state = Draft AND review feedback present AND Ralph intends to address → "anti-constraint-3 violated"
+
+**And** the invariant is registered in Story 1.8's manifest (`INV-ralph-pr-lifecycle-anti-constraints`).
+
+##### Story 3.7: Pre-push CI gate (`gh pr checks` before push; in-progress → queue Monitor PR CI)
+
+As Ralph,
+I want every iteration to run `gh pr checks` before `git push`, blocking the push if any check is in-progress or pending, queueing "Monitor PR CI" at QUEUE top, committing the IP update locally, and exiting without pushing,
+So that I never race CI with a parallel push (FR14i).
+
+**Acceptance Criteria:**
+
+**Given** the execute-phase spine (Story 3.5),
+**When** the "pre-push CI gate" step runs,
+**Then** Ralph invokes `gh pr checks <pr-number>` and parses the output.
+
+**Given** all checks are `success` or `neutral`,
+**When** the gate passes,
+**Then** the push proceeds normally
+**And** the iteration exits cleanly.
+
+**Given** any check is `in_progress`, `pending`, or `queued`,
+**When** the gate fails-soft,
+**Then** Ralph queues a new task "Monitor PR CI" at QUEUE top of `.ralph/@plan.md`
+**And** the IP (plan file) update is committed locally
+**And** the iteration exits WITHOUT pushing (unpushed commits carry to next iteration).
+
+**Given** any check is `failure` or `cancelled`,
+**When** the gate detects failure,
+**Then** Ralph queues a triage task at QUEUE top with `{failing_check_name, root_cause_note, fix_approach}`
+**And** the iteration exits.
+
+**Given** an unpushed commit from the prior iteration,
+**When** the next iteration starts,
+**Then** orient step 8 (PR/CI state) detects the unpushed commit
+**And** Ralph resumes the Monitor PR CI task.
+
+##### Story 3.8: `.ralph/@plan.md` schema (NOW/QUEUE/BLOCKED/DONE/Context)
+
+As Ralph,
+I want `.ralph/@plan.md` to conform to a pinned schema with sections NOW / QUEUE / BLOCKED / DONE / Context (fix tasks at QUEUE top), validated against `packages/keel-invariants/src/schemas/plan.schema.json`,
+So that the plan file is machine-parseable and structure drift is rejected at pre-commit (FR14k plan side).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/src/schemas/plan.schema.json`,
+**When** I inspect it,
+**Then** it defines the plan-file shape: `{ now: Task[], queue: Task[], blocked: Task[], done: Task[], context: string }`
+**And** each Task shape includes `{ id, title, required_tests: RequiredTest[], created_at, status }`.
+
+**Given** the plan-file template,
+**When** a fresh fork materialises `.ralph/@plan.md`,
+**Then** the file has H2 headers for each section in the pinned order (NOW, QUEUE, BLOCKED, DONE, Context)
+**And** order cannot be rearranged without schema violation.
+
+**Given** a pre-commit hook validates `@plan.md`,
+**When** a commit edits it,
+**Then** the hook runs `check-plan-schema.ts` against `plan.schema.json`
+**And** schema violations reject the commit.
+
+**Given** fix tasks,
+**When** Ralph queues a fix,
+**Then** the fix task goes at QUEUE **top** (not bottom)
+**And** this ordering rule is encoded in the schema and enforced at validation.
+
+**Given** the context section,
+**When** Ralph updates it,
+**Then** the section is append-only per the RS6 lint guardrails (Story 3.23)
+**And** historical entries are immutable.
+
+##### Story 3.9: `.ralph/halt` pinned JSON schema + closed reason enum
+
+As a substrate maintainer,
+I want `.ralph/halt` to carry pinned JSON `{reason, epic, pr, iteration_id, timestamp}` with a closed reason enum (`EPIC_DONE | AWAIT_MERGE | BUDGET_EXHAUSTED | CI_BLOCKED | SECURITY_CRITICAL | RALPH_STAGE_REGRESSION`), schema at `packages/keel-invariants/src/schemas/halt.schema.json`,
+So that halt handling is machine-readable and unknown reasons cannot leak into the pipeline (FR14k halt side + RS3 new reason).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/src/schemas/halt.schema.json`,
+**When** I inspect it,
+**Then** the schema defines the 5 fields (reason, epic, pr, iteration_id, timestamp) with types
+**And** `reason` is `enum` with values `EPIC_DONE | AWAIT_MERGE | BUDGET_EXHAUSTED | CI_BLOCKED | SECURITY_CRITICAL | RALPH_STAGE_REGRESSION`.
+
+**Given** Ralph writes `.ralph/halt`,
+**When** the JSON is emitted,
+**Then** it validates against the schema
+**And** an unknown reason causes Ralph to refuse the write and instead emit `SECURITY_CRITICAL` with a sub-reason for visibility.
+
+**Given** the TUI reads `.ralph/halt`,
+**When** a halt occurs,
+**Then** the TUI's halt banner (Story 3.33) displays the reason + context.
+
+**Given** Ralph is restarted after a halt,
+**When** `.ralph/halt` exists,
+**Then** Ralph refuses to start a new iteration
+**And** exits with the halt reason
+**And** the halt sentinel must be explicitly cleared (manual delete, or `pnpm ralph:stop` with a new reason).
+
+**Given** the schema is in the invariants manifest,
+**When** Story 1.8 tracks it,
+**Then** `INV-ralph-halt-schema` registers it
+**And** adding/removing a reason without manifest+docs update fails the sync gate (Story 1.9).
+
+##### Story 3.10: Native Claude Code task list as crash journal
+
+As Ralph,
+I want the native Claude Code task list (via `CLAUDE_CODE_TASK_LIST_ID` env) used as a crash journal — max 3 active tasks, survives hard kills, hydrated by orient step 7,
+So that if the devbox crashes or Ralph is force-killed, the next iteration recovers in-flight work without state loss (FR14k).
+
+**Acceptance Criteria:**
+
+**Given** the Ralph harness starts,
+**When** the first iteration begins,
+**Then** `CLAUDE_CODE_TASK_LIST_ID` is set (inherited or generated) and all subsequent iterations in the same session use it
+**And** the native task list is scoped to Ralph's session.
+
+**Given** the 3-active-task cap,
+**When** Ralph tries to create a 4th active task,
+**Then** the oldest "in-progress" task is first marked `pending` or completed
+**And** the cap is never exceeded.
+
+**Given** Ralph is force-killed mid-iteration,
+**When** Ralph restarts,
+**Then** orient step 7 queries the native task list via Claude Code API
+**And** in-flight tasks are surfaced as the resumption point for the current iteration.
+
+**Given** a normal iteration completes,
+**When** the task is marked done,
+**Then** the task-list entry transitions to `completed`
+**And** the `done` entry is preserved in the list (not deleted) for audit.
+
+**Given** the task list is long-lived,
+**When** it exceeds a size cap (e.g., 100 entries),
+**Then** completed entries older than a threshold are archived or pruned per a documented policy.
+
+##### Story 3.11: `Required tests:` manifest (content-hashed, append-only, stable test-ID) in @plan.md
+
+As Ralph,
+I want every task in `.ralph/@plan.md` to carry a `Required tests:` manifest as a fenced `<!-- task:auto:<id> -->` block with entries `{id, path, hash}` and a `manifest_hash` footer, content-hashed + append-only within a task-open→task-done window,
+So that tests required by a task cannot be silently dropped or weakened (FR14a + FR14a2).
+
+**Acceptance Criteria:**
+
+**Given** a task in `.ralph/@plan.md`,
+**When** I inspect it,
+**Then** a fenced block `<!-- task:auto:<task-id> -->` wraps a `Required tests:` list
+**And** each entry has `{id: "<path>::<fully-qualified-test-name>", path: "<path>", hash: "<sha256-of-assertion-body>"}`.
+
+**Given** the block has a footer,
+**When** I read it,
+**Then** `<!-- manifest_hash: <sha256-of-all-entries> -->` concludes the block
+**And** the manifest_hash is deterministically derivable from the entries.
+
+**Given** the append-only invariant,
+**When** Ralph edits a task's manifest mid-iteration (task still open),
+**Then** only appending new entries is allowed
+**And** removing or renaming an existing entry requires an `expand:` annotation (Story 3.12).
+
+**Given** `plan.schema.json` from Story 3.8,
+**When** it validates `@plan.md`,
+**Then** the fenced block structure is validated
+**And** missing entries or malformed hashes fail schema validation.
+
+**Given** a test's assertion body is modified in source,
+**When** the manifest is consulted,
+**Then** the stored `hash` is the hash captured at task-open (not real-time) — this enables the pre-merge-fast gate (Story 3.13) to detect mid-task mutation.
+
+##### Story 3.12: Authorship separation + `expand:` countersignature
+
+As a substrate maintainer,
+I want the planning skills (`bmad-create-story`, `bmad-agent-dev` in planner role) to be the ONLY authors of the `Required tests:` manifest, with build-mode agents strictly read-only; mid-task additions/removals require an `expand:` annotation countersigned by the planning skill on the next iteration,
+So that a build-mode agent cannot quietly weaken its own test requirements (FR14a1).
+
+**Acceptance Criteria:**
+
+**Given** a build-mode iteration (Ralph invoking `bmad-dev-story` or similar),
+**When** the agent attempts to modify the `Required tests:` manifest within the fenced block,
+**Then** the pre-commit hook rejects the edit
+**And** the commit fails with a "manifest-authorship-violation" message.
+
+**Given** a build-mode agent discovers a missing required test mid-iteration,
+**When** it needs to add a test,
+**Then** it logs an `expand: { reason, proposed_entries[] }` event in `.ralph/logs/<iter-id>/expand-requests.jsonl`
+**And** the iteration exits with the request for the next iteration.
+
+**Given** the next iteration runs,
+**When** a planning skill (orient detects the expand request) executes,
+**Then** the planning skill reviews the request and countersigns by adding the entries to the manifest with a `<!-- countersigned: <planning-skill-id> -->` annotation
+**And** the build iteration can resume with the updated manifest.
+
+**Given** an expand request without countersignature,
+**When** the following iteration detects it,
+**Then** the iteration halts until a planning-skill countersignature is added
+**And** this prevents "eventually give up and run without the missing test."
+
+**Given** the invariant is registered,
+**When** Story 1.8 tracks it,
+**Then** `INV-ralph-manifest-authorship-separation` is in the manifest.
+
+##### Story 3.13: Pre-merge-fast manifest integrity gate
+
+As a substrate maintainer,
+I want a pre-merge-fast gate that inspects every task's `Required tests:` manifest, rejecting shrinkage, rename, or hash-mutation without a signed `expand:` annotation countersigned by a planning skill,
+So that manifest tampering is impossible during PR review (FR14a2 teeth).
+
+**Acceptance Criteria:**
+
+**Given** a PR modifies `.ralph/@plan.md`,
+**When** the pre-merge-fast job runs,
+**Then** a script walks every task's fenced manifest block and compares against the base-branch version.
+
+**Given** a manifest entry was removed,
+**When** the comparison runs,
+**Then** the gate fails unless the change is accompanied by a countersigned `expand:` annotation
+**And** the failure message names the removed test ID.
+
+**Given** a manifest entry was renamed,
+**When** the comparison runs,
+**Then** the gate fails (same rule as removal).
+
+**Given** a manifest entry's `hash` was mutated without a corresponding stable-test-body change,
+**When** the comparison runs,
+**Then** the gate fails — this catches "silently lowered assertion strength."
+
+**Given** a well-formed expand (new entries added + countersigned),
+**When** the comparison runs,
+**Then** additions are allowed
+**And** the gate passes.
+
+**Given** the gate is part of pre-merge-fast (Epic 13),
+**When** Epic 13 wires the CI workflow,
+**Then** this gate runs before RLS tests + import-boundary tests
+**And** failure blocks PR merge.
+
+##### Story 3.14: Mutation-floor contract at 1.0 (warn-mode; stryker/mutmut scanner + report)
+
+As a substrate maintainer,
+I want the `Required tests:` manifest to support a `mutation_floor: 0.80` flag for tasks tagged `high-risk` (RLS policies, generator `expand`, webhook-sig, auth/session, billing-state), with a nightly stryker (TS) / mutmut (Python) scanner emitting a mutation-kill report — enforcement mode `warn` at 1.0, `fail` deferred to 1.x (M1 party-mode amendment),
+So that the mutation-testing contract ships at 1.0 without premature fail-mode friction (FR14a3, M1).
+
+**Acceptance Criteria:**
+
+**Given** the manifest schema (Story 3.11),
+**When** I add a `mutation_floor` field to the task shape,
+**Then** the field is optional; default absent; value is a number 0.0–1.0
+**And** tasks tagged `high-risk: true` SHOULD set `mutation_floor: 0.80`.
+
+**Given** a nightly scanner job,
+**When** it runs against high-risk slices,
+**Then** it invokes `stryker` (TypeScript) or `mutmut` (Python) per file language
+**And** emits a report at `.ralph/logs/nightly-<date>/mutation-report.json` with `{task_id, mutant_kill_ratio, killed[], survived[]}`.
+
+**Given** a task's mutation kill ratio is below its `mutation_floor`,
+**When** the scanner completes,
+**Then** the report records the miss
+**And** at 1.0 the scanner exits zero (warn mode) with the miss logged to `security-evidence.json` (Epic 4) as `severity: low`.
+
+**Given** 1.x enforcement is deferred,
+**When** NFR28b empirical baseline lands,
+**Then** a dedicated 1.x epic flips the enforcement mode to `fail`
+**And** this story ships the contract parse path only.
+
+**Given** the `mutation_floor` field lands in `plan.schema.json`,
+**When** Story 3.13's pre-merge-fast gate validates,
+**Then** malformed values (> 1.0, < 0.0, non-numeric) fail schema validation.
+
+**Given** high-risk slices are enumerated,
+**When** I read `docs/invariants/high-risk-slices.md` (part of this story),
+**Then** the 5 categories are listed: RLS, generator expand paths, webhook signature verification, auth/session, billing-state.
+
+##### Story 3.15: Per-iteration context meter
+
+As Ralph,
+I want structured context-utilisation metrics per iteration written to `.ralph/logs/<iteration-id>/context-meter.json` — advertised-vs-usable context window, specs load, orient load, execute load, output load, percentage utilisation,
+So that 40–60% smart-zone targeting (NFR4a) is observable and >80% utilisation triggers clean exit (FR14d).
+
+**Acceptance Criteria:**
+
+**Given** an iteration is mid-execute,
+**When** Ralph samples context usage,
+**Then** `.ralph/logs/<iter-id>/context-meter.json` is updated with `{advertised_window, usable_window, specs_load, orient_load, execute_load, output_load, utilisation_pct, timestamp}`.
+
+**Given** utilisation exceeds 80%,
+**When** the meter updates,
+**Then** Ralph triggers a clean exit (finish current task; commit; push; exit; don't start the next task)
+**And** the exit reason is logged as budget-driven (not halt; controlled end-of-iteration).
+
+**Given** utilisation is between 60–80%,
+**When** the meter updates,
+**Then** a flag is raised in the TUI (Story 3.33 halt banner pre-cursor) for drift observability
+**And** Ralph continues the iteration.
+
+**Given** utilisation is below 30%,
+**When** the meter updates,
+**Then** Ralph flags the iteration as under-utilised in `.ralph/logs/<iter-id>/notes.jsonl`
+**And** this feeds Epic 14's research corpus for "are we leaving budget on the table?" analysis.
+
+**Given** the meter schema is invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-ralph-context-meter-schema` is registered.
+
+##### Story 3.16: Execution budget headroom (25K push-buffer; XL decomposition; exhaustion signals)
+
+As Ralph,
+I want a 25K push-buffer reserved at every iteration end; an iteration with <25K remaining exits cleanly; XL tasks (≥60K tokens) are decomposed pre-start; context-exhaustion signals (repeated tool-call failures, truncated subagent responses, ≥3 retries without progress) trigger immediate clean exit,
+So that budget exhaustion never strands an iteration mid-commit (NFR4b).
+
+**Acceptance Criteria:**
+
+**Given** the context meter (Story 3.15),
+**When** advertised window minus utilisation drops below 25K,
+**Then** Ralph exits cleanly — finishes the current sub-step, commits what's safe to commit, pushes, exits.
+
+**Given** an XL task estimate,
+**When** orient (Story 3.5) sees a task ≥60K,
+**Then** the task is decomposed into smaller tasks in `.ralph/@plan.md`
+**And** the current iteration exits without executing the XL task.
+
+**Given** exhaustion signals,
+**When** any of these trigger — repeated (≥3) tool-call failures on the same call; truncated subagent responses; ≥3 retries without measurable progress —
+**Then** Ralph triggers an immediate clean exit
+**And** a note is logged to `.ralph/logs/<iter-id>/notes.jsonl` with the trigger type.
+
+**Given** tokenizer differences (NFR4),
+**When** the substrate is retuned for a new model generation (Opus 4.7 vs 4.6: ~35% more tokens/byte),
+**Then** the 25K push-buffer and 60K XL threshold are re-baselined per the tested model
+**And** the values are configurable in `.ralph/config.toml` with sane defaults for Opus 4.7.
+
+##### Story 3.17: Halt on consecutive same-test failures (default N=3)
+
+As a substrate maintainer,
+I want Ralph to halt the loop on N consecutive failures of the SAME test (identified by stable test-ID, counted across iterations within a single session), where N is configurable via `.ralph/config.toml` (`halt_on_same_test_fails`, default N=3),
+So that repeated flaky or genuine failures don't burn budget indefinitely (FR8, FR14l).
+
+**Acceptance Criteria:**
+
+**Given** `.ralph/config.toml`,
+**When** I inspect it,
+**Then** `halt_on_same_test_fails = 3` is set with an inline comment explaining the semantic.
+
+**Given** a test fails in iteration N with stable test-ID `T`,
+**When** the same test fails in iterations N+1 and N+2 (all with test-ID `T`),
+**Then** after the 3rd consecutive failure, Ralph writes `.ralph/halt` with `reason: "SECURITY_CRITICAL"` if test is tagged high-risk, else a generic budget-exhaustion-adjacent reason
+**And** the halt payload includes `{failing_test_id: T, fail_count: 3}`.
+
+**Given** intermittent failures (test fails, passes, fails, passes),
+**When** counted,
+**Then** the counter resets on a pass
+**And** the halt is never triggered.
+
+**Given** different tests failing,
+**When** test A fails, then B, then A,
+**Then** A's counter is 2 (non-consecutive; counter semantics documented as "consecutive" per test-ID)
+**And** halt is not triggered for A until A fails 3 in a row with no intervening pass.
+
+**Given** N is fork-configurable,
+**When** a fork operator sets `halt_on_same_test_fails = 5`,
+**Then** Ralph honours the fork's value
+**And** reviews at M9 against observed false-halt / missed-halt rates (Epic 14 terrain).
+
+##### Story 3.18: Halt on task-budget exhaustion
+
+As Ralph,
+I want to halt the loop on task-budget exhaustion per iteration, using the model-visible `task_budget` advisory counter (beta header `task-budgets-2026-03-13`, ≥ 20K) where available and `max_tokens` as the hard invisible ceiling,
+So that budget is bounded per iteration and exhaustion is observable (FR9).
+
+**Acceptance Criteria:**
+
+**Given** the Claude API supports the `task-budgets-2026-03-13` beta header,
+**When** Ralph spawns `claude -p`,
+**Then** the header is passed
+**And** `task_budget` is set to a minimum of 20K tokens for build iterations (configurable in `.ralph/config.toml`).
+
+**Given** the `task_budget` is exceeded mid-iteration,
+**When** the model-visible counter hits zero,
+**Then** the model receives a budget-exhaustion signal
+**And** Ralph halts with `reason: "BUDGET_EXHAUSTED"` + metadata on which budget triggered.
+
+**Given** the hard `max_tokens` ceiling,
+**When** the iteration exceeds it,
+**Then** the subprocess terminates with a `max_tokens` stop reason
+**And** Story 3.19 distinguishes this from `model_context_window_exceeded` in halt branching.
+
+**Given** the API does NOT support the beta header,
+**When** Ralph detects absence,
+**Then** Ralph falls back to `max_tokens` as the only budget mechanism
+**And** logs the degraded mode.
+
+**Given** the budget-exhaustion halt,
+**When** written,
+**Then** `.ralph/halt` contains `{reason: "BUDGET_EXHAUSTED", epic, pr, iteration_id, timestamp, exhaustion_type: "task_budget" | "max_tokens"}`.
+
+##### Story 3.19: Halt branching (`max_tokens` vs `model_context_window_exceeded`)
+
+As a substrate maintainer,
+I want Ralph to branch halt handling between `max_tokens` and `model_context_window_exceeded` stop reasons, persisting which applied to each iteration for budget-re-baseline analysis,
+So that empirical budget data feeds NFR4 tokenizer-aware re-baselining per model generation (FR9a).
+
+**Acceptance Criteria:**
+
+**Given** the subprocess exits,
+**When** the stream-json stop-reason is `max_tokens`,
+**Then** Ralph logs `{stop_reason: "max_tokens", iteration_id, advertised_window, used_tokens}` to `.ralph/logs/<iter-id>/stop-reason.json`.
+
+**Given** the subprocess exits,
+**When** the stream-json stop-reason is `model_context_window_exceeded`,
+**Then** Ralph logs `{stop_reason: "model_context_window_exceeded", iteration_id, advertised_window, used_tokens}`
+**And** the two reasons are distinguished in the halt payload and research corpus.
+
+**Given** Epic 14 consumes stop-reason logs,
+**When** the research corpus aggregates them,
+**Then** the distribution of max_tokens vs model_context_window_exceeded across iterations informs NFR4 re-baselining.
+
+**Given** the branching is in the halt schema,
+**When** Story 3.9's halt JSON is written,
+**Then** `{reason: "BUDGET_EXHAUSTED", exhaustion_type: "max_tokens" | "model_context_window_exceeded"}` is carried
+**And** the enum for `exhaustion_type` is pinned.
+
+##### Story 3.20: Subagent fan-out budget + 1-Sonnet-per-build/test/lint invariant
+
+As a substrate maintainer,
+I want a substrate-default subagent fan-out cap of 250 Sonnet-class parallel subagents (ceiling 500), with a non-toggle-able invariant of at most 1 Sonnet subagent per build, test, or lint command per iteration,
+So that parallel read/search is leveraged while build/test/lint coherence is preserved (FR14c).
+
+**Acceptance Criteria:**
+
+**Given** `PROMPT_build.template.md`,
+**When** I read the subagent section,
+**Then** the cap `default_subagent_fan_out: 250` and `ceiling: 500` are pinned in the template
+**And** forks can tune down but not above the ceiling.
+
+**Given** the 1-Sonnet invariant,
+**When** I read the prompt contract,
+**Then** "for each build/test/lint command, exactly one Sonnet subagent" is pinned verbatim
+**And** registered in Story 1.8's manifest as `INV-ralph-subagent-build-test-lint-serial`.
+
+**Given** Ralph attempts to spawn 2 parallel `pnpm test` subagents,
+**When** the invariant is checked (at prompt contract layer),
+**Then** the spawning is rejected
+**And** Ralph halts or exits cleanly (prompt contract enforcement).
+
+**Given** parallel read/search subagents,
+**When** Ralph spawns 100 Sonnet Read-only subagents,
+**Then** they run concurrently up to the 250 default cap
+**And** no invariant is violated.
+
+**Given** the cap is configurable,
+**When** `.ralph/config.toml` sets a different `default_subagent_fan_out`,
+**Then** Ralph honours the fork's value within [1, 500] range
+**And** out-of-range values are rejected at config load.
+
+##### Story 3.21: Plan-staleness trigger + auto plan-mode regeneration
+
+As Ralph,
+I want to detect plan staleness — 5 no-progress iterations OR 72h since plan-artefact was last updated — and auto-schedule a plan-mode regeneration as the next iteration,
+So that stuck build-mode loops don't burn budget on an outdated plan (FR14b).
+
+**Acceptance Criteria:**
+
+**Given** orient step 2 reads `.ralph/@plan.md`,
+**When** Ralph tracks progress,
+**Then** a counter `no_progress_iterations` increments each iteration where no NOW task transitions to DONE
+**And** the counter resets on a DONE transition.
+
+**Given** `no_progress_iterations >= 5`,
+**When** the next iteration starts,
+**Then** Ralph schedules a plan-mode regeneration as the NOW task
+**And** auto-invokes `pnpm ralph:plan` (or equivalent flow within build mode).
+
+**Given** the plan-artefact file's mtime is older than 72 hours,
+**When** the next iteration starts,
+**Then** Ralph schedules a plan-mode regeneration
+**And** the trigger reason is logged as `plan_staleness_age`.
+
+**Given** both triggers are configurable,
+**When** `.ralph/config.toml` sets `plan_staleness_no_progress_threshold = 10` or `plan_staleness_age_hours = 96`,
+**Then** Ralph honours the fork's values.
+
+**Given** a plan-mode regeneration runs,
+**When** it completes,
+**Then** the no-progress counter resets
+**And** the plan-artefact mtime updates.
+
+##### Story 3.22: Knowledge-file upkeep contract (FR14j warn-on-no-update)
+
+As a substrate maintainer,
+I want a pre-commit hook that emits a warning (not a hard fail) if none of `AGENTS.md` / `CLAUDE.md` / `RALPH.md` changed AND no justification is in the commit body,
+So that knowledge-file upkeep is prompted but not blocked — preserves agent velocity while building observability into "are we learning?" (FR14j).
+
+**Acceptance Criteria:**
+
+**Given** a commit is made,
+**When** the pre-commit hook runs,
+**Then** it diffs the commit against HEAD and checks if any of `AGENTS.md`, `CLAUDE.md`, `RALPH.md` were modified.
+
+**Given** no knowledge file was modified AND no `Knowledge-files-no-change: <reason>` trailer in the commit body,
+**When** the hook runs,
+**Then** a warning is surfaced (stderr; does NOT block the commit)
+**And** the warning is logged to `.ralph/logs/<iter-id>/knowledge-warnings.jsonl`.
+
+**Given** a knowledge file WAS modified OR the trailer is present,
+**When** the hook runs,
+**Then** the hook exits silently (no warning).
+
+**Given** Ralph iterations accumulate warnings,
+**When** Epic 14's research corpus aggregates them,
+**Then** a metric `knowledge_file_update_rate` tracks iteration-to-update ratio.
+
+**Given** the trailer format,
+**When** documented in `AGENTS.md`,
+**Then** `Knowledge-files-no-change: <reason>` appears as the canonical form (e.g., `Knowledge-files-no-change: trivial refactor`, `Knowledge-files-no-change: test fix`).
+
+##### Story 3.23: L3 lint guardrails (`tools/lint-knowledge-files.ts`)
+
+As a substrate maintainer,
+I want a pre-commit lint `tools/lint-knowledge-files.ts` that enforces RALPH.md size cap (500 lines; rotate to `docs/research/ralph-journal/RALPH-archive-YYYY-MM.md`), rejects H1 heading changes (anchor stability), rejects fenced `## SYSTEM` blocks or instruction-like imperatives, enforces URL allowlist, and caps diff size per commit (flag > 200-line edits),
+So that L3 knowledge-file drift cannot poison the Ralph context window (RS6).
+
+**Acceptance Criteria:**
+
+**Given** `tools/lint-knowledge-files.ts`,
+**When** I inspect it,
+**Then** the script is a pure TypeScript file invoked by pre-commit
+**And** it walks `AGENTS.md`, `CLAUDE.md`, `RALPH.md`, `.ralph/@plan.md` (entries only, not schema).
+
+**Given** RALPH.md exceeds 500 lines,
+**When** the linter runs,
+**Then** it emits a hard error with a pointer: "rotate RALPH.md to `docs/research/ralph-journal/RALPH-archive-<YYYY-MM>.md`"
+**And** the commit is rejected.
+
+**Given** a commit modifies an H1 heading in any knowledge file,
+**When** the linter runs,
+**Then** the commit is rejected with "H1 anchor stability violation" — preserves cross-file anchor links.
+
+**Given** a commit introduces `## SYSTEM` or instruction-imperative patterns like `IGNORE PREVIOUS`, `YOU ARE NOW`,
+**When** the linter runs,
+**Then** the commit is rejected with "instruction-injection pattern" (feeds the S4 scan from Epic 4).
+
+**Given** an external URL is added to `AGENTS.md` or `CLAUDE.md`,
+**When** the linter runs,
+**Then** the commit is rejected (knowledge files are internal references only; external URLs live in `RALPH.md` which only accepts internal doc paths).
+
+**Given** a commit's knowledge-file diff exceeds 200 lines,
+**When** the linter runs,
+**Then** a warning is emitted
+**And** the commit continues (warn-only for large diffs; reviewer's discretion).
+
+**Given** `.ralph/@plan.md` entries,
+**When** a commit modifies existing entries (not just appends new ones),
+**Then** the linter rejects the commit — entries are append-only per FR14a2 pattern.
+
+##### Story 3.24: `.ralph-safe-set.yaml` manifest + `tools/check-safe-set.ts` + orient self-awareness
+
+As Ralph,
+I want `.ralph-safe-set.yaml` at the repo root enumerating the 3 safe-set layers (L1 install-boundary / L2 auto-merge-on-validation / L3 lint-gated editable), a `tools/check-safe-set.ts` pre-commit hook that routes staged paths per layer, and orient-step-3 reading the manifest so Ralph knows its own safety boundary,
+So that self-modification is machine-enforced and Ralph is self-aware of what it can freely edit (RS7).
+
+**Acceptance Criteria:**
+
+**Given** `.ralph-safe-set.yaml`,
+**When** I inspect it,
+**Then** three top-level keys exist: `layer1_install_boundary`, `layer2_auto_merge_on_validation`, `layer3_ralph_editable_lint_gated`
+**And** each key lists path globs per the RS7 reference.
+
+**Given** `tools/check-safe-set.ts`,
+**When** a pre-commit hook invokes it,
+**Then** staged paths are classified into L1/L2/L3
+**And** L1 edits in non-stage-upgrade commits are rejected (see Story 3.27 for the stage-upgrade escape)
+**And** L2 edits are routed to Story 3.25's bootstrap-validation
+**And** L3 edits are allowed through Story 3.23's lint.
+
+**Given** Ralph's orient step 3 (Story 3.4),
+**When** Ralph reads knowledge files,
+**Then** it ALSO reads `.ralph-safe-set.yaml`
+**And** surfaces the layer map in the iteration context — Ralph "knows" which files are safe to edit.
+
+**Given** the manifest is an invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-ralph-safe-set-manifest` is registered
+**And** drift is caught by Story 1.9.
+
+**Given** a fork operator wants to add fork-specific paths to a layer,
+**When** they edit `.ralph-safe-set.yaml` within documented additions,
+**Then** the manifest accepts the additions
+**And** forks cannot downgrade a path from L1 to L3 (only upgrade or leave substrate paths as-is).
+
+##### Story 3.25: L2 auto-merge on bootstrap-validation pass (fail → `RALPH_STAGE_REGRESSION`)
+
+As Ralph,
+I want commits that edit L2 files (per Story 3.24's manifest) to trigger a pre-merge-slow path-filtered bootstrap-validation — pass → PR auto-mergeable; fail → halt with new `RALPH_STAGE_REGRESSION` reason for Tthew review,
+So that self-referential prompt/schema changes gate on validation automatically without human-in-the-loop friction (RS3).
+
+**Acceptance Criteria:**
+
+**Given** a commit touches any L2 path,
+**When** the PR pre-merge-slow workflow runs,
+**Then** the workflow path-filters to run ONLY the bootstrap-validation steps (Story 3.26) — not the full pre-merge-slow suite
+**And** a pass enables auto-merge per the L2 policy.
+
+**Given** the bootstrap-validation passes,
+**When** the PR is otherwise green,
+**Then** auto-merge fires (GitHub auto-merge on pass)
+**And** Ralph's next iteration continues.
+
+**Given** the bootstrap-validation fails,
+**When** the workflow completes,
+**Then** Ralph's halt-detection reads the CI result
+**And** writes `.ralph/halt` with `reason: "RALPH_STAGE_REGRESSION"`
+**And** the halt payload includes the failing validation step.
+
+**Given** `RALPH_STAGE_REGRESSION` is a new halt reason,
+**When** Story 3.9's halt schema is consulted,
+**Then** it is included in the closed enum
+**And** its semantics are documented in `docs/invariants/ralph-halt-reasons.md`.
+
+**Given** Tthew reviews a `RALPH_STAGE_REGRESSION` halt,
+**When** they resolve the regression manually,
+**Then** they clear `.ralph/halt` and push the fix
+**And** a post-mortem entry is added to `RALPH.md` (research corpus).
+
+##### Story 3.26: Bootstrap-validation at 1.0 (schema-parse + 30s minimum smoke iteration)
+
+As a substrate maintainer,
+I want bootstrap-validation to consist of (a) schema-parse — prompts/plan/halt all parse cleanly — and (b) minimum smoke iteration — 30s synthetic iteration where Ralph orient reads a fixture `@plan.md` with a trivial task, first tool call is `Read` or `Bash`, halt reason matches expected,
+So that L2 auto-merge has a fast, real signal at 1.0 without the full structural-invariants oracle (deferred to 1.1 per Murat) (RS4, RS10).
+
+**Acceptance Criteria:**
+
+**Given** a bootstrap-validation run,
+**When** step (a) schema-parse executes,
+**Then** `PROMPT_build.md` + `PROMPT_plan.md` parse cleanly as markdown + frontmatter
+**And** `@plan.md` validates against `plan.schema.json`
+**And** `halt.schema.json` parses as valid JSON Schema.
+
+**Given** step (b) minimum smoke iteration,
+**When** it executes,
+**Then** a 30-second synthetic Ralph iteration runs with a fixture `@plan.md` containing a trivial task (e.g., "Read this file and exit")
+**And** the iteration's first tool call is `Read` or `Bash` (asserted by reading the stream-json log)
+**And** the halt reason matches the expected synthetic-halt (e.g., `EPIC_DONE` for a one-task fixture).
+
+**Given** either (a) or (b) fails,
+**When** bootstrap-validation completes,
+**Then** the workflow exits non-zero
+**And** Story 3.25 translates this to `RALPH_STAGE_REGRESSION`.
+
+**Given** the full structural-invariants oracle (Murat's k=3 / 2-of-3-match / tool-call-graph / file-path-write / state-transition assertions),
+**When** considered at 1.0,
+**Then** it is documented as 1.1-deferred in `docs/invariants/ralph-validation-roadmap.md`
+**And** this story ships only the schema-parse + minimum smoke.
+
+**Given** the 30s fixture,
+**When** it's maintained,
+**Then** the fixture lives at `packages/ralph/tests/bootstrap/fixtures/@plan.md` + expected `halt.json`.
+
+##### Story 3.27: Ralph stage-upgrade story class (ralph-version.json bump; pre-merge-slow; reinstall)
+
+As Tthew (or Ralph under L1 boundary),
+I want a dedicated story class `ralph-stage-upgrade` that bumps `ralph-version.json` → commits → pre-merge-slow runs bootstrap-validation on the proposed snapshot → pass → next devbox startup reinstalls from the new pin → stage-N+1 runs,
+So that L1 runtime-code upgrades follow a controlled path distinct from L2/L3 iteration work (RS2 stage-upgrade).
+
+**Acceptance Criteria:**
+
+**Given** a story tagged `ralph-stage-upgrade`,
+**When** orient (Story 3.4) reads it,
+**Then** the task is recognised as an L1-permitted edit
+**And** Story 3.24's check-safe-set allows L1 path modifications ONLY in this story class.
+
+**Given** the story's execute phase,
+**When** Ralph (or Tthew) runs the upgrade,
+**Then** `packages/ralph/src/` is edited + `packages/devbox/ralph-version.json` is bumped + a commit is made
+**And** the commit message carries `ralph-stage-upgrade:` prefix for machine identification.
+
+**Given** the PR pre-merge-slow,
+**When** it runs,
+**Then** bootstrap-validation (Story 3.26) runs against the proposed snapshot (simulated install from `packages/ralph/` at the new version)
+**And** a pass allows merge.
+
+**Given** merge lands,
+**When** the devbox is next started,
+**Then** the entrypoint (Story 3.1) reinstalls from the new pin
+**And** stage-N+1 Ralph runs in subsequent iterations.
+
+**Given** a fork operator wants to run a stage-upgrade story,
+**When** they follow the documented flow in `AGENTS.md`,
+**Then** the flow is unambiguous (single commit style; PR check requirements; devbox-restart trigger).
+
+**Given** bootstrap-validation fails on a stage-upgrade PR,
+**When** the result surfaces,
+**Then** the PR is blocked and Tthew reviews
+**And** the halt reason (if Ralph had been running) would be `RALPH_STAGE_REGRESSION`.
+
+##### Story 3.28: Ralph operator commands (detach / `pnpm ralph:status` / `pnpm ralph:stop`)
+
+As a fork operator,
+I want operator commands for Ralph — `Ctrl+P Ctrl+Q` detach (without killing the loop), `pnpm ralph:status` to query state without attaching, `pnpm ralph:stop` to halt cleanly by writing `.ralph/halt` with `reason: "EPIC_DONE"`,
+So that I can observe + control the Ralph loop from the host without interrupting it (FR10, FR11, FR12).
+
+**Acceptance Criteria:**
+
+**Given** Ralph is attached via TUI inside the devbox,
+**When** I press `Ctrl+P Ctrl+Q`,
+**Then** `docker attach`'s detach sequence fires
+**And** I return to the host shell without killing the container or the Ralph loop
+**And** re-attaching via `pnpm devbox:attach` (or `pnpm ralph:build` with Ralph already running) preserves TUI state.
+
+**Given** `pnpm ralph:status`,
+**When** I run it from the host,
+**Then** it reads `.ralph/logs/<current>/status.json` (a file Ralph updates each iteration with `{iteration_id, now_task, queue_depth, budget_remaining, last_halt_reason}`)
+**And** prints a human-readable summary without requiring container attach.
+
+**Given** `.ralph/logs/<current>/status.json` is written by Ralph,
+**When** each iteration exits,
+**Then** the file is updated atomically (temp-file + rename)
+**And** `pnpm ralph:status` never reads a partial write.
+
+**Given** `pnpm ralph:stop`,
+**When** I run it,
+**Then** the command writes `.ralph/halt` with `{reason: "EPIC_DONE", iteration_id: <current>, timestamp}` (or `BUDGET_EXHAUSTED` if specified via `--reason`)
+**And** the next iteration honours the halt and exits.
+
+**Given** `pnpm ralph:stop --force`,
+**When** I run it,
+**Then** the current iteration is also force-killed (docker exec SIGKILL)
+**And** Ralph's crash journal (Story 3.10) enables the next start to recover.
+
+##### Story 3.29: Stream-json iteration logs (`thinking.display = "summarized"`)
+
+As a substrate maintainer,
+I want Ralph to persist iteration logs in `stream-json` format at `.ralph/logs/<iter-id>/iteration.jsonl` with `thinking.display = "summarized"` enabled (per Opus 4.7 defaults), per-iteration ID, timestamps, Claude exit status, and test results,
+So that every iteration is replayable and debuggable (FR13, NFR33).
+
+**Acceptance Criteria:**
+
+**Given** a Ralph iteration,
+**When** `claude -p` runs,
+**Then** `--output-format stream-json` is passed
+**And** `--thinking-display summarized` is passed (or equivalent config).
+
+**Given** stream-json lines emit,
+**When** Ralph reads stdout,
+**Then** each line is written verbatim to `.ralph/logs/<iter-id>/iteration.jsonl`
+**And** the file is append-only within an iteration.
+
+**Given** the iteration completes,
+**When** the subprocess exits,
+**Then** a final metadata entry is appended: `{iteration_id, started_at, ended_at, claude_exit_status, stop_reason, test_results: [...]}`.
+
+**Given** an iteration is force-killed,
+**When** Ralph restarts,
+**Then** the log is still readable (no corrupt partial lines)
+**And** orient step 7 (Story 3.4 / Story 3.10) uses the log to hydrate.
+
+**Given** `thinking.display = "summarized"` per NFR33,
+**When** the log is inspected,
+**Then** thinking blocks appear in summarized form (concise rather than verbose raw thinking)
+**And** this reduces log size without losing the decision trace.
+
+##### Story 3.30: Atomic iteration commits (NFR26 pre-commit green-only gate)
+
+As a substrate maintainer,
+I want a pre-commit gate that rejects partial-state commits — an iteration commits ONLY a green-test + green-security-evidence state or leaves the repo unchanged,
+So that iteration atomicity is machine-enforced and half-finished work never lands on main (NFR26).
+
+**Acceptance Criteria:**
+
+**Given** a pre-commit hook,
+**When** a commit runs,
+**Then** the hook verifies:
+- Every test in the current iteration's `Required tests:` manifest passes
+- `security-evidence.json` has `halt_required: false` and `overall_severity_max` below the threshold
+
+**And** a failure at either check rejects the commit.
+
+**Given** a green state,
+**When** the hook completes,
+**Then** the commit lands normally.
+
+**Given** an iteration fails mid-execute,
+**When** Ralph exits without calling commit,
+**Then** the working tree may be dirty but nothing lands — next iteration's orient picks up the stale state and decides recovery (rebase, discard, or fix).
+
+**Given** the invariant `INV-ralph-atomic-iteration-commit`,
+**When** Story 1.8 tracks it,
+**Then** the hook source + its invocation path are registered
+**And** drift is caught by Story 1.9.
+
+**Given** a fork operator wants to override (e.g., for a WIP branch),
+**When** they attempt `git commit --no-verify`,
+**Then** Story 2.16's hook self-protection intercepts the flag
+**And** the commit is blocked (no WIP escape).
+
+##### Story 3.31: LLM-as-judge pattern contract (`lib/llm-review.ts`; Growth-tier default)
+
+As a substrate maintainer,
+I want the pattern contract for `lib/llm-review.ts` — a fixture that runs a scoped Opus-class subagent against a diff with subjective acceptance criteria, returning pass/fail — to ship at 1.0; fixture invocation is Growth-tier default (opt-in per task via `llm_review: true` flag); failure counts as test failure under FR8 backpressure,
+So that non-deterministic acceptance is available to fork operators without 1.0 incurring the default cost (FR14e).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/patterns/llm-review.ts`,
+**When** I inspect it,
+**Then** the pattern exports `llmReview(diff, criteria): Promise<{pass: boolean, reasoning: string}>`
+**And** the implementation is documented as a reference (not a shipped invocation).
+
+**Given** a task with `llm_review: true` in its `Required tests:` manifest,
+**When** Ralph's execute phase reaches the pre-commit gate,
+**Then** `llm-review.ts` is invoked with the diff + the task's subjective criteria
+**And** a `pass: false` result counts as a test failure under FR8 (contributes to halt threshold).
+
+**Given** 1.0 Growth-tier-default behaviour,
+**When** a task does NOT set `llm_review: true`,
+**Then** the pattern is NOT invoked
+**And** the default behaviour is identical to pre-FR14e iterations.
+
+**Given** the pattern contract is pinned,
+**When** Story 1.8 tracks it,
+**Then** `INV-ralph-llm-review-pattern` registers the contract
+**And** fork operators can implement their own `lib/llm-review.ts` as long as the signature matches.
+
+**Given** the LLM-review fixture's budget,
+**When** invoked,
+**Then** a scoped subagent with a bounded token budget (documented default) runs
+**And** the review cost is logged to `.ralph/logs/<iter-id>/llm-review.jsonl`.
+
+##### Story 3.32: Hook-self-protection halt threshold wire-up
+
+As a substrate maintainer,
+I want N=3 hook-self-protection blocks (rule-id `hook-self-protection` from Story 2.16) within a single iteration to trigger a `SECURITY_CRITICAL` halt via Ralph's halt machinery (Story 3.9),
+So that Claude attempting to bypass the secret-access barrier halts the loop for Tthew review (NFR5a/5b).
+
+**Acceptance Criteria:**
+
+**Given** `.ralph/config.toml`,
+**When** I inspect it,
+**Then** `halt_on_hook_self_protection_blocks = 3` is set with an inline comment.
+
+**Given** an iteration accumulates 3 `hook-self-protection` blocks (from Story 2.16's `.ralph/logs/<iter-id>/blocked-tool-calls.jsonl`),
+**When** Ralph's halt-detection reads the log,
+**Then** `.ralph/halt` is written with `{reason: "SECURITY_CRITICAL", sub_reason: "hook-self-protection-threshold-exceeded", block_count: 3, blocked_tool_calls: [...]}`
+**And** the next iteration refuses to start.
+
+**Given** 1 or 2 blocks in an iteration (under the threshold),
+**When** the iteration completes normally,
+**Then** no halt is written
+**And** the counter resets at the next iteration.
+
+**Given** a fork operator tunes the threshold,
+**When** `halt_on_hook_self_protection_blocks = 5` is set,
+**Then** Ralph honours the value
+**And** Tthew's review cadence can be adjusted.
+
+**Given** the halt is audit-critical,
+**When** it fires,
+**Then** Epic 4's security-evidence feed (`scans.hook_denials[]`) has already logged each block
+**And** the halt references those entries by block-ID for audit completeness.
+
+##### Story 3.33: Default Textual TUI chrome + Epic 7 re-theme seam
+
+As a fork operator,
+I want Ralph's Textual TUI to ship at 1.0 with a default Textual chrome — ribbon, kanban, context-meter, log-tail, halt-banner, command-palette — with a re-theme seam so Epic 7's emitted `packages/devbox/tui/theme.py` (Story 1.12) swaps colours/motion without touching widget structure,
+So that Ralph is operable before Epic 7 lands and Epic 7 re-theming is cosmetic-only (UX-DR18, UX-DR58–62).
+
+**Acceptance Criteria:**
+
+**Given** `packages/ralph/src/ralph_harness/tui/`,
+**When** I inspect it,
+**Then** widgets `ribbon.py`, `kanban.py`, `context_meter.py`, `log_tail.py`, `halt_banner.py`, `command_palette.py` exist
+**And** each widget reads its colours/motion/density from a shared theme object.
+
+**Given** the default chrome at 1.0,
+**When** no `packages/devbox/tui/theme.py` is present (pre-Epic-7 or user removed),
+**Then** the widgets fall back to a built-in default theme with the Direction A palette (Story 1.11) hard-coded
+**And** the TUI renders without error.
+
+**Given** Epic 7's emitted `packages/devbox/tui/theme.py` (from Story 1.12),
+**When** it is present,
+**Then** the TUI imports it at startup
+**And** all widget colours/motion/density resolve via the theme module.
+
+**Given** widget structure is stable,
+**When** Epic 7 re-themes,
+**Then** the changes are limited to `theme.py` values — NOT to widget layout or behaviour
+**And** this is enforced by a lint rule ("no theme-token literals in widget files").
+
+**Given** the ribbon widget (`tui.ribbon.01`),
+**When** rendered,
+**Then** it shows `{mode: build|plan, epic, now_task_slug, budget_remaining, iteration_id}`.
+
+**Given** the kanban widget (`tui.kanban.01`),
+**When** rendered,
+**Then** it shows NOW / QUEUE / BLOCKED / DONE columns synced from `.ralph/@plan.md`.
+
+**Given** the halt-banner widget (`tui.halt-banner.01`),
+**When** `.ralph/halt` exists,
+**Then** it renders the halt reason + context prominently
+**And** clears when the halt sentinel is cleared.
+
 ---
 
 ### Epic 4: Per-Iteration Security Verification & Evidence
