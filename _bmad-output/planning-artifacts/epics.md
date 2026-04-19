@@ -3401,6 +3401,279 @@ So that the Claude-secret-barrier (NFR5a/5b) participates in the same severity/h
 
 **Standalone delivery:** Developer can run `pnpm generate` and get a correctly-emitted set of per-fork artefacts. Changing shape produces a clean regeneration. CI catches drift. No RLS runtime yet (that's Epic 6), but the contract and generator are ready.
 
+#### Stories
+
+##### Story 5.1: `keel.config.ts` typed schema + Zod parser
+
+As a fork operator,
+I want a typed `keel.config.ts` at the repo root validated by a Zod schema in `packages/config/src/schema.ts` — fields `{shape, tenancy, projectIdentity, otelExporter}` — so invalid values fail typecheck (not at runtime) and no user-facing wizard exists (FR65, NFR35, NFR36).
+
+**Acceptance Criteria:**
+
+**Given** `packages/config/src/schema.ts`,
+**When** I inspect it,
+**Then** it exports a Zod schema `KeelConfigSchema` defining `{shape: "b2b" | "b2c", tenancy: "team" | "user", projectIdentity: {name: string, slug: string, domain?: string}, otelExporter: string}`
+**And** no `schemaVersion` field is present (per NFR36 at 1.0).
+
+**Given** `keel.config.ts` at the repo root,
+**When** I inspect it,
+**Then** it exports a typed `KeelConfig` literal
+**And** invalid values (e.g., `shape: "b2x"`) fail `tsc` at typecheck time, not runtime.
+
+**Given** `KeelConfigSchema.parse(config)` runs at boot,
+**When** the config passes,
+**Then** a strongly-typed `KeelConfig` object is returned
+**And** downstream consumers (generator, runtime) import it via `@keel/config`.
+
+**Given** the schema is the contract,
+**When** Story 1.8's manifest tracks it,
+**Then** `INV-keel-config-schema` registers the schema file
+**And** drift is caught by Story 1.9.
+
+**Given** `shape` and `tenancy` have allowed combinations,
+**When** `shape: "b2b"` is set,
+**Then** `tenancy` MUST be `"team"` (enforced by a Zod `refine`)
+**And** `shape: "b2c"` with `tenancy: "user"` is enforced the same way.
+
+##### Story 5.2: Generator G1-G6 contract in `packages/keel-generator/`
+
+As a substrate maintainer,
+I want the generator's core `expand(policy, config) → Rule[]` function (G1) implemented as pure TypeScript with no I/O or non-determinism, output sorted lexicographically by `(target.table, target.op, id)` (G2), merge precedence `overrides > policy.rules > template.defaultRules` (G3), canonical JSON form with fixed key order (G4), stable rule identity `<table>_<op>_<tenancy>_<version>` (G5), and a test proving `expand(expand(p, c)) === expand(p, c)` (G6),
+So that generated artefacts are deterministic, idempotent, and hash-stable (FR67).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-generator/src/expand.ts`,
+**When** I inspect it,
+**Then** `expand(policy: TenancyPolicy, config: KeelConfig): Rule[]` is exported
+**And** the function uses no `Date.now()`, `Math.random()`, filesystem reads, or network I/O.
+
+**Given** two calls with identical inputs,
+**When** I compare `expand(p, c)` and `expand(p, c)`,
+**Then** outputs are byte-identical
+**And** `JSON.stringify(out)` produces the same string.
+
+**Given** G2 ordering,
+**When** I inspect output,
+**Then** rules are sorted by `(target.table, target.op, id)` ascending
+**And** reordering inputs does not change output order.
+
+**Given** G3 merge precedence,
+**When** `config.overrides.rls.<table>.<op>` exists,
+**Then** it wins over `policy.rules` which wins over `template.defaultRules`
+**And** no deep-merge of rule fields occurs.
+
+**Given** G4 canonical form,
+**When** I inspect any emitted file,
+**Then** keys appear in fixed order (`id`, `target`, `predicate`, `using`, `with_check`)
+**And** the emitted JSON ends with a trailing newline.
+
+**Given** G5 stable identity,
+**When** I inspect any rule's `id`,
+**Then** it follows `<table>_<op>_<tenancy>_<version>` (e.g., `users_select_team_v1`)
+**And** rename-alone (no semantic change) yields the same content-hash.
+
+**Given** G6 idempotence proof test,
+**When** `packages/keel-generator/expand.test.ts` runs,
+**Then** `expand(expand(policy, config)) === expand(policy, config)` (deep equality + content-hash equality)
+**And** the test is part of pre-merge-fast.
+
+##### Story 5.3: Tenancy templates (rls-team B2B, rls-user B2C)
+
+As a substrate maintainer,
+I want tenancy templates at `packages/keel-generator/templates/rls-team.ts` (B2B) and `rls-user.ts` (B2C) — hardwired policy definitions consumed by Story 5.2's `expand()` — with `org` template explicitly deferred to Growth-tier,
+So that shape-driven RLS emission has a canonical policy source (FR48 base).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-generator/templates/`,
+**When** I inspect it,
+**Then** `rls-team.ts` and `rls-user.ts` exist
+**And** `rls-org.ts` does NOT exist at 1.0 (Growth-tier deferral documented).
+
+**Given** `rls-team.ts`,
+**When** I read it,
+**Then** it exports a `TenancyPolicy` with rules scoped to `app.current_team_id` session variable
+**And** every tenant-scoped table's SELECT/INSERT/UPDATE/DELETE ops are covered.
+
+**Given** `rls-user.ts`,
+**When** I read it,
+**Then** it exports a `TenancyPolicy` scoped to `app.current_user_id`
+**And** the shape is structurally parallel to `rls-team.ts`.
+
+**Given** Story 5.2's `expand()` consumes these templates,
+**When** invoked with `{shape: "b2b", tenancy: "team"}`,
+**Then** `rls-team.ts` is used
+**And** `{shape: "b2c", tenancy: "user"}` uses `rls-user.ts`.
+
+**Given** fork operators want custom tenancy rules,
+**When** they use `KeelConfig.overrides.rls`,
+**Then** overrides layer on per G3 precedence (Story 5.2).
+
+##### Story 5.4: Billing presets (paddle-team-seats, paddle-individual)
+
+As a substrate maintainer,
+I want billing presets at `packages/keel-generator/templates/paddle-team-seats.ts` (B2B) and `paddle-individual.ts` (B2C) — consumed by the generator to emit `packages/billing/paddle/preset.generated.ts`,
+So that shape change also rewires the billing preset without manual intervention (FR48 base).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-generator/templates/paddle-team-seats.ts`,
+**When** I read it,
+**Then** it exports a Paddle preset for seat-based team billing
+**And** the shape includes plan IDs (parameterised), proration rules, and a webhook schema reference.
+
+**Given** `packages/keel-generator/templates/paddle-individual.ts`,
+**When** I read it,
+**Then** it exports a Paddle preset for individual subscriptions
+**And** the shape is structurally parallel.
+
+**Given** Story 5.5's `pnpm generate`,
+**When** `shape: "b2b"` is active,
+**Then** `paddle-team-seats.ts` is emitted as `packages/billing/paddle/preset.generated.ts`
+**And** `shape: "b2c"` emits from `paddle-individual.ts`.
+
+**Given** the presets are stable at 1.0,
+**When** Epic 10's Paddle commerce integration consumes them,
+**Then** the shape-specific preset is available without Epic 10 re-implementing it.
+
+##### Story 5.5: `pnpm generate` emission pipeline
+
+As a fork operator,
+I want `pnpm generate` to read `keel.config.ts`, invoke Story 5.2's `expand()`, and emit RLS tenancy template to `packages/core/rls/*.generated.ts`, Paddle preset to `packages/billing/paddle/preset.generated.ts`, and invariants.manifest.ts content-hash entries for each emitted artefact — all idempotent,
+So that one command regenerates all per-fork artefacts consistently (FR66).
+
+**Acceptance Criteria:**
+
+**Given** a fork with `keel.config.ts` set,
+**When** I run `pnpm generate`,
+**Then** the command emits `packages/core/rls/policies.generated.ts` (or equivalent) with content derived from the active tenancy template
+**And** emits `packages/billing/paddle/preset.generated.ts` with the active billing preset
+**And** emits / updates content-hash entries in `packages/keel-invariants/src/invariants.manifest.ts` covering each generated file.
+
+**Given** idempotence (NFR37),
+**When** I run `pnpm generate` twice in a row,
+**Then** `git diff` shows no changes
+**And** the second run exits zero with no output changes.
+
+**Given** every emitted file,
+**When** I inspect it,
+**Then** a provenance header names the config-source SHA + generator version
+**And** the file is marked `// Generated — do not edit directly` with a pointer to the source.
+
+**Given** the command runs inside the devbox,
+**When** invoked,
+**Then** output is written to the workspace (host-visible)
+**And** no network I/O occurs.
+
+##### Story 5.6: Reorder-stability test (C2) + idempotence proof (G6)
+
+As a substrate maintainer,
+I want `packages/keel-generator/reorder-stability.test.ts` permuting inputs through structural rewrites and asserting content-hash equality, plus Story 5.2's G6 idempotence proof test,
+So that generator determinism is machine-enforced (FR67 teeth).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-generator/reorder-stability.test.ts`,
+**When** it runs,
+**Then** multiple permutations of the input policy are fed through `expand()`
+**And** all outputs have identical content-hashes.
+
+**Given** the idempotence proof (G6),
+**When** `expand(expand(p, c))` is computed,
+**Then** deep equality AND content-hash equality hold against `expand(p, c)`
+**And** failures surface specific difference paths.
+
+**Given** both tests,
+**When** pre-merge-fast runs,
+**Then** they execute within the pre-merge-fast budget
+**And** failure blocks merge.
+
+##### Story 5.7: Pre-merge-fast config ↔ generated-artefact sync gate
+
+As a substrate maintainer,
+I want a pre-merge-fast gate that regenerates from the PR's `keel.config.ts` and diffs against committed generated artefacts — any drift fails,
+So that editing config without regenerating OR editing generated files without config change both fail (FR68).
+
+**Acceptance Criteria:**
+
+**Given** a PR edits `keel.config.ts` without running `pnpm generate`,
+**When** pre-merge-fast runs,
+**Then** the gate regenerates, diffs, detects missing changes in `*.generated.ts`
+**And** the PR is rejected with a pointer to `pnpm generate`.
+
+**Given** a PR edits `*.generated.ts` without changing `keel.config.ts`,
+**When** pre-merge-fast runs,
+**Then** the gate regenerates, diffs, detects the emitted file drift
+**And** the PR is rejected.
+
+**Given** a PR edits both `keel.config.ts` AND the corresponding `*.generated.ts` coherently,
+**When** pre-merge-fast runs,
+**Then** the regenerate-and-diff yields no delta
+**And** the gate passes.
+
+**Given** the gate reuses Story 1.9's sync-gate tooling,
+**When** Story 1.8's manifest tracks generated artefacts,
+**Then** content-hash entries for each `*.generated.ts` are registered
+**And** drift is caught even without PR-level diff (commit-level coverage).
+
+##### Story 5.8: Generated-migration contract (W3 party-mode amendment)
+
+As a substrate maintainer,
+I want an explicit contract at `packages/keel-generator/src/migration-contract.ts` defining (a) emitted migration filename schema `<timestamp>_rls_<shape>_<tenancy>_<content-hash>.sql`, (b) migration SQL shape (pure `prisma db execute` statements; self-contained), (c) assertion spec for Epic 6 tests,
+So that the producer/consumer seam between generator (Epic 5) and RLS runtime (Epic 6) is closed with one contract artefact (W3).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-generator/src/migration-contract.ts`,
+**When** I read it,
+**Then** it exports three constants/types: `FilenameSchema` (regex/zod for `<timestamp>_rls_<shape>_<tenancy>_<content-hash>.sql`), `SQLShapeRules` (pure `prisma db execute`; no Prisma schema diffs; self-contained), `AssertionSpec` (what Epic 6 tests must verify).
+
+**Given** `AssertionSpec` lists 4 assertions,
+**When** Epic 6 wires its tests,
+**Then** filename parses per schema; content-hash equals generator output; SQL applies cleanly in both pglite and testcontainers Postgres; reverse-idempotency holds on re-run are all verified.
+
+**Given** the contract is invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-generator-migration-contract` is registered
+**And** Epic 6's test code depends on this entry for assertion coverage.
+
+**Given** a fork operator extends migrations,
+**When** they add custom migration rules,
+**Then** they MUST conform to `SQLShapeRules` or fail Epic 6's assertion tests.
+
+##### Story 5.9: One-line shape-change workflow validated (FR46, FR48)
+
+As a fork operator,
+I want to change my fork's shape via a one-line edit to `keel.config.ts` followed by `pnpm generate` (pre-commit hook auto-invokes or rejects) with pre-merge-fast catching any drift,
+So that shape change is a documented, CI-enforced workflow rather than tribal knowledge (FR46, FR48).
+
+**Acceptance Criteria:**
+
+**Given** a fork with `shape: "b2b"`,
+**When** I change `keel.config.ts` to `shape: "b2c", tenancy: "user"`,
+**Then** `pnpm generate` regenerates all emitted artefacts
+**And** a single commit captures the config change + regenerated files together.
+
+**Given** the pre-commit hook,
+**When** I forget to run `pnpm generate`,
+**Then** the pre-commit hook rejects the commit with a pointer to `pnpm generate`
+**And** the behaviour is documented (reject-not-auto-invoke decision pinned here).
+
+**Given** the shape change lands,
+**When** Epic 6's migration runs,
+**Then** the new tenancy policies are applied to the DB via the migration contract (Story 5.8)
+**And** the application continues to typecheck and pass tests.
+
+**Given** a failed shape change (typecheck error or generator fail),
+**When** the commit is rejected,
+**Then** the fork returns to the prior shape with a clear error message
+**And** no partial state lands.
+
+**Given** the workflow is documented,
+**When** I read `AGENTS.md`,
+**Then** the shape-change flow is enumerated with commands + expected CI checks.
+
 ---
 
 ### Epic 6: Day-1 Tenant Isolation (RLS)
