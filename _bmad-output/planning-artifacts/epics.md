@@ -2995,6 +2995,381 @@ So that Ralph is operable before Epic 7 lands and Epic 7 re-theming is cosmetic-
 
 **Standalone delivery:** Every commit — agent or human — produces a green security-evidence.json or is rejected. Ralph halts on critical findings. Works independently of subsequent feature epics.
 
+#### Stories
+
+##### Story 4.1: Security-evidence contract v1 (M2 contract-freeze)
+
+As a substrate maintainer,
+I want a frozen v1 contract for security evidence — JSON schema at `packages/keel-invariants/src/schemas/security-evidence.schema.json`, scanner exit-code semantics (zero = clean; non-zero = finding above threshold blocks commit), and artefact path convention `.ralph/logs/<iter-id>/security-evidence.json`,
+So that all Epic 13 CI-workflow stories have a single stable contract to bind against (M2 party-mode amendment, FR37).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/src/schemas/security-evidence.schema.json`,
+**When** I inspect it,
+**Then** the schema carries `$schema: "security-evidence-v1"` and defines `{iteration_id, diff_sha, timestamp, scans: {secrets, deps, sast, prompt_injection, hook_denials?, mutation?}, overall_severity_max, halt_required}`
+**And** severity enum is `none | low | medium | high | critical`.
+
+**Given** a scanner script integration,
+**When** any scanner (Gitleaks, pnpm audit, Semgrep, prompt-injection) runs,
+**Then** zero exit = clean (no findings above threshold); non-zero = at least one finding above threshold
+**And** this semantic is documented at `docs/invariants/security-evidence-contract.md`.
+
+**Given** the artefact path convention,
+**When** Ralph writes evidence,
+**Then** the path is `.ralph/logs/<iter-id>/security-evidence.json` (never elsewhere)
+**And** the convention is pinned at `INV-security-evidence-path`.
+
+**Given** the invariants manifest tracks this,
+**When** Story 1.8 walks it,
+**Then** `INV-security-evidence-contract-v1` registers the schema + path + exit-code semantics
+**And** Epic 13 workflow-wiring stories depend on this entry (documented dependency edge).
+
+**Given** a breaking change is proposed (v2),
+**When** the contract is updated,
+**Then** a major-version bump in `$schema` is required
+**And** Epic 14's RC3 aggregation CLI is updated alongside.
+
+##### Story 4.2: Gitleaks scanner integration (secrets category)
+
+As a substrate maintainer,
+I want Gitleaks wired into the pre-commit scanner pipeline, emitting findings into `security-evidence.json`'s `scans.secrets` category,
+So that committed secrets are blocked before they land and every commit has machine-auditable evidence (NFR9, FR37).
+
+**Acceptance Criteria:**
+
+**Given** Gitleaks is installed in the devbox image,
+**When** the pre-commit hook invokes it,
+**Then** it scans the staged diff
+**And** findings are emitted in a structured format.
+
+**Given** the scanner-output adapter,
+**When** Gitleaks reports findings,
+**Then** each is transformed into `{tool: "gitleaks", findings: [...], severity_max}` and written to `security-evidence.json`'s `scans.secrets` slot.
+
+**Given** a finding above the configured severity threshold,
+**When** the scanner completes,
+**Then** it exits non-zero per Story 4.1 contract
+**And** the commit is blocked.
+
+**Given** no findings,
+**When** the scanner completes,
+**Then** `scans.secrets = { tool: "gitleaks", findings: [], severity_max: "none" }` is written
+**And** the scanner exits zero.
+
+**Given** `.gitleaksignore` exists,
+**When** Story 4.12's lint rule runs,
+**Then** `.gitleaksignore` is forbidden in `packages/*` (fork-only at repo root).
+
+##### Story 4.3: `pnpm audit --prod` scanner integration (deps category)
+
+As a substrate maintainer,
+I want `pnpm audit --prod` wired into the pre-merge-fast pipeline, emitting findings into `security-evidence.json`'s `scans.deps` category,
+So that dependency CVEs surface early and block merge when severity is above threshold (NFR14 wiring, FR37).
+
+**Acceptance Criteria:**
+
+**Given** `pnpm audit --prod` runs as part of pre-merge-fast,
+**When** it completes,
+**Then** its JSON output is parsed and transformed into `{tool: "pnpm-audit", findings: [...], severity_max}` in `scans.deps`.
+
+**Given** a CVSS ≥ 9 finding,
+**When** the scanner runs,
+**Then** `severity_max: "critical"` is set
+**And** `halt_required: true` triggers the immediate halt per Story 4.9.
+
+**Given** a CVSS in 7–8.9 range (high),
+**When** the scanner runs,
+**Then** `severity_max: "high"` is set
+**And** the commit / merge is blocked per Story 4.7.
+
+**Given** Dependabot is also enabled on every PR (NFR14),
+**When** both Dependabot and `pnpm audit` run,
+**Then** both feed into evidence (Dependabot at CI layer; `pnpm audit` at pre-merge-fast)
+**And** divergence is logged but not fatal.
+
+**Given** `pnpm-lock.yaml` is committed and unchanged,
+**When** the scanner runs against the current lockfile,
+**Then** results are deterministic
+**And** intentional upgrades are flagged in the commit message (supply-chain-lock norm).
+
+##### Story 4.4: Semgrep SAST scanner integration + substrate rules
+
+As a substrate maintainer,
+I want Semgrep wired into the pre-commit pipeline with substrate rules at `packages/keel-invariants/semgrep-rules/` — `no-env-log.yml`, `no-dynamic-secret.yml`, `no-swallowed-catch.yml`, `no-persist-tenant-id.yml`, `no-raw-fetch.yml` — emitting findings into `scans.sast`,
+So that Keel-specific SAST patterns are enforced uniformly across substrate + product code (FR35, FR37).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/semgrep-rules/`,
+**When** I inspect it,
+**Then** the 5 rules exist with inline documentation
+**And** each rule has at least one test fixture (positive + negative) under `packages/keel-invariants/semgrep-rules/__fixtures__/`.
+
+**Given** Semgrep runs in pre-commit,
+**When** a staged file triggers a rule,
+**Then** the finding is transformed into `{tool: "semgrep", rule_id, finding_location, severity, findings[]}` and written to `scans.sast`.
+
+**Given** `no-env-log.yml`,
+**When** a file contains `console.log(process.env)` or equivalent,
+**Then** Semgrep flags the pattern
+**And** the commit is blocked.
+
+**Given** `no-dynamic-secret.yml`,
+**When** a file contains `getSecret(\`PADDLE_${env}_API_KEY\`)` (template-construction),
+**Then** Semgrep flags the pattern (per architecture I6).
+
+**Given** a fork operator adds fork-specific rules,
+**When** they follow the documented extension pattern,
+**Then** fork rules live at `<fork-root>/semgrep-rules/fork/` and Semgrep invokes both substrate + fork rules.
+
+##### Story 4.5: Prompt-injection scanner rule source (regex + AST)
+
+As a substrate maintainer,
+I want `packages/keel-invariants/prompt-injection-rules/` containing `zero-width.ts`, `jailbreak-triggers.ts`, `diff-patterns.ts` — regex + AST rules for zero-width Unicode detection, known jailbreak strings, and suspicious diff patterns,
+So that Story 4.6's pre-commit scanner has a pinned rule source tracked by the invariants manifest (S4 rule base, FR40).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/prompt-injection-rules/zero-width.ts`,
+**When** I inspect it,
+**Then** it exports detection rules for U+200B, U+200C, U+200D, U+FEFF, U+2060 and other zero-width code points
+**And** each rule is documented with rationale.
+
+**Given** `jailbreak-triggers.ts`,
+**When** I inspect it,
+**Then** it exports detection rules for known jailbreak strings (e.g., `IGNORE PREVIOUS`, `YOU ARE NOW`, `DAN mode`)
+**And** the list is curated with references.
+
+**Given** `diff-patterns.ts`,
+**When** I inspect it,
+**Then** it exports rules for suspicious diff patterns: new `--dangerously-skip-permissions` outside `packages/devbox`, `rm -rf /`, `rm -rf ~`, shell-eval from agent-authored markdown, diffs touching `.claude/settings*.json`, `.claude/hooks/**`, `.git/hooks/**` (wired with Story 2.17).
+
+**Given** the rules are tracked,
+**When** Story 1.8's manifest walks them,
+**Then** each file is registered (`INV-prompt-injection-rules-zero-width`, `-jailbreak`, `-diff-patterns`)
+**And** drift is caught by Story 1.9.
+
+**Given** a fork operator wants to extend rules,
+**When** they follow the documented pattern,
+**Then** fork rules live at `<fork-root>/prompt-injection-rules/fork/`
+**And** extension is additive only (fork cannot weaken substrate rules).
+
+##### Story 4.6: Prompt-injection scan invocation at pre-commit (S4, ≤10s)
+
+As a substrate maintainer,
+I want the prompt-injection scanner invoked at pre-commit with a ≤10s budget, walking enumerated agent-context files (`AGENTS.md`, `CLAUDE.md`, `RALPH.md`, `.ralph/PROMPT_*.md`, `docs/**/*.md`, story files) plus the staged diff, emitting findings into `scans.prompt_injection`,
+So that agent-context files and diffs are scanned every commit without blocking developer velocity (FR40, S4).
+
+**Acceptance Criteria:**
+
+**Given** a commit,
+**When** the pre-commit hook invokes the prompt-injection scanner,
+**Then** the scanner walks the enumerated file set
+**And** the walk completes in ≤10 seconds on the baseline repo.
+
+**Given** a zero-width code point in an agent-context file,
+**When** the scanner runs,
+**Then** the finding is reported in `scans.prompt_injection.findings[]` with severity `high`
+**And** the commit is blocked.
+
+**Given** a jailbreak trigger string appearing in new content,
+**When** the scanner runs,
+**Then** the finding is reported with severity `high`
+**And** the commit is blocked.
+
+**Given** a suspicious diff pattern (e.g., new `--dangerously-skip-permissions` outside `packages/devbox`),
+**When** the scanner runs,
+**Then** the finding is reported with severity `high`
+**And** the commit is blocked per FR36.
+
+**Given** the ≤10s budget is exceeded,
+**When** the scanner detects the budget breach,
+**Then** it emits `severity: low` with message "budget-exhausted; deep scan deferred to nightly" (Story 4.11)
+**And** the scan continues but yields partial results; the commit is NOT blocked on partial results alone.
+
+**Given** coverage is tested,
+**When** M9 pre-release review runs,
+**Then** every file in the enumerated scope is confirmed covered (per FR40).
+
+##### Story 4.7: Severity threshold blocking at pre-commit (FR36)
+
+As a substrate maintainer,
+I want configurable severity thresholds per scanner in `.ralph/config.toml` that block commits when any scanner's `severity_max` exceeds its threshold,
+So that fork operators can tune per-scanner strictness without touching scanner code (FR36).
+
+**Acceptance Criteria:**
+
+**Given** `.ralph/config.toml`,
+**When** I inspect it,
+**Then** a `[security.thresholds]` section exists with keys per scanner: `secrets = "medium"`, `deps = "high"`, `sast = "medium"`, `prompt_injection = "high"`, `hook_denials = "high"`, `mutation = "low"`
+**And** defaults lean strict (substrate baseline).
+
+**Given** a commit runs the scanner stack,
+**When** any scanner's `severity_max` equals or exceeds its threshold,
+**Then** `overall_severity_max` is set to that value
+**And** `halt_required` is `true` if severity is `critical`, else `false`
+**And** the pre-commit hook exits non-zero, blocking the commit.
+
+**Given** all scanners report below-threshold severity,
+**When** the hook completes,
+**Then** `overall_severity_max` is the highest observed (e.g., `low`)
+**And** the hook exits zero and the commit lands.
+
+**Given** a fork operator raises a threshold,
+**When** they change `prompt_injection = "critical"`,
+**Then** the fork permits high-severity prompt-injection findings (documented as a known-risk escape)
+**And** the change is visible via `.ralph/config.toml` review.
+
+##### Story 4.8: Halt on consecutive security failures (FR38)
+
+As Ralph,
+I want to halt the loop on 3 consecutive same-security-finding iterations via `.ralph/halt` with `reason: "SECURITY_CRITICAL"` or `reason: "CI_BLOCKED"`,
+So that repeated security failures don't burn budget on a genuinely stuck state (FR38; reuses FR14l mechanism).
+
+**Acceptance Criteria:**
+
+**Given** Story 3.17's halt-on-same-test-fails mechanism,
+**When** Epic 4 extends it,
+**Then** the same pattern covers `security-evidence` findings keyed by `{scanner, rule_id, finding_location}`.
+
+**Given** iteration N produces a `secrets / rule_A / file_B` finding,
+**When** iteration N+1 produces the same triple AND iteration N+2 produces the same triple,
+**Then** after the 3rd consecutive match, Ralph writes `.ralph/halt` with `reason: "SECURITY_CRITICAL"`
+**And** the halt payload includes `{failing_finding: "secrets/rule_A/file_B", fail_count: 3}`.
+
+**Given** the halt fires for a pre-merge-blocked (not pre-commit-blocked) issue,
+**When** the halt reason is chosen,
+**Then** `CI_BLOCKED` is used (pre-merge path) vs `SECURITY_CRITICAL` (pre-commit path)
+**And** the distinction is documented in `docs/invariants/ralph-halt-reasons.md`.
+
+**Given** the threshold is configurable,
+**When** `.ralph/config.toml` sets `halt_on_same_security_fails = 5`,
+**Then** Ralph honours the value.
+
+##### Story 4.9: Critical-severity immediate halt (NFR18)
+
+As a substrate maintainer,
+I want hardcoded production secrets, CVSS ≥ 9 vulnerabilities, and known RCE patterns to trigger an immediate halt without retry — `halt_required: true` in evidence → `.ralph/halt` written same iteration,
+So that critical findings never progress past a single iteration (NFR18).
+
+**Acceptance Criteria:**
+
+**Given** `security-evidence.schema.json`,
+**When** `overall_severity_max == "critical"` AND `halt_required == true`,
+**Then** Ralph's halt-detection writes `.ralph/halt` with `reason: "SECURITY_CRITICAL"` same iteration
+**And** no retry / no counter accumulation.
+
+**Given** a hardcoded production secret (e.g., Paddle prod API key literal),
+**When** Gitleaks flags it,
+**Then** severity is `critical` and `halt_required: true` is set.
+
+**Given** a CVSS ≥ 9 dependency vulnerability,
+**When** `pnpm audit --prod` flags it,
+**Then** severity is `critical` and `halt_required: true` is set.
+
+**Given** a known RCE pattern (e.g., `eval(user_input)` in agent-authored code),
+**When** Semgrep flags it,
+**Then** severity is `critical` and `halt_required: true` is set.
+
+**Given** the halt fires,
+**When** Tthew reviews,
+**Then** the evidence file at `.ralph/logs/<iter-id>/security-evidence.json` has full context for triage.
+
+##### Story 4.10: OWASP ASVS L1 baseline doc (`docs/invariants/security.md`)
+
+As a substrate maintainer,
+I want `docs/invariants/security.md` mapping substrate controls to OWASP ASVS Level 1 requirements, with ASVS L2+ explicitly marked as Tier-2 deviation path (not substrate-surfaced at 1.0),
+So that the security baseline is documented, auditable, and scopes the default expectation (FR39, NFR17).
+
+**Acceptance Criteria:**
+
+**Given** `docs/invariants/security.md`,
+**When** I read it,
+**Then** every ASVS L1 requirement is enumerated
+**And** each is mapped to a substrate control (scanner rule, invariant, or architectural decision) OR marked as "not applicable at 1.0 because <reason>".
+
+**Given** ASVS L2+ requirements,
+**When** they appear in the doc,
+**Then** each is marked `Tier 2 deviation path`
+**And** a pointer to how a fork operator uplifts is documented.
+
+**Given** the doc is an invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-security-asvs-baseline` is registered
+**And** drift (e.g., a substrate control changes without updating the mapping) is caught by Story 1.9.
+
+##### Story 4.11: Nightly LLM-based deep prompt-injection scan
+
+As a substrate maintainer,
+I want a nightly LLM-based deep prompt-injection scan that complements the ≤10s pre-commit regex/AST scan, running on a scheduled workflow against agent-context files + recent diffs,
+So that subtle injection patterns the fast scan misses are caught within 24 hours (S4 deep-scan deferral).
+
+**Acceptance Criteria:**
+
+**Given** `.github/workflows/nightly-security.yml` (or equivalent),
+**When** it runs nightly,
+**Then** a scoped Opus-class subagent walks agent-context files + the last 24h of diffs
+**And** emits findings into `.ralph/logs/nightly-<date>/prompt-injection-deep-scan.json`.
+
+**Given** a deep-scan finding,
+**When** it exceeds severity threshold,
+**Then** an issue is auto-filed in GitHub with the finding + pointer to the diff
+**And** the finding is also written to the next iteration's `security-evidence.json` for Ralph visibility.
+
+**Given** the scan cost budget,
+**When** the subagent runs,
+**Then** the token budget is documented and bounded
+**And** costs are tracked in Epic 14's research corpus.
+
+**Given** the deep-scan augments, doesn't replace,
+**When** both scans run,
+**Then** the pre-commit fast scan remains the gating scan
+**And** deep-scan findings inform the pre-commit rule corpus over time.
+
+##### Story 4.12: `.gitleaksignore` lint rule (forbidden in `packages/*`)
+
+As a substrate maintainer,
+I want a lint rule (Semgrep or custom) that rejects `.gitleaksignore` files inside `packages/*` — fork-only at repo root — enforced via pre-merge-fast,
+So that substrate packages cannot silently carve secret-detection escapes (NFR9 teeth).
+
+**Acceptance Criteria:**
+
+**Given** a PR adds `packages/<X>/.gitleaksignore`,
+**When** pre-merge-fast runs the lint rule,
+**Then** the PR is rejected with a message naming the offending path.
+
+**Given** a PR adds `.gitleaksignore` at the repo root,
+**When** pre-merge-fast runs,
+**Then** the file is allowed (fork-level escape; deliberate).
+
+**Given** the rule is tracked,
+**When** Story 1.8's manifest tracks it,
+**Then** `INV-gitleaks-ignore-substrate-forbidden` is registered.
+
+##### Story 4.13: Hook-denials feed wired into `security-evidence.json`
+
+As a substrate maintainer,
+I want Story 2.16's `.ralph/logs/<iter-id>/blocked-tool-calls.jsonl` events propagated into `security-evidence.json`'s `scans.hook_denials[]` array,
+So that the Claude-secret-barrier (NFR5a/5b) participates in the same severity/halt machinery as every other scanner (wire-up with Epic 2 Story 2.16, Epic 3 Story 3.32).
+
+**Acceptance Criteria:**
+
+**Given** Story 2.16's blocked-tool-calls log,
+**When** the end-of-iteration evidence aggregator runs,
+**Then** each blocked-tool-call entry is transformed into a finding `{rule_id, tool, args_redacted, timestamp}` in `scans.hook_denials`
+**And** severity is `low` for a single block, escalating to `high` at N=3 per iteration.
+
+**Given** `scans.hook_denials.severity_max` is factored into `overall_severity_max`,
+**When** the evidence is finalised,
+**Then** the overall max reflects hook-denial severity
+**And** Story 4.7's threshold check applies.
+
+**Given** hook-denial severity is `high`,
+**When** Story 3.32's halt wire-up is also active,
+**Then** both mechanisms fire coherently (no double-halt; single halt event)
+**And** the halt payload references the evidence file.
+
 ---
 
 ### Epic 5: Shape-Driven Configuration & Generator
