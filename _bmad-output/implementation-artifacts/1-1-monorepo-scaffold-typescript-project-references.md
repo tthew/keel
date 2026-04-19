@@ -1,6 +1,6 @@
 # Story 1.1: Monorepo scaffold + TypeScript project references
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -35,7 +35,7 @@ so that `pnpm install` runs green, package builds are cacheable, and I have a ty
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Root monorepo scaffold** (AC: 1, 2)
+- [x] **Task 1: Root monorepo scaffold** (AC: 1, 2)
   - [ ] Author `package.json` at repo root with `name: "keel"`, `private: true`, `packageManager` pinned to a specific pnpm version, `engines.node` at `>=20 <21`, and root scripts: `typecheck`, `build`, `test`, `lint` that delegate to `turbo run <task>`.
   - [ ] Author `pnpm-workspace.yaml` listing `apps/*`, `packages/*` (and nothing else — `docs/` stays outside the workspace).
   - [ ] Author `.nvmrc` with `20` (Node 20 LTS — per architecture line 781).
@@ -43,18 +43,18 @@ so that `pnpm install` runs green, package builds are cacheable, and I have a ty
   - [ ] Author `.editorconfig` (UTF-8, LF, 2-space indent, final newline, trim trailing whitespace).
   - [ ] Do NOT add commitlint, release-please, renovate, prek, or ESLint configs in this story — those land in Stories 1.2–1.5, 1.14, 1.15.
 
-- [ ] **Task 2: Author `tsconfig.base.json`** (AC: 2)
+- [x] **Task 2: Author `tsconfig.base.json`** (AC: 2)
   - [ ] Place at repo root (not inside `packages/keel-invariants/` yet — that move lands in Story 1.2 per architecture line 1240).
   - [ ] Enable `compilerOptions`: `strict: true`, `composite: true`, `declaration: true`, `declarationMap: true`, `sourceMap: true`, `moduleResolution: "bundler"` (TanStack Start-compatible), `module: "ESNext"`, `target: "ES2022"`, `lib: ["ES2022"]`, `esModuleInterop: true`, `skipLibCheck: true`, `forceConsistentCasingInFileNames: true`, `noUncheckedIndexedAccess: true`, `isolatedModules: true`.
   - [ ] Define `paths` for every workspace package under the `@keel/<pkg>` alias, mapping to each package's `src/index.ts`. Example: `"@keel/core": ["packages/core/src/index.ts"]`. Include all 14 packages + `apps/web` (if exported).
   - [ ] Emit no files from the base itself (`noEmit: true` at base; each package overrides with per-package `outDir`).
 
-- [ ] **Task 3: Author `turbo.json`** (AC: 3)
+- [x] **Task 3: Author `turbo.json`** (AC: 3)
   - [ ] Define tasks: `build` (dependsOn: `^build`, outputs: `dist/**`, `*.tsbuildinfo`), `typecheck` (dependsOn: `^typecheck`, outputs: `*.tsbuildinfo`), `test` (dependsOn: `^build`), `lint` (no deps).
   - [ ] Content-hash caching is the default — no explicit `cache: false` anywhere.
   - [ ] Do NOT add `bench` here; it lands with the bench runner in a later story.
 
-- [ ] **Task 4: Scaffold 14 package shells** (AC: 1, 2, 4)
+- [x] **Task 4: Scaffold 14 package shells** (AC: 1, 2, 4)
   - [ ] For each of `packages/{db, contracts, config, core, billing, email, jobs, flags, audit, ui, keel-invariants, devbox, keel-generator, keel-templates}` and `packages/create-keel-app`, create:
     - [ ] `package.json` with `name: "@keel/<pkg>"` (kebab-case), `version: "0.0.0"`, `private: true`, `type: "module"`, `main: "./dist/index.js"`, `types: "./dist/index.d.ts"`, `exports: { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } }`, `scripts.build: "tsc -b"`, `scripts.typecheck: "tsc -b --noEmit"`.
     - [ ] `src/index.ts` with a single export line (e.g. `export {};` for placeholder). NO `__tests__/` folder, NO `lib/`, NO `tests/`.
@@ -63,7 +63,7 @@ so that `pnpm install` runs green, package builds are cacheable, and I have a ty
   - [ ] **Do NOT** add `packages/devbox` with real content — leave it as an empty shell (`src/index.ts` + package metadata). The full devbox absorption is Epic 2 scope (see sprint-status `2-1` onwards).
   - [ ] **Do NOT** add ESLint configs, Prettier configs, or design-token source files — those land in Stories 1.2 and 1.10 respectively.
 
-- [ ] **Task 5: Scaffold `apps/web`** (AC: 1, 2, 4)
+- [x] **Task 5: Scaffold `apps/web`** (AC: 1, 2, 4)
   - [ ] Create `apps/web/package.json` with `name: "@keel/web"`, `private: true`, `type: "module"`, `scripts.typecheck: "tsc -b --noEmit"`.
   - [ ] Create `apps/web/src/index.ts` as a placeholder (`export {};`).
   - [ ] Create `apps/web/tsconfig.json` extending base with `composite: true`.
