@@ -296,7 +296,49 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 
 ### Debug Log References
 
-_(to be populated during Task 1 → 4 dev loop; capture every probe + gate output per subtask requirements)_
+**Task 3 (2026-04-19) — ATDD smoke probes captured after Task 1 pattern broadening.**
+
+Initial probe run revealed AC 1 pattern gap: the spec's `'**/packages/*/src/**'` group requires the literal string "packages" in the import specifier, but the realistic relative form `'../../contracts/src/index.ts'` (2-up from `packages/audit/src/`) has no such segment — AC 1 did NOT fire. Per Task 3 directive "If ANY probe produces unexpected output, fix the rule (loop back to Task 1)", broadened the AC 1 `group` in BOTH the 7th entry and `forPackage`'s 8th entry to add six depth-prefixed patterns: `../../**/src`, `../../**/src/**`, `../../../**/src`, `../../../**/src/**`, `../../../../**/src`, `../../../../**/src/**`. These catch 2-up / 3-up / 4-up relative specifiers reaching any `src/` segment while not touching intra-package `./foo` or test-adjacent `../src/foo` (1-up) — minimum 2-up guards cross-boundary intent. Kept the original `**/packages/*/src/**` + `**/apps/*/src/**` patterns as defense-in-depth for absolute-ish forms (rare but harmless).
+
+Probe evidence (all captured post-fix):
+
+**AC 1** — `packages/audit/` cwd, stdin `import foo from '../../contracts/src/index.ts';`, stdin-filename `src/ac1-probe.ts`:
+```
+error  '../../contracts/src/index.ts' import is restricted from being used by a pattern.
+       No relative imports crossing a package src/ boundary. Use the @keel/<pkg> alias …  no-restricted-imports
+```
+Exit 1. ✓
+
+**AC 2** — `packages/audit/` cwd, stdin `import { x } from '@keel/contracts/internal/foo';`:
+```
+error  '@keel/contracts/internal/foo' import is restricted from being used by a pattern.
+       @keel/<pkg>/internal/* is forbidden across packages. Public surface is src/index.ts only …  no-restricted-imports
+```
+Exit 1. ✓
+
+**AC 3** — `packages/audit/` cwd, stdin `import { x } from '@keel/audit';`:
+```
+error  '@keel/audit' import is restricted from being used by a pattern.
+       Self-import: use a relative path within the same package ('audit'), not the @keel/audit alias  no-restricted-imports
+```
+Exit 1, message contains literal `'audit'`. ✓
+
+**AC 3 (apps/web self-import)** — `apps/web/` cwd, stdin `import { x } from '@keel/web';`:
+```
+error  '@keel/web' import is restricted from being used by a pattern.
+       Self-import: use a relative path within the same package ('web'), not the @keel/web alias  no-restricted-imports
+```
+Exit 1, message contains literal `'web'`. ✓
+
+**Negative (allowed cross-package alias)** — `packages/audit/` cwd, stdin `import '@keel/contracts';` (side-effect-only form to avoid `@typescript-eslint/no-unused-vars` noise that triggered on named-import variants). Exit 0. No `no-restricted-imports` errors. ✓
+
+No probe fixtures committed; every probe produced via shell heredoc + `eslint --stdin`. The initial red-phase evidence is preserved as "AC 1 probe pre-fix exited 1 only due to `no-unused-vars`; `no-restricted-imports` did NOT fire" — this is the gap that drove the pattern broadening.
+
+**Quality gates post-Task-3:**
+- `pnpm -w lint` → 16/16 successful, 0 cached, 6.955s cold (cache invalidated by the config-file edit).
+- `pnpm -w typecheck` → 16/16 successful, 0 cached, 1.488s cold.
+- `pnpm format:check` → `All matched files use Prettier code style!` exit 0.
+- `pnpm exec commitlint --from origin/main --to HEAD --verbose` → 0 problems / 0 warnings across 4 branch commits.
 
 ### Completion Notes List
 
