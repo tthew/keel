@@ -12,12 +12,14 @@
     "test": "turbo run test",
     "lint": "turbo run lint",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "prepare": "prek install"
   },
   "devDependencies": {
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
     "@eslint/js": "10.0.1",
+    "@j178/prek": "0.3.9",
     "@keel/keel-invariants": "workspace:*",
     "eslint": "10.2.1",
     "globals": "17.5.0",
