@@ -3940,6 +3940,235 @@ So that RLS overhead is tracked with empirical evidence (D4, NFR3, NFR28c).
 
 **Standalone delivery:** Developer can import any primitive or pattern recipe from `packages/ui`, compose screens, see consistent visuals across web and TUI, and have drift caught by CI. Epic 1's token contract already in place; this epic makes the catalog concrete. No actual screens yet (that's Epic 9/10/12).
 
+#### Stories
+
+##### Story 7.1: `packages/ui/` scaffolding + Epic 1 token consumption
+
+As a fork operator,
+I want `packages/ui/` set up as the load-bearing substrate package for primitives + patterns + catalog, consuming Epic 1's emitted `tokens.css` + `tailwind.preset.ts`,
+So that all UI elements share a single token source (Epic 7 owns composition; Epic 1 owns tokens).
+
+**Acceptance Criteria:**
+
+**Given** `packages/ui/`,
+**When** I inspect it,
+**Then** it has `src/primitives/`, `src/tokens.css` (emitted by Epic 1 Story 1.12), `tailwind.preset.ts` (emitted by Story 1.12), and `package.json` with `@keel/ui` export.
+
+**Given** `apps/web/tailwind.config.ts`,
+**When** I inspect it,
+**Then** it imports `@keel/ui/tailwind.preset` (so Tailwind theme extends the Keel token preset).
+
+**Given** any primitive in `packages/ui/src/primitives/`,
+**When** I inspect it,
+**Then** CSS references use Tailwind classes that resolve to `var(--*)` tokens
+**And** no hex values appear in primitive source (lint-enforced in Story 1.13 extended).
+
+##### Story 7.2: 24 shadcn/ui + Radix primitives vendored (UX-DR16)
+
+As a fork operator,
+I want 24 shadcn/ui + Radix primitives vendored into `packages/ui/src/primitives/` (copy-into-repo, not npm dep), each with stable Keel catalog ID (e.g., `ui.button.01`, `ui.input.text.01`, etc.),
+So that primitives are forkable, visible in git history, and stamped with stable IDs that survive shadcn upstream churn (UX-DR16).
+
+**Acceptance Criteria:**
+
+**Given** `packages/ui/src/primitives/`,
+**When** I inspect it,
+**Then** 24 primitives exist per the UX-DR16 enumeration (`button`, `input.{text,textarea,checkbox,radio}`, `select`, `label`, `form`, `dialog`, `drawer`, `dropdown-menu`, `popover`, `tooltip`, `toast`, `tabs`, `switch`, `card`, `badge`, `separator`, `skeleton`, `avatar`, `scroll-area`, `table`)
+**And** `ui.command.01` is NOT present (Growth-tier deferral documented).
+
+**Given** each primitive file,
+**When** I inspect the header,
+**Then** a stable catalog ID is documented (e.g., `// @catalog: ui.button.01`)
+**And** the ID is cross-referenced in `docs/design/catalog.md` (Story 7.4).
+
+**Given** primitives are vendored,
+**When** I check `package.json`,
+**Then** `@radix-ui/*` deps are pinned (Story 1.15 renovate covers)
+**And** no `shadcn-ui` runtime dependency is present.
+
+**Given** a fork operator wants to update a primitive,
+**When** they edit the file,
+**Then** the edit is visible in git
+**And** any downstream breakage is caught by usage sites (typecheck).
+
+##### Story 7.3: 4 custom web primitives (UX-DR17)
+
+As a fork operator,
+I want 4 custom web primitives — `ui.chip.01` (shared TUI+web status chip; tones info/success/warning/error/critical; never colour-alone), `ui.empty-state.01` (title + 0-1 action), `ui.app-shell.01` (responsive sidebar + main, build-time shape-aware nav), `ui.form-field.01` (Label+Input+help+error wrapper with aria-describedby + aria-invalid auto-wired),
+So that Keel has one canonical primitive per custom pattern (UX-DR17).
+
+**Acceptance Criteria:**
+
+**Given** `packages/ui/src/primitives/chip.tsx`,
+**When** I inspect it,
+**Then** it accepts `tone: 'info' | 'success' | 'warning' | 'error' | 'critical'`
+**And** each tone carries an icon (never colour-alone for a11y).
+
+**Given** `packages/ui/src/primitives/empty-state.tsx`,
+**When** I inspect it,
+**Then** it enforces: 1 title, 1 optional description line, 0-1 CTA
+**And** rejects marketing-heavy copy patterns.
+
+**Given** `packages/ui/src/primitives/app-shell.tsx`,
+**When** I inspect it,
+**Then** it renders a responsive sidebar + main layout
+**And** nav structure is build-time shape-aware (different for b2b vs b2c per `keel.config.ts`).
+
+**Given** `packages/ui/src/primitives/form-field.tsx`,
+**When** I inspect it,
+**Then** it wraps Label + Input (or other form primitive) + help text + error text
+**And** `aria-describedby` + `aria-invalid` are auto-wired based on props.
+
+**Given** all 4 primitives are catalog entries,
+**When** `docs/design/catalog.md` (Story 7.4) tracks them,
+**Then** each has a stable ID (`ui.chip.01`, `ui.empty-state.01`, `ui.app-shell.01`, `ui.form-field.01`).
+
+##### Story 7.4: Catalog doc at `docs/design/catalog.md` (UX-DR7)
+
+As a fork operator or agent,
+I want `docs/design/catalog.md` enumerating every primitive + screen template + pattern recipe with stable IDs; format = purpose / shape / primitives / template / required tests; referenced by `INVARIANTS.md §ui`; participates in FR43 manifest sync gate,
+So that there is one canonical reference for "which primitive for what" with machine-enforced drift detection (UX-DR7).
+
+**Acceptance Criteria:**
+
+**Given** `docs/design/catalog.md`,
+**When** I read it,
+**Then** every primitive from Stories 7.2 and 7.3 has an entry with `{id, purpose, shape, primitives, template, required_tests}`
+**And** the doc is valid markdown with a TOC.
+
+**Given** `INVARIANTS.md §ui`,
+**When** I read it,
+**Then** it points at `docs/design/catalog.md` as the canonical reference
+**And** each catalog entry has a matching invariant ID in Story 1.8's manifest.
+
+**Given** the catalog participates in FR43 sync gate,
+**When** Story 1.9 walks invariants,
+**Then** missing or extra catalog entries relative to `packages/ui/src/primitives/` fail the gate.
+
+**Given** a fork operator adds a new primitive,
+**When** they commit,
+**Then** the catalog entry MUST be updated in the same PR
+**And** the sync gate catches omissions.
+
+##### Story 7.5: 8 interaction-pattern recipes at `docs/design/patterns.md` (E7, UX-DR64)
+
+As a fork operator or agent,
+I want 8 interaction-pattern recipes — `destructive-confirm`, `empty-state-with-cta`, `error-state-taxonomy`, `loading-state-choreography`, `form-with-validation`, `table-with-row-actions`, `modal-confirm`, `nav-states` — as first-class catalog entries at `docs/design/patterns.md`, each with stable ID + example + required-tests floor,
+So that Ralph composes primitives consistently across forks and un-scaffolded cases don't default to spinners + toast-errors (E7-patterns party-mode amendment, UX-DR64).
+
+**Acceptance Criteria:**
+
+**Given** `docs/design/patterns.md`,
+**When** I read it,
+**Then** the 8 patterns from the E7 amendment are documented
+**And** each pattern has a stable ID (`pattern.destructive-confirm.01`, etc.).
+
+**Given** each pattern,
+**When** I inspect it,
+**Then** it documents: primitives used, example code, required-tests floor (minimum assertions for any implementation).
+
+**Given** `pattern.error-state-taxonomy.01`,
+**When** I read it,
+**Then** the decision tree per UX-DR25 is documented: inline field / inline block / toast / full-page route / halt banner.
+
+**Given** `pattern.loading-state-choreography.01`,
+**When** I read it,
+**Then** the skeleton + 200ms delay + `<Delayed>` wrapper per UX-DR27 is documented
+**And** full-screen spinners + "Loading..." text are explicitly forbidden.
+
+**Given** `patterns.md` is an invariant,
+**When** Story 1.9 walks it,
+**Then** drift with `packages/ui/` implementations fails the sync gate.
+
+##### Story 7.6: Fork token overrides + Direction B/C preset overlays (UX-DR8)
+
+As a fork operator,
+I want `apps/web/tokens.fork.json` (DTCG) merged with Epic 1's substrate token source before emission, plus Direction B/C preset overlays at `docs/design/presets/{gov-uk-adjacent,developer-notebook}.tokens.json` (CI-tested for contrast + schema validity),
+So that forks can override colours/motion without editing substrate and alternative aesthetic directions are available as drop-ins (UX-DR8).
+
+**Acceptance Criteria:**
+
+**Given** a fork with `apps/web/tokens.fork.json`,
+**When** Epic 1's emitter (Story 1.12) runs,
+**Then** the fork overrides merge with the substrate token source before emission
+**And** the emitted `tokens.css` + `tailwind.preset.ts` reflect the merge.
+
+**Given** `docs/design/presets/gov-uk-adjacent.tokens.json` + `developer-notebook.tokens.json`,
+**When** I inspect each,
+**Then** they validate against the token schema from Story 1.10
+**And** the emitter can use either as a base (alternative to Direction A).
+
+**Given** a preset is used,
+**When** pre-merge runs the contrast check (Story 1.13),
+**Then** the preset's text-on-surface pairs pass WCAG AA
+**And** any preset failing the check is rejected.
+
+**Given** primitive bodies are NOT forkable,
+**When** a fork edits `packages/ui/src/primitives/button.tsx` directly,
+**Then** Story 1.9's sync gate rejects the edit (primitive is a substrate invariant)
+**And** forks must override via tokens, not primitive surgery.
+
+##### Story 7.7: F4 Zustand posture enforcement (no-persist-tenant-id + persist-middleware lint)
+
+As a substrate maintainer,
+I want Semgrep rule `no-persist-tenant-id.yml` + a lint rule for Zustand persist-middleware usage, rejecting any persistence of tenant-scoped state keys (e.g., `tenantId`, `teamId`, `userId` when used as tenant),
+So that tenant data cannot leak across sessions via client-side persistence (F4).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/semgrep-rules/no-persist-tenant-id.yml`,
+**When** the rule runs,
+**Then** it flags `create(persist(..., { name: ..., partialize: ... }))` patterns where `partialize` returns an object containing `tenantId`/`teamId`/`userId` keys.
+
+**Given** a lint rule for Zustand persist middleware,
+**When** I inspect `packages/keel-invariants/eslint.config.keel-invariants.js`,
+**Then** a rule flags `import { persist } from 'zustand/middleware'` in any file that also imports tenant-context types.
+
+**Given** a false positive (e.g., non-tenant `userId` like a settings form),
+**When** a developer needs to suppress,
+**Then** an explicit `// keel-invariants-allow: no-persist-tenant-id` comment with reason is required
+**And** the comment must reference a documented rationale.
+
+**Given** downstream UI epics (9, 10, 11, 12) consume this rule,
+**When** they add state management,
+**Then** the rule applies automatically.
+
+##### Story 7.8: Accessibility primitives baked in (UX-DR32–44)
+
+As a fork operator,
+I want accessibility primitives baked into every component — contrast enforcement at build (Epic 1 contract + Epic 7 verification); focus ring (2px accent.400, never removed); `:focus-visible` only; `prefers-reduced-motion` + `prefers-color-scheme` honoured; touch targets 44×44 min; skip link in `ui.app-shell.01`,
+So that a11y is a property of the substrate, not a per-fork concern (UX-DR32–44).
+
+**Acceptance Criteria:**
+
+**Given** any primitive's styles,
+**When** I inspect,
+**Then** a focus ring with 2px solid `--accent-400` is applied on `:focus-visible` (not plain `:focus`)
+**And** removing the focus ring is lint-rejected.
+
+**Given** motion-bearing components,
+**When** I inspect,
+**Then** `prefers-reduced-motion` is honoured (no animation when user prefers reduced)
+**And** lint catches `animation:` without a reduced-motion fallback.
+
+**Given** `prefers-color-scheme`,
+**When** the user switches,
+**Then** dark tokens apply (tokens ship at 1.0 per V2 amendment; dark VISUAL verification deferred to 1.1).
+
+**Given** touch targets,
+**When** I inspect any interactive primitive,
+**Then** the minimum touch area is 44×44 px
+**And** smaller visual elements have extended hit areas via padding.
+
+**Given** `ui.app-shell.01`,
+**When** I inspect it,
+**Then** a skip link "Skip to main content" is rendered at the top of the DOM
+**And** it is the first focusable element.
+
+**Given** UX-DR66 design-system failures triggering halt-worthy backpressure,
+**When** token drift, a11y violations, missing i18n keys, or contrast failures occur,
+**Then** FR14l halt mechanism escalates per Epic 3 Story 3.17.
+
 ---
 
 ### Epic 8: Async Platform (Jobs, Email, Audit)
