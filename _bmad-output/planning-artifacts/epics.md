@@ -4932,6 +4932,244 @@ So that non-Paddle forks have a clear path without blocking 1.0 (FR63, Growth-ti
 
 **Standalone delivery:** Every request traced; feature flags evaluate server-side; authors reference i18n keys for all text; CI fails on bare strings. Locale persistence backend works; UI selector chrome lives in Epic 12.
 
+#### Stories
+
+##### Story 11.1: `packages/core/otel.ts` OTel SDK init + middleware
+
+As a substrate maintainer,
+I want `packages/core/otel.ts` initialising the OTel SDK with console-exporter default (prevents network errors when `OTEL_EXPORTER_OTLP_ENDPOINT` unset) and OTLP exporter when set, plus `packages/contracts/middleware/opentelemetry.ts` as A2 middleware step [0],
+So that every request is traced without forcing OTel infrastructure on every fork (FR22 foundation, NFR32).
+
+**Acceptance Criteria:**
+
+**Given** `packages/core/otel.ts`,
+**When** I inspect it,
+**Then** the SDK initialises with `ConsoleSpanExporter` when `OTEL_EXPORTER_OTLP_ENDPOINT` is unset
+**And** switches to `OTLPTraceExporter` when set.
+
+**Given** `packages/contracts/middleware/opentelemetry.ts`,
+**When** applied as A2 step [0],
+**Then** every tRPC request creates a root span
+**And** downstream middleware (loggerContext → tenantGuard → requireAuth → requireRecentAuth → handler) become child spans.
+
+**Given** the exporter endpoint,
+**When** read from `keel.config.ts → otelExporter` at build time,
+**Then** the value is baked into the app
+**And** runtime cannot change it (NFR: build-time only for this shape field).
+
+##### Story 11.2: Span naming conventions + attribute keys
+
+As a substrate maintainer,
+I want span names following `<package>.<operation>` (e.g., `trpc.team.invite.create`, `db.user.findMany`, `job.email.send_verification`) and attribute keys following `keel.<namespace>.<attr>` (e.g., `keel.tenant.id`, `keel.shape`),
+So that Keel's observability output is consistent across forks and searchable (observability contract).
+
+**Acceptance Criteria:**
+
+**Given** a tRPC handler,
+**When** the OTel span is created,
+**Then** the name is `trpc.<router>.<procedure>`
+**And** `keel.tenant.id` + `keel.shape` attributes are set.
+
+**Given** Prisma-side spans,
+**When** queries execute,
+**Then** span name is `db.<model>.<op>` (e.g., `db.user.findMany`).
+
+**Given** job handlers,
+**When** pg-boss runs,
+**Then** span name is `job.<domain>.<action>`
+**And** parent trace context from `traceparent` is restored per Epic 8 Story 8.3.
+
+**Given** naming conventions are invariant,
+**When** Story 1.8 tracks them,
+**Then** `INV-otel-span-naming` is registered
+**And** a Semgrep rule flags non-conforming span names (best-effort; runtime wrapping ensures most cases).
+
+##### Story 11.3: Configurable sampling (100% errors, 10% non-error)
+
+As a substrate maintainer,
+I want sampling configured via `packages/config` — 100% for error-bearing traces, 10% for non-error traces in production forks,
+So that errors are always captured while non-error overhead is bounded (NFR32).
+
+**Acceptance Criteria:**
+
+**Given** `packages/core/otel.ts` sampling configuration,
+**When** I inspect it,
+**Then** a parent-based sampler with error-priority logic is configured
+**And** defaults are `error_rate: 1.0, non_error_rate: 0.1`.
+
+**Given** fork operators want to override,
+**When** they set `OTEL_SAMPLER_NON_ERROR_RATE=0.5` in `.envrc`,
+**Then** the override is honoured.
+
+**Given** a trace contains an error span,
+**When** sampling evaluates,
+**Then** the whole trace is retained (100% error policy).
+
+##### Story 11.4: `packages/flags/` feature-flag evaluator (server-side, route-loader-scoped)
+
+As a fork operator,
+I want `packages/flags/evaluator.ts` evaluating feature flags server-side with static-code + env-var override at 1.0, plus `packages/flags/loader-scope.ts` integrating with TanStack Router `loader`,
+So that flags are evaluated at SSR time with no client flicker (FR21, F3).
+
+**Acceptance Criteria:**
+
+**Given** `packages/flags/evaluator.ts`,
+**When** I inspect it,
+**Then** flags are typed constants with `evaluator.isEnabled(flagName, context)` returning boolean
+**And** env-var override (`KEEL_FLAG_<NAME>=true`) is honoured.
+
+**Given** a TanStack Router `loader`,
+**When** it uses `packages/flags/loader-scope.ts`,
+**Then** flag state is resolved server-side before render
+**And** the component receives evaluated flag values as typed props.
+
+**Given** client-side code,
+**When** it attempts to access `packages/flags/` at runtime,
+**Then** a build-time constraint (bundler config) excludes it from client bundle.
+
+##### Story 11.5: i18n framework baseline (`en.json`, typed keys codegen)
+
+As a fork operator,
+I want `apps/web/app/i18n/en.ts` as the English baseline, `apps/web/app/i18n/messages.generated.ts` as typed-keys codegen output, with key-path format `<domain>.<surface>.<key>` (dot-separated),
+So that all user-facing content is typed and autocomplete-friendly (FR24, FR26).
+
+**Acceptance Criteria:**
+
+**Given** `apps/web/app/i18n/en.ts`,
+**When** I inspect it,
+**Then** all baseline English strings are present
+**And** keys follow `<domain>.<surface>.<key>` (e.g., `auth.signup.title`).
+
+**Given** `messages.generated.ts`,
+**When** a codegen step runs,
+**Then** the file contains a typed enum of all keys from `en.ts`
+**And** TypeScript can autocomplete `t('<key>')`.
+
+**Given** translator notes,
+**When** I inspect non-trivial keys,
+**Then** JSON-schema comments describe the context
+**And** translators have guidance per UX-DR translator-notes requirement.
+
+##### Story 11.6: Bare-strings lint rule (FR27 teeth)
+
+As a substrate maintainer,
+I want a TypeScript + ESLint rule rejecting bare user-facing strings in `.tsx` files, forcing `t('<key>')` usage,
+So that missing translations cannot slip through (FR27).
+
+**Acceptance Criteria:**
+
+**Given** a `.tsx` file with `<Button>Click me</Button>`,
+**When** the lint rule runs,
+**Then** it flags the bare string
+**And** the commit is rejected.
+
+**Given** `<Button>{t('action.click_me')}</Button>`,
+**When** the lint runs,
+**Then** it passes.
+
+**Given** exceptions (e.g., non-user-facing strings in comments or test fixtures),
+**When** allowed via `// i18n-exempt: <reason>` inline comment,
+**Then** the rule honours the exemption
+**And** the reason is documented.
+
+##### Story 11.7: Accept-Language detection + user-preference override (FR25)
+
+As a user,
+I want my locale detected from the `Accept-Language` header on first visit and overridden by my persisted `user.locale_preference` after I set one,
+So that the app respects my language without re-prompting (FR25).
+
+**Acceptance Criteria:**
+
+**Given** a request without `user.locale_preference`,
+**When** the app loads,
+**Then** the locale is parsed from `Accept-Language` and matched against available locales (`en`, `ar`, `de`, plus fork additions)
+**And** falls back to English if no match.
+
+**Given** a request with `user.locale_preference = 'ar'`,
+**When** the app loads,
+**Then** Arabic is used
+**And** `<html lang="ar" dir="rtl">` is server-rendered.
+
+**Given** a logged-out user,
+**When** they browse,
+**Then** locale state lives in a session cookie until login
+**And** post-login, `user.locale_preference` takes precedence.
+
+##### Story 11.8: RTL + logical CSS + `<html lang/dir>` (UX-DR49)
+
+As a fork operator,
+I want logical CSS properties only (`margin-inline-start` not `margin-left`), `<html lang={BCP-47}>` + `<html dir="rtl">` server-rendered from active locale, and scaffolded `ar.json` (RTL test) + `de.json` (LTR test) locales alongside full `en.json`,
+So that RTL rendering works without component rewrites (UX-DR49, NFR21).
+
+**Acceptance Criteria:**
+
+**Given** every primitive's CSS (Epic 7),
+**When** I inspect styles,
+**Then** logical properties are used (`inline-start`/`inline-end`/`block-start`/`block-end`)
+**And** physical properties (`margin-left`, etc.) are lint-rejected.
+
+**Given** a user with `locale = "ar"`,
+**When** the app SSRs,
+**Then** `<html lang="ar" dir="rtl">` renders
+**And** all primitives flip cleanly.
+
+**Given** `apps/web/app/i18n/ar.json`,
+**When** I inspect it,
+**Then** the file exists as a scaffolded empty skeleton with every baseline key
+**And** the same for `de.json` (LTR test).
+
+**Given** a 360/768/1280 × LTR/RTL × light matrix snapshot at M9,
+**When** screenshots render,
+**Then** all 18 combos pass (dark visual deferred to 1.1 per V2).
+
+##### Story 11.9: i18n-key parity check at pre-commit (UX-DR56)
+
+As a substrate maintainer,
+I want a pre-commit check comparing each locale file against the baseline English, failing the commit if any locale is missing keys or has orphan keys,
+So that translation drift is caught early (UX-DR56).
+
+**Acceptance Criteria:**
+
+**Given** `apps/web/app/i18n/en.json` is baseline,
+**When** the check runs,
+**Then** every other locale file (`ar.json`, `de.json`, fork additions) is diffed against it.
+
+**Given** a missing key in `ar.json`,
+**When** the check runs,
+**Then** it fails with a pointer naming the missing key.
+
+**Given** an orphan key (present in a locale but not in baseline),
+**When** the check runs,
+**Then** it fails with a pointer to the orphan.
+
+**Given** scaffolded empty locales at 1.0,
+**When** the check runs,
+**Then** empty-value keys are allowed (translator placeholders) but the key MUST exist
+**And** missing keys always fail.
+
+##### Story 11.10: End-user locale persistence (FR64)
+
+As a user,
+I want my locale preference persisted in DB at `user.locale_preference` and consumed on every request,
+So that my language choice survives logins + devices (FR64).
+
+**Acceptance Criteria:**
+
+**Given** `schema.prisma`,
+**When** I inspect the User model,
+**Then** `locale_preference: String?` column exists
+**And** defaults to null (fall back to Accept-Language).
+
+**Given** a locale-selector UI in Epic 12,
+**When** the user changes locale,
+**Then** a tRPC mutation updates `user.locale_preference`
+**And** subsequent requests honour it.
+
+**Given** an unauthenticated user,
+**When** they set a locale,
+**Then** it's stored in a session cookie until login
+**And** copied to `user.locale_preference` on first login if not already set.
+
 ---
 
 ### Epic 12: Scaffolded Management & Onboarding Screens
