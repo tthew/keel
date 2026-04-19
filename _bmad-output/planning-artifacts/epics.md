@@ -4398,6 +4398,270 @@ So that the platform abstractions are enforced, not convention (structural const
 
 **Standalone delivery:** End users can complete the full auth loop — signup, verify, login, step-up, password reset, logout all — on either shape. UI is minimal but a11y-compliant + i18n-keyed.
 
+#### Stories
+
+##### Story 9.1: `packages/core/auth/` + better-auth config
+
+As a fork operator,
+I want `packages/core/auth/better-auth.ts` configuring better-auth with DB-backed sessions, email/password, and Google OAuth providers,
+So that auth is hardwired with no adapter surface at 1.0 (FR54 foundation, FR57 foundation).
+
+**Acceptance Criteria:**
+
+**Given** `packages/core/auth/better-auth.ts`,
+**When** I inspect it,
+**Then** better-auth is configured with Prisma adapter, `Session`/`Account` models, email+password provider, Google OAuth provider
+**And** no adapter abstraction layer exists (NFR: hardwired at 1.0).
+
+**Given** a test suite,
+**When** auth init runs,
+**Then** better-auth initialises without errors
+**And** a stub user can be created via the library API.
+
+##### Story 9.2: Session + Account Prisma schema + session-cleanup wire-up (S1)
+
+As a substrate maintainer,
+I want `Session` and `Account` tables added to `packages/db/prisma/schema.prisma` (tenant-scoped where applicable) plus wiring for Epic 8's `session-cleanup` scheduled job to daily-delete expired sessions,
+So that session storage is canonical and expired rows don't accumulate (S1).
+
+**Acceptance Criteria:**
+
+**Given** `schema.prisma`,
+**When** I inspect it,
+**Then** `Session { id, user_id, expired_at, last_activity, mfa_verified_at, revoked_at }` and `Account { id, user_id, provider, provider_account_id, ... }` exist
+**And** each has UUIDv7 PK.
+
+**Given** Epic 8 Story 8.6's `session-cleanup` job,
+**When** it runs daily,
+**Then** it deletes sessions where `expired_at < now()` AND `revoked_at < now() - interval '30 days'`.
+
+**Given** Epic 6's CI check for RLS on tenant-scoped tables,
+**When** Session references a tenant context,
+**Then** RLS policies from Epic 5 generator cover it.
+
+##### Story 9.3: A2 tRPC middleware stack order
+
+As a substrate maintainer,
+I want a pinned tRPC middleware stack order in `packages/contracts/src/middleware/` — `openTelemetry` → `loggerContext` → `tenantGuard` → `requireAuth` → `requireRecentAuth` → handler,
+So that all requests are traced, logged, tenant-scoped, auth-gated, and step-up-checked in the same order (A2).
+
+**Acceptance Criteria:**
+
+**Given** `packages/contracts/src/middleware/`,
+**When** I inspect it,
+**Then** 5 middleware modules exist in separate files with the order documented in `index.ts`.
+
+**Given** a tRPC procedure,
+**When** it applies the default middleware stack,
+**Then** the 5 middlewares execute in the pinned order
+**And** any reordering is caught by a test in `packages/contracts/test/middleware-order.test.ts`.
+
+**Given** the invariant is registered,
+**When** Story 1.8 tracks it,
+**Then** `INV-trpc-middleware-order` is in the manifest.
+
+##### Story 9.4: A3 error code enum + i18n key mapping
+
+As a substrate maintainer,
+I want `packages/contracts/src/errors.ts` exporting an error code enum `UNAUTHORIZED | FORBIDDEN | NOT_FOUND | BAD_REQUEST | INTERNAL_SERVER_ERROR | STEP_UP_REQUIRED | TENANT_MISMATCH` with Zod validation auto-mapping to `BAD_REQUEST` and messages typed as i18n keys (Epic 11 consumer),
+So that error handling is uniform across the app (A3).
+
+**Acceptance Criteria:**
+
+**Given** `packages/contracts/src/errors.ts`,
+**When** I inspect it,
+**Then** the enum is exported with the 7 codes
+**And** every code maps to an i18n key (e.g., `errors.unauthorized`).
+
+**Given** a Zod validation error inside a tRPC handler,
+**When** it throws,
+**Then** the middleware catches and converts to `BAD_REQUEST` with the validation detail preserved.
+
+**Given** i18n keys are consumed,
+**When** Epic 11's i18n framework resolves them,
+**Then** the code displays localised messages.
+
+##### Story 9.5: Signup flow (email+password) + email verification
+
+As a user,
+I want to sign up via email+password and receive a verification email with a single-use 24h-TTL token that flips `user.email_verified_at` when clicked,
+So that verified identity is a prerequisite for full access (FR54, FR55).
+
+**Acceptance Criteria:**
+
+**Given** a signup tRPC mutation,
+**When** I submit email+password,
+**Then** better-auth creates the user and enqueues `email.send_verification` (Epic 8 Story 8.4)
+**And** the mutation returns success with session established.
+
+**Given** a verification email,
+**When** the user clicks the link,
+**Then** `/verify?token=...` consumes the token, flips `user.email_verified_at`, redirects to app.
+
+**Given** an expired token (24h TTL),
+**When** the user clicks,
+**Then** the route shows "verification link expired — resend?" with a resend button that enqueues a new `email.send_verification`.
+
+**Given** a single-use token,
+**When** the token is reused,
+**Then** the second attempt shows "already verified".
+
+##### Story 9.6: Google OAuth + PKCE + state
+
+As a user,
+I want Google OAuth as an alternative signup/login method with PKCE + state-parameter verification preventing authorization-code injection,
+So that OAuth is secure-by-default (FR54, NFR25).
+
+**Acceptance Criteria:**
+
+**Given** `packages/core/auth/google-oauth.ts`,
+**When** I inspect it,
+**Then** the flow enforces PKCE (code_challenge + code_verifier) and state parameter.
+
+**Given** the `/auth/google/callback` route,
+**When** state does not match,
+**Then** the callback rejects with `UNAUTHORIZED` (no code injection).
+
+**Given** a successful Google OAuth,
+**When** the user returns,
+**Then** better-auth creates `Account { provider: 'google', ... }` linked to the user
+**And** subsequent logins via Google reuse the account.
+
+##### Story 9.7: Password reset flow (PRD clarification)
+
+As a user,
+I want to reset my password via `/reset-password` (takes email; returns 204 regardless of user existence to avoid enumeration; enqueues `email.send_reset_password`) and `/reset-password/confirm` (takes token + new password; validates; updates session),
+So that a forgotten password is recoverable without leaking which emails are users (PRD clarification per user request + baseline template).
+
+**Acceptance Criteria:**
+
+**Given** `/reset-password`,
+**When** I POST email,
+**Then** the route enqueues `email.send_reset_password` if the user exists; otherwise silently proceeds
+**And** returns 204 in both cases (no email-enumeration vector).
+
+**Given** `/reset-password/confirm`,
+**When** I submit a valid token + new password,
+**Then** better-auth updates the password, revokes existing sessions, creates a fresh session
+**And** `password.reset_completed` audit event fires (Story 9.12).
+
+**Given** an invalid / expired token,
+**When** I submit,
+**Then** the route responds with `BAD_REQUEST` i18n-keyed message
+**And** no password change occurs.
+
+##### Story 9.8: DB-backed session revocation (FR57)
+
+As a fork operator,
+I want sessions backed by a DB `Session` row + cookie; revocation via `Session.revokedAt`; `requireAuth` middleware rejects revoked sessions,
+So that sessions are revocable server-side (FR57; stateless-JWT is Tier-2 deviation only per NFR12).
+
+**Acceptance Criteria:**
+
+**Given** a valid session,
+**When** `requireAuth` runs,
+**Then** it queries `Session` by cookie, checks `revoked_at IS NULL` AND `expired_at > now()`
+**And** proceeds if valid, else returns `UNAUTHORIZED`.
+
+**Given** a revoked session,
+**When** `requireAuth` runs,
+**Then** the request is rejected.
+
+**Given** stateless-JWT is Tier-2,
+**When** `docs/invariants/auth.md` is read,
+**Then** NFR12 is documented as "substrate = DB sessions; JWT = fork-level deviation requiring documented rationale."
+
+##### Story 9.9: Step-up middleware for sensitive actions (S2)
+
+As a fork operator,
+I want `requireRecentAuth({ maxAge: '5m' })` tRPC middleware at `packages/core/auth/step-up.ts` checking `session.lastActivity` + `session.mfaVerifiedAt`; on expiry returns `TRPCError({ code: 'STEP_UP_REQUIRED' })`; client catches, redirects to re-auth,
+So that sensitive actions (billing cancel, account deletion, team owner transfer) require recent auth (FR58, S2).
+
+**Acceptance Criteria:**
+
+**Given** `requireRecentAuth({ maxAge: '5m' })`,
+**When** a handler applies it and the session's `last_activity` is > 5 min old,
+**Then** the middleware throws `TRPCError({ code: 'UNAUTHORIZED', message: 'STEP_UP_REQUIRED' })`.
+
+**Given** billing routes (Epic 10) + tenant-admin routes,
+**When** they declare the middleware,
+**Then** step-up is enforced consistently.
+
+**Given** the client receives `STEP_UP_REQUIRED`,
+**When** it catches,
+**Then** the UI redirects to a re-auth prompt (password or step-up factor)
+**And** on success, `last_activity` is refreshed.
+
+##### Story 9.10: Log out all sessions (FR59)
+
+As a user,
+I want a tRPC mutation that sets `Session.revokedAt = now()` for every session of `user.id`,
+So that I can revoke access across devices with one action (FR59).
+
+**Acceptance Criteria:**
+
+**Given** `auth.revokeAllSessions` tRPC mutation,
+**When** called,
+**Then** every Session of `current_user_id` has `revoked_at = now()`
+**And** the current request's session is also revoked (user is logged out).
+
+**Given** a revoked session attempts the next request,
+**When** `requireAuth` runs (Story 9.8),
+**Then** the request is rejected.
+
+**Given** the UI exposes the action,
+**When** a user clicks "Log out all devices" in settings (lands in Epic 12),
+**Then** the mutation fires and the user is redirected to login.
+
+##### Story 9.11: Auth UI screens (signup/login/verify/reset-password)
+
+As a user,
+I want minimal auth UI screens at `apps/web/app/routes/{signup,login,verify,reset-password}.tsx` using Epic 7 primitives (`ui.form.01`, `ui.form-field.01`, `ui.button.01`, `ui.input.text.01`) with catalog-ID citation in every route header,
+So that auth flows are operable with a11y baseline + i18n keys (FR54/FR55 UI side, UX-DR63).
+
+**Acceptance Criteria:**
+
+**Given** each route file,
+**When** I inspect the header,
+**Then** a catalog-ID comment appears (e.g., `/* catalog: ui.screen.signup.01 */`).
+
+**Given** axe-core critical violations,
+**When** tests run against the routes,
+**Then** zero critical violations
+**And** Playwright keyboard traversal completes all actions.
+
+**Given** the 48-combo snapshot matrix (360/768/1280 × LTR/RTL × light/dark),
+**When** M9 runs the screenshot matrix,
+**Then** every combo renders cleanly (dark VISUAL verification deferred to 1.1 per V2 amendment; dark tokens still ship).
+
+**Given** all copy is i18n-keyed,
+**When** the i18n framework (Epic 11) loads,
+**Then** English strings render; bare strings are lint-rejected per FR27.
+
+##### Story 9.12: Auth audit events wire-up
+
+As a substrate maintainer,
+I want auth actions recording audit events via Epic 8 Story 8.5 — `user.signed_up`, `user.logged_in`, `session.revoked`, `password.reset_requested`, `password.reset_completed`,
+So that security-relevant auth events are append-only logged (FR23 consumer).
+
+**Acceptance Criteria:**
+
+**Given** signup succeeds,
+**When** the user is created,
+**Then** `auditLog.write('user.signed_up', { user_id, method: 'email' | 'google' })` fires.
+
+**Given** login succeeds,
+**When** the session is established,
+**Then** `auditLog.write('user.logged_in', { user_id, session_id })` fires.
+
+**Given** session revocation (manual, all-logout, or password reset),
+**When** `revoked_at` is set,
+**Then** `auditLog.write('session.revoked', { session_id, reason })` fires.
+
+**Given** password-reset flow,
+**When** the email is enqueued,
+**Then** `password.reset_requested` fires; on confirm, `password.reset_completed` fires.
+
 ---
 
 ### Epic 10: Commerce (Paddle billing)
