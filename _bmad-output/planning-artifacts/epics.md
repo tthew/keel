@@ -5209,6 +5209,243 @@ So that my language choice survives logins + devices (FR64).
 
 **Standalone delivery:** A forker running `create-keel-app` + editing `keel.config.ts` shape gets a fully-composed SaaS UI with management screens, onboarding, settings, audit log viewer — all responsive, a11y-compliant, i18n-keyed.
 
+#### Stories
+
+##### Story 12.1: Shape-aware template resolution (build-time; no runtime branching)
+
+As a substrate maintainer,
+I want routes in `apps/web/app/routes/*.tsx` to import from `packages/ui/src/templates/_${shape}/*` with resolution at build time via keel-generator (Epic 5); an ESLint rule forbids cross-shape template imports; no `if (shape === 'b2b')` in product code,
+So that shape switching regenerates imports rather than adding runtime branches (UX-DR22, UX-DR65).
+
+**Acceptance Criteria:**
+
+**Given** a route file,
+**When** I inspect it,
+**Then** imports come from `@keel/ui/templates/_<current-shape>/...`
+**And** no `if (shape === 'b2b')` or equivalent runtime branching exists.
+
+**Given** the ESLint rule,
+**When** a route imports from `_b2c` in a B2B fork,
+**Then** the rule flags the cross-shape import.
+
+**Given** shape change,
+**When** the fork switches from b2b to b2c (Epic 5 Story 5.9 workflow),
+**Then** `pnpm generate` rewrites imports
+**And** the app builds cleanly.
+
+##### Story 12.2: Shared screen templates (audit-log, billing, sessions, locale, settings-shell, app-shell)
+
+As a fork operator,
+I want shared screen templates in `packages/ui/src/templates/shared/` — `audit-log.tsx`, `billing.tsx`, `sessions.tsx`, `locale.tsx`, `settings-shell.tsx`, `app-shell.tsx`,
+So that shape-neutral screens have one canonical implementation (composition epic).
+
+**Acceptance Criteria:**
+
+**Given** each template,
+**When** I inspect it,
+**Then** it composes Epic 7 primitives + Epic 9 auth context + Epic 10 billing state (where relevant) + Epic 11 i18n keys.
+
+**Given** `audit-log.tsx`,
+**When** rendered,
+**Then** it shows filtered + paginated audit events (Epic 8 audit log).
+
+**Given** `sessions.tsx`,
+**When** rendered,
+**Then** a list of the user's sessions shows with per-row "Revoke" hitting FR57 revocation + FR59 log-out-all.
+
+**Given** `locale.tsx`,
+**When** rendered,
+**Then** a locale selector hits the FR64 mutation from Epic 11 Story 11.10.
+
+**Given** `app-shell.tsx`,
+**When** rendered,
+**Then** it invokes `ui.app-shell.01` (Epic 7 Story 7.3) with shape-aware nav structure.
+
+##### Story 12.3: B2B screen templates (onboarding-team, team-members, team-invite, billing-team-seats)
+
+As a B2B fork operator,
+I want B2B-specific screen templates in `packages/ui/src/templates/_b2b/` — `onboarding-team.tsx` (create/accept-invite post-signup), `team-members.tsx` (roster + role + remove), `team-invite.tsx` (email + role), `billing-team-seats.tsx`,
+So that a B2B fork has a complete team-lifecycle UI (FR56 B2B).
+
+**Acceptance Criteria:**
+
+**Given** a signup completes,
+**When** `onboarding-team.tsx` renders,
+**Then** the user can create a new team or accept a pending invite by token.
+
+**Given** `team-members.tsx`,
+**When** I render it,
+**Then** the roster table (using `pattern.table-with-row-actions.01` from Epic 7) shows members + roles + a dropdown action (change role / remove).
+
+**Given** `team-invite.tsx`,
+**When** the owner submits a new invite,
+**Then** an email+role is captured + the `email.send_invite` job fires (Epic 8).
+
+**Given** `billing-team-seats.tsx`,
+**When** rendered,
+**Then** current seat count + per-seat usage + upgrade/downgrade actions are shown.
+
+##### Story 12.4: B2C screen templates (onboarding-profile, profile, billing-individual)
+
+As a B2C fork operator,
+I want B2C-specific templates in `packages/ui/src/templates/_b2c/` — `onboarding-profile.tsx` (name + locale), `profile.tsx` (personal profile mgmt), `billing-individual.tsx`,
+So that a B2C fork has a complete individual-account UI (FR56 B2C).
+
+**Acceptance Criteria:**
+
+**Given** signup completes in B2C mode,
+**When** `onboarding-profile.tsx` renders,
+**Then** the user sets display name + locale (FR64 consumer).
+
+**Given** `profile.tsx`,
+**When** rendered,
+**Then** editable fields for name, avatar (if present), locale, and password-change entry point exist.
+
+**Given** `billing-individual.tsx`,
+**When** rendered,
+**Then** current plan + upgrade/downgrade/cancel actions are shown.
+
+##### Story 12.5: Route shims + catalog-ID citations
+
+As a substrate maintainer,
+I want every route file in `apps/web/app/routes/` as a thin shim importing from the shape-partitioned template + a catalog-ID citation in the header (e.g., `/* catalog: ui.screen.team-members.01 */`),
+So that product code has no logic and catalog references are queryable (UX-DR63).
+
+**Acceptance Criteria:**
+
+**Given** any route file,
+**When** I inspect it,
+**Then** it is under ~15 lines
+**And** starts with a `/* catalog: ui.screen.<name>.01 */` comment
+**And** re-exports from the template module.
+
+**Given** catalog references,
+**When** `docs/design/catalog.md` (Story 7.4) is consulted,
+**Then** every `ui.screen.*` referenced by a route exists in the catalog
+**And** Story 1.9 sync gate catches missing entries.
+
+##### Story 12.6: Shape-aware nav (UX-DR29)
+
+As a fork operator,
+I want `ui.app-shell.01`'s navigation derived at build time from active shape template: B2B exposes Dashboard · Team · Billing · Settings; B2C exposes Dashboard · Profile · Billing · Settings,
+So that nav reflects shape without runtime branching (UX-DR29).
+
+**Acceptance Criteria:**
+
+**Given** a B2B fork,
+**When** the app shell renders,
+**Then** top-level nav items are Dashboard · Team · Billing · Settings.
+
+**Given** a B2C fork,
+**When** the app shell renders,
+**Then** top-level nav items are Dashboard · Profile · Billing · Settings.
+
+**Given** the nav structure is defined in shape templates,
+**When** Story 12.1's generator resolution runs,
+**Then** the correct nav config is imported.
+
+**Given** a lint rule,
+**When** I attempt `if (shape === '...')` in `app-shell.tsx`,
+**Then** the rule rejects.
+
+##### Story 12.7: Team CRUD + invite flow (FR56 B2B)
+
+As a B2B user,
+I want full team lifecycle — create team, join via invite, leave team, transfer ownership — with step-up auth (Epic 9 Story 9.9) for sensitive ops, OTel tracing, audit events via Epic 8 Story 8.5,
+So that team management is complete and audit-safe (FR56 B2B).
+
+**Acceptance Criteria:**
+
+**Given** a team create mutation,
+**When** called,
+**Then** a new Team row is created with the user as owner
+**And** `team.created` audit event fires.
+
+**Given** an invite link with token,
+**When** a new user signs up through it,
+**Then** they join the team as the invited role
+**And** `invite.accepted` audit event fires.
+
+**Given** leave team,
+**When** a member calls the mutation,
+**Then** they're removed
+**And** `team.member_removed` audit event fires.
+
+**Given** transfer ownership,
+**When** the owner calls the mutation,
+**Then** step-up auth (5-min `requireRecentAuth`) gates the call
+**And** ownership transfers to the named member
+**And** `team.ownership_transferred` audit event fires.
+
+##### Story 12.8: Individual profile flow (FR56 B2C)
+
+As a B2C user,
+I want profile edit (display name, avatar if present, locale preference, password-change entry point),
+So that I can manage my account without team concepts (FR56 B2C).
+
+**Acceptance Criteria:**
+
+**Given** `profile.tsx`,
+**When** I update display name,
+**Then** the tRPC mutation writes `User.display_name` + `user.profile_updated` audit event fires.
+
+**Given** avatar upload,
+**When** provided,
+**Then** the image is stored (presigned URL flow documented; storage backend fork-decided at 1.0)
+**And** `User.avatar_url` is updated.
+
+**Given** locale change,
+**When** made,
+**Then** Epic 11 Story 11.10 persists `user.locale_preference`.
+
+##### Story 12.9: Accessibility + responsive + 48-combo snapshot matrix
+
+As a substrate maintainer,
+I want every Epic 12 screen passing axe-core critical = 0; Playwright keyboard traversal; 18-combo snapshot matrix (360/768/1280 × LTR/RTL × light) at 1.0 per V2 amendment (dark visual deferred to 1.1),
+So that scaffolded screens set the a11y + responsive baseline (UX-DR32–44, UX-DR13/14).
+
+**Acceptance Criteria:**
+
+**Given** axe-core runs on every Epic 12 route,
+**When** tests execute at pre-merge-slow,
+**Then** zero critical violations
+**And** fail threshold rejects PR.
+
+**Given** keyboard traversal (Playwright),
+**When** simulated across each screen,
+**Then** every interactive element is reachable + operable via keyboard only.
+
+**Given** 18 combos (360/768/1280 × LTR/RTL × light),
+**When** the nightly snapshot matrix runs (Epic 13 tier),
+**Then** all screens render correctly
+**And** dark visual verification is deferred to 1.1 per V2 amendment (but dark tokens + class-toggle ship at 1.0).
+
+**Given** touch targets,
+**When** inspected,
+**Then** all interactive elements are ≥ 44×44 px.
+
+##### Story 12.10: Zustand posture enforcement (F4 consumer)
+
+As a substrate maintainer,
+I want Epic 12 screens demonstrating F4 Zustand posture — client ephemeral only; `sessionStorage` default; `localStorage` only with rationale; never persist tenant/billing/auth state,
+So that Epic 12 validates the Epic 7 lint rules in practice (F4).
+
+**Acceptance Criteria:**
+
+**Given** any Zustand store in Epic 12 templates,
+**When** inspected,
+**Then** it uses no persistence for tenant-scoped keys
+**And** `sessionStorage` is the default for any persisted slice.
+
+**Given** `localStorage` use,
+**When** present,
+**Then** a documented rationale comment accompanies the usage
+**And** the key is enumerable + auditable.
+
+**Given** Epic 7 Story 7.7's lint rules,
+**When** they run against Epic 12 templates,
+**Then** zero violations.
+
 ---
 
 ### Epic 13: Decomposed CI Pyramid & Quality Gates
