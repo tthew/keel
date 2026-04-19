@@ -92,9 +92,9 @@ so that no local commit lands with a type error, lint error, or unformatted file
     - `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0/0 across existing branch commits (spec commit only at this point).
   - [ ] Commit: `feat(invariants): Story 1.4 Task 1 — wire prek pre-commit config + prepare script`. Include IP + RALPH.md upkeep in the same commit per Ralph's knowledge-file contract (step 3a of the build prompt).
 
-- [ ] **Task 2: ATDD smoke probes proving each failure-mode AC fires + clean-commit AC 5 + prek-runner parity AC 6** (AC: 2, 3, 4, 5, 6)
-  - [ ] These probes create temporary bad-state files in the worktree, attempt `git commit` (which must abort), then clean up. They produce NO committed artefacts beyond Debug Log entries capturing each probe's output. Every probe runs in sequence; each cleans up before the next.
-  - [ ] **AC 2 probe (TypeScript error aborts commit):**
+- [x] **Task 2: ATDD smoke probes proving each failure-mode AC fires + clean-commit AC 5 + prek-runner parity AC 6** (AC: 2, 3, 4, 5, 6)
+  - [x] These probes create temporary bad-state files in the worktree, attempt `git commit` (which must abort), then clean up. They produce NO committed artefacts beyond Debug Log entries capturing each probe's output. Every probe runs in sequence; each cleans up before the next.
+  - [x] **AC 2 probe (TypeScript error aborts commit):**
     ```bash
     # Write a TS-error file inside a package that typecheck covers.
     cat > packages/audit/src/__ac2-probe.ts <<'EOF'
@@ -111,7 +111,7 @@ so that no local commit lands with a type error, lint error, or unformatted file
     rm -f packages/audit/src/__ac2-probe.ts
     ```
     Expect: non-zero exit from `git commit`; `/tmp/ac2.out` contains `typecheck` hook name + a `TS` error code (e.g. `TS2322` "Type 'string' is not assignable to type 'number'"). No commit on the branch (`git log -1` unchanged).
-  - [ ] **AC 3 probe (ESLint error aborts commit):**
+  - [x] **AC 3 probe (ESLint error aborts commit):**
     ```bash
     cat > packages/audit/src/__ac3-probe.ts <<'EOF'
     // Deliberate cross-package relative import — Story 1.3 AC 1 forbids this.
@@ -125,7 +125,7 @@ so that no local commit lands with a type error, lint error, or unformatted file
     rm -f packages/audit/src/__ac3-probe.ts
     ```
     Expect: non-zero exit; `/tmp/ac3.out` contains `lint` hook name + `no-restricted-imports` + "No relative imports crossing a package src/ boundary". No commit on the branch.
-  - [ ] **AC 4 probe (Prettier diff aborts commit):**
+  - [x] **AC 4 probe (Prettier diff aborts commit):**
     ```bash
     # Write a TS file with double quotes (keel style is singleQuote: true).
     cat > packages/audit/src/__ac4-probe.ts <<'EOF'
@@ -138,7 +138,7 @@ so that no local commit lands with a type error, lint error, or unformatted file
     rm -f packages/audit/src/__ac4-probe.ts
     ```
     Expect: non-zero exit; `/tmp/ac4.out` contains `format-check` hook name + Prettier's "Code style issues found" or equivalent. No commit on the branch.
-  - [ ] **AC 5 probe (clean commit lands):** Create a tiny, type-safe, lint-safe, format-safe file (e.g. a single-line comment in markdown or a trivial empty-body `export {}` in a TS file that's already a no-op index). Commit it:
+  - [x] **AC 5 probe (clean commit lands):** Create a tiny, type-safe, lint-safe, format-safe file (e.g. a single-line comment in markdown or a trivial empty-body `export {}` in a TS file that's already a no-op index). Commit it:
     ```bash
     echo "" >> RALPH.md     # trivial idempotent trailing newline (existing file, still format-safe)
     git add RALPH.md
@@ -148,7 +148,7 @@ so that no local commit lands with a type error, lint error, or unformatted file
     git checkout -- RALPH.md
     ```
     Expect: `git commit` exits 0. The hook ran (all three steps green), commit lands, then we roll back the probe commit to keep the branch clean for Task 3. **Important:** `git reset --mixed HEAD~1` DOES NOT re-run hooks; it just unwinds the HEAD pointer. The branch is restored to its pre-probe state.
-  - [ ] **AC 6 probe (prek-runner parity):**
+  - [x] **AC 6 probe (prek-runner parity):**
     ```bash
     pnpm exec prek run --all-files typecheck 2>&1 | tee /tmp/ac6-typecheck.out
     echo "typecheck-exit=$?"
@@ -158,8 +158,8 @@ so that no local commit lands with a type error, lint error, or unformatted file
     echo "format-check-exit=$?"
     ```
     Expect each exits 0 on the post-AC-5-cleanup tree (which is identical to the post-Task-1 tree). This proves the hook identifiers resolve and prek's runner path matches git's hook path (same command, same tree, same outcome).
-  - [ ] Capture every probe's output in Debug Log References when Task 2 lands. If ANY probe produces unexpected output (e.g. AC 2 probe succeeds instead of failing, or AC 5 probe fails), **loop back to Task 1** and fix the config. Document any such loop-back in Completion Notes List.
-  - [ ] Commit: `feat(invariants): Story 1.4 Task 2 — ATDD smoke probes verify prek hooks fire + parity`.
+  - [x] Capture every probe's output in Debug Log References when Task 2 lands. If ANY probe produces unexpected output (e.g. AC 2 probe succeeds instead of failing, or AC 5 probe fails), **loop back to Task 1** and fix the config. Document any such loop-back in Completion Notes List.
+  - [x] Commit: `feat(invariants): Story 1.4 Task 2 — ATDD smoke probes verify prek hooks fire + parity`.
 
 - [ ] **Task 3: Full quality-gate verification + sprint-status update** (AC: 5, 6)
   - [ ] `pnpm install` — expect `Already up to date` / no lockfile churn (no new deps added by this task).
@@ -296,12 +296,83 @@ _(populated by dev during implementation — expected: claude-opus-4-7 via Ralph
 
 ### Debug Log References
 
-_(empty until Task 2; probe outputs land here)_
+**Task 2 (2026-04-19) — ATDD smoke probes; all 5 ACs (2/3/4/5/6) green.** Every probe ran against the Task-1 tree at branch tip `3450924`. After each probe the tree was restored to that tip (`git status` clean, `git log --oneline origin/main..HEAD` identical across probes).
+
+- **AC 2 probe — TypeScript error aborts commit.** File: `packages/audit/src/__ac2-probe.ts` with `const n: number = 'not a number';`. `git commit` exit = 1. Relevant hook lines:
+
+  ```
+  TypeScript type-check (workspace)........................................Failed
+  - hook id: typecheck
+  - exit code: 1
+  @keel/audit:typecheck: src/__ac2-probe.ts(1,7): error TS2322: Type 'string' is not assignable to type 'number'.
+  ESLint (workspace).......................................................Passed
+  Prettier format:check (workspace)........................................Passed
+  ```
+
+  Turbo run: `15 successful, 16 total; Cached: 15 cached, 16 total; Failed: @keel/audit#typecheck`. The ESLint and Prettier hooks still ran (prek runs all hooks even after one fails and aggregates pass/fail); commit aborted because typecheck hook failed. Post-probe: `__ac2-probe.ts` removed, no commit on branch. [Source: `/tmp/ac2.out`.]
+
+- **AC 3 probe — ESLint error aborts commit.** File: `packages/audit/src/__ac3-probe.ts` with `import foo from '../../contracts/src/index.ts';`. `git commit` exit = 1. Relevant lint-hook lines:
+
+  ```
+  ESLint (workspace).......................................................Failed
+  @keel/audit:lint: /workspace/ralph-bmad/.claude/worktrees/ralph/packages/audit/src/__ac3-probe.ts
+  @keel/audit:lint:   1:1  error  '../../contracts/src/index.ts' import is restricted from being used by a pattern. No relative imports crossing a package src/ boundary. Use the @keel/<pkg> alias for cross-package imports (architecture.md § Public surface enforcement)  no-restricted-imports
+  @keel/audit:lint: ✖ 1 problem (1 error, 0 warnings)
+  Prettier format:check (workspace)........................................Passed
+  ```
+
+  Side-effect observation: `TypeScript type-check (workspace)` also Failed in this probe because `packages/contracts/src/index.ts` has no default export (Story 1.1 left the file empty); the default-import specifier forces a TS2613 / TS2306. Both gates catching the same bad code is defense-in-depth, not a spec drift — AC 3 requires the **lint** hook to fire on cross-package relative imports, which it did, with the exact `no-restricted-imports` rule-id + message from Story 1.3 Task 1. Post-probe: `__ac3-probe.ts` removed, no commit on branch. [Source: `/tmp/ac3.out`.]
+
+- **AC 4 probe — Prettier diff aborts commit.** File: `packages/audit/src/__ac4-probe.ts` with `export const greeting = "hello world";` (double-quote violates keel `singleQuote: true`). `git commit` exit = 1. Relevant hook lines:
+
+  ```
+  TypeScript type-check (workspace)........................................Passed
+  ESLint (workspace).......................................................Passed
+  Prettier format:check (workspace)........................................Failed
+  [warn] packages/audit/src/__ac4-probe.ts
+  [warn] Code style issues found in the above file. Run Prettier with --write to fix.
+  ```
+
+  Only Prettier fires (typecheck + lint accept the file — double quotes are ESLint-neutral without a stylistic rule). This is the expected isolation: format-check alone catches the style drift. Post-probe: `__ac4-probe.ts` removed, no commit on branch. [Source: `/tmp/ac4.out`.]
+
+- **AC 5 probe — clean commit lands.** File: `_bmad-output/__ac5-probe.txt` containing a one-line marker (path under `_bmad-output/` is in `.prettierignore`; text file is not a typecheck or lint input). `git commit` exit = 0. Relevant hook lines:
+
+  ```
+  TypeScript type-check (workspace)........................................Passed
+  ESLint (workspace).......................................................Passed
+  Prettier format:check (workspace)........................................Passed
+  [feat/story-1-4-pre-commit-quality-gates-via-prek-type-check-lint-format 01e835d] probe: AC 5 clean-commit
+   create mode 100644 _bmad-output/__ac5-probe.txt
+  ```
+
+  Probe commit `01e835d` landed; rolled back via `git reset --hard HEAD~1`. Branch tip `3450924`, worktree clean, probe file absent. [Source: `/tmp/ac5.out`.]
+
+- **AC 6 probe — prek-runner parity.** All three hooks invoked directly through prek's runner against the Task-1 tree:
+
+  ```
+  pnpm exec prek run --all-files typecheck     → exit 0 → "TypeScript type-check (workspace)...Passed"
+  pnpm exec prek run --all-files lint          → exit 0 → "ESLint (workspace)...Passed"
+  pnpm exec prek run --all-files format-check  → exit 0 → "Prettier format:check (workspace)...Passed"
+  ```
+
+  Same three commands the git-hook path invokes, same tree, same exit codes — parity confirmed. [Source: `/tmp/ac6-typecheck.out`, `/tmp/ac6-lint.out`, `/tmp/ac6-format-check.out`.]
+
+**No Task-1 loop-back was required** — every probe behaved exactly as AC spec predicted (modulo the AC 3 typecheck side-effect documented above, which is an extra gate firing, not an AC failure).
 
 ### Completion Notes List
 
-_(empty until tasks complete; populated by dev with any variances from spec)_
+- **Task 2 AC 5 probe path variance.** Spec subtask suggested `echo "" >> RALPH.md` as the clean-commit probe target. Used `_bmad-output/__ac5-probe.txt` instead because appending `""` + newline to a file that already ends with `\n` produces `...\n\n`, which Prettier-markdown normalises to a single trailing newline — the `format-check` gate would then report a style diff on `RALPH.md` and abort the clean-commit probe, contaminating the AC 5 assertion. The replacement path is in `.prettierignore` (line 7: `_bmad-output/`), is not a typecheck input, is not an ESLint input — guaranteed-safe for all three gates. Rewind via `git reset --hard HEAD~1` removed the commit AND the probe file in one step. AC 5 semantic intent preserved (prove that all three hooks pass and a commit lands on a clean tree); only the probe vehicle differs from spec text.
+- **Task 2 AC 3 probe side-effect.** The cross-package relative-import specifier (`'../../contracts/src/index.ts'`) fails both the `lint` hook (Story 1.3 AC 1 `no-restricted-imports`) and the `typecheck` hook (no default export at the target — Story 1.1 shipped empty `src/index.ts` files). Two gates catching the same violation is defense-in-depth, not a spec deviation — AC 3 requires that the **lint** hook fire on cross-package relative imports, which it did with the expected `no-restricted-imports` rule-id + "No relative imports crossing a package src/ boundary" message. Noted for Task 3 context: the AC 3 probe output is not a minimal failure demonstration; it's a both-gates-catch scenario.
 
 ### File List
 
-_(empty until tasks complete; populated by dev with final modified-file enumeration)_
+**Modified (Task 2 commit):**
+
+- `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md` — populate Debug Log References + Completion Notes + File List; flip Task 2 subtasks `[ ]` → `[x]`.
+
+**Created then removed (probe artefacts, not committed):**
+
+- `packages/audit/src/__ac2-probe.ts` / `__ac3-probe.ts` / `__ac4-probe.ts` — each written, staged, `git commit` attempted (aborted by hook), then `git reset HEAD <file>` + `rm -f <file>`.
+- `_bmad-output/__ac5-probe.txt` — written, staged, committed (hook passed), commit rewound via `git reset --hard HEAD~1`.
+
+**Unchanged:** `package.json`, `pnpm-lock.yaml`, `.pre-commit-config.yaml`, per-package `eslint.config.js`, per-package `tsconfig.json`, shared configs under `packages/keel-invariants/`, every `src/*.ts` file, `turbo.json`, `pnpm-workspace.yaml`, root config shims, `.prettierignore`.
