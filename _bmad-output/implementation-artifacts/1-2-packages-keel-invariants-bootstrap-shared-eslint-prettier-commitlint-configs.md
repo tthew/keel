@@ -83,11 +83,12 @@ so that every downstream package consumes one canonical ruleset and drift cannot
   - [x] Added `"./eslint": "./eslint.config.keel-invariants.js"` to `packages/keel-invariants/package.json` `exports`.
   - [x] `src/index.ts` left as `export {};` per spec — configs are consumed via subpath, not the main entry.
 
-- [ ] **Task 4: Author shared Prettier config + `./prettier` subpath export** (AC: 1, 5)
-  - [ ] Create `packages/keel-invariants/prettier.config.keel-invariants.js` (ESM, default-export a config object).
-  - [ ] Keel house style (modest choices — the important thing is CONSISTENCY, not bikeshedding): `printWidth: 100`, `tabWidth: 2`, `useTabs: false`, `semi: true`, `singleQuote: true`, `trailingComma: "all"`, `bracketSpacing: true`, `arrowParens: "always"`, `endOfLine: "lf"` (matches `.editorconfig`).
-  - [ ] Add to `packages/keel-invariants/package.json` `exports`: `"./prettier": "./prettier.config.keel-invariants.js"`.
-  - [ ] Create a root-level `.prettierignore` file (since Prettier honours `.prettierignore` separately from the config) covering the same dirs as the ESLint ignores: `**/dist/`, `**/node_modules/`, `**/.turbo/`, `**/*.tsbuildinfo`, `pnpm-lock.yaml`, `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`, `.ralph/`, `*.py`, `uv.lock`. Keep paths relative to repo root.
+- [x] **Task 4: Author shared Prettier config + `./prettier` subpath export** (AC: 1, 5)
+  - [x] Created `packages/keel-invariants/prettier.config.keel-invariants.js` (ESM, default-export a 9-key config object).
+  - [x] Keel house style applied: `printWidth: 100`, `tabWidth: 2`, `useTabs: false`, `semi: true`, `singleQuote: true`, `trailingComma: 'all'`, `bracketSpacing: true`, `arrowParens: 'always'`, `endOfLine: 'lf'`.
+  - [x] Added `"./prettier": "./prettier.config.keel-invariants.js"` to `packages/keel-invariants/package.json` `exports` (after `./eslint`).
+  - [x] Created `{repo-root}/.prettierignore` (12 entries): `**/dist/`, `**/node_modules/`, `**/.turbo/`, `**/*.tsbuildinfo`, `pnpm-lock.yaml`, `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`, `.ralph/`, `*.py`, `uv.lock`.
+  - [x] Smoke-tests: `pnpm install` exit 0 (540ms, lockfile unchanged — no new deps); `import('@keel/keel-invariants/prettier')` from `packages/audit/` resolves to 9-key object with expected values; `pnpm exec prettier --config packages/keel-invariants/prettier.config.keel-invariants.js --check packages/keel-invariants/prettier.config.keel-invariants.js` exit 0; `pnpm -w typecheck` first run 16/16 green (1.368s), second run `>>> FULL TURBO` 16/16 cached (187ms). **Landmine documented** (RALPH.md 2026-04-19): first `prettier --write` attempt without `--config` applied prettier DEFAULTS (double-quote, no trailing comma) and mangled the config file, because auto-discovery finds no root `prettier.config.js` until Task 6 creates the shim. Fix: always pass `--config <path>` during self-format until Task 6 lands.
 
 - [ ] **Task 5: Author shared commitlint config + `./commitlint` subpath export** (AC: 1, 6)
   - [ ] Create `packages/keel-invariants/commitlint.config.keel-invariants.js` (ESM, default-export). Extend `@commitlint/config-conventional`:
@@ -307,6 +308,14 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 216ms >>> FULL TURBO`.
 - TS6053 regression checkpoint: first typecheck attempt (before the devDep additions) produced `tsconfig.json(2,14): error TS6053: File '@keel/keel-invariants/tsconfig' not found.` in every consuming package. Fixed by declaring `@keel/keel-invariants: workspace:*` as a devDep per consumer so pnpm would symlink the package into `node_modules/@keel/`.
 
+**Task 4 (2026-04-19):**
+- `pnpm install` post-`exports` change → `Already up to date / Done in 540ms` (no lockfile churn — no dep additions).
+- Subpath-resolution probe (run from `packages/audit/`): `node -e "import('@keel/keel-invariants/prettier').then(m => …)"` → `type: object` / `keys: arrowParens,bracketSpacing,endOfLine,printWidth,semi,singleQuote,tabWidth,trailingComma,useTabs` / `printWidth: 100 / singleQuote: true / trailingComma: all / endOfLine: lf`. Nine keys, values match spec.
+- Prettier self-check (explicit config): `pnpm exec prettier --config packages/keel-invariants/prettier.config.keel-invariants.js --check packages/keel-invariants/prettier.config.keel-invariants.js` → `All matched files use Prettier code style!` (exit 0).
+- Landmine: first attempt `pnpm --filter @keel/keel-invariants exec prettier --check ./prettier.config.keel-invariants.js` (no explicit `--config`) → exit 1 with `[warn] Code style issues found`. Prettier auto-discovery walked up from `packages/keel-invariants/cwd` looking for `prettier.config.js` / `.prettierrc*`, found nothing (Task 6 plants the root shim), and applied built-in defaults — which differ from keel style (double-quote default, no trailing comma default in older prettier, though v3 has `trailingComma: 'all'` as its new default). A subsequent `prettier --write` without `--config` ALSO applied defaults and mangled the file's single quotes → double quotes. Recovered via `prettier --config packages/keel-invariants/prettier.config.keel-invariants.js --write …`. This is the "author-before-wiring-root-shim" gotcha — will not recur once Task 6 lands `{repo-root}/prettier.config.js`.
+- `pnpm -w typecheck` (1st, post-exports) → `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 1.368s`.
+- `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 187ms >>> FULL TURBO`.
+
 **Task 3 (2026-04-19):**
 - `pnpm install` post-`exports` change → `Already up to date / Done in 587ms` (no lockfile churn — workspace symlinks already covered the package).
 - Subpath-resolution probe (run from `packages/audit/`): `node -e "import('@keel/keel-invariants/eslint').then(m => …)"` → `default-type: object / is-array: true / length: 6`. Per-entry shape:
@@ -380,3 +389,9 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Created: `packages/keel-invariants/eslint.config.keel-invariants.js` — ESM flat-config, 6-entry `export default [ … ]`, no `no-restricted-imports` (Story 1.3 scope).
 - Modified: `packages/keel-invariants/package.json` `exports` — added `"./eslint": "./eslint.config.keel-invariants.js"` after `"./tsconfig"`.
 - Unchanged: `packages/keel-invariants/src/index.ts` (still `export {};` per spec — configs are subpath-only); no consumer wiring (Task 6); no `pnpm-lock.yaml` change (no dep additions); no tsconfig changes.
+
+**Task 4 (2026-04-19):**
+- Created: `packages/keel-invariants/prettier.config.keel-invariants.js` — ESM default-export, 9-key Keel house style object (no imports — plain data).
+- Created: `.prettierignore` (repo root) — 12 entries covering build outputs (`dist/`, `node_modules/`, `.turbo/`, `*.tsbuildinfo`), workspace lockfile (`pnpm-lock.yaml`), BMad/Claude/docs/Ralph workspaces (`_bmad/`, `_bmad-output/`, `.claude/`, `docs/`, `.ralph/`), Python sidecars (`*.py`, `uv.lock`).
+- Modified: `packages/keel-invariants/package.json` `exports` — added `"./prettier": "./prettier.config.keel-invariants.js"` after `"./eslint"`.
+- Unchanged: `packages/keel-invariants/src/index.ts` (still `export {};`); no consumer wiring (Task 6); no `pnpm-lock.yaml` change (no dep additions); no tsconfig changes.

@@ -11,7 +11,8 @@
       "default": "./dist/index.js"
     },
     "./tsconfig": "./tsconfig.base.json",
-    "./eslint": "./eslint.config.keel-invariants.js"
+    "./eslint": "./eslint.config.keel-invariants.js",
+    "./prettier": "./prettier.config.keel-invariants.js"
   },
   "scripts": {
     "build": "tsc -b",
