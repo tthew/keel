@@ -1,0 +1,21 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/db" },
+    { "path": "./packages/contracts" },
+    { "path": "./packages/config" },
+    { "path": "./packages/core" },
+    { "path": "./packages/billing" },
+    { "path": "./packages/email" },
+    { "path": "./packages/jobs" },
+    { "path": "./packages/flags" },
+    { "path": "./packages/audit" },
+    { "path": "./packages/ui" },
+    { "path": "./packages/keel-invariants" },
+    { "path": "./packages/devbox" },
+    { "path": "./packages/keel-generator" },
+    { "path": "./packages/keel-templates" },
+    { "path": "./packages/create-keel-app" },
+    { "path": "./apps/web" }
+  ]
+}
