@@ -12,14 +12,14 @@ A BMad Method v6.3.0 project (`bmad-method` + `core`, `cis`, `tea`, `bmb` module
 
 There is no build/test/lint suite yet (nothing to build). The operational surface is the BMad skills and the Ralph loop.
 
-| Task                            | Command                                           |
-| ------------------------------- | ------------------------------------------------- |
-| Figure out the next required step | `/bmad-help` (reads `_bmad/_config/bmad-help.csv`) |
-| Run a BMad workflow             | `/<skill-name>` — e.g. `/bmad-create-prd`, `/bmad-create-story` |
-| Run Ralph in planning mode      | `uv run ralph.py plan [N]`                        |
-| Run Ralph in build mode         | `uv run ralph.py build [N]`                       |
-| Ralph with custom timeout       | `uv run ralph.py --timeout 30m`                   |
-| Stop the Ralph loop             | `echo '{"reason":"EPIC_DONE",...}' > .ralph/halt` |
+| Task                              | Command                                                         |
+| --------------------------------- | --------------------------------------------------------------- |
+| Figure out the next required step | `/bmad-help` (reads `_bmad/_config/bmad-help.csv`)              |
+| Run a BMad workflow               | `/<skill-name>` — e.g. `/bmad-create-prd`, `/bmad-create-story` |
+| Run Ralph in planning mode        | `uv run ralph.py plan [N]`                                      |
+| Run Ralph in build mode           | `uv run ralph.py build [N]`                                     |
+| Ralph with custom timeout         | `uv run ralph.py --timeout 30m`                                 |
+| Stop the Ralph loop               | `echo '{"reason":"EPIC_DONE",...}' > .ralph/halt`               |
 
 Ralph writes session logs to `.ralph/logs/` (gitignored). `.ralph/halt` is the halt sentinel (also gitignored). See [docs/ralph.md](./docs/ralph.md) for the full TUI reference.
 
@@ -40,11 +40,11 @@ The loop halts on `.ralph/halt`, on `(AWAIT_MERGE` in `.ralph/@plan.md`, or at `
 
 Three files serve distinct audiences. Don't conflate them.
 
-| File        | Audience                          | Contents                                                                  |
-| ----------- | --------------------------------- | ------------------------------------------------------------------------- |
-| `AGENTS.md` | Any AI agent (Claude, Codex, etc.)| Authoritative operational guide — conventions, paths, git rules           |
-| `CLAUDE.md` | Claude Code specifically          | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and RALPH.md |
-| `RALPH.md`  | Ralph (autonomous loop)           | Ralph's private journal — signposts, lessons, gotchas, decisions          |
+| File        | Audience                           | Contents                                                                   |
+| ----------- | ---------------------------------- | -------------------------------------------------------------------------- |
+| `AGENTS.md` | Any AI agent (Claude, Codex, etc.) | Authoritative operational guide — conventions, paths, git rules            |
+| `CLAUDE.md` | Claude Code specifically           | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and RALPH.md |
+| `RALPH.md`  | Ralph (autonomous loop)            | Ralph's private journal — signposts, lessons, gotchas, decisions           |
 
 When you discover something new during a session:
 

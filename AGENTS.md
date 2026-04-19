@@ -10,16 +10,16 @@ The install is fresh. There is no product code yet. The first real work is a pla
 
 ## Where things live
 
-| Path                              | What's there                                             |
-| --------------------------------- | -------------------------------------------------------- |
-| `_bmad/`                          | BMad installation: modules, configs, skill manifests     |
-| `_bmad/_config/manifest.yaml`     | Installed module versions                                |
-| `_bmad/_config/bmad-help.csv`     | Catalog of every skill, phase, and menu code             |
-| `_bmad-output/planning-artifacts/`      | PRDs, architecture, epics, UX specs (committed)    |
-| `_bmad-output/implementation-artifacts/`| Stories, sprint plans (committed)                  |
-| `_bmad-output/test-artifacts/`          | Test plans, traceability, gate decisions (committed) |
-| `.claude/skills/`                 | Skill definitions — the source of `/skill-name` commands |
-| `docs/`                           | Human-curated project knowledge base                     |
+| Path                                     | What's there                                             |
+| ---------------------------------------- | -------------------------------------------------------- |
+| `_bmad/`                                 | BMad installation: modules, configs, skill manifests     |
+| `_bmad/_config/manifest.yaml`            | Installed module versions                                |
+| `_bmad/_config/bmad-help.csv`            | Catalog of every skill, phase, and menu code             |
+| `_bmad-output/planning-artifacts/`       | PRDs, architecture, epics, UX specs (committed)          |
+| `_bmad-output/implementation-artifacts/` | Stories, sprint plans (committed)                        |
+| `_bmad-output/test-artifacts/`           | Test plans, traceability, gate decisions (committed)     |
+| `.claude/skills/`                        | Skill definitions — the source of `/skill-name` commands |
+| `docs/`                                  | Human-curated project knowledge base                     |
 
 ## How to work here
 

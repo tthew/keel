@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "@keel/keel-invariants/tsconfig",
   "compilerOptions": {
     "composite": true,
     "noEmit": false,

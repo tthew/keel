@@ -1,0 +1,12 @@
+**/dist/
+**/node_modules/
+**/.turbo/
+**/*.tsbuildinfo
+pnpm-lock.yaml
+_bmad/
+_bmad-output/
+.claude/
+docs/
+.ralph/
+*.py
+uv.lock
