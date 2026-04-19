@@ -2,11 +2,11 @@
 
 ## NOW
 
-- [ ] Story 1.1 Task 8: Verify file-structure invariants (`git ls-files | grep __tests__` = 0; no `packages/*/lib/**`; every package has `src/index.ts`; all `packages/*` dirnames kebab-case) ~small
+- [ ] Transition PR #217 Draft→Open — final CI gate (all 8 Story 1.1 tasks complete) ~small
 
 ## QUEUE (Keel Epic 1 — Story 1.1: remaining tasks)
 
-1. [ ] Transition PR #217 Draft→Open — final CI gate (only after Task 8 complete)
+_(empty — Tasks 1–8 all done; only the PR transition + EPIC_DONE halt remain)_
 
 ## BLOCKED
 
@@ -23,14 +23,15 @@ _(none)_
 - [x] **Task 3:** `turbo.json` (turbo 2.x `tasks` schema — `build`/`typecheck`/`test`/`lint`, content-hash caching default, no `bench`) + root `tsconfig.json` solution file with `files: []` and 16 `references` (14 business packages + create-keel-app + apps/web)
 - [x] **Task 4:** Scaffolded 15 package shells — each with `package.json` (`@keel/<pkg>`, private, type:module, main/types/exports pointing at dist/, scripts `build: "tsc -b"` + `typecheck: "tsc -b --noEmit"`), `tsconfig.json` (extends base, `composite:true`, `noEmit:false` override, `outDir:"./dist"`, `rootDir:"./src"`, `include:["src/**/*"]`, `references:[]`), `src/index.ts` (`export {};`), `README.md` (one-line role description per architecture line 72). 14 business packages (db, contracts, config, core, billing, email, jobs, flags, audit, ui, keel-invariants, devbox, keel-generator, keel-templates) + create-keel-app = 60 files. No `__tests__/`, no `lib/`, no ESLint/Prettier configs (deferred to Stories 1.2/1.3). devbox is empty shell only — full absorption in Epic 2.
 - [x] **Task 5:** Scaffolded `apps/web` shell — `apps/web/{package.json (@keel/web, private, type:module, main/types/exports → dist/, build + typecheck scripts), tsconfig.json (extends base, composite:true, noEmit:false, outDir/rootDir/include), src/index.ts ("export {};"), README.md}`. Pattern identical to business packages. Root `tsconfig.json` references and `tsconfig.base.json` paths already wired in Tasks 2–3.
-- [x] **Task 6:** `pnpm install` exit 0 (43.8s, no warnings about missing workspace members). `pnpm -r list --depth -1 --json` enumerates 17 projects = 1 root (`keel`) + 16 workspace members (`@keel/web` + 14 business packages + `@keel/create-keel-app`). `pnpm-lock.yaml` generated and committed. Story dev record updated with versions (pnpm 10.29.2 / node v20.20.0 / typescript 5.7.3 / turbo 2.3.3) and workspace enumeration. Note: Task 6 subtask text said "15 workspace members" but actual AC-enumerated set is 16 (create-keel-app was missed in the count — it's a package scaffolded in Task 4); 16 present satisfies AC 1.
-- [x] **Task 7:** `pnpm -w typecheck` green + turbo cache. First run: 16/16 successful, 0 cached, 2.002s. Second run: 16/16 cached, 244ms, `>>> FULL TURBO`. Initial run surfaced `TS5090: Non-relative paths are not allowed when 'baseUrl' is not set` — fixed by prefixing each `paths` value in `tsconfig.base.json` with `./` (chose relative-path fix over setting `baseUrl: "."` to keep bare-import resolution independent of paths). Evidence captured in story dev record.
+- [x] **Task 6:** `pnpm install` exit 0 (43.8s, no warnings about missing workspace members). `pnpm -r list --depth -1 --json` enumerates 17 projects = 1 root (`keel`) + 16 workspace members (`@keel/web` + 14 business packages + `@keel/create-keel-app`). `pnpm-lock.yaml` generated and committed.
+- [x] **Task 7:** `pnpm -w typecheck` green + turbo cache. First run: 16/16 successful, 0 cached, 2.002s. Second run: 16/16 cached, 244ms, `>>> FULL TURBO`. Initial run surfaced `TS5090: Non-relative paths are not allowed when 'baseUrl' is not set` — fixed by prefixing each `paths` value in `tsconfig.base.json` with `./` (chose relative-path fix over setting `baseUrl: "."` to keep bare-import resolution independent of paths).
+- [x] **Task 8:** Five structural invariants verified — `git ls-files | grep -c __tests__` = 0; `git ls-files 'packages/*/lib/**'` empty; every package+app has `src/index.ts` (16/16); all `packages/*` dirnames kebab-case; all `package.json` names `@keel/<kebab-case>`. Evidence captured in story Debug Log References → Task 8. No file changes — verification only.
 
 ## Context
 
-- **Phase:** 4-implementation (Story 1.1 in flight, 1 task remaining — 8)
+- **Phase:** 4-implementation (Story 1.1 — all 8 tasks DONE; PR transition pending)
 - **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants
 - **Epic Branch:** `feat/story-1-1-monorepo-scaffold`
 - **Story:** 1.1 — Monorepo scaffold + TypeScript project references
 - **Story File:** `_bmad-output/implementation-artifacts/1-1-monorepo-scaffold-typescript-project-references.md`
-- **PR:** #217 (Draft) — stays Draft until Tasks 7 + 8 clear. No `.github/workflows/` yet, so `statusCheckRollup: []` — Monitor-CI queue items are vestigial while no CI exists; push directly.
+- **PR:** #217 (Draft) — ready to transition Draft→Open next iteration. No `.github/workflows/` yet, so `statusCheckRollup: []` (WIP-app only); push directly.

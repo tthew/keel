@@ -78,10 +78,10 @@ so that `pnpm install` runs green, package builds are cacheable, and I have a ty
   - [x] Run it again immediately — Turborepo MUST report `>>> FULL TURBO` (or equivalent "100% cache hits"). If not, investigate `turbo.json` outputs + `inputs` globs.
   - [x] Capture both runs' final-line output in the dev record.
 
-- [ ] **Task 8: Verify file-structure invariants** (AC: 4)
-  - [ ] Manually verify (no automated ESLint yet — that's Story 1.3): every package has `src/index.ts`, no `__tests__/` folders at any level, no `lib/` folders inside packages, no `tests/` folders inside packages.
-  - [ ] Use `git ls-files` with grep patterns to confirm: `git ls-files | grep '__tests__' | wc -l` must be `0`. `git ls-files 'packages/*/lib/**'` must be empty.
-  - [ ] Confirm naming: all `packages/*` directory names are kebab-case; all `package.json` `name` fields are `@keel/<kebab-case>`.
+- [x] **Task 8: Verify file-structure invariants** (AC: 4)
+  - [x] Manually verify (no automated ESLint yet — that's Story 1.3): every package has `src/index.ts`, no `__tests__/` folders at any level, no `lib/` folders inside packages, no `tests/` folders inside packages.
+  - [x] Use `git ls-files` with grep patterns to confirm: `git ls-files | grep '__tests__' | wc -l` must be `0`. `git ls-files 'packages/*/lib/**'` must be empty.
+  - [x] Confirm naming: all `packages/*` directory names are kebab-case; all `package.json` `name` fields are `@keel/<kebab-case>`.
 
 ## Dev Notes
 
@@ -260,11 +260,40 @@ Cached:    16 cached, 16 total
 
 `>>> FULL TURBO` confirms turbo cache keyed on `.tsbuildinfo` (per `turbo.json` outputs) + hashed inputs is working. AC 3 satisfied.
 
+**Task 8 — File-structure invariants (2026-04-19):**
+
+```
+$ git ls-files | grep -c __tests__
+0                                          # invariant 1: no __tests__/ folders
+
+$ git ls-files 'packages/*/lib/**'
+                                           # invariant 2: empty (no packages/*/lib/**)
+
+$ for d in packages/*/ apps/*/; do [ -f "${d}src/index.ts" ] && echo "OK $d" || echo "MISSING"; done
+OK packages/audit/      OK packages/billing/       OK packages/config/
+OK packages/contracts/  OK packages/core/          OK packages/create-keel-app/
+OK packages/db/         OK packages/devbox/        OK packages/email/
+OK packages/flags/      OK packages/jobs/          OK packages/keel-generator/
+OK packages/keel-invariants/  OK packages/keel-templates/  OK packages/ui/
+OK apps/web/                               # invariant 3: all 16 have src/index.ts
+
+$ ls -1 packages/ | grep -vE '^[a-z][a-z0-9]*(-[a-z0-9]+)*$' || echo ALL-KEBAB-CASE
+ALL-KEBAB-CASE                             # invariant 4: all dirnames kebab-case
+
+$ for f in packages/*/package.json apps/*/package.json; do grep '"name"' "$f"; done
+# All names: @keel/{audit,billing,config,contracts,core,create-keel-app,db,
+#   devbox,email,flags,jobs,keel-generator,keel-invariants,keel-templates,ui,web}
+                                           # invariant 5: all names @keel/<kebab-case>
+```
+
+All five structural invariants pass. AC 4 satisfied.
+
 ### Completion Notes List
 
 - **Versions pinned (root `package.json`):** `pnpm@10.29.2` (packageManager), Node `>=20 <21` (actual: v20.20.0 via `.nvmrc`), `typescript@5.7.3`, `turbo@2.3.3`. Minor upgrades available (pnpm 10.33.0, typescript 5.9.3, turbo 2.7.4) — deferred, per I7 exact-minor pinning.
 - **Task 6 evidence:** `pnpm install` exit 0 in 43.8s; `pnpm -r list --depth -1 --json` enumerates 16 workspace members + root. See Debug Log References.
 - **Task 7 evidence:** First `pnpm -w typecheck` run → 16/16 successful, 0 cached, 2.002s. Second run → 16/16 cached, 244ms, `>>> FULL TURBO`. Required one fix to `tsconfig.base.json` (see Debug Log References → Task 7) to add leading `./` on each `paths` value so TS 5.7 resolves without a `baseUrl`.
+- **Task 8 evidence:** Five structural invariants verified — no `__tests__/` (0 matches), no `packages/*/lib/**` (empty), every package+app has `src/index.ts` (16/16), all `packages/*` dirnames kebab-case, all `package.json` names `@keel/<kebab-case>`. See Debug Log References → Task 8. No file changes — verification only.
 - **TanStack Start scaffold gap:** `apps/web` shipped as an empty shell (`src/index.ts = "export {};"`). The `pnpm create @tanstack/start@latest apps/web` invocation from architecture.md §First-Implementation-Priority (line 1395) is OUT OF SCOPE for Story 1.1 per the narrower epics.md AC. Flagged to PM for course-correction (new story or later epic).
 
 ### File List
