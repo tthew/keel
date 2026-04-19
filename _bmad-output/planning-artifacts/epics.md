@@ -5493,6 +5493,309 @@ So that Epic 12 validates the Epic 7 lint rules in practice (F4).
 
 **Standalone delivery:** Every commit hits equivalent gates; CI catches regression across all substrate concerns (tests, RLS, tokens, manifest, prompt-injection, type-check, i18n-keys); minute budgets documented honestly.
 
+#### Stories
+
+##### Story 13.1: `pre-merge-fast.yml` (≤3min; deterministic; zero external secrets)
+
+As a substrate maintainer,
+I want `.github/workflows/pre-merge-fast.yml` running typecheck + generator idempotency + RLS pglite unit + webhook contract tests + manifest sync — all deterministic, zero external secrets per I6,
+So that every PR has a fast, reliable signal (FR29 fast tier).
+
+**Acceptance Criteria:**
+
+**Given** a PR,
+**When** `pre-merge-fast.yml` runs,
+**Then** it completes in ≤3 min wall-clock (workflow `timeout-minutes: 3`)
+**And** no step requires secrets from the environment.
+
+**Given** failed typecheck, generator drift, or manifest drift,
+**When** the gate runs,
+**Then** the gate fails
+**And** PR merge is blocked.
+
+**Given** `pnpm audit --prod` (Epic 4 Story 4.3),
+**When** it runs here,
+**Then** dependency findings participate in the gate.
+
+##### Story 13.2: `pre-merge-slow.yml` (≤10min; ephemeral-pg DSN)
+
+As a substrate maintainer,
+I want `.github/workflows/pre-merge-slow.yml` running RLS testcontainers integration + shape-matrix smoke + migrations within ≤10min, with the ephemeral-pg DSN secret only,
+So that heavier integration signal still lands before merge (FR29 slow tier).
+
+**Acceptance Criteria:**
+
+**Given** the workflow,
+**When** it runs,
+**Then** `timeout-minutes: 10` bounds execution
+**And** only `DATABASE_URL_EPHEMERAL` secret is injected.
+
+**Given** RLS integration tests (Epic 6 Story 6.7),
+**When** they run here,
+**Then** testcontainers Postgres starts + migrations apply + integration tests execute.
+
+**Given** shape-matrix smoke (2-cell at 1.0),
+**When** it runs,
+**Then** both `{b2b, team}` and `{b2c, user}` configs smoke-test
+**And** cross-shape regressions are caught.
+
+##### Story 13.3: `nightly.yml` (≤60min; full shape × tenancy + live-network-quarantined + E2E + pa11y + D4 + RC3)
+
+As a substrate maintainer,
+I want `.github/workflows/nightly.yml` running full shape × tenancy combinatoric (2×2=4 cells at 1.0), Paddle sandbox + Google OAuth live-network hits quarantined here, E2E Playwright, pa11y, RLS D4 benchmark, RC3 aggregation in ≤60min,
+So that the breadth of integration + research corpus aggregation runs daily without blocking PRs.
+
+**Acceptance Criteria:**
+
+**Given** the workflow,
+**When** scheduled,
+**Then** it runs nightly on a documented cron
+**And** `timeout-minutes: 60` bounds execution.
+
+**Given** the 4-cell shape × tenancy matrix,
+**When** the workflow fans out,
+**Then** each cell runs isolated
+**And** failure in any cell is visible + triaged.
+
+**Given** E2E Playwright + pa11y + RLS D4 + RC3,
+**When** they run,
+**Then** each produces a structured artefact archived in the workflow run
+**And** Epic 14's research corpus consumes them.
+
+##### Story 13.4: `release-gated.yml` (manual; full lifecycle on both shapes; production adjacents)
+
+As a substrate maintainer,
+I want `.github/workflows/release-gated.yml` — manual trigger, full `create-keel-app → shape-edit → signup → paid Paddle sandbox subscription → teardown` on both shapes, production adjacents,
+So that a release cut exercises the full end-to-end flow (FR30).
+
+**Acceptance Criteria:**
+
+**Given** a manual trigger from GitHub Actions,
+**When** the workflow runs,
+**Then** both B2B and B2C complete flows execute
+**And** success is required for a release cut (documented in release checklist).
+
+**Given** production-adjacent secrets (Paddle prod API key, Resend),
+**When** they are injected,
+**Then** step-level (not job-level) env bounding per architecture I6.
+
+**Given** a red release-gated result,
+**When** it surfaces,
+**Then** the release is blocked
+**And** Tthew triages with evidence preserved.
+
+##### Story 13.5: `release-please.yml` (release-please PR/tag automation)
+
+As a substrate maintainer,
+I want `.github/workflows/release-please.yml` executing release-please-monorepo config from Epic 1 Story 1.14 on every push to main,
+So that the rolling Release PR auto-accumulates changelog + bump (FR31 consumer).
+
+**Acceptance Criteria:**
+
+**Given** a push to main,
+**When** the workflow runs,
+**Then** release-please parses new conventional-commit messages
+**And** updates the Release PR accordingly.
+
+**Given** release-please PR merged,
+**When** the workflow re-runs,
+**Then** a tag is created on main
+**And** GitHub Release notes are published.
+
+##### Story 13.6: `path-profile.yml` (FR53 path-based gate-profile router)
+
+As a substrate maintainer,
+I want `.github/workflows/path-profile.yml` routing PR checks by path: `packages/**/*` (full pyramid including nightly matrix), `apps/web/features/**/*` (pre-merge-fast + pre-merge-slow only), `docs/**/*` + `_bmad-output/**/*` (pre-commit + pre-merge-fast only),
+So that doc edits don't waste 60-min nightly shape × tenancy budget (FR53).
+
+**Acceptance Criteria:**
+
+**Given** a PR touching only `docs/**`,
+**When** path-profile routes,
+**Then** only pre-commit + pre-merge-fast tiers run
+**And** nightly is skipped.
+
+**Given** a PR touching `packages/**`,
+**When** path-profile routes,
+**Then** the full pyramid runs
+**And** the nightly matrix is scheduled for the next night.
+
+**Given** mixed PR touching `docs/` + `packages/`,
+**When** path-profile routes,
+**Then** the union profile runs (full pyramid).
+
+##### Story 13.7: W2 sync-gate CI wiring (manifest reader + anchor walker + drift detector)
+
+As a substrate maintainer,
+I want the runtime tooling from Epic 1 Story 1.9 (`pnpm keel-invariants:check`) wired into `pre-merge-fast.yml` as a required check,
+So that FR43 teeth land from day 1 in CI (W2 party-mode amendment).
+
+**Acceptance Criteria:**
+
+**Given** `pre-merge-fast.yml`,
+**When** I inspect it,
+**Then** a step invokes `pnpm keel-invariants:check`
+**And** non-zero exit fails the workflow.
+
+**Given** the drift report,
+**When** a failure occurs,
+**Then** the structured JSON surfaces in the CI logs
+**And** Tthew (or Ralph) sees the specific manifest IDs in drift.
+
+##### Story 13.8: RS5 safe-set bootstrap-validation path-filtered wiring
+
+As a substrate maintainer,
+I want a path-filtered job in `pre-merge-slow.yml` triggering bootstrap-validation (Epic 3 Story 3.26) when a PR touches L1/L2 paths (packages/ralph/**, packages/keel-templates/**, .ralph/PROMPT_*.md, packages/keel-invariants/src/schemas/{halt,plan}.schema.json, packages/devbox/ralph-version.json),
+So that Ralph self-modification failures surface at pre-merge-slow with `RALPH_STAGE_REGRESSION` (RS5, ≤8min budget).
+
+**Acceptance Criteria:**
+
+**Given** a PR touches any listed path,
+**When** `pre-merge-slow.yml` routes,
+**Then** the bootstrap-validation job is triggered
+**And** runs within ≤8 min.
+
+**Given** validation passes,
+**When** checks complete,
+**Then** the PR is mergeable (auto-merge on pass per Epic 3 Story 3.25).
+
+**Given** validation fails,
+**When** the job reports,
+**Then** the PR is blocked
+**And** Ralph writes `.ralph/halt` with `RALPH_STAGE_REGRESSION` for Tthew review.
+
+##### Story 13.9: `ralph-stage-upgrade.yml` workflow
+
+As a substrate maintainer,
+I want a dedicated `.github/workflows/ralph-stage-upgrade.yml` that — on `ralph-stage-upgrade:`-prefixed commits — re-installs the snapshot in an ephemeral devbox and re-runs the smoke iteration from the NEW stage (Epic 3 Story 3.27),
+So that stage upgrades are fully validated before merge.
+
+**Acceptance Criteria:**
+
+**Given** a PR with `ralph-stage-upgrade:` commit prefix,
+**When** the workflow triggers,
+**Then** it spins up an ephemeral devbox
+**And** installs the new ralph-version.json pin
+**And** runs the Story 3.26 smoke iteration from the fresh stage.
+
+**Given** validation passes,
+**When** the workflow completes,
+**Then** the PR is mergeable.
+
+**Given** validation fails,
+**When** the workflow reports,
+**Then** the PR is blocked and Tthew reviews.
+
+##### Story 13.10: Design-system CI checks (axe-core, Lighthouse, pa11y)
+
+As a substrate maintainer,
+I want design-system checks wired in CI: axe-core per screen at pre-merge-fast; Playwright snapshot matrix at nightly; Lighthouse CI per PR (a11y ≥ 95); pa11y nightly on release-gated,
+So that a11y + visual regressions are caught (UX-DR52–55).
+
+**Acceptance Criteria:**
+
+**Given** pre-merge-fast,
+**When** axe-core runs on every Epic 12 route,
+**Then** zero critical violations fails the gate.
+
+**Given** Lighthouse CI,
+**When** it runs per PR,
+**Then** a11y score ≥ 95 is required.
+
+**Given** nightly,
+**When** pa11y runs on release-gated flows,
+**Then** findings archive to the workflow artefacts.
+
+##### Story 13.11: 18-combo screenshot matrix at nightly (V2 scope adjustment)
+
+As a substrate maintainer,
+I want the nightly Playwright snapshot matrix running 18 combos (360/768/1280 × LTR/RTL × light only at 1.0; dark VISUAL verification deferred to 1.1 per V2 amendment),
+So that visual regression coverage ships at 1.0 within budget (V2).
+
+**Acceptance Criteria:**
+
+**Given** the nightly workflow,
+**When** the snapshot matrix runs,
+**Then** 18 combos are exercised per Epic 12 screen
+**And** failures archive screenshots for Tthew review.
+
+**Given** RTL combos,
+**When** they run,
+**Then** logical-CSS discipline (Epic 11 Story 11.8) is verified visually.
+
+**Given** dark combos,
+**When** considered for 1.0,
+**Then** dark tokens + class-toggle still ship at 1.0 (Epic 1)
+**But** dark visual verification is explicitly deferred to 1.1 (documented in `docs/invariants/ux-matrix-scope.md`).
+
+##### Story 13.12: M4 Nightly UX-matrix budget envelope (sharding + axis-collapse)
+
+As a substrate maintainer,
+I want an explicit budget-envelope design for the nightly UX matrix: sharding strategy, per-screen time budget, axis-collapse policy (which axes degrade first when budget pressure hits),
+So that Sprint-3-budget-bust risk is mitigated upfront (M4 party-mode amendment).
+
+**Acceptance Criteria:**
+
+**Given** `docs/invariants/ux-matrix-scope.md`,
+**When** I read it,
+**Then** sharding strategy is documented (e.g., by screen, by viewport, or by locale)
+**And** per-screen time budget is explicit (e.g., 30s/screen).
+
+**Given** budget pressure,
+**When** the envelope nears exceeding,
+**Then** the axis-collapse policy kicks in: candidate = drop shape × tenancy duplication for pure-visual checks; keep it for interaction flows
+**And** the policy is documented with rationale.
+
+**Given** actual usage,
+**When** the matrix runs nightly,
+**Then** it stays within the overall 60-min nightly budget
+**And** exceedances trigger the NFR28c monthly-review amendment path.
+
+##### Story 13.13: NFR28b empirical budget reframe + NFR28c monthly review
+
+As a substrate maintainer,
+I want `docs/invariants/ci-budgets.md` documenting modelled-vs-empirical budget provenance at 1.0 (M9) with an amendment-PR template for M10 (or first 2-week real-traffic window) to re-baseline against p95 (NFR28b) and a monthly review process (NFR28c),
+So that CI budgets are empirically honest over time (NFR28b, NFR28c).
+
+**Acceptance Criteria:**
+
+**Given** `docs/invariants/ci-budgets.md`,
+**When** I read it,
+**Then** every tier's budget is labelled "modelled (M9)" or "empirical (M10+)"
+**And** the amendment PR template is included.
+
+**Given** workflow comments in each `.github/workflows/*.yml`,
+**When** I inspect them,
+**Then** each `timeout-minutes:` is annotated with "modelled" or "empirical <date>".
+
+**Given** monthly review cadence,
+**When** p95 exceeds budget for 2 consecutive months,
+**Then** a mandatory amendment PR is opened
+**And** the re-baseline or tier-split is documented.
+
+**Given** the formula `max(stated-target, ceil(p95 × 1.25))`,
+**When** a re-baseline happens,
+**Then** the formula is applied
+**And** the new budget is annotated.
+
+##### Story 13.14: `.github/CODEOWNERS` + PR templates
+
+As a substrate maintainer,
+I want minimum `.github/CODEOWNERS` + a PR template at `.github/pull_request_template.md`,
+So that future contributors have a baseline structure even though N=1 at 1.0.
+
+**Acceptance Criteria:**
+
+**Given** `.github/CODEOWNERS`,
+**When** I inspect it,
+**Then** Tthew owns all paths at 1.0
+**And** the file is documented as "extend when contributor count warrants it."
+
+**Given** `.github/pull_request_template.md`,
+**When** I inspect it,
+**Then** sections for Summary / Risk / Test plan / Security evidence reference exist
+**And** agent-authored PRs can fill it via a documented convention.
+
 ---
 
 ### Epic 14: Research Corpus & Measurement Infrastructure
