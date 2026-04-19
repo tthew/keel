@@ -3703,6 +3703,206 @@ So that shape change is a documented, CI-enforced workflow rather than tribal kn
 
 **Standalone delivery:** A tenant-scoped table in `packages/db/prisma/schema.prisma` with the correct RLS policy emitted by the generator (from Epic 5) gets physical tenant isolation. `pnpm rls:explain` works. CI catches missing policies.
 
+#### Stories
+
+##### Story 6.1: Prisma schema baseline + UUIDv7 PKs
+
+As a substrate maintainer,
+I want `packages/db/prisma/schema.prisma` with the baseline Prisma schema using UUIDv7 PKs via `@default(dbgenerated("uuidv7()"))` (backed by pg_uuidv7 extension pinned in Epic 2's base image),
+So that every table has time-ordered UUID PKs without collision risk (NFR substrate baseline).
+
+**Acceptance Criteria:**
+
+**Given** `packages/db/prisma/schema.prisma`,
+**When** I inspect it,
+**Then** every `@id` column uses `@default(dbgenerated("uuidv7()"))`
+**And** the snake_case-singular table-naming convention is enforced via `@@map`.
+
+**Given** the devbox Postgres image from Epic 2 with `pg_uuidv7` extension,
+**When** Prisma migrations run,
+**Then** the extension is available and `uuidv7()` resolves.
+
+**Given** `prisma/migrations/`,
+**When** I inspect the initial migration,
+**Then** `CREATE EXTENSION IF NOT EXISTS pg_uuidv7;` is the first statement.
+
+##### Story 6.2: `tenantGuard()` Prisma Client Extension with tx-wrapped `SET LOCAL`
+
+As a fork operator,
+I want `tenantGuard()` implemented as a Prisma Client Extension (`$extends`) that opens a per-request transaction in tRPC middleware, sets `app.current_tenant_id` via `SET LOCAL`, runs the handler, and commits,
+So that RLS semantics are cross-request-leak-proof and PgBouncer-compatible (FR16, D1).
+
+**Acceptance Criteria:**
+
+**Given** `packages/db/src/tenant-guard.ts`,
+**When** I inspect it,
+**Then** it exports a Prisma `$extends` configuration that wraps every query in a transaction
+**And** inside the transaction, `SET LOCAL app.current_tenant_id = <id>` is executed before the query.
+
+**Given** a tRPC middleware,
+**When** a request arrives,
+**Then** `tenantGuard(ctx.tenantId)` opens the tx and sets the session variable
+**And** the handler runs inside the same tx
+**And** the tx commits on handler success (rolls back on error).
+
+**Given** PgBouncer transaction-pooling mode,
+**When** the extension is used,
+**Then** `SET LOCAL` scope is confined to the tx (no cross-request leak)
+**And** connection reuse across requests is safe.
+
+**Given** the tenancy template is shape-specific,
+**When** `tenancy: "team"`,
+**Then** `current_tenant_id` maps to `current_team_id`; for `tenancy: "user"` it maps to `current_user_id`
+**And** the mapping is emitted by Epic 5's generator.
+
+##### Story 6.3: RLS policies consumed from Epic 5 generator
+
+As a substrate maintainer,
+I want the generator-emitted RLS SQL (via Epic 5 Story 5.5) applied to the DB through companion migrations whose filenames encode the generator content-hash (per the migration contract in Epic 5 Story 5.8),
+So that RLS policies in the DB always match the generated source-of-truth (FR15).
+
+**Acceptance Criteria:**
+
+**Given** the generator emitted RLS SQL,
+**When** `prisma migrate deploy` runs,
+**Then** the companion migration file at `prisma/migrations/<timestamp>_rls_<shape>_<tenancy>_<content-hash>.sql` executes via `prisma db execute`
+**And** the DB has the policies applied.
+
+**Given** the filename encodes the content-hash,
+**When** the hash in the filename differs from the generator's current output,
+**Then** the pre-merge-fast sync gate from Epic 5 Story 5.7 detects drift
+**And** the PR is rejected.
+
+**Given** Epic 5's `AssertionSpec`,
+**When** Story 6.4's tests run,
+**Then** each of the 4 assertions holds.
+
+##### Story 6.4: Migration strategy + generated-migration-contract assertion tests (W3)
+
+As a substrate maintainer,
+I want `packages/db/test-utils/migration-contract.test.ts` asserting the 4 assertions from Epic 5 Story 5.8's `AssertionSpec` — filename parses, content-hash matches, SQL applies in pglite + testcontainers, reverse-idempotency — as part of pre-merge-slow,
+So that the producer/consumer seam between Epic 5 and Epic 6 is tested, not informal (W3 + D2).
+
+**Acceptance Criteria:**
+
+**Given** `packages/db/test-utils/migration-contract.test.ts`,
+**When** the test runs,
+**Then** assertion 1: every migration file in `prisma/migrations/` matching the `_rls_*_*.sql` pattern parses against Epic 5 Story 5.8's `FilenameSchema`.
+
+**Given** the content-hash in each filename,
+**When** assertion 2 runs,
+**Then** the hash equals `sha256` of the generator output for the fork's current config.
+
+**Given** assertion 3 (apply cleanly),
+**When** the migration SQL runs against pglite (pre-merge-fast tier),
+**Then** no errors
+**And** the same SQL runs against testcontainers Postgres in pre-merge-slow with the same result.
+
+**Given** assertion 4 (reverse-idempotency),
+**When** the migration is re-run on a DB already having it applied,
+**Then** it is a no-op (no duplicate-policy errors; guarded by `CREATE POLICY IF NOT EXISTS` or equivalent).
+
+**Given** all 4 assertions fail-closed,
+**When** Epic 5 breaks its contract,
+**Then** Epic 6's CI fails immediately with a pointer to Epic 5 Story 5.8.
+
+##### Story 6.5: `pnpm rls:explain` debugging CLI
+
+As a fork operator,
+I want `pnpm rls:explain <query> --tenant=<id>` that returns a structured table showing which policies fired and which rows filtered for a given query + tenant context,
+So that RLS decisions are debuggable without raw DB spelunking (FR17).
+
+**Acceptance Criteria:**
+
+**Given** `packages/db/scripts/rls-explain.ts`,
+**When** I run `pnpm rls:explain "SELECT * FROM users" --tenant=abc123`,
+**Then** the CLI opens a tx, sets `SET LOCAL app.current_tenant_id = 'abc123'`, runs `EXPLAIN (ANALYZE, VERBOSE)` on the query, and prints a structured table
+**And** the table shows each policy that evaluated + filter impact.
+
+**Given** an invalid tenant ID,
+**When** I run the command,
+**Then** the CLI exits non-zero with a pointer error.
+
+**Given** `packages/db/rls-helpers.ts`,
+**When** I inspect it,
+**Then** helper functions for policy introspection are exported
+**And** the CLI consumes them.
+
+##### Story 6.6: CI check — new tenant-scoped tables must ship with RLS
+
+As a substrate maintainer,
+I want a CI check at pre-merge-slow that scans `packages/db/prisma/schema.prisma` for tenant-scoped tables without matching RLS policies in the generator output, failing the PR if any are missing,
+So that new tenant-scoped tables cannot land without RLS (FR18 teeth).
+
+**Acceptance Criteria:**
+
+**Given** a new tenant-scoped table added to `schema.prisma` (identified by a `@@tenant-scoped` directive or convention documented in `docs/invariants/backend.md`),
+**When** pre-merge-slow runs the check,
+**Then** the check verifies that the generator's output (Epic 5 Story 5.5) contains RLS rules for that table
+**And** the PR is rejected if any are missing.
+
+**Given** a non-tenant-scoped table (e.g., reference data),
+**When** the check runs,
+**Then** it is skipped (not flagged).
+
+**Given** the check is invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-rls-new-tenant-scoped-table-coverage` is registered.
+
+##### Story 6.7: D3 synthetic-schema testing (pglite pre-merge-fast + testcontainers pre-merge-slow)
+
+As a substrate maintainer,
+I want RLS unit tests against `@electric-sql/pglite` (WASM in-memory Postgres; pre-merge-fast) and integration tests against Docker-backed ephemeral Postgres via `testcontainers-node` (pre-merge-slow) for faithful PL/pgSQL + extensions,
+So that RLS assertions are tiered by fidelity + speed (D3).
+
+**Acceptance Criteria:**
+
+**Given** `packages/db/test/pglite-setup.ts`,
+**When** pre-merge-fast tests run,
+**Then** pglite is initialised with the full migration chain
+**And** RLS unit tests execute in milliseconds.
+
+**Given** `packages/db/test/testcontainers-setup.ts`,
+**When** pre-merge-slow tests run,
+**Then** a Docker-backed Postgres container with pg_uuidv7 starts
+**And** the full migration chain applies
+**And** integration tests run against it.
+
+**Given** the two tiers,
+**When** a test is written,
+**Then** the test file naming convention (`*.pg.test.ts` for testcontainers, `*.test.ts` for pglite) is documented in `AGENTS.md`.
+
+**Given** D3 is a tiered strategy,
+**When** an RLS policy is validated,
+**Then** pglite-tier proves correctness on a simple model and testcontainers-tier proves PL/pgSQL-specific features (row-level policies, session variables).
+
+##### Story 6.8: D4 RLS performance budget benchmark harness (NFR3)
+
+As a substrate maintainer,
+I want `packages/db/src/bench/rls-overhead.bench.ts` + `bench/seed.ts` measuring p95 wall-clock delta with/without RLS on seeded datasets (B2B: 10k rows × 100 tenants team, 100 rows/tenant; B2C: 10k rows × 10k tenants user, 1 row/tenant), running in the nightly tier; p95 delta > 20% for two consecutive monthly baselines flags NFR3 breach,
+So that RLS overhead is tracked with empirical evidence (D4, NFR3, NFR28c).
+
+**Acceptance Criteria:**
+
+**Given** `packages/db/bench/seed.ts`,
+**When** invoked,
+**Then** it seeds both B2B dataset (100 tenants × 100 rows) and B2C dataset (10k tenants × 1 row) into a testcontainers Postgres instance.
+
+**Given** `rls-overhead.bench.ts`,
+**When** it runs against the seeded DB,
+**Then** it measures p95 wall-clock for representative queries with and without RLS enabled
+**And** the delta is emitted to `.ralph/logs/nightly-<date>/rls-overhead.json`.
+
+**Given** two consecutive monthly baselines show p95 delta > 20%,
+**When** the monthly review runs (Epic 14 terrain),
+**Then** an NFR3 breach is flagged
+**And** the flag is documented in the monthly sprint log.
+
+**Given** the nightly workflow,
+**When** it runs,
+**Then** the harness invocation is bounded by a documented time budget
+**And** the results are archived per Epic 14's research corpus.
+
 ---
 
 ### Epic 7: Design System Components & Patterns
