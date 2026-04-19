@@ -72,16 +72,16 @@ so that every downstream package consumes one canonical ruleset and drift cannot
   - [x] **Did NOT** author any config files — those land in Tasks 3–5 per spec.
   - [x] Quality-gate check: `pnpm -w typecheck` first run post-install = 16/16 successful (1.48s, no cache hits — expected, since `pnpm-lock.yaml` is a turbo input); second run = `>>> FULL TURBO` 16/16 cached (168ms). No typecheck regression from the devDep additions.
 
-- [ ] **Task 3: Author shared ESLint flat config + `./eslint` subpath export** (AC: 1, 2, 3)
-  - [ ] Create `packages/keel-invariants/eslint.config.keel-invariants.js` (ESM, `.js` extension since `packages/keel-invariants/package.json` has `type: "module"`).
-  - [ ] Import `@eslint/js` recommended config and `typescript-eslint` recommended config; spread them in a flat-config array.
-  - [ ] Scan targets: `**/*.{ts,tsx,js,jsx,mjs,cjs}`. Use `typescript-eslint.configs.recommended` for `*.ts` / `*.tsx` files and `@eslint/js.configs.recommended` for `*.js` / `*.jsx` / `*.mjs` / `*.cjs` files.
-  - [ ] Add `globals.node` + `globals.browser` as needed in `languageOptions.globals`.
-  - [ ] Add an `ignores` entry covering: `**/dist/**`, `**/node_modules/**`, `**/.turbo/**`, `**/*.tsbuildinfo`, `**/pnpm-lock.yaml`, `_bmad/**`, `_bmad-output/**`, `.claude/**`, `docs/**`, `.ralph/**`, `ralph.py`, `pyproject.toml`, `uv.lock`. Those are outside the TS/JS workspace.
-  - [ ] Export as default (`export default [ ... ]`).
-  - [ ] **Do NOT** add `no-restricted-imports` rules in this story — those land in Story 1.3. Keep the flat-config array composable so Story 1.3 can append a restricted-imports layer without rewriting the base.
-  - [ ] Add to `packages/keel-invariants/package.json` `exports`: `"./eslint": "./eslint.config.keel-invariants.js"`.
-  - [ ] Update `packages/keel-invariants/src/index.ts` to re-export nothing from the configs (configs are consumed via subpath `@keel/keel-invariants/<subpath>`, not the main entry). Leave `export {};` as-is unless a type is needed.
+- [x] **Task 3: Author shared ESLint flat config + `./eslint` subpath export** (AC: 1, 2, 3)
+  - [x] Created `packages/keel-invariants/eslint.config.keel-invariants.js` (ESM, `.js` extension; package has `type: "module"`).
+  - [x] Imports `@eslint/js` (default-import `js`), `typescript-eslint` (default-import `tseslint`), and `globals` (default-import `globals`). Flat-config array shape preserved.
+  - [x] Scoped scan: `@eslint/js.configs.recommended` spread into entry with `files: ['**/*.{js,jsx,mjs,cjs}']`. `tseslint.configs.recommended` (an array of 3 config objects in v8.58.2: parser/plugin base + eslint-recommended + recommended) is mapped via `.map(c => ({ ...c, files: ['**/*.{ts,tsx}'] }))` so the typescript-eslint plugin + parser apply only to TS files.
+  - [x] `globals.node` + `globals.browser` spread into `languageOptions.globals` on a final entry scoped to `**/*.{ts,tsx,js,jsx,mjs,cjs}`.
+  - [x] `ignores` entry (first array element, no `files` field — flat-config global ignores idiom): `**/dist/**`, `**/node_modules/**`, `**/.turbo/**`, `**/*.tsbuildinfo`, `**/pnpm-lock.yaml`, `_bmad/**`, `_bmad-output/**`, `.claude/**`, `docs/**`, `.ralph/**`, `ralph.py`, `pyproject.toml`, `uv.lock`.
+  - [x] `export default [ … ]` — 6-entry array (ignores + js-recommended + 3× tseslint + globals).
+  - [x] **No `no-restricted-imports` rules** — Story 1.3 scope. Array shape is composable: Story 1.3 can append a 7th entry without rewriting prior layers.
+  - [x] Added `"./eslint": "./eslint.config.keel-invariants.js"` to `packages/keel-invariants/package.json` `exports`.
+  - [x] `src/index.ts` left as `export {};` per spec — configs are consumed via subpath, not the main entry.
 
 - [ ] **Task 4: Author shared Prettier config + `./prettier` subpath export** (AC: 1, 5)
   - [ ] Create `packages/keel-invariants/prettier.config.keel-invariants.js` (ESM, default-export a config object).
@@ -307,6 +307,19 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 216ms >>> FULL TURBO`.
 - TS6053 regression checkpoint: first typecheck attempt (before the devDep additions) produced `tsconfig.json(2,14): error TS6053: File '@keel/keel-invariants/tsconfig' not found.` in every consuming package. Fixed by declaring `@keel/keel-invariants: workspace:*` as a devDep per consumer so pnpm would symlink the package into `node_modules/@keel/`.
 
+**Task 3 (2026-04-19):**
+- `pnpm install` post-`exports` change → `Already up to date / Done in 587ms` (no lockfile churn — workspace symlinks already covered the package).
+- Subpath-resolution probe (run from `packages/audit/`): `node -e "import('@keel/keel-invariants/eslint').then(m => …)"` → `default-type: object / is-array: true / length: 6`. Per-entry shape:
+  - `[0] ignores` (13 globs)
+  - `[1] files: ['**/*.{js,jsx,mjs,cjs}']` + 64 rules (= `@eslint/js.configs.recommended`)
+  - `[2] files: ['**/*.{ts,tsx}']` + plugins/languageOptions (= `tseslint base`)
+  - `[3] files: ['**/*.{ts,tsx}']` + 23 rules (= `tseslint eslint-recommended`)
+  - `[4] files: ['**/*.{ts,tsx}']` + 23 rules (= `tseslint recommended`)
+  - `[5] files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}']` + globals.node + globals.browser
+- ESLint smoke-run: `pnpm --filter @keel/keel-invariants exec eslint --config eslint.config.keel-invariants.js src/index.ts` → exit 0 (config loads, parses TS-aware, lints `export {};` clean).
+- `pnpm -w typecheck` (1st) → `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 1.63s` (cache invalidated by `package.json` exports edit — expected; package.json is a turbo input).
+- `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 187ms >>> FULL TURBO`.
+
 **Task 2 (2026-04-19):**
 - Version selection (`pnpm info <pkg> version` at install time): `eslint=10.2.1`, `@eslint/js=10.0.1`, `typescript-eslint=8.58.2`, `globals=17.5.0`, `prettier=3.8.3`, `@commitlint/cli=20.5.0`, `@commitlint/config-conventional=20.5.0`.
 - Compat verification (`pnpm info <pkg> peerDependencies`): `typescript-eslint@8.58.2.peerDeps.eslint = ^8.57.0 || ^9.0.0 || ^10.0.0`; `@eslint/js@10.0.1.peerDeps.eslint = ^10.0.0`; `eslint@10.2.1.engines.node = ^20.19.0 || ^22.13.0 || >=24`; host node `v20.20.0` satisfies.
@@ -333,6 +346,13 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Subpath export `"./tsconfig": "./tsconfig.base.json"` in `packages/keel-invariants/package.json` is the mechanism per AC 1.
 - All TS5090 lessons from Story 1.1 preserved: `paths` values remain relative (`../<pkg>/src/index.ts`, `../../apps/web/src/index.ts`) — no `baseUrl` added.
 
+**Task 3 — Shared ESLint flat config + `./eslint` subpath export (2026-04-19):**
+- **Composability mechanism for Story 1.3.** Spread `@eslint/js.configs.recommended` (one config object) into a `files`-scoped entry; `tseslint.configs.recommended` is an ARRAY of 3 configs in v8.58.2 — used `.map(c => ({ ...c, files: ['**/*.{ts,tsx}'] }))` to scope the entire TS subset cleanly. Story 1.3's `no-restricted-imports` rules can be appended as a 7th entry (or further entries) without rewriting any existing layer. The `tseslint.config()` helper would also work but pure array-spread keeps the shape transparent for downstream stories.
+- **Global-ignores idiom.** First entry is `{ ignores: [...] }` with no `files` field — flat-config treats this as a global ignore (per `eslint.config.js` semantics). Putting it on every config entry would scope the ignore per-config — wrong shape. Verified `_bmad/`, `_bmad-output/`, `.claude/`, `docs/`, `.ralph/`, plus Python sidecars (`ralph.py`, `pyproject.toml`, `uv.lock`) are excluded so `pnpm lint` (Task 6) won't trip over non-TS/JS files.
+- **Subpath-export interop check.** `import('@keel/keel-invariants/eslint')` from a sibling consumer (`packages/audit/`) resolves through the `exports` field to `./eslint.config.keel-invariants.js` and returns the 6-entry array as `.default`. Per-package consumers (Task 6) use `import shared from '@keel/keel-invariants/eslint'; export default shared;` — confirmed working.
+- **Variance: bare-import resolution from repo root.** `node -e "import('@keel/keel-invariants/eslint')"` from the repo root FAILS with `Cannot find package '@keel/keel-invariants'` because root `package.json` does NOT declare keel-invariants as a dep (and never should — the root is not a workspace member). Task 6 will create root shims `eslint.config.js` / `prettier.config.js` / `commitlint.config.js` that import via the subpath; these resolve because the per-package consumers (declared in Task 1) materialise the symlink, and the root config files get loaded BY ESLint/Prettier/commitlint binaries which run from the package whose `cwd` happens to be the repo root — Node module resolution walks up, hits `node_modules/.pnpm/` via pnpm's hoisting layer. **If root-shim resolution turns out to be flaky in Task 6**, the fallback is to add `"@keel/keel-invariants": "workspace:*"` to the root `package.json` `devDependencies`. Defer the call to Task 6.
+- **No `src/index.ts` change.** Spec was explicit: configs are consumed via subpath exports, not the main entry. Left as `export {};`.
+
 **Task 2 — Shared-config devDeps install (2026-04-19):**
 - **Ecosystem-version variance.** Story subtask text prescribed "v9 line" for eslint / @eslint/js and "v19 line" for commitlint. At install time (2026-04-19), `pnpm info` reported v10.2.1 / v10.0.1 / v20.5.0 respectively as current stable. Story spec's fallback directive ("choose whatever `pnpm info <pkg> version` reports at run time") takes priority — went with current stable. Peer-dep compat confirmed: `typescript-eslint@8.58.2` accepts ESLint v8/v9/v10; `@eslint/js@10.0.1` requires ESLint ^10. No break in the flat-config shape between v9 and v10 (legacy eslintrc was removed; flat-config API identical), so Story 1.3 composability directive is preserved.
 - **Pinning style.** Chose plain pinned patch versions (`eslint@10.2.1`, not `^10.2.1` / `~10.2.1`) — matches Story 1.1's `typescript@5.7.3` / `turbo@2.3.3` convention. Story spec says "exact-minor per I7" + "no `^`, no `~` with major-wildcarding"; the strictest interpretation consistent with Story 1.1's established pattern is plain pinned versions. Patch bumps require intentional lockfile update via a future dependency-maintenance task — not automatic.
@@ -355,3 +375,8 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Modified: `package.json` (repo root) — added the same 7 devDeps alongside existing `turbo@2.3.3` + `typescript@5.7.3`.
 - Modified: `pnpm-lock.yaml` — regenerated by `pnpm install`; 172 new packages in the dep tree.
 - Unchanged: every `<member>/package.json` except keel-invariants (per-package consumers get their own lint deps wiring in Task 6); no tsconfig changes; no config-file authoring (that's Tasks 3–5).
+
+**Task 3 (2026-04-19):**
+- Created: `packages/keel-invariants/eslint.config.keel-invariants.js` — ESM flat-config, 6-entry `export default [ … ]`, no `no-restricted-imports` (Story 1.3 scope).
+- Modified: `packages/keel-invariants/package.json` `exports` — added `"./eslint": "./eslint.config.keel-invariants.js"` after `"./tsconfig"`.
+- Unchanged: `packages/keel-invariants/src/index.ts` (still `export {};` per spec — configs are subpath-only); no consumer wiring (Task 6); no `pnpm-lock.yaml` change (no dep additions); no tsconfig changes.

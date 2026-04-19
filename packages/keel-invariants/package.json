@@ -10,7 +10,8 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./tsconfig": "./tsconfig.base.json"
+    "./tsconfig": "./tsconfig.base.json",
+    "./eslint": "./eslint.config.keel-invariants.js"
   },
   "scripts": {
     "build": "tsc -b",
