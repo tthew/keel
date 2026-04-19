@@ -13,20 +13,30 @@ in a rich TUI.
 
 Usage:
     uv run ralph.py                                 # build mode, unlimited
-    uv run ralph.py build 5                         # build mode, 5 iterations
+    uv run ralph.py build --iterations 5            # build mode, 5 iterations
     uv run ralph.py plan                            # plan mode, unlimited
-    uv run ralph.py plan 3 --debug                  # plan mode, 3 iters, debug
+    uv run ralph.py plan -n 3 --debug               # plan mode, 3 iters, debug
     uv run ralph.py --timeout 30m                   # custom per-iteration timeout
     uv run ralph.py plan -p "focus on Epic 2"       # seed first iteration
     uv run ralph.py --tool codex                    # use codex instead of claude
     uv run ralph.py --model claude-opus-4-7         # specific model
     uv run ralph.py --effort high                   # claude reasoning effort
     uv run ralph.py --safe                          # don't skip permissions
+    uv run ralph.py --gh-project https://github.com/users/<u>/projects/<n>
+    uv run ralph.py --no-gh-project                 # disable GH issue tracking
     uv run ralph.py --tool-flag --resume            # raw flag passthrough
     uv run ralph.py --tool-arg --allowed-tools=Bash # raw arg passthrough
 
 Per-project defaults and custom tools can live in .ralph/tools.json —
 see docs/ralph.md for the schema.
+
+GitHub Project integration: on startup ralph.py discovers the user's
+GH Project (or uses --gh-project), maps Story / Epic issues by title,
+transitions the current story to "In Progress" at iteration start, and
+transitions the current epic to "Done" on an EPIC_DONE halt. Story
+"Done" transitions are left to GitHub's native PR-merge automation
+(Closes #N in the PR body). Failures degrade quietly — warnings log,
+the loop continues.
 """
 
 from __future__ import annotations
@@ -34,6 +44,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shlex
 import shutil
 import subprocess
@@ -187,6 +198,288 @@ def fetch_block_usage(force_refresh: bool = False) -> BlockUsage:
     except Exception:
         return BlockUsage()
 
+
+# ── GitHub Project integration ─────────────────────────────────
+
+# Issue-tracking rules for the autonomous loop:
+# - Story "In Progress" transitions are driven from ralph.py (GH Projects
+#   has no way to infer work-started from commits alone).
+# - Story "Done" transitions are left to GitHub's native PR-merge automation
+#   (`Closes #N` in the PR body closes the issue, which the project workflow
+#   then moves to Done). Ralph prepends this fact + the current issue number
+#   into the subprocess prompt every iteration so commits / PR bodies carry
+#   the reference.
+# - Epic issues have no PR that closes them directly — ralph.py transitions
+#   the epic issue to Done when it sees an `EPIC_DONE` halt.
+
+PROJECT_URL_RE = re.compile(
+    r"https?://github\.com/(?:users|orgs)/([^/]+)/projects/(\d+)"
+)
+STORY_TITLE_RE = re.compile(r"^Story\s+(\d+[a-z]?\.\d+)\b", re.IGNORECASE)
+EPIC_TITLE_RE = re.compile(r"^Epic\s+(\d+[a-z]?)\b", re.IGNORECASE)
+PLAN_STORY_RE = re.compile(r"\*\*Story:\*\*\s*(\S+)")
+PLAN_EPIC_RE = re.compile(r"\*\*Epic:\*\*\s*(?:Epic\s+)?(\S+)", re.IGNORECASE)
+
+
+@dataclass
+class GHIssueRef:
+    number: int
+    title: str
+    status: str
+    project_item_id: str
+    url: str
+
+
+@dataclass
+class GHProjectState:
+    available: bool = False
+    owner: str = ""
+    number: int = 0
+    url: str = ""
+    project_id: str = ""
+    status_field_id: str = ""
+    status_options: dict[str, str] = field(default_factory=dict)
+    stories: dict[str, GHIssueRef] = field(default_factory=dict)
+    epics: dict[str, GHIssueRef] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+
+
+def _gh_run(args: list[str], timeout: int = 30) -> tuple[bool, str, str]:
+    """Run `gh` CLI, return (ok, stdout, stderr). Never raises."""
+    try:
+        result = subprocess.run(
+            ["gh", *args],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        return (result.returncode == 0, result.stdout, result.stderr)
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+        return (False, "", str(e))
+
+
+def parse_project_url(url: str) -> tuple[str, int] | None:
+    m = PROJECT_URL_RE.search(url.strip())
+    if not m:
+        return None
+    return (m.group(1), int(m.group(2)))
+
+
+def _current_repo_slug() -> str:
+    """Return owner/repo for the current checkout, or '' if unavailable."""
+    ok, out, _ = _gh_run(
+        ["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"],
+        timeout=10,
+    )
+    return out.strip() if ok else ""
+
+
+def _project_has_repo_items(owner: str, number: int, repo_slug: str) -> bool:
+    ok, out, _ = _gh_run(
+        [
+            "project", "item-list", str(number),
+            "--owner", owner,
+            "--limit", "20", "--format", "json",
+        ],
+        timeout=30,
+    )
+    if not ok:
+        return False
+    try:
+        items = json.loads(out).get("items", [])
+    except json.JSONDecodeError:
+        return False
+    return any(
+        repo_slug in ((it.get("content") or {}).get("url") or "")
+        for it in items
+    )
+
+
+def discover_gh_project(
+    override_url: str = "",
+    repo_slug: str = "",
+) -> tuple[str, int, str] | None:
+    """Resolve the GH project tracking this repo.
+
+    Returns (owner, number, url) or None. Discovery order:
+      1. `override_url` (from --gh-project or .ralph/config).
+      2. Single open user project → accept it.
+      3. Multi-project → pick the first whose items reference `repo_slug`.
+    """
+    if override_url:
+        parsed = parse_project_url(override_url)
+        if parsed:
+            owner, number = parsed
+            return (owner, number, override_url)
+        return None
+
+    ok, out, _ = _gh_run(
+        ["project", "list", "--owner", "@me", "--format", "json"],
+        timeout=20,
+    )
+    if not ok:
+        return None
+    try:
+        projects = json.loads(out).get("projects", [])
+    except json.JSONDecodeError:
+        return None
+    candidates = [p for p in projects if not p.get("closed")]
+    if not candidates:
+        return None
+
+    def _tuple(p: dict) -> tuple[str, int, str]:
+        return (p["owner"]["login"], p["number"], p.get("url", ""))
+
+    if len(candidates) == 1:
+        return _tuple(candidates[0])
+
+    if repo_slug:
+        for p in candidates:
+            if _project_has_repo_items(p["owner"]["login"], p["number"], repo_slug):
+                return _tuple(p)
+
+    return _tuple(candidates[0])
+
+
+def load_gh_project(owner: str, number: int, url: str = "") -> GHProjectState:
+    """Fetch fields + items; return populated state.
+
+    Never raises — failures are recorded in `state.warnings`.
+    """
+    state = GHProjectState(
+        owner=owner,
+        number=number,
+        url=url or f"https://github.com/users/{owner}/projects/{number}",
+    )
+
+    ok, out, err = _gh_run(
+        ["project", "view", str(number), "--owner", owner, "--format", "json"],
+        timeout=20,
+    )
+    if ok:
+        try:
+            state.project_id = json.loads(out).get("id", "")
+        except json.JSONDecodeError:
+            pass
+    if not state.project_id:
+        state.warnings.append(f"project view failed: {err.strip()[:120] or 'no id'}")
+        return state
+
+    ok, out, err = _gh_run(
+        ["project", "field-list", str(number), "--owner", owner, "--format", "json"],
+        timeout=30,
+    )
+    if not ok:
+        state.warnings.append(f"field-list failed: {err.strip()[:120]}")
+        return state
+    try:
+        fields = json.loads(out).get("fields", [])
+    except json.JSONDecodeError as e:
+        state.warnings.append(f"field-list parse error: {e}")
+        return state
+    status_field = next((f for f in fields if f.get("name") == "Status"), None)
+    if not status_field:
+        state.warnings.append("project has no Status field")
+        return state
+    state.status_field_id = status_field["id"]
+    state.status_options = {
+        o["name"]: o["id"] for o in status_field.get("options", [])
+    }
+
+    ok, out, err = _gh_run(
+        [
+            "project", "item-list", str(number),
+            "--owner", owner,
+            "--limit", "500", "--format", "json",
+        ],
+        timeout=60,
+    )
+    if not ok:
+        state.warnings.append(f"item-list failed: {err.strip()[:120]}")
+        return state
+    try:
+        items = json.loads(out).get("items", [])
+    except json.JSONDecodeError as e:
+        state.warnings.append(f"item-list parse error: {e}")
+        return state
+
+    for item in items:
+        content = item.get("content") or {}
+        title = content.get("title") or item.get("title") or ""
+        number_val = content.get("number")
+        if not number_val:
+            continue
+        ref = GHIssueRef(
+            number=int(number_val),
+            title=title,
+            status=(item.get("status") or ""),
+            project_item_id=item.get("id", ""),
+            url=content.get("url", ""),
+        )
+        sm = STORY_TITLE_RE.match(title.strip())
+        if sm:
+            state.stories[sm.group(1).lower()] = ref
+            continue
+        em = EPIC_TITLE_RE.match(title.strip())
+        if em:
+            state.epics[em.group(1).lower()] = ref
+
+    state.available = True
+    return state
+
+
+def transition_gh_item(
+    state: GHProjectState, item_id: str, target_status: str,
+) -> tuple[bool, str]:
+    """Transition a project item to target_status. Idempotent at the GH layer."""
+    if not state.available:
+        return (False, "project not available")
+    option_id = state.status_options.get(target_status)
+    if not option_id:
+        return (False, f"unknown status '{target_status}'")
+    ok, _, err = _gh_run(
+        [
+            "project", "item-edit",
+            "--project-id", state.project_id,
+            "--id", item_id,
+            "--field-id", state.status_field_id,
+            "--single-select-option-id", option_id,
+        ],
+        timeout=20,
+    )
+    return (ok, "" if ok else err.strip()[:160])
+
+
+def parse_plan_context(plan_path: Path) -> tuple[str, str]:
+    """Return (story_id, epic_id) from the plan's ## Context block. Empty if absent."""
+    if not plan_path.exists():
+        return ("", "")
+    try:
+        text = plan_path.read_text()
+    except OSError:
+        return ("", "")
+    ctx_match = re.search(r"##\s+Context\b[\s\S]*$", text)
+    section = ctx_match.group(0) if ctx_match else text
+
+    story_id = ""
+    epic_id = ""
+
+    m = PLAN_STORY_RE.search(section)
+    if m:
+        raw = m.group(1).strip("*,)").lower()
+        if re.fullmatch(r"\d+[a-z]?\.\d+", raw):
+            story_id = raw
+
+    m = PLAN_EPIC_RE.search(section)
+    if m:
+        raw = m.group(1).strip("*,)").lower()
+        if re.fullmatch(r"\d+[a-z]?", raw):
+            epic_id = raw
+
+    return (story_id, epic_id)
+
+
+# ── Helpers (general) ──────────────────────────────────────────
 
 def extract_tool_detail(tool_input: dict) -> str:
     if "file_path" in tool_input:
@@ -375,6 +668,8 @@ class RalphConfig:
     ignored_canonicals: list[str] = field(default_factory=list)
     tool_args: list[tuple[str, str]] = field(default_factory=list)
     tool_flags: list[str] = field(default_factory=list)
+    gh_project_url: str = ""
+    gh_project_disabled: bool = False
 
 
 def _parse_tool_arg(raw: str) -> tuple[str, str]:
@@ -413,12 +708,13 @@ def build_config() -> RalphConfig:
     parser = argparse.ArgumentParser(
         description="Ralph TUI — unified loop orchestrator + live dashboard",
         usage=(
-            "uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]\n"
-            "                    [--tool TOOL] [--model MODEL]\n"
+            "uv run ralph.py [build|plan] [--iterations N] [--timeout T]\n"
+            "                    [--prompt STR] [--tool TOOL] [--model MODEL]\n"
             "                    [--effort {low,medium,high,xhigh,max}]\n"
             "                    [--max-budget-usd AMOUNT] [--fallback-model MODEL]\n"
             "                    [--permission-mode MODE] [--safe | --unsafe]\n"
             "                    [--debug] [--worktree NAME]\n"
+            "                    [--gh-project URL | --no-gh-project]\n"
             "                    [--tool-arg KEY=VAL]... [--tool-flag FLAG]...\n"
             "                    [--tool-config PATH]"
         ),
@@ -431,11 +727,12 @@ def build_config() -> RalphConfig:
         help="Execution mode (default: build)",
     )
     parser.add_argument(
-        "max_iterations",
-        nargs="?",
+        "--iterations", "-n",
+        dest="max_iterations",
         default=0,
         type=int,
-        help="Maximum iterations (default: unlimited)",
+        metavar="N",
+        help="Maximum iterations (default: unlimited, i.e. 0)",
     )
     parser.add_argument(
         "--timeout",
@@ -546,6 +843,19 @@ def build_config() -> RalphConfig:
         type=str,
         help="Path to project tool-config JSON (default: .ralph/tools.json)",
     )
+    gh_group = parser.add_mutually_exclusive_group()
+    gh_group.add_argument(
+        "--gh-project",
+        default="",
+        metavar="URL",
+        help="GitHub Project URL override (e.g. https://github.com/users/<u>/projects/<n>). "
+             "If omitted, Ralph auto-detects the first user project linked to this repo.",
+    )
+    gh_group.add_argument(
+        "--no-gh-project",
+        action="store_true",
+        help="Disable GitHub Project integration (no issue transitions, no prompt injection).",
+    )
 
     args = parser.parse_args()
 
@@ -616,6 +926,8 @@ def build_config() -> RalphConfig:
         ignored_canonicals=ignored,
         tool_args=list(args.tool_arg),
         tool_flags=list(args.tool_flag),
+        gh_project_url=args.gh_project,
+        gh_project_disabled=args.no_gh_project,
     )
 
 
@@ -805,7 +1117,7 @@ class RalphApp(App):
     CSS = """
     #header-panel {
         dock: top;
-        height: 7;
+        height: 8;
         border-bottom: solid $accent;
         padding: 0 1;
     }
@@ -826,6 +1138,9 @@ class RalphApp(App):
     }
     #tool-line {
         color: $accent;
+    }
+    #issue-line {
+        color: $warning;
     }
     #output-log {
         scrollbar-size: 1 1;
@@ -879,6 +1194,18 @@ class RalphApp(App):
         # 5-hour block usage (from ccusage)
         self.block_usage = BlockUsage()
 
+        # GitHub Project integration state
+        self.gh_state: GHProjectState | None = None
+        self.current_story_id: str = ""
+        self.current_epic_id: str = ""
+        self.current_issue: GHIssueRef | None = None
+        self.current_epic_issue: GHIssueRef | None = None
+        # Signalled once discovery completes (or is skipped) so iteration 1
+        # can wait a bounded amount of time before starting.
+        self._gh_discovery_done = threading.Event()
+        if config.gh_project_disabled:
+            self._gh_discovery_done.set()
+
     def compose(self) -> ComposeResult:
         with Container(id="header-panel"):
             yield Static(id="session-line")
@@ -887,6 +1214,7 @@ class RalphApp(App):
             yield Static(id="token-line")
             yield Static(id="cost-line")
             yield Static(id="tool-line")
+            yield Static(id="issue-line")
         yield RichLog(id="output-log", auto_scroll=False, max_lines=5_000, markup=True)
         yield Static(id="footer")
 
@@ -914,7 +1242,49 @@ class RalphApp(App):
         # Then refresh in background
         self._fetch_block_usage_async(force_refresh=True)
         self.set_interval(300.0, lambda: self._fetch_block_usage_async(force_refresh=True))  # 5 min refresh
+
+        # GH Project discovery (background)
+        if not self.config.gh_project_disabled:
+            self._discover_gh_project_async()
+
         self.run_loop()
+
+    @work(thread=True)
+    def _discover_gh_project_async(self) -> None:
+        """Discover + load the GH project in a background thread."""
+        try:
+            repo_slug = _current_repo_slug()
+            resolved = discover_gh_project(
+                override_url=self.config.gh_project_url,
+                repo_slug=repo_slug,
+            )
+            if not resolved:
+                self.call_from_thread(
+                    self._log_gh_warning,
+                    "GH Project: not found (auto-detect). Pass --gh-project URL or --no-gh-project.",
+                )
+                return
+            owner, number, url = resolved
+            state = load_gh_project(owner, number, url)
+            self.call_from_thread(self._set_gh_state, state)
+        finally:
+            self._gh_discovery_done.set()
+
+    def _set_gh_state(self, state: GHProjectState) -> None:
+        self.gh_state = state
+        for w in state.warnings:
+            self._log_gh_warning(f"GH Project: {w}")
+        if state.available:
+            self._log_write(Text(
+                f"GH Project: {state.url}  "
+                f"({len(state.stories)} stories, {len(state.epics)} epics)",
+                style="dim",
+            ))
+        self._resolve_current_issue()
+        self._update_header()
+
+    def _log_gh_warning(self, msg: str) -> None:
+        self._log_write(Text(msg, style="yellow"))
 
     @work(thread=True)
     def _fetch_block_usage_async(self, force_refresh: bool = False) -> None:
@@ -1062,6 +1432,46 @@ class RalphApp(App):
             tool_line = "  Last: —"
         self.query_one("#tool-line", Static).update(tool_line)
 
+        self.query_one("#issue-line", Static).update(self._render_issue_line())
+
+    def _render_issue_line(self) -> str:
+        if self.config.gh_project_disabled:
+            return "  Issue: (GH project disabled)"
+        if self.gh_state is None:
+            return "  Issue: (discovering GH project…)"
+        if not self.gh_state.available:
+            return "  Issue: (GH project unavailable)"
+        parts: list[str] = []
+        if self.current_issue:
+            parts.append(
+                f"Story {self.current_story_id} #{self.current_issue.number}"
+                f" [{self.current_issue.status or '—'}]"
+            )
+        elif self.current_story_id:
+            parts.append(f"Story {self.current_story_id} (not found in project)")
+        if self.current_epic_issue:
+            parts.append(
+                f"Epic {self.current_epic_id} #{self.current_epic_issue.number}"
+            )
+        elif self.current_epic_id:
+            parts.append(f"Epic {self.current_epic_id} (not found)")
+        if not parts:
+            return f"  Issue: (no story/epic in plan context)  {LIGHT}  {self.gh_state.url}"
+        return f"  {'  ' + LIGHT + '  '.join(parts)}  {LIGHT}  {self.gh_state.url}"
+
+    def _resolve_current_issue(self) -> None:
+        """Parse .ralph/@plan.md Context, look up matching issues."""
+        story_id, epic_id = parse_plan_context(Path(".ralph/@plan.md"))
+        self.current_story_id = story_id
+        self.current_epic_id = epic_id
+        self.current_issue = None
+        self.current_epic_issue = None
+        if self.gh_state and self.gh_state.available:
+            if story_id:
+                self.current_issue = self.gh_state.stories.get(story_id)
+            if epic_id:
+                self.current_epic_issue = self.gh_state.epics.get(epic_id)
+
     # ── Iteration lifecycle ────────────────────────────────────
 
     def _on_iteration_start(self) -> None:
@@ -1087,7 +1497,38 @@ class RalphApp(App):
                     style="yellow",
                 ))
             self._log_write("")
+
+        self._resolve_current_issue()
+        if self.current_issue and self.gh_state and self.gh_state.available:
+            if self.current_issue.status != "In Progress":
+                self._transition_issue_async(
+                    self.current_issue.project_item_id,
+                    "In Progress",
+                    f"Story {self.current_story_id} #{self.current_issue.number}",
+                )
+                # Optimistic local update so the header reflects intent
+                # immediately; the async worker will log any failure.
+                self.current_issue.status = "In Progress"
+
         self._update_header()
+
+    @work(thread=True)
+    def _transition_issue_async(
+        self, item_id: str, target_status: str, label: str,
+    ) -> None:
+        if not self.gh_state:
+            return
+        ok, err = transition_gh_item(self.gh_state, item_id, target_status)
+        if ok:
+            self.call_from_thread(
+                self._log_write,
+                Text(f"GH Project: {label} → {target_status}", style="dim"),
+            )
+        else:
+            self.call_from_thread(
+                self._log_gh_warning,
+                f"GH Project: failed to transition {label} → {target_status}: {err}",
+            )
 
     def _on_iteration_end(self, exit_code: int, duration_s: float) -> None:
         if exit_code == 124:
@@ -1104,13 +1545,91 @@ class RalphApp(App):
     def _on_halt(self) -> None:
         self._log_write("")
         self._log_write(self._section_header("HALT"))
+        halt_text = ""
         try:
-            with open(".ralph/halt") as f:
-                self._log_write(f.read())
+            halt_text = Path(".ralph/halt").read_text()
+            self._log_write(halt_text)
         except FileNotFoundError:
             pass
         self._log_write(self._dim_rule())
+        self._handle_epic_done_transition(halt_text)
         self._cleanup_task_list()
+
+    def _build_issue_tracking_block(self, env: dict[str, str]) -> str:
+        """Mutate env with RALPH_ISSUE_* vars, return a prompt-injection block.
+
+        Returns "" when no GH integration or no issue context is available.
+        """
+        if self.config.gh_project_disabled:
+            return ""
+        if not self.gh_state or not self.gh_state.available:
+            return ""
+        issue = self.current_issue
+        epic_issue = self.current_epic_issue
+        if not issue and not epic_issue:
+            return ""
+
+        if self.gh_state.url:
+            env["RALPH_PROJECT_URL"] = self.gh_state.url
+        if issue:
+            env["RALPH_ISSUE_NUMBER"] = str(issue.number)
+            env["RALPH_ISSUE_URL"] = issue.url
+        if epic_issue:
+            env["RALPH_EPIC_ISSUE_NUMBER"] = str(epic_issue.number)
+            env["RALPH_EPIC_ISSUE_URL"] = epic_issue.url
+
+        lines = ["## Issue Tracking (this iteration)", ""]
+        if issue:
+            lines.append(
+                f"- Story {self.current_story_id} is tracked at GitHub issue "
+                f"**#{issue.number}** ({issue.url})."
+            )
+            lines.append(
+                f"- Include `Refs #{issue.number}` in every commit trailer this iteration."
+            )
+            lines.append(
+                f"- When the story is fully complete and ready to merge, include "
+                f"`Closes #{issue.number}` in the PR body (not the commit). GitHub's "
+                f"native automation will transition the issue to Done on merge."
+            )
+        if epic_issue:
+            lines.append(
+                f"- Parent Epic {self.current_epic_id} is tracked at issue "
+                f"**#{epic_issue.number}** ({epic_issue.url}). Reference it as "
+                f"`Refs #{epic_issue.number}` in PR bodies if helpful for traceability; "
+                f"do NOT `Closes` it — Ralph closes epic issues on EPIC_DONE halt."
+            )
+        lines.append("")
+        lines.append(
+            "Environment variables available to subagents/scripts: "
+            "`RALPH_ISSUE_NUMBER`, `RALPH_ISSUE_URL`, `RALPH_EPIC_ISSUE_NUMBER`, "
+            "`RALPH_EPIC_ISSUE_URL`, `RALPH_PROJECT_URL`."
+        )
+        return "\n".join(lines) + "\n"
+
+    def _handle_epic_done_transition(self, halt_text: str) -> None:
+        """On EPIC_DONE halts, transition the epic issue to Done."""
+        if not halt_text.strip() or not self.gh_state or not self.gh_state.available:
+            return
+        try:
+            halt = json.loads(halt_text)
+        except json.JSONDecodeError:
+            return
+        if halt.get("reason") != "EPIC_DONE":
+            return
+        epic_raw = halt.get("epic")
+        if epic_raw is None:
+            return
+        epic_id = str(epic_raw).lower()
+        ref = self.gh_state.epics.get(epic_id)
+        if not ref:
+            self._log_gh_warning(
+                f"GH Project: EPIC_DONE for Epic {epic_id} — no matching project item"
+            )
+            return
+        self._transition_issue_async(
+            ref.project_item_id, "Done", f"Epic {epic_id} #{ref.number}",
+        )
 
     def _on_await_merge(self) -> None:
         self._log_write("")
@@ -1147,6 +1666,11 @@ class RalphApp(App):
     def run_loop(self) -> None:
         worker = get_current_worker()
 
+        # Wait briefly for GH discovery so iteration 1 can emit its In
+        # Progress transition + inject the issue block into the prompt.
+        # Bounded so a hung `gh` call doesn't deadlock the loop.
+        self._gh_discovery_done.wait(timeout=30.0)
+
         while not worker.is_cancelled:
             cfg = self.config
 
@@ -1159,9 +1683,12 @@ class RalphApp(App):
             cmd = build_cli_cmd(cfg)
 
             env = {**os.environ, "CLAUDE_CODE_TASK_LIST_ID": cfg.task_list_id}
+            issue_block = self._build_issue_tracking_block(env)
 
             # Build prompt stdin content (optionally augmented with --prompt on iteration 1)
             prompt_text = Path(cfg.prompt_file).read_text()
+            if issue_block:
+                prompt_text = f"{prompt_text.rstrip()}\n\n---\n\n{issue_block}"
             if cfg.initial_prompt and self.iteration == 1:
                 prompt_text = (
                     f"{prompt_text.rstrip()}\n\n"

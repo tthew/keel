@@ -5,11 +5,11 @@ Unified loop orchestrator and live dashboard for autonomous Claude Code sessions
 ## Quick start
 
 ```bash
-uv run ralph.py                    # Build mode, unlimited iterations
-uv run ralph.py build 5            # Build mode, max 5 iterations
-uv run ralph.py plan               # Plan mode, unlimited
-uv run ralph.py plan 3 --debug     # Plan mode, 3 iters, debug
-uv run ralph.py --timeout 30m      # Custom per-iteration timeout
+uv run ralph.py                        # Build mode, unlimited iterations
+uv run ralph.py build --iterations 5   # Build mode, max 5 iterations
+uv run ralph.py plan                   # Plan mode, unlimited
+uv run ralph.py plan -n 3 --debug      # Plan mode, 3 iters, debug
+uv run ralph.py --timeout 30m          # Custom per-iteration timeout
 ```
 
 ### Prerequisites
@@ -23,9 +23,10 @@ No `pip install`, no virtualenv. The PEP 723 `# /// script` block declares `text
 ## CLI reference
 
 ```
-uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
+uv run ralph.py [build|plan] [--iterations N] [--timeout T] [--prompt STR]
                 [--tool TOOL] [--model MODEL] [--effort LEVEL]
                 [--safe | --unsafe] [--debug] [--worktree NAME]
+                [--gh-project URL | --no-gh-project]
                 [--tool-arg KEY=VAL]... [--tool-flag FLAG]...
                 [--tool-config PATH]
 ```
@@ -33,7 +34,7 @@ uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
 | Argument                   | Description                                                                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `mode`                     | `build` (default) or `plan`                                                                                                             |
-| `N`                        | Max iterations (default: unlimited)                                                                                                     |
+| `--iterations N`, `-n N`   | Max iterations (default: unlimited, i.e. `0`). Replaces the old positional `N` argument.                                               |
 | `--timeout T`              | Per-iteration timeout. Accepts `15m`, `2h`, `90s`, or raw seconds. Default: `120m`. Also reads `ITERATION_TIMEOUT` env var.             |
 | `--prompt STR`, `-p STR`   | One-shot initial instruction appended to the main prompt on iteration 1 only.                                                           |
 | `--tool TOOL`              | Which AI coding CLI to invoke. Built-ins: `claude`, `codex`, `gemini`. Extend via `.ralph/tools.json`.                                  |
@@ -48,6 +49,8 @@ uv run ralph.py [build|plan] [N] [--timeout T] [--prompt STR]
 | `--tool-arg KEY=VAL`       | Passthrough; appends `[KEY, VAL]` to the subprocess argv. Repeatable.                                                                   |
 | `--tool-flag FLAG`         | Passthrough; appends a bare flag to the subprocess argv. Repeatable.                                                                    |
 | `--tool-config PATH`       | Alternate path for the project tool-config JSON (default: `.ralph/tools.json` in CWD).                                                  |
+| `--gh-project URL`         | GitHub Project URL override (e.g. `https://github.com/users/<u>/projects/<n>`). Skip to auto-detect from `gh project list --owner @me`. |
+| `--no-gh-project`          | Disable GH Project integration (no issue transitions, no prompt injection).                                                             |
 
 ### Project tool-config: `.ralph/tools.json`
 
@@ -78,6 +81,63 @@ Optional, loaded from CWD. Layers on top of the in-code defaults (CLI flags stil
 
 Canonicals that a tool doesn't know about are silently dropped at command build time. When the user explicitly sets such a flag on the CLI (e.g. `--effort high --tool gemini`), Ralph logs a one-line dim warning under the first ITERATION header.
 
+## GitHub Project integration
+
+When a GitHub Project is reachable, Ralph drives the project's **Status** field for observability. The integration is best-effort: `gh` CLI failures, missing auth, or unreachable projects degrade to a yellow warning line in the log — the loop continues.
+
+### Discovery
+
+On startup (background thread), Ralph resolves a project in this order:
+
+1. `--gh-project URL` (explicit override).
+2. `gh project list --owner @me` — if exactly one open project exists, use it.
+3. Otherwise, pick the first open project whose items include an issue on the current repo.
+
+Pass `--no-gh-project` to disable entirely.
+
+### Issue mapping
+
+Project items are matched by title:
+
+- **Stories:** titles starting with `Story <N>.<M>:` — e.g. `Story 15a.5:` maps to story id `15a.5`.
+- **Epics:** titles starting with `Epic <N>:` — e.g. `Epic 3:` maps to epic id `3`; `Epic 15b:` to `15b`.
+
+The current iteration's story and epic come from `.ralph/@plan.md` § Context:
+
+```markdown
+## Context
+
+- **Epic:** Epic 15a - CreateKeelApp
+- **Story:** 15a.3
+```
+
+`"none"` / `"n/a"` / `"tbd"` in those fields skip the lookup for that iteration.
+
+### State transitions
+
+| When                            | Ralph action                                                                                  |
+| ------------------------------- | --------------------------------------------------------------------------------------------- |
+| Iteration start (story in plan) | Transition story issue `→ In Progress` (idempotent — skipped if already set).                 |
+| Iteration exit (any outcome)    | No transition from Ralph. Left to GH's native PR-merge automation via `Closes #N` in PR body. |
+| `EPIC_DONE` halt                | Transition the epic issue `→ Done` directly.                                                  |
+| Failure / timeout               | No transition — issue stays `In Progress` to signal attention.                                |
+
+Story → Done is deliberately NOT driven from ralph.py. GitHub Projects has a built-in workflow that moves an issue to Done when it's closed, and `Closes #N` in a merged PR closes the issue. Double-transitioning from ralph.py would race this workflow and produce misleading history.
+
+### Subprocess environment
+
+When a story/epic is resolved, Ralph sets these env vars on the spawned tool process and prepends an **Issue Tracking (this iteration)** block to the prompt:
+
+| Var                       | Contents                                      |
+| ------------------------- | --------------------------------------------- |
+| `RALPH_ISSUE_NUMBER`      | Story issue number (int).                     |
+| `RALPH_ISSUE_URL`         | Story issue URL.                              |
+| `RALPH_EPIC_ISSUE_NUMBER` | Parent epic issue number.                     |
+| `RALPH_EPIC_ISSUE_URL`    | Parent epic issue URL.                        |
+| `RALPH_PROJECT_URL`       | Project board URL.                            |
+
+The prompt prepend instructs Ralph to include `Refs #N` in commit trailers and `Closes #N` in the PR body when the story is complete. See `.ralph/PROMPT_build.md` § Issue Tracking.
+
 ## Prompts
 
 - `.ralph/PROMPT_build.md` — build mode loop instructions (BMad-driven, one task per iteration)
@@ -95,6 +155,7 @@ Both are adapted for the `ralph-bmad` workflow: `bmad-*` skill naming, required-
 │  in: 45,231  out: 12,003  c_w: 8,100  c_r: 18,666    │  token breakdown
 │  Cost: $0.12 (session: $0.38)  ─  Elapsed: 4m23s     │  cost / time
 │  Last: Bash → git status                             │  last tool
+│  Story 15a.3 #204 [In Progress] ─ Epic 15a #23 ─ …  │  GH project
 ├──────────────────────────────────────────────────────┤
 │  🔧 Read → /path/to/file                             │  scrollable
 │                                                      │  RichLog
@@ -109,7 +170,7 @@ Both are adapted for the `ralph-bmad` workflow: `bmad-*` skill naming, required-
   Shift+select to copy │ o: open log │ q: quit │ Log: .ralph/logs/…
 ```
 
-**Header** (top 7 lines) updates every second. **Output log** is a scrollable RichLog:
+**Header** (top 8 lines) updates every second. **Output log** is a scrollable RichLog:
 
 - New content auto-scrolls to bottom
 - Scroll up to pause auto-follow; scroll back to bottom to resume

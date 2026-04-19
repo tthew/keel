@@ -87,6 +87,24 @@ After ANY workflow: mark NOW `[x]` → NOW = next → quality gate (step 4) → 
 
 **dev-story budget rule:** Before invoking `/bmad-dev-story`, count the story's tasks. If tasks >= 3, do NOT invoke the workflow. Instead, implement tasks directly, one at a time: first task as NOW, remaining tasks to QUEUE. Each task = one iteration with its own commit, quality gate, and push.
 
+## Issue Tracking
+
+If a GitHub Project is configured for this repo, ralph.py injects an **Issue Tracking (this iteration)** block at the bottom of this prompt each iteration, and sets these env vars:
+
+- `RALPH_ISSUE_NUMBER` — current story's GitHub issue number (may be unset).
+- `RALPH_ISSUE_URL` — current story's issue URL.
+- `RALPH_EPIC_ISSUE_NUMBER` / `RALPH_EPIC_ISSUE_URL` — parent epic's issue.
+- `RALPH_PROJECT_URL` — the GH project board.
+
+When those are set:
+
+1. **Every commit** this iteration MUST carry a trailer referencing the story issue, e.g. `Refs #123`. Use the full trailer form so the reference is machine-readable (`Refs: #123` or `Refs #123` both work).
+2. **The PR body** — whenever you create or edit the PR (`gh pr create`, `gh pr edit`) — MUST include `Closes #<RALPH_ISSUE_NUMBER>` when the story is complete. GitHub's native automation closes the issue on PR merge, and the project's workflow transitions it to Done. Do NOT manually transition the issue.
+3. **Never** `Closes` the epic issue — ralph.py transitions epic issues to Done when it sees an `EPIC_DONE` halt.
+4. If the env vars are unset (no GH project, or no Story in IP Context), skip the references — but do not abort the iteration.
+
+The In Progress transition on the story issue happens automatically at iteration start (driven by ralph.py from the `## Context` block's `**Story:**` field). No action required from you for that.
+
 ## Budget
 
 Task estimate + 25K quality-gate/push buffer must fit in ~117K execution budget. Exit if <25K remaining.
