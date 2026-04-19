@@ -113,34 +113,15 @@ so that every downstream package consumes one canonical ruleset and drift cannot
     - Typecheck regression check: `pnpm -w typecheck` 1st run 16/16 green (1.538s, cache invalidated by `package.json` exports edit); 2nd run `>>> FULL TURBO` 16/16 cached (127ms). No regression.
   - [x] **Did NOT** wire any consumer shims — Task 6 creates root `commitlint.config.js` re-export + per-package files. Task 5 ships the shared config only.
 
-- [ ] **Task 6: Wire consumers — root configs + per-package ESLint configs + package.json scripts** (AC: 2, 3, 5, 6)
-  - [ ] Create `eslint.config.js` at repo root (ESM, `type: "module"` in root `package.json`):
-    ```js
-    import shared from '@keel/keel-invariants/eslint';
-    export default shared;
-    ```
-  - [ ] Create `prettier.config.js` at repo root:
-    ```js
-    import shared from '@keel/keel-invariants/prettier';
-    export default shared;
-    ```
-  - [ ] Create `commitlint.config.js` at repo root:
-    ```js
-    import shared from '@keel/keel-invariants/commitlint';
-    export default shared;
-    ```
-  - [ ] Create `eslint.config.js` in each of the **16** workspace members: `apps/web/` + `packages/{audit,billing,config,contracts,core,create-keel-app,db,devbox,email,flags,jobs,keel-generator,keel-invariants,keel-templates,ui}/`. Each file is the same 2-line ESM re-export:
-    ```js
-    import shared from '@keel/keel-invariants/eslint';
-    export default shared;
-    ```
-    (Yes, `packages/keel-invariants/` gets one too — it lints itself with the config it exports, which is the simplest consistent rule.)
-  - [ ] Add `"lint": "eslint ."` to each of the 16 workspace members' `package.json` `scripts` block. Turbo will orchestrate these via `turbo run lint` (task already defined in Story 1.1's `turbo.json` Task 3 — no turbo.json change needed).
-  - [ ] Add to root `package.json` `scripts`:
-    - `"lint": "turbo run lint"` (verify it already exists from Story 1.1; leave as-is if so).
-    - `"format": "prettier --write ."`
-    - `"format:check": "prettier --check ."`
-  - [ ] Root-level `package.json` must have `"type": "module"` confirmed (it should from Story 1.1) — the `.js` re-export files assume ESM.
+- [x] **Task 6: Wire consumers — root configs + per-package ESLint configs + package.json scripts** (AC: 2, 3, 5, 6)
+  - [x] Created `eslint.config.js` at repo root (ESM, 2-line `import shared from '@keel/keel-invariants/eslint'; export default shared;`).
+  - [x] Created `prettier.config.js` at repo root (same 2-line shape, `/prettier` subpath).
+  - [x] Created `commitlint.config.js` at repo root (same 2-line shape, `/commitlint` subpath).
+  - [x] Created `eslint.config.js` in each of the **16** workspace members (`apps/web/` + `packages/{audit,billing,config,contracts,core,create-keel-app,db,devbox,email,flags,jobs,keel-generator,keel-invariants,keel-templates,ui}/`). All 16 files identical — same 2-line ESM re-export as the root shim. `packages/keel-invariants/` gets one too (lints itself with the config it exports).
+  - [x] Added `"lint": "eslint ."` to all 16 `<member>/package.json` `scripts` blocks (append after the existing `typecheck` entry). Turbo orchestration via `turbo run lint` uses the `lint` task defined in Story 1.1's `turbo.json` — no turbo.json change.
+  - [x] Added to root `package.json` `scripts`: `"format": "prettier --write ."`, `"format:check": "prettier --check ."`. `"lint": "turbo run lint"` already existed from Story 1.1 — left as-is.
+  - [x] **Variance from subtask**: Root `package.json` did NOT have `"type": "module"` from Story 1.1 (subtask's "it should from Story 1.1" assumption was incorrect — Story 1.1 only added `type: module` to each per-package `package.json`, not root). Added `"type": "module"` at root so the `.js` root shims parse as ESM. See RALPH.md 2026-04-19 Lessons for the broader principle: verify Story-1.1-inherited settings by reading the file, not by trusting spec commentary.
+  - [x] **Variance from subtask (preempted)**: Added `"@keel/keel-invariants": "workspace:*"` to root `devDependencies`. Required for bare-specifier resolution of `@keel/keel-invariants/eslint` from the root shim — without it, pnpm doesn't materialise the `node_modules/@keel/keel-invariants` symlink under the repo root (pnpm only symlinks workspace packages that are declared as deps; root is not a workspace member). Exact fallback flagged in Task 3 Completion Notes line 379 as a known possibility.
 
 - [ ] **Task 7: Verify all quality gates green + turbo cache intact** (AC: 3, 4, 5, 6)
   - [ ] `pnpm install` — exit 0, no resolution warnings. Capture final line.
@@ -363,6 +344,15 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - `pnpm -w typecheck` (1st, post-install) → `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 1.48s` (cache invalidated by `pnpm-lock.yaml` change — expected).
 - `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 168ms >>> FULL TURBO`.
 
+**Task 6 (2026-04-19):**
+- `pnpm install` post-shim creation + root `type: "module"` + root `@keel/keel-invariants: workspace:*` devDep → `Already up to date / Done in 5.6s using pnpm v10.29.2`. Dep-graph output: `+ @keel/keel-invariants 0.0.0 <- packages/keel-invariants` (root symlink materialised).
+- `pnpm -w typecheck` (1st, post-edit) → `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 1.801s` (cache invalidated by 17 `package.json` edits — 16 member + 1 root).
+- `pnpm -w typecheck` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 152ms >>> FULL TURBO`.
+- `pnpm -w lint` (1st) → `Tasks: 16 successful, 16 total / Cached: 0 cached, 16 total / Time: 7.466s`. All 16 packages ran `eslint .` cleanly — zero errors/warnings on `src/index.ts` (`export {};`) files and the `.js` config files in `packages/keel-invariants/`.
+- `pnpm -w lint` (2nd) → `Tasks: 16 successful, 16 total / Cached: 16 cached, 16 total / Time: 195ms >>> FULL TURBO`.
+- `pnpm exec commitlint --from origin/main --to HEAD --verbose` → `found 0 problems, 0 warnings` across all 5 branch commits (`c0509a5`, `0c8d0e6`, `8da968c`, `7521b90`, `03aa6a0`, `7de1784`). Root `commitlint.config.js` shim loaded the shared config successfully.
+- `pnpm format:check` → exit 1 with warnings on `AGENTS.md`, `CLAUDE.md`, `README.md` (pre-existing content, not Task 6 scope). Shim loaded (Prettier found `prettier.config.js`, resolved `@keel/keel-invariants/prettier` through it, parsed files — warnings are legitimate format drift, not shim failures). Format-fix is explicit Task 7 scope per spec line 149.
+
 ### Completion Notes List
 
 **Task 1 — Relocation + subpath export (2026-04-19):**
@@ -371,6 +361,16 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Turbo cache invalidated on first typecheck run (expected: tsconfig path inputs changed). Second run hit FULL TURBO as specified in AC 4.
 - Subpath export `"./tsconfig": "./tsconfig.base.json"` in `packages/keel-invariants/package.json` is the mechanism per AC 1.
 - All TS5090 lessons from Story 1.1 preserved: `paths` values remain relative (`../<pkg>/src/index.ts`, `../../apps/web/src/index.ts`) — no `baseUrl` added.
+
+**Task 6 — Wire consumers: root shims + 16 × per-package ESLint configs + scripts (2026-04-19):**
+- **Root shims are 3 identical-shape ESM 2-liners.** `eslint.config.js`, `prettier.config.js`, `commitlint.config.js` each do `import shared from '@keel/keel-invariants/<name>'; export default shared;`. This is the minimum viable wiring — no logic in the shim, full delegation to the shared config. Future stories can add file-level rule overrides (e.g., project-specific ignore paths, or per-directory rule layers) by extending or composing `shared` instead of re-authoring. This keeps the invariant-per-config "one source of truth" property: deleting the shared config makes every shim crash — exactly the "appears-but-isn't" gap-closing that AC 2 demands.
+- **16 × per-package `eslint.config.js` is the same 2-liner.** Reason the per-package file exists at all (rather than just the root `eslint.config.js`): `eslint .` executed from a member package's cwd walks up looking for `eslint.config.js`; without a per-package file ESLint would fall back to the root config correctly, BUT `turbo run lint` runs each package's `lint` script in its package cwd, and having the per-package config file as an explicit turbo input-file makes cache invalidation precise — editing the shared config invalidates every package's lint cache (via `pnpm-lock.yaml` and the per-package file's import chain). Zero-logic per-package files are idiomatic for monorepos and are what `eslint --init` would generate. Cost: 16 × 2-line files (32 lines of re-export boilerplate). Benefit: local `pnpm --filter <pkg> lint` works identically to `pnpm -w lint`'s behaviour on that package.
+- **`packages/keel-invariants/` gets its own `eslint.config.js` too.** The invariants package is its own first consumer — the config it exports lints the config file itself. This catches "config authors accidentally create invalid configs" at the self-lint boundary. If Story 1.3 or later tightens a rule that the shared config itself would violate, `pnpm --filter @keel/keel-invariants lint` catches it before other packages. Simplest consistent rule vs. special-casing.
+- **Two preempted landmines (both from Task 3's carry-forward notes):**
+  1. Root `package.json` lacked `"type": "module"`. Task 6 spec's literal instruction ("Root-level `package.json` must have `"type": "module"` confirmed (it should from Story 1.1)") presumed Story 1.1 had added it — it did not. Per-member `package.json` files all have `"type": "module"`, but the root did not. Without it, Node parses `.js` files as CJS and the `import` in each shim throws `SyntaxError: Cannot use import statement outside a module` at load time. Added `"type": "module"` at root.
+  2. Root `package.json` lacked `@keel/keel-invariants: workspace:*` devDep. Task 3 Completion Notes line 379 flagged this as the explicit fallback if "root-shim resolution turns out flaky in Task 6." It's not flaky — it's broken without the devDep. Reason: pnpm materialises `node_modules/@keel/keel-invariants/` symlinks only under packages that declare the dep. Root is NOT a workspace member (the `pnpm-workspace.yaml` enumerates only `apps/*` and `packages/*`), so pnpm ignores root-level devDeps for symlink purposes UNLESS they're declared explicitly. Added `"@keel/keel-invariants": "workspace:*"` to root `devDependencies`. Install creates `node_modules/@keel/keel-invariants` → shim resolves → typecheck/lint/commitlint all pass.
+- **`pnpm format:check` output analysis.** 3 warnings on pre-existing markdown files (`AGENTS.md`, `CLAUDE.md`, `README.md`). These files were authored in Story 1.1 and earlier ralph-tooling commits, BEFORE any prettier config existed. Their format drifts from the Keel house style (likely line-width, possibly list-item spacing or code-fence surrounds). Not a Task 6 wiring failure — the shim loaded, Prettier parsed each file against the shared config, and 3 files don't conform. Task 7 spec (line 149) explicitly says "If it fails, run `pnpm format` once, review the diff, commit, and re-run until green. **Do not** add files to `.prettierignore` to mask failures unless they're genuinely outside the TS/JS workspace." Markdown is in-scope for prettier → format-fix, not add-to-ignore. Deferred to Task 7 iteration.
+- **Cache invalidation behaviour confirmed.** `pnpm -w typecheck` went from FULL TURBO (pre-Task-6) to run-1 cache-miss (post-Task-6 edits) because 16 `package.json` files plus the root `package.json` were modified — all turbo inputs. Expected. Run 2 re-cached everything. Same pattern for `pnpm -w lint`: run-1 executed all 16 packages (7.466s), run-2 FULL TURBO (195ms cached). Lint output bytes/exit-codes were stable enough that turbo's content-hash caching matched on run 2. This confirms the `lint` task is deterministic and turbo-cacheable under the shared config — Story 1.3 stories can rely on the same cache behaviour when layering boundary rules.
 
 **Task 3 — Shared ESLint flat config + `./eslint` subpath export (2026-04-19):**
 - **Composability mechanism for Story 1.3.** Spread `@eslint/js.configs.recommended` (one config object) into a `files`-scoped entry; `tseslint.configs.recommended` is an ARRAY of 3 configs in v8.58.2 — used `.map(c => ({ ...c, files: ['**/*.{ts,tsx}'] }))` to scope the entire TS subset cleanly. Story 1.3's `no-restricted-imports` rules can be appended as a 7th entry (or further entries) without rewriting any existing layer. The `tseslint.config()` helper would also work but pure array-spread keeps the shape transparent for downstream stories.
@@ -424,3 +424,13 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Created: `.prettierignore` (repo root) — 12 entries covering build outputs (`dist/`, `node_modules/`, `.turbo/`, `*.tsbuildinfo`), workspace lockfile (`pnpm-lock.yaml`), BMad/Claude/docs/Ralph workspaces (`_bmad/`, `_bmad-output/`, `.claude/`, `docs/`, `.ralph/`), Python sidecars (`*.py`, `uv.lock`).
 - Modified: `packages/keel-invariants/package.json` `exports` — added `"./prettier": "./prettier.config.keel-invariants.js"` after `"./eslint"`.
 - Unchanged: `packages/keel-invariants/src/index.ts` (still `export {};`); no consumer wiring (Task 6); no `pnpm-lock.yaml` change (no dep additions); no tsconfig changes.
+
+**Task 6 (2026-04-19):**
+- Created: `eslint.config.js` (repo root) — 2-line ESM re-export of `@keel/keel-invariants/eslint`.
+- Created: `prettier.config.js` (repo root) — 2-line ESM re-export of `@keel/keel-invariants/prettier`.
+- Created: `commitlint.config.js` (repo root) — 2-line ESM re-export of `@keel/keel-invariants/commitlint`.
+- Created: `apps/web/eslint.config.js` + 15 × `packages/<pkg>/eslint.config.js` (all 16 identical 2-line ESM re-exports of `@keel/keel-invariants/eslint`). Members: `apps/web`, `packages/audit`, `packages/billing`, `packages/config`, `packages/contracts`, `packages/core`, `packages/create-keel-app`, `packages/db`, `packages/devbox`, `packages/email`, `packages/flags`, `packages/jobs`, `packages/keel-generator`, `packages/keel-invariants`, `packages/keel-templates`, `packages/ui`.
+- Modified: `apps/web/package.json` + 15 × `packages/<pkg>/package.json` — added `"lint": "eslint ."` after `"typecheck": "tsc -b --noEmit"`. 16 files.
+- Modified: `package.json` (repo root) — added `"type": "module"` (variance: Story 1.1 did not set this); added `"format": "prettier --write ."` + `"format:check": "prettier --check ."` to `scripts`; added `"@keel/keel-invariants": "workspace:*"` to `devDependencies` (variance: bare-specifier resolution for the root shim).
+- Modified: `pnpm-lock.yaml` — regenerated by `pnpm install` after root `@keel/keel-invariants` devDep addition. The only dep-graph change is the root symlink; no transitive packages added.
+- Unchanged: `packages/keel-invariants/*` config files (authored Tasks 3–5, not re-edited); `packages/keel-invariants/src/index.ts` (still `export {};`); all tsconfigs; `turbo.json` (`lint` task already defined in Story 1.1); `pnpm-workspace.yaml`; `.prettierignore` (created in Task 4 already covers the 3 pre-existing markdown files' neighbourhood but not the files themselves — format-fix via `pnpm format` is Task 7 scope).

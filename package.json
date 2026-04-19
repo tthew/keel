@@ -1,6 +1,7 @@
 {
   "name": "keel",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.29.2",
   "engines": {
     "node": ">=20 <21"
@@ -9,12 +10,15 @@
     "typecheck": "turbo run typecheck",
     "build": "turbo run build",
     "test": "turbo run test",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
     "@eslint/js": "10.0.1",
+    "@keel/keel-invariants": "workspace:*",
     "eslint": "10.2.1",
     "globals": "17.5.0",
     "prettier": "3.8.3",
