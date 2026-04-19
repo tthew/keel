@@ -1,6 +1,6 @@
 # Story 1.4: Pre-commit quality gates via prek (type-check, lint, format)
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -44,10 +44,10 @@ so that no local commit lands with a type error, lint error, or unformatted file
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Pin `@j178/prek`, author `.pre-commit-config.yaml`, wire the `prepare` lifecycle script** (AC: 1, 6)
-  - [ ] Add `@j178/prek@0.3.9` to root `package.json` `devDependencies` (alongside existing `eslint`, `prettier`, etc.). Confirmed current stable via `pnpm info @j178/prek version` → `0.3.9`. Pin exact (no `^`/`~`) per Story 1.1/1.2 convention.
-  - [ ] Run `pnpm install` to fetch the package. Expect `node_modules/@j178/prek/` and `node_modules/.bin/prek` to exist. Verify `pnpm exec prek --version` prints `0.3.9`.
-  - [ ] Create `.pre-commit-config.yaml` at repo root with exactly three local hooks, all `language: system`, `pass_filenames: false`, `always_run: true` (workspace-level commands are invariant under which files are staged — the hook exists to gate the whole tree):
+- [x] **Task 1: Pin `@j178/prek`, author `.pre-commit-config.yaml`, wire the `prepare` lifecycle script** (AC: 1, 6)
+  - [x] Add `@j178/prek@0.3.9` to root `package.json` `devDependencies` (alongside existing `eslint`, `prettier`, etc.). Confirmed current stable via `pnpm info @j178/prek version` → `0.3.9`. Pin exact (no `^`/`~`) per Story 1.1/1.2 convention.
+  - [x] Run `pnpm install` to fetch the package. Expect `node_modules/@j178/prek/` and `node_modules/.bin/prek` to exist. Verify `pnpm exec prek --version` prints `0.3.9`.
+  - [x] Create `.pre-commit-config.yaml` at repo root with exactly three local hooks, all `language: system`, `pass_filenames: false`, `always_run: true` (workspace-level commands are invariant under which files are staged — the hook exists to gate the whole tree):
     ```yaml
     # Pre-commit quality gates (Story 1.4).
     # Runs under @j178/prek — drop-in pre-commit framework reimplementation.
@@ -77,20 +77,20 @@ so that no local commit lands with a type error, lint error, or unformatted file
     ```
     **Why `language: system`?** The three commands are pnpm-script invocations that already orchestrate their own tooling (turbo + tsc, turbo + eslint, prettier). Using `language: node` or similar would force prek to provision its own language environment — redundant and slower. `system` delegates to the current shell's `PATH`, which in any `pnpm` command context includes `node_modules/.bin/`.
     **Why `pass_filenames: false` + `always_run: true`?** The hooks run workspace-level commands (turbo + prettier walk their own inputs). Passing per-file filenames would either be ignored or confuse the downstream tools. `always_run: true` means the hook fires even when no matching files are staged — critical because commits can touch non-code files (markdown, YAML, config) and we still want the gate to pass before landing. Cache-warm FULL TURBO on no-op commits stays negligible.
-  - [ ] Add a `prepare` lifecycle script to root `package.json`: `"prepare": "prek install"`. **Why `prepare`, not `postinstall`?** `prepare` is the Husky-established convention for git-hook installation — it runs after `pnpm install` completes AND is the script most users expect for hook setup. `postinstall` also works but carries a side effect when the package is a consumed dep (irrelevant here — keel is unpublished, but the convention stands). The `prepare` script runs once, on first `pnpm install` and on every subsequent install. `prek install` is idempotent — running twice is a no-op after the first.
-  - [ ] Run `pnpm install` a second time to exercise `prepare`. Expect `.git/hooks/pre-commit` to be written (or updated) by prek. Inspect the file:
+  - [x] Add a `prepare` lifecycle script to root `package.json`: `"prepare": "prek install"`. **Why `prepare`, not `postinstall`?** `prepare` is the Husky-established convention for git-hook installation — it runs after `pnpm install` completes AND is the script most users expect for hook setup. `postinstall` also works but carries a side effect when the package is a consumed dep (irrelevant here — keel is unpublished, but the convention stands). The `prepare` script runs once, on first `pnpm install` and on every subsequent install. `prek install` is idempotent — running twice is a no-op after the first.
+  - [x] Run `pnpm install` a second time to exercise `prepare`. Expect `.git/hooks/pre-commit` to be written (or updated) by prek. Inspect the file:
     ```bash
     cat .git/hooks/pre-commit | head -20
     ls -la .git/hooks/pre-commit       # must be executable
     ```
     Expect the file to be a shell script that invokes prek's hook runner (implementation detail — whatever prek writes, it must be executable and must locate the `prek` binary at commit-time). **Worktree note:** this Ralph iteration runs inside `.claude/worktrees/ralph/`; in a git worktree, `.git` is a file pointing at `<repo>/.git/worktrees/<name>/`. `prek install` respects `core.hooksPath` and per-worktree hooks, per the prek docs. If hooks end up in the main repo's `.git/hooks/` (shared across worktrees) that's still correct — the hook fires on any `git commit` in any worktree.
-  - [ ] **Self-verification probe (dev loop, not committed):** `pnpm exec prek run --all-files typecheck` should invoke the typecheck step directly via prek's runner and exit 0 (tree is currently clean after Story 1.3). Likewise `pnpm exec prek run --all-files lint` → exit 0, and `pnpm exec prek run --all-files format-check` → exit 0. This confirms the config loads and each hook ID resolves.
-  - [ ] Quality gates:
+  - [x] **Self-verification probe (dev loop, not committed):** `pnpm exec prek run --all-files typecheck` should invoke the typecheck step directly via prek's runner and exit 0 (tree is currently clean after Story 1.3). Likewise `pnpm exec prek run --all-files lint` → exit 0, and `pnpm exec prek run --all-files format-check` → exit 0. This confirms the config loads and each hook ID resolves.
+  - [x] Quality gates:
     - `pnpm -w typecheck` — FULL TURBO (16/16 cached) assuming no TS input moved. The change in this task touches only `package.json` (devDep add) and a new `.pre-commit-config.yaml` — neither is a typecheck input; cache should survive.
     - `pnpm -w lint` — similarly FULL TURBO; `.pre-commit-config.yaml` is not a lint input.
     - `pnpm format:check` — exit 0. The new YAML file must conform to Prettier's YAML formatter (quoted strings consistent, indent 2).
     - `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0/0 across existing branch commits (spec commit only at this point).
-  - [ ] Commit: `feat(invariants): Story 1.4 Task 1 — wire prek pre-commit config + prepare script`. Include IP + RALPH.md upkeep in the same commit per Ralph's knowledge-file contract (step 3a of the build prompt).
+  - [x] Commit: `feat(invariants): Story 1.4 Task 1 — wire prek pre-commit config + prepare script`. Include IP + RALPH.md upkeep in the same commit per Ralph's knowledge-file contract (step 3a of the build prompt).
 
 - [x] **Task 2: ATDD smoke probes proving each failure-mode AC fires + clean-commit AC 5 + prek-runner parity AC 6** (AC: 2, 3, 4, 5, 6)
   - [x] These probes create temporary bad-state files in the worktree, attempt `git commit` (which must abort), then clean up. They produce NO committed artefacts beyond Debug Log entries capturing each probe's output. Every probe runs in sequence; each cleans up before the next.
@@ -161,15 +161,15 @@ so that no local commit lands with a type error, lint error, or unformatted file
   - [x] Capture every probe's output in Debug Log References when Task 2 lands. If ANY probe produces unexpected output (e.g. AC 2 probe succeeds instead of failing, or AC 5 probe fails), **loop back to Task 1** and fix the config. Document any such loop-back in Completion Notes List.
   - [x] Commit: `feat(invariants): Story 1.4 Task 2 — ATDD smoke probes verify prek hooks fire + parity`.
 
-- [ ] **Task 3: Full quality-gate verification + sprint-status update** (AC: 5, 6)
-  - [ ] `pnpm install` — expect `Already up to date` / no lockfile churn (no new deps added by this task).
-  - [ ] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on FIRST call of this iteration (no TS inputs changed between Task 2 and Task 3 — probe files from Task 2 were deleted before the commit, so the committed tree is the Task 1 state + Debug Log updates). Cache warm.
-  - [ ] `pnpm -w lint` — expect 16/16 `>>> FULL TURBO`. Same reasoning.
-  - [ ] `pnpm format:check` — `All matched files use Prettier code style!` exit 0.
-  - [ ] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems / 0 warnings across branch commits (spec + Task 1 + Task 2 = 3 commits, all `feat(invariants): Story 1.4 Task N — …` or `docs(story):` shape).
-  - [ ] `pnpm exec prek run --all-files` — run all three hooks in sequence via prek's runner. Expect all three exit 0. This is the end-to-end re-verification that the committed config + committed devDep + committed prepare script produce a working prek hook.
-  - [ ] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flip `1-4-pre-commit-quality-gates-via-prek-type-check-lint-format` from `ready-for-dev` → `done`; bump `last_updated`. Land this BEFORE the PR Draft→Open transition to avoid orphan bookkeeping commits (RALPH.md Lessons 2026-04-19 "Post-halt bookkeeping commits can orphan from main"; Story 1.2/1.3 precedents).
-  - [ ] Commit: `feat(invariants): Story 1.4 Task 3 — all quality gates green + sprint-status bump`.
+- [x] **Task 3: Full quality-gate verification + sprint-status update** (AC: 5, 6)
+  - [x] `pnpm install` — expect `Already up to date` / no lockfile churn (no new deps added by this task).
+  - [x] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on FIRST call of this iteration (no TS inputs changed between Task 2 and Task 3 — probe files from Task 2 were deleted before the commit, so the committed tree is the Task 1 state + Debug Log updates). Cache warm.
+  - [x] `pnpm -w lint` — expect 16/16 `>>> FULL TURBO`. Same reasoning.
+  - [x] `pnpm format:check` — `All matched files use Prettier code style!` exit 0.
+  - [x] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems / 0 warnings across branch commits (spec + Task 1 + Task 2 = 3 commits, all `feat(invariants): Story 1.4 Task N — …` or `docs(story):` shape).
+  - [x] `pnpm exec prek run --all-files` — run all three hooks in sequence via prek's runner. Expect all three exit 0. This is the end-to-end re-verification that the committed config + committed devDep + committed prepare script produce a working prek hook.
+  - [x] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flip `1-4-pre-commit-quality-gates-via-prek-type-check-lint-format` from `ready-for-dev` → `done`; bump `last_updated`. Land this BEFORE the PR Draft→Open transition to avoid orphan bookkeeping commits (RALPH.md Lessons 2026-04-19 "Post-halt bookkeeping commits can orphan from main"; Story 1.2/1.3 precedents).
+  - [x] Commit: `feat(invariants): Story 1.4 Task 3 — all quality gates green + sprint-status bump`.
 
 ## Dev Notes
 
@@ -292,7 +292,7 @@ Convention: `feat(invariants): Story X.Y Task N — <summary>`. Story 1.4 commit
 
 ### Agent Model Used
 
-_(populated by dev during implementation — expected: claude-opus-4-7 via Ralph build loop, one task per iteration)_
+claude-opus-4-7 (1M context) via Ralph build loop; one task per iteration across three implementation iterations (Tasks 1 → 2 → 3).
 
 ### Debug Log References
 
@@ -359,20 +359,42 @@ _(populated by dev during implementation — expected: claude-opus-4-7 via Ralph
 
 **No Task-1 loop-back was required** — every probe behaved exactly as AC spec predicted (modulo the AC 3 typecheck side-effect documented above, which is an extra gate firing, not an AC failure).
 
+**Task 3 (2026-04-19) — full quality-gate verification + sprint-status bump; all gates FULL TURBO on first call.**
+
+- `pnpm install` → `Lockfile is up to date, resolution step is skipped` / `Already up to date`; `prepare` re-ran `prek install` (idempotent — hook already at `/workspace/ralph-bmad/.git/hooks/pre-commit` from Task 1). `Done in 627ms`.
+- `pnpm -w typecheck` → `Tasks: 16 successful, 16 total; Cached: 16 cached, 16 total; Time: 136ms >>> FULL TURBO`.
+- `pnpm -w lint` → `Tasks: 16 successful, 16 total; Cached: 16 cached, 16 total; Time: 114ms >>> FULL TURBO`.
+- `pnpm format:check` → `All matched files use Prettier code style!` exit 0.
+- `pnpm exec commitlint --from origin/main --to HEAD --verbose` → `found 0 problems, 0 warnings` across 4 branch commits (`docs(story):` spec + `chore(ralph):` IP + `feat(invariants): Story 1.4 Task 1` + `feat(invariants): Story 1.4 Task 2`).
+- `pnpm exec prek run --all-files` → all three hooks `Passed` (TypeScript type-check (workspace), ESLint (workspace), Prettier format:check (workspace)); exit 0. Same three commands the git-hook path invokes, same tree, same outcomes — parity re-confirmed end-to-end.
+
+Turbo cache handoff from Task 2 → Task 3 was clean: Task 2 committed only the story spec markdown file (not a typecheck / ESLint / format input — `_bmad-output/` under `.prettierignore`), so every gate hit `>>> FULL TURBO` on its first invocation of this verification iteration. Matches the property observed in Story 1.2 Task 7 and Story 1.3 Task 4 — verification-only iterations are essentially zero-cost from a cache-warming perspective.
+
 ### Completion Notes List
 
 - **Task 2 AC 5 probe path variance.** Spec subtask suggested `echo "" >> RALPH.md` as the clean-commit probe target. Used `_bmad-output/__ac5-probe.txt` instead because appending `""` + newline to a file that already ends with `\n` produces `...\n\n`, which Prettier-markdown normalises to a single trailing newline — the `format-check` gate would then report a style diff on `RALPH.md` and abort the clean-commit probe, contaminating the AC 5 assertion. The replacement path is in `.prettierignore` (line 7: `_bmad-output/`), is not a typecheck input, is not an ESLint input — guaranteed-safe for all three gates. Rewind via `git reset --hard HEAD~1` removed the commit AND the probe file in one step. AC 5 semantic intent preserved (prove that all three hooks pass and a commit lands on a clean tree); only the probe vehicle differs from spec text.
 - **Task 2 AC 3 probe side-effect.** The cross-package relative-import specifier (`'../../contracts/src/index.ts'`) fails both the `lint` hook (Story 1.3 AC 1 `no-restricted-imports`) and the `typecheck` hook (no default export at the target — Story 1.1 shipped empty `src/index.ts` files). Two gates catching the same violation is defense-in-depth, not a spec deviation — AC 3 requires that the **lint** hook fire on cross-package relative imports, which it did with the expected `no-restricted-imports` rule-id + "No relative imports crossing a package src/ boundary" message. Noted for Task 3 context: the AC 3 probe output is not a minimal failure demonstration; it's a both-gates-catch scenario.
+- **Task 3 sprint-status bump landed BEFORE Draft→Open transition.** Per Story 1.2 + 1.3 precedent (RALPH.md Lessons 2026-04-19 "Post-halt bookkeeping commits can orphan from main"), the sprint-status update is part of Task 3's commit rather than a separate post-transition `chore(sprint):` bump. Eliminates the orphan-risk window where a user merges the PR between the Task-3 push and a separate sprint-status push. Matches Stories 1.2/1.3 execution shape.
 
 ### File List
 
-**Modified (Task 2 commit):**
+**Task 1 commit (`3450924`):**
 
-- `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md` — populate Debug Log References + Completion Notes + File List; flip Task 2 subtasks `[ ]` → `[x]`.
+- Added: `.pre-commit-config.yaml` (repo root; 3 local hooks — `typecheck` / `lint` / `format-check`; all `language: system`, `pass_filenames: false`, `always_run: true`).
+- Modified: `package.json` (root) — `"@j178/prek": "0.3.9"` added to `devDependencies`; `"prepare": "prek install"` added to `scripts`.
+- Modified: `pnpm-lock.yaml` — `+309` lines to record `@j178/prek@0.3.9` + transitives.
+- Untracked (not committed — prek writes to `.git/hooks/`): `/workspace/ralph-bmad/.git/hooks/pre-commit` — prek-generated shell wrapper invoking `prek hook-impl`.
 
-**Created then removed (probe artefacts, not committed):**
+**Task 2 commit (`aa6cbb7`):**
 
-- `packages/audit/src/__ac2-probe.ts` / `__ac3-probe.ts` / `__ac4-probe.ts` — each written, staged, `git commit` attempted (aborted by hook), then `git reset HEAD <file>` + `rm -f <file>`.
-- `_bmad-output/__ac5-probe.txt` — written, staged, committed (hook passed), commit rewound via `git reset --hard HEAD~1`.
+- Modified: `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md` — populate Debug Log References + Completion Notes + File List; flip Task 2 subtasks `[ ]` → `[x]`.
+- Created then removed (probe artefacts, not committed): `packages/audit/src/__ac2-probe.ts` / `__ac3-probe.ts` / `__ac4-probe.ts` + `_bmad-output/__ac5-probe.txt`. Every probe cleaned up before the next starts.
 
-**Unchanged:** `package.json`, `pnpm-lock.yaml`, `.pre-commit-config.yaml`, per-package `eslint.config.js`, per-package `tsconfig.json`, shared configs under `packages/keel-invariants/`, every `src/*.ts` file, `turbo.json`, `pnpm-workspace.yaml`, root config shims, `.prettierignore`.
+**Task 3 commit (this commit):**
+
+- Modified: `_bmad-output/implementation-artifacts/sprint-status.yaml` — `1-4-pre-commit-quality-gates-via-prek-type-check-lint-format: ready-for-dev → done`; `last_updated: 2026-04-19 21:07 UTC`.
+- Modified: `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md` — `Status: ready-for-dev → done`; flip Task 1 + Task 3 subtasks `[ ]` → `[x]`; append Task 3 Debug Log + Completion Note; consolidate File List.
+- Modified: `.ralph/@plan.md` — Task 3 → DONE; NOW = PR Draft→Open transition.
+- Modified: `RALPH.md` — append Task 3 signpost (verification-only iteration, all gates FULL TURBO, sprint-status bump co-landed per Story 1.2/1.3 precedent).
+
+**Unchanged across the story:** every per-package `eslint.config.js` (Story 1.3); every per-package `tsconfig.json` (Story 1.1); `packages/keel-invariants/{eslint,prettier,commitlint}.config.keel-invariants.js` (Story 1.2); every `src/*.ts` file (pure tooling story); `turbo.json`; `pnpm-workspace.yaml`; root `eslint.config.js` / `prettier.config.js` / `commitlint.config.js` shims; `.prettierignore`.
