@@ -660,6 +660,477 @@ Participants: Winston (architectural barriers), Murat (validation test design), 
 
 **Standalone delivery:** The repo can be cloned and `pnpm install` runs green; boundaries hold; commits enforce conventional-commit + lint + type-check; design-token CSS vars + Tailwind preset + Textual theme.py emit deterministically; invariant-enforcement sync-gate runtime executable and testable. No other epics required.
 
+#### Stories
+
+##### Story 1.1: Monorepo scaffold + TypeScript project references
+
+As a fork operator,
+I want a hand-authored 14-package pnpm + Turborepo monorepo with working TypeScript project references,
+So that `pnpm install` runs green, package builds are cacheable, and I have a typed substrate to extend.
+
+**Acceptance Criteria:**
+
+**Given** a fresh clone of the Keel repo,
+**When** I run `pnpm install` from the root,
+**Then** the install completes without errors
+**And** workspace resolution finds `apps/web` and `packages/{db, contracts, config, core, billing, email, jobs, flags, audit, ui, keel-invariants, devbox, keel-generator, keel-templates}` + `create-keel-app`.
+
+**Given** the scaffold,
+**When** I inspect `pnpm-workspace.yaml`, `turbo.json`, and `tsconfig.base.json`,
+**Then** each file is hand-authored (not emitted by `create-turbo`)
+**And** `tsconfig.base.json` defines the `@keel/<pkg>` path alias for every workspace package
+**And** each package has its own `tsconfig.json` extending the base with `composite: true` + `references` entries for its dependencies.
+
+**Given** the project-references graph,
+**When** I run `pnpm -w typecheck` (`tsc -b`),
+**Then** the build succeeds and Turborepo caches the result
+**And** a second invocation hits the cache with no rebuilds.
+
+**Given** the file-structure invariants,
+**When** a linter walks the tree,
+**Then** sources live under `src/`, exports are `src/index.ts`-only, tests are colocated, and no top-level `__tests__/` exists
+**And** naming obeys kebab-case files, PascalCase components, camelCase TS symbols, snake_case DB singular.
+
+##### Story 1.2: `packages/keel-invariants` bootstrap + shared ESLint/Prettier/commitlint configs
+
+As a fork operator,
+I want a versioned `packages/keel-invariants/` package exporting shared ESLint (flat config), Prettier, and commitlint configurations,
+So that every downstream package consumes one canonical ruleset and drift cannot hide (FR41).
+
+**Acceptance Criteria:**
+
+**Given** the scaffold from Story 1.1,
+**When** `packages/keel-invariants/` is added with `package.json`, `src/index.ts`, and config exports (`eslint.config.keel-invariants.js`, `prettier.config.keel-invariants.js`, `commitlint.config.keel-invariants.js`),
+**Then** the package publishes these configs under stable named subpath exports
+**And** the `exports` field resolves each config.
+
+**Given** the shared configs,
+**When** another workspace package's `eslint.config.js` imports and extends `@keel/keel-invariants/eslint`,
+**Then** lint runs use the shared rules
+**And** removing the extension triggers the Story 1.6 bypass-prevention check.
+
+**Given** the package is present,
+**When** a developer runs `pnpm lint` at the root,
+**Then** every package that extends the shared config passes lint against the canonical ruleset
+**And** the lint config resolves in both ESM and TypeScript contexts.
+
+##### Story 1.3: ESLint `no-restricted-imports` import-boundary rules
+
+As a fork operator,
+I want ESLint `no-restricted-imports` rules layered on the shared config that enforce `@keel/<pkg>`-only imports across package boundaries,
+So that compile-time package boundaries cannot be violated by relative-path end-runs or `internal/*` imports (FR34).
+
+**Acceptance Criteria:**
+
+**Given** a file in `packages/<A>/src/` trying to import `../../<B>/src/foo`,
+**When** `pnpm lint` runs,
+**Then** ESLint reports `no-restricted-imports` with a message pointing to the `@keel/<B>` alias.
+
+**Given** a file importing `@keel/<B>/internal/*`,
+**When** `pnpm lint` runs,
+**Then** ESLint rejects the import
+**And** the rule message explains `internal/*` subpaths are forbidden across packages.
+
+**Given** a file inside `packages/<A>/src/` importing `@keel/<A>/...` (self-import via alias),
+**When** `pnpm lint` runs,
+**Then** ESLint rejects the self-import with a "use relative path within same package" message.
+
+**Given** rules run alongside TypeScript project references,
+**When** both checks execute,
+**Then** lint catches string-based violations and TS project-refs catch graph-level ones (belt-and-braces).
+
+##### Story 1.4: Pre-commit quality gates via prek (type-check, lint, format)
+
+As a fork operator,
+I want prek-managed pre-commit hooks that run TypeScript type-check, ESLint, and Prettier on every commit,
+So that no local commit lands with a type error, lint error, or unformatted file (FR28).
+
+**Acceptance Criteria:**
+
+**Given** a fresh clone and `pnpm install`,
+**When** prek initialises hooks on the post-install step,
+**Then** a pre-commit hook is registered that invokes `pnpm -w typecheck && pnpm -w lint && pnpm -w format:check` (or prek's orchestration of the same).
+
+**Given** a file with a TS error staged,
+**When** I run `git commit`,
+**Then** the hook fails surfacing the typecheck error
+**And** the commit does not land.
+
+**Given** a file with an ESLint error staged,
+**When** I run `git commit`,
+**Then** the hook fails surfacing the lint error
+**And** the commit does not land.
+
+**Given** an unformatted file staged,
+**When** I run `git commit`,
+**Then** the hook fails surfacing the Prettier diff
+**And** the commit does not land.
+
+**Given** a clean commit,
+**When** all three checks pass,
+**Then** the commit lands normally and the hook exits zero.
+
+##### Story 1.5: Conventional-commit enforcement via commitlint + prek
+
+As a fork operator,
+I want commitlint running via prek on every commit using the shared config from Story 1.2,
+So that agent and human commits alike follow conventional-commit format — a non-negotiable substrate invariant (FR14).
+
+**Acceptance Criteria:**
+
+**Given** the prek stack from Story 1.4,
+**When** a `commit-msg` hook invoking commitlint against `@keel/keel-invariants/commitlint` is registered,
+**Then** commit messages are validated on every `git commit`.
+
+**Given** a commit message `fix: resolve edge case in token emitter`,
+**When** the hook runs,
+**Then** commitlint accepts and the commit lands.
+
+**Given** a commit message `Fixed stuff`,
+**When** the hook runs,
+**Then** commitlint rejects the message explaining the `<type>(<scope>): <subject>` convention
+**And** the commit does not land.
+
+**Given** a commit authored by Ralph (agent) vs. a human,
+**When** each is created,
+**Then** both pass or fail by the same rules — no agent bypass
+**And** enforcement holds whether commits originate inside the devbox or on the host.
+
+##### Story 1.6: Quality-gate bypass prevention
+
+As a substrate maintainer,
+I want a machine check that rejects any configuration change disabling or circumventing the prek quality gates,
+So that a one-line config edit cannot turn off substrate teeth (FR32).
+
+**Acceptance Criteria:**
+
+**Given** the prek config in `packages/keel-invariants/`,
+**When** a PR removes or disables any pre-commit or commit-msg hook,
+**Then** the sync-gate (Story 1.9) detects the removal and fails pre-merge
+**And** the PR cannot be merged without a source-level fork (i.e., an explicit `keel-invariants` package change with a manifest update).
+
+**Given** a PR introduces `--no-verify` or similar bypass in any committed script,
+**When** a lint rule in `keel-invariants` runs,
+**Then** the rule flags the script and the lint gate fails.
+
+**Given** a PR modifies `.husky/`, `.prek/`, or hook-installation directories to point away from the shared configs,
+**When** pre-merge runs,
+**Then** the deviation is detected via the manifest
+**And** the PR is rejected with a message naming the removed/edited invariant.
+
+**Given** Tthew explicitly forks a substrate invariant,
+**When** they change `keel-invariants` source and update `invariants.manifest.ts` + `INVARIANTS.md` together,
+**Then** the sync gate passes — this is the intended "source-level fork" path.
+
+##### Story 1.7: Invariants knowledge files (INVARIANTS/AGENTS/CLAUDE/RALPH) with promotion rules
+
+As any AI agent or human contributor working on Keel,
+I want four audience-scoped markdown files at the repo root — `INVARIANTS.md`, `AGENTS.md`, `CLAUDE.md`, `RALPH.md` — each with its charter and promotion rules,
+So that I know which file to read and which to write to (FR42; baseline for FR14j in Epic 3).
+
+**Acceptance Criteria:**
+
+**Given** a fresh clone,
+**When** I open the repo root,
+**Then** `INVARIANTS.md`, `AGENTS.md`, `CLAUDE.md`, and `RALPH.md` all exist
+**And** each begins with a pinned audience header (`INVARIANTS.md` = agent-readable index of machine-enforced rules; `AGENTS.md` = every AI agent operational truth; `CLAUDE.md` = Claude-Code specifics + pointer; `RALPH.md` = Ralph private journal).
+
+**Given** the four files,
+**When** I read each header,
+**Then** the promotion rule is pinned verbatim (applies-to-every-agent → `AGENTS.md`; Claude-Code-specific → `CLAUDE.md`; Ralph-gotchas → `RALPH.md`; machine-enforced → `INVARIANTS.md` + `packages/keel-invariants/`).
+
+**Given** `INVARIANTS.md`,
+**When** I read its body,
+**Then** it is an agent-readable index of stable IDs mapping to rules in `packages/keel-invariants/`
+**And** each entry cites the stable ID, a one-line description, and a source-file pointer.
+
+**Given** `CLAUDE.md`,
+**When** I read its body,
+**Then** it points at `AGENTS.md` as the source of truth and names only Claude-Code-specific supplements.
+
+**Given** `RALPH.md`,
+**When** read by Ralph during orient,
+**Then** its intended scope (private journal; append-only-in-spirit; hard lint enforcement lands in Epic 3 per RS6) is documented in its header.
+
+##### Story 1.8: `invariants.manifest.ts` contract + exporter
+
+As a substrate maintainer,
+I want `packages/keel-invariants/src/invariants.manifest.ts` exporting a typed list of every substrate invariant with stable IDs and content hashes,
+So that the sync-gate tooling has a machine-readable contract to drift-detect against (FR43 contract side).
+
+**Acceptance Criteria:**
+
+**Given** the `keel-invariants` package,
+**When** I read `src/invariants.manifest.ts`,
+**Then** it exports `const invariants: Invariant[]`
+**And** each entry has `{ id: string, description: string, sourcePath: string, contentHash: string, anchors: string[] }`.
+
+**Given** the manifest,
+**When** I inspect any entry,
+**Then** `id` follows `INV-<category>-<slug>` (e.g., `INV-commit-conventional-format`, `INV-tokens-sync-gate`)
+**And** `sourcePath` resolves to an existing file in `packages/keel-invariants/src/`
+**And** `contentHash` is the sha256 of the source region bounded by declared anchors.
+
+**Given** a typed `Invariant` interface,
+**When** a new rule is added to `keel-invariants`,
+**Then** it MUST register a manifest entry with a fresh stable ID
+**And** Story 1.9 treats unregistered rules as drift.
+
+**Given** the exporter,
+**When** consumed by Story 1.9's sync gate,
+**Then** the manifest loads synchronously (no async I/O) and validates against its own Zod (or equivalent) schema at import time.
+
+##### Story 1.9: Invariant sync-gate runtime tooling (reader + walker + drift detector)
+
+As a substrate maintainer,
+I want `packages/keel-invariants/src/sync-gate.ts` + `manifest-reader.ts` that read the manifest, walk machine-enforced sources + `INVARIANTS.md` anchors, and fail loudly on drift,
+So that FR43 has teeth from day 1 (W2 party-mode amendment).
+
+**Acceptance Criteria:**
+
+**Given** the manifest from Story 1.8 and `INVARIANTS.md` anchors,
+**When** I run `pnpm keel-invariants:check`,
+**Then** the tool exits zero if every manifest entry has a matching `INVARIANTS.md` anchor AND every anchor has a matching entry AND every content hash matches
+**And** exits non-zero with a structured drift report otherwise.
+
+**Given** a new rule added to `packages/keel-invariants/src/` without a manifest entry (addition drift),
+**When** the gate runs,
+**Then** it reports `added-to-source-only` with the source path and exits non-zero.
+
+**Given** a manifest entry whose `sourcePath` file is deleted (removal drift),
+**When** the gate runs,
+**Then** it reports `removed-from-source-only` and exits non-zero.
+
+**Given** a source edit that doesn't update the manifest's `contentHash` (edit drift),
+**When** the gate runs,
+**Then** it reports `content-hash-mismatch` naming the manifest ID and the offending file
+**And** exits non-zero.
+
+**Given** an `INVARIANTS.md` anchor removed without a manifest entry removal,
+**When** the gate runs,
+**Then** it reports `removed-from-docs-only` and exits non-zero.
+
+**Given** the tool's exit codes,
+**When** Epic 13 wires it into GitHub Actions,
+**Then** non-zero reliably fails the workflow and the drift report renders in CI logs.
+
+**Given** the tool is callable locally,
+**When** run on the baseline repo,
+**Then** it completes in under 2 seconds.
+
+##### Story 1.10: Design-token schema + semantic-rationale contract
+
+As a UX designer or front-end developer,
+I want `packages/ui/tokens.schema.json` defining the token-contract shape AND `docs/invariants/tokens.md` documenting every semantic token's meaning,
+So that Epic 7's catalog and Epic 3's TUI consume tokens against a shared validated contract — no invisible semantic drift (W1 amendment, UX-DR4).
+
+**Acceptance Criteria:**
+
+**Given** the substrate,
+**When** I inspect `packages/ui/tokens.schema.json`,
+**Then** the JSON Schema defines the shape of the token source (semantic names, scales, primitive references)
+**And** validates DTCG-format-compatible structure.
+
+**Given** `docs/invariants/tokens.md`,
+**When** I read it,
+**Then** every semantic token (`surface.raised`, `status.success`, `text.primary`, `motion.scale.*`, `density.scale.*`, etc.) has a prose rationale line
+**And** each rationale carries a stable `TOKEN-<slug>` ID.
+
+**Given** schema + rationale,
+**When** Epic 7's catalog or Epic 3's TUI references a semantic token,
+**Then** the reference can be cross-linked back to `tokens.md`'s rationale via the stable ID
+**And** `tokens.md` is the source-of-truth rationale (Sally's "catalog header references rationale" requirement met).
+
+**Given** the schema is the contract,
+**When** the manifest (Story 1.8) tracks it,
+**Then** an entry `INV-tokens-schema-contract` registers `tokens.schema.json` + `tokens.md`
+**And** drift between them is caught by Story 1.9.
+
+##### Story 1.11: Design-token source — Direction A baseline with motion + density scales
+
+As a UX designer,
+I want the canonical token source populated with Direction A "The Instrument" values and global `motion.scale` + `density.scale` hierarchies,
+So that the substrate ships with a coherent opinionated visual baseline ready for Epic 7 and Epic 12 consumption (UX-DR15, UX-DR9).
+
+**Acceptance Criteria:**
+
+**Given** the schema from Story 1.10,
+**When** I open the canonical token source file (choice between `packages/ui/tokens.json` DTCG or `packages/keel-invariants/design-tokens.ts` typed; decision documented in the file header),
+**Then** the file validates against `tokens.schema.json`
+**And** every Direction A semantic-token value from `ux-design-specification.md` is populated.
+
+**Given** Direction A is substrate default,
+**When** Directions B (GOV.UK-adjacent) and C (Developer-notebook) are referenced,
+**Then** they are NOT in this file; their preset overlays at `docs/design/presets/*.tokens.json` land in Epic 7.
+
+**Given** motion + density,
+**When** I read the file,
+**Then** `motion.scale` defines at least `instant | snap | swift | smooth | drift` tiers
+**And** `density.scale` defines at least `compact | default | comfortable` tiers
+**And** each tier has a numeric value referenced by name.
+
+**Given** this file is the canonical input to Story 1.12's emitter,
+**When** Story 1.9's sync gate walks it,
+**Then** the file is registered under manifest ID `INV-tokens-source`
+**And** changes without matching emitted outputs fail pre-merge (Story 1.13).
+
+##### Story 1.12: Token emitter pipeline → web CSS + Tailwind preset + TUI theme
+
+As a front-end developer or Ralph (TUI consumer),
+I want `packages/ui/scripts/generate-tokens.ts` that reads the source and deterministically emits three artefacts — `packages/ui/src/tokens.css`, `packages/ui/tailwind.preset.ts`, `packages/devbox/tui/theme.py`,
+So that every consumer (web, Tailwind, TUI) shares one source and the pipeline is pure, idempotent, and re-runnable (UX-DR3).
+
+**Acceptance Criteria:**
+
+**Given** the token source from Story 1.11,
+**When** I run `pnpm --filter @keel/ui generate-tokens`,
+**Then** three output files are emitted
+**And** every output begins with a provenance header naming the source-file commit SHA and emitter version.
+
+**Given** the emitter is deterministic,
+**When** I run it twice with no source changes,
+**Then** both runs produce byte-identical outputs
+**And** `git diff` after the second run is empty.
+
+**Given** `packages/ui/src/tokens.css`,
+**When** consumed in a web app,
+**Then** every semantic token is available as a CSS variable (`var(--surface-raised)`, `var(--status-success)`, etc.).
+
+**Given** `packages/ui/tailwind.preset.ts`,
+**When** imported into a Tailwind config,
+**Then** every semantic token is exposed under theme extension (e.g., `theme.colors['surface-raised']`).
+
+**Given** `packages/devbox/tui/theme.py`,
+**When** imported into a Textual app,
+**Then** Python constants map 1:1 to semantic tokens
+**And** TUI chrome can reference `theme.colors.surface_raised` etc.
+
+**Given** the emitter is pure,
+**When** invoked,
+**Then** it uses no network, no filesystem side effects beyond the three outputs, and no time-dependent values
+**And** passes Epic 13's reproducibility CI check.
+
+##### Story 1.13: Token quality gates (schema validation + WCAG AA contrast + source-output sync)
+
+As a substrate maintainer,
+I want three pre-commit/pre-merge quality gates on the token pipeline — schema validation, WCAG AA contrast check, and source-output sync,
+So that the token layer cannot drift or ship inaccessible combinations (UX-DR4, UX-DR5, UX-DR6).
+
+**Acceptance Criteria:**
+
+**Given** the token source from Story 1.11,
+**When** a commit touches it,
+**Then** the pre-commit hook validates it against `tokens.schema.json`
+**And** schema-violating commits are rejected with a structured error naming the offending property.
+
+**Given** every `text.*` × `surface.*` semantic pair,
+**When** the contrast-check runs,
+**Then** each pair's contrast ratio is computed against WCAG AA (4.5:1 normal; 3:1 large)
+**And** failing pairs are reported with hex values + computed ratio
+**And** the commit is rejected.
+
+**Given** a commit that changes the source but not the emitted outputs,
+**When** pre-merge runs (reusing Story 1.9's tooling),
+**Then** the emitter is re-run in `--check` mode
+**And** divergence between "what would be emitted" vs "what is committed" fails the gate.
+
+**Given** the three gates,
+**When** the manifest walks them,
+**Then** each has an entry (`INV-tokens-schema-validate`, `INV-tokens-contrast-check`, `INV-tokens-sync-gate`)
+**And** `INVARIANTS.md` anchors match.
+
+##### Story 1.14: Release-please-monorepo config (single-bundled mode)
+
+As a substrate maintainer,
+I want release-please-monorepo in single-bundled-release mode, driven by conventional-commit messages,
+So that a rolling Release PR accumulates changelog + version bumps automatically and 1.0-cut follows a known ritual (FR31).
+
+**Acceptance Criteria:**
+
+**Given** `.github/release-please-config.json` and `.github/.release-please-manifest.json`,
+**When** I inspect them,
+**Then** the config is single bundled release (not per-package)
+**And** every workspace package appears in the manifest with its current version.
+
+**Given** a merged PR with `feat: X`,
+**When** the release-please Action runs,
+**Then** the existing Release PR is updated with a minor-bump entry
+**And** no Release PR is yet merged.
+
+**Given** a merged PR with `fix: Y`,
+**When** the Action runs,
+**Then** the Release PR updates with a patch-bump entry.
+
+**Given** a merged PR with `feat!:` or `BREAKING CHANGE:` body,
+**When** the Action runs,
+**Then** the Release PR escalates to a major bump.
+
+**Given** Tthew merges the Release PR,
+**When** it lands,
+**Then** release-please tags the release on `main` and publishes release notes
+**And** the next commit to `main` starts a fresh Release PR.
+
+**Given** per-package release mode was considered,
+**When** I read the config comments,
+**Then** the single-bundled choice is documented with a pointer to the architecture's deferral rationale.
+
+##### Story 1.15: Renovate config with version-pinning rules (I7)
+
+As a substrate maintainer,
+I want `.github/renovate.json` with version-pinning rules — Vitest exact, OTEL pinned in `pnpm.overrides`, grouped-update rules, and an integration-test-passing gate,
+So that dependency upgrades flow through Keel deterministically and flaky upgrades never auto-merge (I7 amendment).
+
+**Acceptance Criteria:**
+
+**Given** `.github/renovate.json`,
+**When** I read it,
+**Then** Vitest's `rangeStrategy` is `pin`
+**And** `@opentelemetry/sdk-node`, `@opentelemetry/api`, and instrumentations are listed in `pnpm.overrides` at pinned versions
+**And** grouped-update rules bundle related packages (all OTEL, all Vitest) into one PR.
+
+**Given** a Renovate PR is opened,
+**When** CI runs,
+**Then** the integration-test-passing gate is required before Renovate can auto-merge
+**And** the gate reuses Epic 13's CI when it lands; at 1.0 the rule itself ships here even if Epic 13 wiring is partial.
+
+**Given** an OTEL version bump,
+**When** Renovate proposes it,
+**Then** all related OTEL packages are upgraded together in one PR
+**And** `pnpm.overrides` is updated atomically with `package.json`.
+
+**Given** a new package added without a required pin,
+**When** the manifest tracks pinning policy under `INV-deps-version-pinning`,
+**Then** Story 1.9's sync-gate surfaces the drift.
+
+##### Story 1.16: Fork extension-config pattern + Growth-tier `INVARIANTS.fork.md` scaffold
+
+As a fork operator who wants to extend substrate rules without editing the substrate,
+I want a documented `eslint.config.fork.js extends eslint.config.keel-invariants.js` pattern plus a Growth-tier `INVARIANTS.fork.md` scaffold referenced alongside `INVARIANTS.md` in `CLAUDE.md`,
+So that forks can layer rules on top of substrate without touching `packages/keel-invariants/` (FR44 at 1.0; FR45 Growth-tier).
+
+**Acceptance Criteria:**
+
+**Given** a substrate-installed fork,
+**When** I follow the extension pattern documented in `AGENTS.md`,
+**Then** I can create `eslint.config.fork.js` at my fork root that imports + extends `@keel/keel-invariants/eslint`
+**And** additional fork-specific rules layer on cleanly
+**And** `pnpm lint` applies both shared + fork rules.
+
+**Given** a fork adds rules that conflict with substrate invariants,
+**When** lint runs,
+**Then** substrate rules win (ESLint override precedence documented in `AGENTS.md`)
+**And** `AGENTS.md` explains how to request a substrate amendment vs forking.
+
+**Given** the Growth-tier `INVARIANTS.fork.md` scaffold,
+**When** a fork operator opts in,
+**Then** an `INVARIANTS.fork.md` template is created at the fork root
+**And** `CLAUDE.md` is updated to reference both `INVARIANTS.md` and `INVARIANTS.fork.md` with clear precedence rules.
+
+**Given** at 1.0 the Growth-tier scaffold is non-essential,
+**When** Epic 15a's `create-keel-app` runs in 1.0 mode,
+**Then** `INVARIANTS.fork.md` is NOT auto-created
+**And** the pattern + template are documented for fork operators to opt into manually.
+
 ---
 
 ### Epic 2: Sandboxed Execution Environment (devbox)
