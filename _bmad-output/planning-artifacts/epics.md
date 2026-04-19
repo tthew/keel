@@ -4197,6 +4197,177 @@ So that a11y is a property of the substrate, not a per-fork concern (UX-DR32–4
 
 **Standalone delivery:** Developer can `ctx.jobs.enqueue('email.send_verification', {...})` and have it run with retries, tenant context preserved, OTel trace continuation, audit events recorded. No consumers yet (Epic 9 wires verify flow).
 
+#### Stories
+
+##### Story 8.1: `packages/jobs/` typed pg-boss registry + worker bootstrap
+
+As a fork operator,
+I want `packages/jobs/registry.ts` as a typed job-name map with naming convention `<domain>.<action>` dotted (e.g., `email.send_verification`, `billing.process_paddle_webhook`, `session.cleanup`) plus a worker bootstrap at `packages/jobs/worker.ts`,
+So that every background job is type-safe and ad-hoc job names are impossible (FR19).
+
+**Acceptance Criteria:**
+
+**Given** `packages/jobs/registry.ts`,
+**When** I inspect it,
+**Then** it exports a typed `JobRegistry` map where keys follow `<domain>.<action>` convention
+**And** payload types are Zod-validated per job name.
+
+**Given** enqueuing `ctx.jobs.enqueue('<name>', payload)`,
+**When** the name is not in the registry,
+**Then** typecheck fails
+**And** runtime also validates payload against registered Zod schema.
+
+**Given** `packages/jobs/worker.ts`,
+**When** it bootstraps,
+**Then** it initialises pg-boss against the Postgres DB (same DB as app per Keel decision)
+**And** registers handlers from the registry.
+
+##### Story 8.2: pg-boss retry + idempotency + DLQ posture (C1)
+
+As a substrate maintainer,
+I want pg-boss configured with 3 retries at exponential backoff (250ms × 2^n), caller-owned idempotency (natural keys or structurally idempotent handlers), and DLQ at 1.0 = manual inspection of `pgboss.job_archive` (automated DLQ routing is Growth-tier) with OTel `error: true` on poison-message handling,
+So that failed jobs behave predictably and are observable (NFR24).
+
+**Acceptance Criteria:**
+
+**Given** a job handler throws,
+**When** pg-boss catches,
+**Then** the job is retried with 250ms × 2^n backoff up to 3 retries
+**And** after 3 failures, the row lands in `pgboss.job_archive` with `state='failed'`.
+
+**Given** `docs/invariants/jobs.md`,
+**When** I read the idempotency section,
+**Then** it documents: webhook-derived work uses natural keys `(provider, event_id)`; structurally-idempotent handlers (e.g., `session.cleanup` = `DELETE WHERE expired_at < now()`) need no key.
+
+**Given** a poison message,
+**When** it exhausts retries,
+**Then** OTel span records `error: true` + exception details
+**And** Tthew can inspect `pgboss.job_archive` at 1.0.
+
+**Given** Growth-tier automated DLQ routing,
+**When** a fork wants it,
+**Then** the extension pattern is documented (not shipped at 1.0).
+
+##### Story 8.3: OTel + tenant propagation across pg-boss boundary (C3)
+
+As a substrate maintainer,
+I want job payloads to carry `tenant_id` (top-level, required) and `traceparent` (W3C trace-context, required); worker middleware re-applies `tenantGuard()` to establish `app.current_tenant_id` before handler runs; OTel SDK restores parent trace context from `traceparent`; lint rule forbids any job handler reading tenant data without `tenantGuard()`,
+So that tenant isolation + OTel traces traverse the async boundary (C3).
+
+**Acceptance Criteria:**
+
+**Given** any job payload schema,
+**When** I inspect it,
+**Then** `tenant_id: string` and `traceparent: string` are required fields.
+
+**Given** a worker handler executes,
+**When** it starts,
+**Then** `tenantGuard(payload.tenant_id)` runs before any DB access
+**And** OTel `context.with(extractTraceparent(payload.traceparent))` wraps the handler.
+
+**Given** a lint rule `no-job-without-tenant-guard.yml`,
+**When** a handler accesses `ctx.db` without prior `tenantGuard()`,
+**Then** the lint fails.
+
+**Given** the pattern is invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-jobs-tenant-propagation` is registered.
+
+##### Story 8.4: `packages/email/` Resend wrapper + baseline templates
+
+As a fork operator,
+I want `packages/email/resend.ts` wrapping Resend with fire-and-forget from `email.send_*` jobs, plus baseline react-email templates at `packages/email/templates/` — `verify.tsx`, `invite.tsx`, `reset-password.tsx`,
+So that transactional email is uniform and the baseline flows (verify/invite/reset) have canonical templates (FR20).
+
+**Acceptance Criteria:**
+
+**Given** `packages/email/resend.ts`,
+**When** I inspect it,
+**Then** it exposes `sendEmail(template, payload)` that dispatches via Resend
+**And** callers MUST enqueue an `email.send_*` job rather than call directly.
+
+**Given** `packages/email/templates/`,
+**When** I inspect it,
+**Then** `verify.tsx`, `invite.tsx`, `reset-password.tsx` exist as react-email components
+**And** each template accepts typed props.
+
+**Given** a job `email.send_verification`,
+**When** the worker processes,
+**Then** it renders `verify.tsx` with the payload, sends via Resend, and on error retries per pg-boss policy.
+
+**Given** a lint rule prevents direct Resend usage outside `packages/email/`,
+**When** any other package imports Resend,
+**Then** the lint rejects.
+
+##### Story 8.5: `packages/audit/` append-only log API
+
+As a substrate maintainer,
+I want `packages/audit/log.ts` write-only API + `packages/audit/events.ts` event-type enum with format `<resource>.<verb>` past-tense (e.g., `user.signed_up`, `subscription.created`, `invite.accepted`), backed by Postgres INSERT-only permissions + Prisma client contract,
+So that security-relevant events are recorded append-only and application code cannot modify past entries (FR23, NFR13).
+
+**Acceptance Criteria:**
+
+**Given** `packages/audit/log.ts`,
+**When** I inspect it,
+**Then** the only exported function is `auditLog.write(event, payload)` — no update/delete.
+
+**Given** the Postgres DB,
+**When** I inspect `audit_log` table permissions,
+**Then** application role has INSERT + SELECT only (no UPDATE/DELETE)
+**And** superuser privileges are required to modify entries.
+
+**Given** `packages/audit/events.ts`,
+**When** I inspect it,
+**Then** it exports an enum of allowed event types
+**And** every event key follows `<resource>.<verb>` past-tense.
+
+**Given** a lint rule prevents direct `audit_log` table inserts from other packages,
+**When** any other code imports Prisma and inserts into `audit_log`,
+**Then** the lint rejects.
+
+##### Story 8.6: Scheduled jobs scaffold (session-cleanup, rls-bench)
+
+As a substrate maintainer,
+I want scheduled job scaffolds at `packages/jobs/scheduled/` — `session-cleanup.ts` (daily; consumed by Epic 9 S1) and `rls-bench.ts` (nightly; consumed by Epic 6 D4) — with additional scheduled jobs landing in their owning epics,
+So that recurring work has a canonical home and scheduling conventions are pinned (FR19 extension).
+
+**Acceptance Criteria:**
+
+**Given** `packages/jobs/scheduled/session-cleanup.ts`,
+**When** I inspect it,
+**Then** it registers a daily cron via pg-boss
+**And** the handler deletes sessions where `expired_at < now()`.
+
+**Given** `packages/jobs/scheduled/rls-bench.ts`,
+**When** I inspect it,
+**Then** it registers a nightly cron
+**And** invokes Epic 6 Story 6.8's benchmark harness.
+
+**Given** new scheduled jobs,
+**When** added in subsequent epics,
+**Then** they land in `packages/jobs/scheduled/`
+**And** follow the convention established here.
+
+##### Story 8.7: Enforcement lint rules (no-direct-resend, no-direct-audit-table, no-ad-hoc-job-names)
+
+As a substrate maintainer,
+I want enforcement lint rules preventing: direct Resend imports outside `packages/email/`, direct `audit_log` inserts outside `packages/audit/`, ad-hoc `pgBoss.send()` outside the typed registry,
+So that the platform abstractions are enforced, not convention (structural constraints).
+
+**Acceptance Criteria:**
+
+**Given** `packages/keel-invariants/eslint.config.keel-invariants.js`,
+**When** I inspect it,
+**Then** `no-restricted-imports` rules forbid: `resend` outside `packages/email/`, `pg-boss` direct use outside `packages/jobs/`.
+
+**Given** a Semgrep rule `no-direct-audit-insert.yml`,
+**When** it runs,
+**Then** direct Prisma `audit_log.create()` or raw INSERT SQL against `audit_log` fails outside `packages/audit/`.
+
+**Given** violations,
+**When** pre-commit runs,
+**Then** commits are rejected with a pointer to the canonical API.
+
 ---
 
 ### Epic 9: Authentication & Identity
