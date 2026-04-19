@@ -1,3 +1,3 @@
-import shared from '@keel/keel-invariants/eslint';
+import { forPackage } from './eslint.config.keel-invariants.js';
 
-export default shared;
+export default forPackage('keel-invariants');

@@ -1,3 +1,3 @@
-import shared from '@keel/keel-invariants/eslint';
+import { forPackage } from '@keel/keel-invariants/eslint';
 
-export default shared;
+export default forPackage('ui');
