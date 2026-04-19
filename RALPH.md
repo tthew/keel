@@ -14,7 +14,9 @@ Rules:
 
 Things the next Ralph should know before doing anything.
 
-- 2026-04-19: Keel planning is complete — PRD, architecture, UX spec, epics 1-15b with stories, implementation-readiness all committed under `_bmad-output/planning-artifacts/`. Sprint-planning artifact now also exists at `_bmad-output/implementation-artifacts/sprint-status.yaml` (16 epics, 189 stories, all `backlog`). Next required gate: `/bmad-create-story` (Story 1.1).
+- 2026-04-19: Story 1.1 spec exists at `_bmad-output/implementation-artifacts/1-1-monorepo-scaffold-typescript-project-references.md` (status `ready-for-dev`). Epic 1 is now `in-progress` in sprint-status. Next step after the create-story PR merges: run Story 1.1 implementation task-by-task on `feat/story-1-1-monorepo-scaffold` (branch already exists).
+- 2026-04-19: **Story-implementation mini-epics differ from prior single-artifact mini-epics.** PRs #2, #215, #216 were single-commit planning-artifact PRs → halt EPIC_DONE on Open+clean. Story 1.1 has 8 dev tasks across multiple iterations on one branch; do NOT halt EPIC_DONE after just creating the story spec. The EPIC_DONE precedent applies only after ALL implementation tasks + tests are green and the PR transitions Draft→Open. Intermediate iterations commit + push + stay Draft.
+- 2026-04-19: Keel planning is complete — PRD, architecture, UX spec, epics 1-15b with stories, implementation-readiness, sprint-status.yaml all committed. Sprint-planning gate cleared (PR #216 merged 2026-04-19).
 - 2026-04-19: `/bmad-sprint-planning` with 189 stories exceeds hand-writing budget — the skill's step 1 regex (`### Story N.M:`) is OK but the per-story kebab-case conversion is mechanical. Used a throwaway Python script (`/tmp/gen_sprint_status.py`, not committed) invoked via `uv run --with pyyaml` for validation. Next Ralph: if regenerating, skip Python and just re-run `/bmad-sprint-planning` — the skill handles fuzzy matching.
 - 2026-04-16: This repo runs Ralph inside worktrees under `.claude/worktrees/` (gitignored). Never `git worktree remove` on exit — the worktree preserves WIP for the next iteration.
 
@@ -22,7 +24,8 @@ Things the next Ralph should know before doing anything.
 
 Things that went wrong, and why — so the next Ralph doesn't repeat them.
 
-- 2026-04-19: IP can drift badly between mini-epics when the user manually swaps branches outside a Ralph iteration. First action on every iteration: reconcile `.ralph/@plan.md` against the actual branch/PR state (`git branch --show-current`, `gh pr view`) before treating the IP NOW as authoritative. Stale DONE sections are harmless; a stale NOW is misleading.
+- 2026-04-19: IP can drift badly between mini-epics when the user manually swaps branches outside a Ralph iteration. First action on every iteration: reconcile `.ralph/@plan.md` against the actual branch/PR state (`git branch --show-current`, `gh pr view`) before treating the IP NOW as authoritative. Stale DONE sections are harmless; a stale NOW is misleading. Concrete reconcile for worktree-based runs: the main worktree owns `main`, so the Ralph worktree cannot `git checkout main` — use `git checkout -b <new-branch> origin/main` after `git fetch origin main`.
+- 2026-04-19: Epics and architecture can disagree on scope. Architecture.md "First Implementation Priority" (lines 1395–1442) bundles Story 1.1 + devbox absorption + Ralph harness + keel-invariants seed + docs/research + all 14 package shells — far beyond Story 1.1's narrow AC in epics.md (just the monorepo + TS refs). When this happens, epics.md AC wins (it's the sprint-decomposed source of truth); record variances in the story's Project Structure Notes so dev-story knows what to defer.
 
 ## Gotchas
 
