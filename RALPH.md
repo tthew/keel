@@ -14,7 +14,8 @@ Rules:
 
 Things the next Ralph should know before doing anything.
 
-- 2026-04-19: Keel planning is complete — PRD, architecture, UX spec, epics 1-15b with stories, implementation-readiness all committed under `_bmad-output/planning-artifacts/`. Next implementation phase starts with `/bmad-sprint-planning` (required gate) → `/bmad-create-story`. The earlier "fresh install / no planning artifacts" signpost is obsolete.
+- 2026-04-19: Keel planning is complete — PRD, architecture, UX spec, epics 1-15b with stories, implementation-readiness all committed under `_bmad-output/planning-artifacts/`. Sprint-planning artifact now also exists at `_bmad-output/implementation-artifacts/sprint-status.yaml` (16 epics, 189 stories, all `backlog`). Next required gate: `/bmad-create-story` (Story 1.1).
+- 2026-04-19: `/bmad-sprint-planning` with 189 stories exceeds hand-writing budget — the skill's step 1 regex (`### Story N.M:`) is OK but the per-story kebab-case conversion is mechanical. Used a throwaway Python script (`/tmp/gen_sprint_status.py`, not committed) invoked via `uv run --with pyyaml` for validation. Next Ralph: if regenerating, skip Python and just re-run `/bmad-sprint-planning` — the skill handles fuzzy matching.
 - 2026-04-16: This repo runs Ralph inside worktrees under `.claude/worktrees/` (gitignored). Never `git worktree remove` on exit — the worktree preserves WIP for the next iteration.
 
 ## Lessons learned
