@@ -4688,6 +4688,209 @@ So that security-relevant auth events are append-only logged (FR23 consumer).
 
 **Standalone delivery:** End user can subscribe, webhook lifecycle works idempotently, gated routes enforce subscription state. Billing UI is minimal (confirmation + cancel pages); team-seat management UI lands in Epic 12.
 
+#### Stories
+
+##### Story 10.1: `packages/billing/` Paddle integration + two shape presets
+
+As a fork operator,
+I want `packages/billing/` integrating Paddle via the official SDK, with two shape-specific preset configs (`packages/billing/presets/team-seats.ts` for B2B; `packages/billing/presets/individual-subscription.ts` for B2C) selected from `keel.config.ts → shape`,
+So that billing behaviour adapts to shape without manual per-fork wiring (FR60).
+
+**Acceptance Criteria:**
+
+**Given** `packages/billing/`,
+**When** I inspect it,
+**Then** `paddle.ts` wraps the Paddle SDK with typed accessors
+**And** `presets/team-seats.ts` and `presets/individual-subscription.ts` exist.
+
+**Given** the fork's `keel.config.ts` shape,
+**When** the billing module loads,
+**Then** the matching preset is active
+**And** preset values (plan IDs, proration rules) are typed at build time.
+
+**Given** Epic 5 Story 5.4 emits `packages/billing/paddle/preset.generated.ts`,
+**When** Epic 10 consumes it,
+**Then** runtime uses the emitted preset (not hand-edited source).
+
+##### Story 10.2: Paddle webhook endpoint + signature verification (FR61, NFR23)
+
+As a substrate maintainer,
+I want `apps/web/app/routes/webhooks.paddle.ts` as a non-tRPC external HTTP surface validating signatures via Paddle official SDK `verifyWebhookSignature()`,
+So that only genuine Paddle webhooks reach lifecycle handlers (FR61, NFR23).
+
+**Acceptance Criteria:**
+
+**Given** a POST to `/webhooks/paddle`,
+**When** the handler validates the signature,
+**Then** on success, the payload is dispatched to lifecycle handlers
+**And** on failure, the route responds `400` with no side effects.
+
+**Given** unsigned or tampered webhooks,
+**When** the route receives them,
+**Then** the signature verification fails
+**And** no DB write occurs.
+
+**Given** the route is one of 3 non-tRPC surfaces (per architecture),
+**When** a lint rule enforces this list,
+**Then** any new non-tRPC HTTP surface is rejected outside the allowlist.
+
+##### Story 10.3: `webhook_events` idempotency table + layer (A4, NFR22)
+
+As a substrate maintainer,
+I want a `webhook_events` Prisma table with `PK (provider, event_id)` that the webhook handler writes before dispatching lifecycle logic — replay becomes a no-op,
+So that duplicate webhook deliveries do not double-process (A4, NFR22).
+
+**Acceptance Criteria:**
+
+**Given** `schema.prisma`,
+**When** I inspect it,
+**Then** `WebhookEvent { provider, event_id, received_at, processed_at, payload_hash }` exists with `@@unique([provider, event_id])`.
+
+**Given** a duplicate webhook,
+**When** the handler attempts to insert,
+**Then** the unique constraint violation is caught
+**And** the handler returns 200 without re-dispatching.
+
+**Given** a new webhook,
+**When** inserted successfully,
+**Then** lifecycle handlers run; `processed_at` is set on success.
+
+**Given** pathological races,
+**When** two deliveries arrive simultaneously,
+**Then** exactly one wins the insert; the other no-ops.
+
+##### Story 10.4: Lifecycle handlers (subscription + webhook-events)
+
+As a fork operator,
+I want lifecycle handlers at `packages/billing/lifecycle/subscription.ts` (create/cancel/upgrade/downgrade/dunning) and `webhook-events.ts` (idempotency layer),
+So that every Paddle lifecycle event has a typed handler (FR61 extension).
+
+**Acceptance Criteria:**
+
+**Given** `subscription.ts`,
+**When** I inspect it,
+**Then** typed handlers exist per event: `onCreated`, `onCancelled`, `onUpgraded`, `onDowngraded`, `onDunning`
+**And** each writes an audit event (`subscription.created`, etc.) and persists subscription state.
+
+**Given** `webhook-events.ts`,
+**When** it receives a dispatched event,
+**Then** it invokes the matching subscription handler
+**And** wraps in OTel span for observability.
+
+**Given** a handler fails,
+**When** the error propagates,
+**Then** the webhook responds 500 to trigger Paddle's retry
+**And** `processed_at` stays null so the next retry re-enters the handler.
+
+##### Story 10.5: Subscription-gated middleware (FR62)
+
+As a substrate maintainer,
+I want `packages/billing/src/middleware/require-subscription.ts` — tRPC middleware checking subscription state from DB — applied to premium routes,
+So that free-tier users cannot reach premium features (FR62).
+
+**Acceptance Criteria:**
+
+**Given** a premium tRPC procedure,
+**When** it applies `requireSubscription({ plan: 'pro' })`,
+**Then** the middleware checks `subscription.status == 'active'` AND `subscription.plan >= 'pro'`
+**And** rejects with `FORBIDDEN` otherwise.
+
+**Given** a grace-period (dunning) state,
+**When** the middleware runs,
+**Then** access is granted if within configured grace window, else denied.
+
+**Given** usage-quota-gated access,
+**When** considered,
+**Then** it is deferred to 1.2 API-first shape (documented).
+
+##### Story 10.6: Billing UI (confirmation/cancel/portal) with step-up on cancel
+
+As a user,
+I want minimal billing UI at `apps/web/app/routes/billing.{index,cancel,portal}.tsx` using Epic 7 primitives, with step-up auth (Epic 9 Story 9.9) required on cancel,
+So that I can subscribe, cancel, and access the Paddle portal without Keel authoring full checkout UI (FR60 UI side, FR58 application).
+
+**Acceptance Criteria:**
+
+**Given** `/billing`,
+**When** a user visits,
+**Then** the page shows current subscription + a "Manage in Paddle" link + a Cancel button.
+
+**Given** the Cancel button,
+**When** clicked,
+**Then** the tRPC mutation applies `requireRecentAuth({maxAge: '5m'})`; if step-up fails, UI prompts for re-auth.
+
+**Given** `/billing/portal`,
+**When** a user clicks "Manage in Paddle",
+**Then** they redirect to Paddle-hosted portal
+**And** return to `/billing` after.
+
+**Given** `/billing/cancel`,
+**When** reached post-cancel,
+**Then** a confirmation page shows + an option to re-subscribe.
+
+##### Story 10.7: Webhook contract tests at pre-merge-fast (recorded fixtures)
+
+As a substrate maintainer,
+I want webhook signature-verification contract tests at pre-merge-fast using deterministic recorded fixtures (no live-network hits),
+So that webhook handling is verified on every PR without flake (testing discipline).
+
+**Acceptance Criteria:**
+
+**Given** `packages/billing/test/webhook-contract.test.ts`,
+**When** it runs,
+**Then** it verifies signature validation against recorded Paddle fixtures
+**And** tests cover: valid signature (accept), tampered payload (reject), wrong signature (reject), replay (no-op via idempotency).
+
+**Given** fixture maintenance,
+**When** Paddle updates signature format,
+**Then** fixtures are re-recorded + committed
+**And** the update is captured in a PR.
+
+##### Story 10.8: Release-gated live Paddle sandbox end-to-end test
+
+As a substrate maintainer,
+I want a release-gated (manual, Epic 13 tier) test running paid Paddle sandbox subscription end-to-end on both shapes (2×2 matrix at 1.0),
+So that a real-network billing flow is verified before a cut (release gating).
+
+**Acceptance Criteria:**
+
+**Given** Epic 13's release-gated CI tier,
+**When** triggered manually,
+**Then** the test runs against Paddle sandbox
+**And** both B2B team-seats + B2C individual flows are exercised.
+
+**Given** the test completes,
+**When** results surface,
+**Then** pass/fail is recorded in the release notes
+**And** failure blocks the release cut.
+
+**Given** sandbox API-key rotation,
+**When** secrets are rotated per architecture I6,
+**Then** the test continues to work via `act` `.secrets` (Epic 2 Story 2.2) for local + GitHub secrets for CI.
+
+##### Story 10.9: Growth-tier second billing provider (FR63 migration guide)
+
+As a substrate maintainer,
+I want a documented migration guide for Growth-tier fork operators who need a second billing provider (Stripe standard for API-first or Stripe Connect for marketplace), with a thin adapter pattern sketched,
+So that non-Paddle forks have a clear path without blocking 1.0 (FR63, Growth-tier).
+
+**Acceptance Criteria:**
+
+**Given** `docs/forks/billing-second-provider.md`,
+**When** I read it,
+**Then** the adapter pattern is documented (interface shape, touchpoints, test obligations)
+**And** migration steps are enumerated (new preset, new webhook handler, replace `@keel/billing` imports).
+
+**Given** the 1.0 substrate,
+**When** a fork operator adopts the pattern,
+**Then** they fork `packages/billing/` and implement the second provider
+**And** their fork's `INVARIANTS.fork.md` (Story 1.16) captures the deviation.
+
+**Given** 1.0 does NOT ship this adapter,
+**When** I inspect `packages/billing/`,
+**Then** only Paddle impl exists
+**And** the migration guide is forward-compatible.
+
 ---
 
 ### Epic 11: Observability, Feature Flags & i18n Framework
