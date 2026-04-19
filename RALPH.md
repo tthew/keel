@@ -14,14 +14,14 @@ Rules:
 
 Things the next Ralph should know before doing anything.
 
-- 2026-04-16: Fresh BMad install — no product code, no planning artifacts. First real work is a planning artifact (PRD / product brief / PRFAQ), not code. Build-mode Ralph cannot produce these; run planning skills (`/bmad-product-brief`, `/bmad-create-prd`) in fresh contexts instead.
+- 2026-04-19: Keel planning is complete — PRD, architecture, UX spec, epics 1-15b with stories, implementation-readiness all committed under `_bmad-output/planning-artifacts/`. Next implementation phase starts with `/bmad-sprint-planning` (required gate) → `/bmad-create-story`. The earlier "fresh install / no planning artifacts" signpost is obsolete.
 - 2026-04-16: This repo runs Ralph inside worktrees under `.claude/worktrees/` (gitignored). Never `git worktree remove` on exit — the worktree preserves WIP for the next iteration.
 
 ## Lessons learned
 
 Things that went wrong, and why — so the next Ralph doesn't repeat them.
 
-- _(empty)_
+- 2026-04-19: IP can drift badly between mini-epics when the user manually swaps branches outside a Ralph iteration. First action on every iteration: reconcile `.ralph/@plan.md` against the actual branch/PR state (`git branch --show-current`, `gh pr view`) before treating the IP NOW as authoritative. Stale DONE sections are harmless; a stale NOW is misleading.
 
 ## Gotchas
 
@@ -34,6 +34,7 @@ Rough edges in tools, flaky tests, odd repo conventions, environment quirks.
 Choices made with rationale. Useful when a future Ralph wonders "why did past-Ralph do it this way?"
 
 - 2026-04-16: Closed ralph-port as EPIC_DONE while PR #2 was still Open (not merged). Rationale: all implementation commits were already on the branch, CI was green, no review feedback pending, and merging is a user-authorization action. Halt signals the user to merge, then start planning.
+- 2026-04-19: Same pattern, second time — closed ralph-gh-project-tracking as EPIC_DONE while PR #215 was Open (CI green, MERGEABLE, CLEAN, no reviews). Confirms the precedent: Ralph-tooling mini-epics on single-commit feat branches halt with EPIC_DONE as soon as the PR is Open + clean, regardless of merge status. User handles the merge.
 
 ## Open questions
 
