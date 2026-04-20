@@ -2,11 +2,10 @@
 
 ## NOW
 
-- [ ] Story State `fixes-pending` (fix #3/4) → Correct trace JSON values in `_bmad-output/test-artifacts/traceability/1-7-e2e-trace-summary.json` lines 609-614 — `auth_negative_path_status` + `error_path_status` should be `not_applicable` (not `present`) to match md prose for this docs-only / zero-runtime-surface story ~small
+- [ ] Story State `fixes-pending` (fix #4/4) → Correct waiver expiry placeholder `2026-XX-XX` in `_bmad-output/test-artifacts/traceability/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md` (YAML snippet near line 1209) — replace with `deferred` or a concrete Story 1.9 landing date ~small
 
 ## QUEUE (Story 1.7 — CR fix pass + re-gate + PR transition)
 
-- [ ] Story State `fixes-pending` (fix #4/4) → Correct waiver expiry placeholder `2026-XX-XX` in `_bmad-output/test-artifacts/traceability/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md` (YAML snippet near line 1209) — replace with `deferred` or a concrete Story 1.9 landing date
 - [ ] Story State `fixes-pending` → Re-run `/bmad-code-review (args: "2")` — confirm `### Review Findings` cleared; Story State `fixes-pending → sm-verified → done` (no new findings) OR `fixes-pending` again (any new finding queues a fresh fix)
 - [ ] Story State `done` → Transition PR #224 Draft→Open — rewrite title/body for full spec+iter-1+iter-2+iter-3+Tasks-1-3+trace+SM-review+CR commit range; EPIC_DONE halt (mini-epic convention, 7th story-implementation precedent)
 
@@ -23,9 +22,9 @@ _(none)_
 
 Story 1.7 is a documentation-artefact story with no runtime behaviour to probe. Story file § Testing Standards (line 141) states verbatim: _"No ATDD probe task (contrast Stories 1.3/1.4/1.5/1.6 which had runtime behaviour to probe). The AC checks are satisfied by existence + verbatim-match + markdown-parse; no runtime assertion needed until Story 1.9's sync-gate lands."_ All 5 ACs are static-content checks (file existence + audience-header presence + promotion-rule verbatim-match + INVARIANTS.md index entries + RALPH.md scope note). The FR14n matrix row for `validated` explicitly permits `validated → in-dev` skip when the story has no testable ACs, provided rationale is recorded in IP — which this section satisfies. Quality gates (typecheck/lint/format:check/commitlint/prek-runner parity) in Task 3 remain mandatory and are NOT ATDD probes; they are substrate verification from Stories 1.4/1.5.
 
-## DONE (Story 1.7 iter-9)
+## DONE (Story 1.7 iter-10)
 
-- [x] **CR fix #2/4 — `INV-eslint-import-boundary` name-based-anchor rewrite.** Replaced off-by-one positional reference "7th entry + `forPackage()` 8th entry" with name-based anchor prose: "the `no-restricted-imports` rule block in `sharedBase` covers ACs 1–2; `forPackage(ownName)`'s own `no-restricted-imports` override adds AC 3's `@keel/${ownName}` self-import pattern." Applied to both `INVARIANTS.md:31` (live file) AND story-file skeleton at line 73. Story-file `### Review Findings` item 2/4 flipped `[ ] → [x]` with **Resolved iter-9** addendum. **Continuation of iter-8's lesson:** name-based anchors (vs. sharedBase[6]/forPackage()[9] indices) are drift-resistant — AC-aligned prose maps each rule-block's purpose to the ACs it enforces, decoupling the description from positional reshuffles of `sharedBase` (e.g. if Story 1.8's manifest author adds/reorders entries). Story 1.9's sync-gate content-hash will still detect any change to the source region; this just makes the human-readable description semantically accurate regardless of array index. 2 more CR fix passes (#3/4 trace JSON values + #4/4 waiver-expiry placeholder) before re-running `/bmad-code-review` per FR14n matrix row 10.
+- [x] **CR fix #3/4 — trace JSON heuristics aligned with md prose.** Set `auth_negative_path_status` + `error_path_status` from `"present"` → `"not_applicable"` in `_bmad-output/test-artifacts/traceability/1-7-e2e-trace-summary.json` (actual lines 64-65; CR pointer `609-614` was drifted — live file is 116 lines, no lines >116 exist). JSON heuristics now match the md prose at lines 190/194/198/202 which declare auth/error/UI paths all "Not applicable" for this docs-only story with zero runtime surface. Story-file `### Review Findings` item 3/4 flipped `[ ] → [x]` with **Resolved iter-10** addendum. JSON parsed clean via `python3 -c "import json; json.load(...)"`. **Lesson:** `/bmad-code-review` adversarial layers occasionally emit drifted line-pointers — treat the pointer as a hint, not truth; verify with grep for the token the finding cites (`auth_negative_path_status` in this case) before applying. Pair the JSON ↔ md prose check on every trace regeneration in Story 1.9's sync-gate spec. 1 more CR fix pass (#4/4 waiver-expiry placeholder) before re-running `/bmad-code-review` per FR14n matrix row 10.
 
 ## Context
 
