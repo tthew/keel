@@ -187,7 +187,7 @@ Priority classification per `test-priorities-matrix.md`:
 
 #### High Priority Gaps (PR BLOCKER) ⚠️
 
-**5 high (P1) gaps** — the five primary drift-detection ACs are uncovered by automated tests. Each gap's realisation is documented and carries substrate evidence:
+**5 high (P1) gaps** — four (AC-1, AC-2, AC-4, AC-5) are SUBSTRATE_VERIFIED end-to-end via Task 5 smoke tests but remain uncovered by automated **runner-hosted** tests; the fifth (AC-3) is structural-only. Each gap's realisation is documented and carries substrate evidence:
 
 1. **AC-1: Clean-exit contract** (P1)
    - Current Coverage: NONE (no automated test); **SUBSTRATE_VERIFIED end-to-end via Task 5 clean-path smoke** (strongest evidence: exit 0, no stderr on the current baseline repo).
