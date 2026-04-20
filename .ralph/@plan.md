@@ -2,7 +2,7 @@
 
 ## NOW
 
-- [x] Story State `done` → **PR #224 Draft→Open transitioned; EPIC_DONE halt written.** Canonical Story 1.5 recipe applied: (a) `gh pr edit --title ... --body-file` rewrote title+body for full 20-commit scope (spec+iter-1/2/3+Tasks-1-3+trace+SM-review+5×CR+8-fix-commits+§ Deferred); (b) `gh pr ready` fired; (c) verified `{isDraft:false, mergeable:MERGEABLE, mergeStateStatus:CLEAN, reviews:[], statusCheckRollup:[]}` — empty rollup expected (no CI yet; Story 1.16 delivers pipeline); (d) IP+RALPH.md bookkeeping co-committed pre-halt to avoid orphan-from-main; (e) `.ralph/halt` written with `EPIC_DONE` payload. 7th consecutive story-implementation precedent across Stories 1.1–1.7.
+- [x] **iter-22 — halt-sentinel re-write after gitignored-file clearing between iterations.** Post-iter-21 re-entry detected `.ralph/halt` absent despite iter-21 DONE entry claiming it was written; PR #224 terminal state fully intact (`{isDraft:false, mergeable:MERGEABLE, mergeStateStatus:CLEAN, reviews:[], statusCheckRollup:[]}`), sprint-status `1-7: done`, working tree clean, no unpushed commits. Root cause: `.ralph/halt` is gitignored (per CLAUDE.md common-commands table) so it does NOT survive across worktree/ralph.py restarts — ralph.py either consumed-and-deleted it on prior halt detection, or the worktree's untracked sentinel was cleared between invocations. Re-wrote `.ralph/halt` idempotently with same `{"reason":"EPIC_DONE","epic":1,"pr":224}` payload; IP addendum + RALPH.md Gotcha note co-committed (this commit) to arm next Ralph with the "halt-sentinel re-write is idempotent terminal no-op" recipe for any future re-entry-post-EPIC_DONE.
 
 ## QUEUE (Story 1.7 — PR transition → EPIC_DONE halt)
 
