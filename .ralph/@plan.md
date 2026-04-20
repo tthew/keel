@@ -1,6 +1,6 @@
 # Implementation Plan
 
-(AWAIT_MERGE — PR #221 Open, CLEAN, MERGEABLE, 0 reviews, 0 checks; `.ralph/halt` already carries `EPIC_DONE` payload. Awaiting user merge before Story 1.6.)
+(AWAIT_MERGE — PR #221 Open, CLEAN, MERGEABLE, 0 reviews, 0 checks; halt signal now at MAIN repo `/workspace/ralph-bmad/.ralph/halt` so ralph.py actually detects it. Awaiting user merge before Story 1.6.)
 
 ## NOW
 
@@ -23,6 +23,7 @@ _(none)_
 - [x] Story 1.5 Task 3 — verification gates all FULL TURBO on FIRST call; sprint-status `1-5 → done` co-landed (pre-transition orphan-prevention)
 - [x] PR #221 Draft→Open — title/body rewritten for full 5-commit scope; `gh pr ready`; MERGEABLE / CLEAN / no-reviews / no-checks; EPIC_DONE halt signalled
 - [x] Halt reinforcement — `(AWAIT_MERGE` marker added (belt-and-suspenders — ralph.py:1758 guarantees loop stop if halt file detection at :1750 was missed)
+- [x] Halt path-correction (iter 378) — halt JSON re-written to MAIN repo `/workspace/ralph-bmad/.ralph/halt`; worktree's stale halt removed. Root cause: ralph.py's cwd is main repo, not worktree; writes from inside worktree to relative `.ralph/halt` land at the worktree path and are invisible to ralph.py's detection loop. RALPH.md lesson + Open Question added.
 
 ## Context
 
