@@ -2,7 +2,7 @@
 
 ## NOW
 
-- [x] **iter-22 — halt-sentinel re-write after gitignored-file clearing between iterations.** Post-iter-21 re-entry detected `.ralph/halt` absent despite iter-21 DONE entry claiming it was written; PR #224 terminal state fully intact (`{isDraft:false, mergeable:MERGEABLE, mergeStateStatus:CLEAN, reviews:[], statusCheckRollup:[]}`), sprint-status `1-7: done`, working tree clean, no unpushed commits. Root cause: `.ralph/halt` is gitignored (per CLAUDE.md common-commands table) so it does NOT survive across worktree/ralph.py restarts — ralph.py either consumed-and-deleted it on prior halt detection, or the worktree's untracked sentinel was cleared between invocations. Re-wrote `.ralph/halt` idempotently with same `{"reason":"EPIC_DONE","epic":1,"pr":224}` payload; IP addendum + RALPH.md Gotcha note co-committed (this commit) to arm next Ralph with the "halt-sentinel re-write is idempotent terminal no-op" recipe for any future re-entry-post-EPIC_DONE.
+- [x] **iter-23 — halt-sentinel re-write #2 (post-merge re-entry).** Second consecutive re-entry after EPIC_DONE halt; this time PR #224 is **MERGED** (state delta from iter-22's Open+Clean+Mergeable): `gh pr view 224 --json state,isDraft,mergeable,mergeStateStatus,reviews,statusCheckRollup` → `{"isDraft":false,"mergeStateStatus":"UNKNOWN","mergeable":"UNKNOWN","reviews":[],"state":"MERGED","statusCheckRollup":[]}`. `.ralph/halt` again absent (consumed or cleared between iter-22 and iter-23 per the gitignored-sentinel Gotcha); working tree clean; no unpushed commits; branch still present on remote (`f6d94321` HEAD on `feat/story-1-7-...`). Per iter-22 Gotcha recipe verbatim: halt-sentinel re-write is the idempotent terminal no-op regardless of PR state evolution (Open→Merged). Payload unchanged `{"reason":"EPIC_DONE","epic":1,"pr":224}`. IP + RALPH.md Gotcha addendum co-committed (this commit) to tighten the recipe — "accept any terminal PR state (Open+Clean+Mergeable OR MERGED) as valid grounds for halt re-write".
 
 ## QUEUE (Story 1.7 — PR transition → EPIC_DONE halt)
 
@@ -24,6 +24,10 @@ _(none)_
 ## ATDD Skip Rationale (FR14n matrix row 3)
 
 Story 1.7 is a documentation-artefact story with no runtime behaviour to probe. Story file § Testing Standards (line 141) states verbatim: _"No ATDD probe task (contrast Stories 1.3/1.4/1.5/1.6 which had runtime behaviour to probe). The AC checks are satisfied by existence + verbatim-match + markdown-parse; no runtime assertion needed until Story 1.9's sync-gate lands."_ All 5 ACs are static-content checks (file existence + audience-header presence + promotion-rule verbatim-match + INVARIANTS.md index entries + RALPH.md scope note). The FR14n matrix row for `validated` explicitly permits `validated → in-dev` skip when the story has no testable ACs, provided rationale is recorded in IP — which this section satisfies. Quality gates (typecheck/lint/format:check/commitlint/prek-runner parity) in Task 3 remain mandatory and are NOT ATDD probes; they are substrate verification from Stories 1.4/1.5.
+
+## DONE (Story 1.7 iter-22 — halt-sentinel re-write #1)
+
+- [x] **Halt-sentinel re-write after gitignored-file clearing between iterations.** Post-iter-21 re-entry found `.ralph/halt` absent despite iter-21's DONE entry claiming it was written; PR #224 terminal state still fully intact (Open+Clean+Mergeable). Root cause: `.ralph/halt` is gitignored so it does NOT survive ralph.py/worktree restarts (consumed-and-deleted on detection, or worktree's untracked sentinel cleared). Re-wrote `.ralph/halt` idempotently with same payload; RALPH.md Gotcha 2026-04-20 line 100 + this ledger entry arm next Ralph with the "halt-sentinel re-write is idempotent terminal no-op" recipe. Empirically discharged at iter-23 (happened twice consecutively — recipe is load-bearing).
 
 ## DONE (Story 1.7 iter-21 — EPIC_DONE halt)
 
