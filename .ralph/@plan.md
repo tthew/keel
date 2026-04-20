@@ -1,12 +1,14 @@
+(AWAIT_MERGE — Story 1.6 shipped; PR #222 Open; waiting for user merge)
+
 # Implementation Plan
 
 ## NOW
 
-- [ ] Transition PR Draft→Open — final CI gate ~small
+_(none — Story 1.6 mini-epic complete; EPIC_DONE halt written)_
 
-## QUEUE (Story 1.6)
+## QUEUE
 
-_(none — Transition is the last step before EPIC_DONE check / story halt)_
+_(none — new story spec authored in next iteration after user merges PR #222)_
 
 ## BLOCKED
 
@@ -17,12 +19,13 @@ _(none)_
 - [x] Story 1.6 Task 1 — authored `keel-invariants/no-verify-bypass` ESLint rule; plugin aggregator; registered in `sharedBase` + `forPackage()` with self-exclusion; `./eslint-plugin` subpath export; self-verify probes pass; all quality gates green
 - [x] Story 1.6 Task 2 — ATDD probes all pass (AC 2 string-literal reject / AC 2b template-literal static-quasi reject + dynamic-quasi allow / negative comment-only allow / AC 5 prek-runner parity dirty-reject + clean-pass); defensive quality gates 16/16 FULL TURBO typecheck + lint, format:check clean, commitlint 0/0
 - [x] Story 1.6 Task 3 — full quality gates green (typecheck 16/16 FULL TURBO / lint 16/16 FULL TURBO / format:check clean / commitlint exit 0 across 4 branch commits / prek run --all-files all 3 pre-commit hooks Passed); sprint-status `1-6 → done`
+- [x] Transition PR #222 Draft→Open — title/body rewritten for 5-commit scope; `gh pr ready`; CI rollup empty (Story 1.16's scope); no reviews; EPIC_DONE halt written to `/workspace/ralph-bmad/.ralph/halt`
 
 ## Context
 
 - **Phase:** 4-implementation
 - **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.6 done; 1.7–1.16 backlog)
 - **Epic Branch:** `feat/story-1-6-quality-gate-bypass-prevention`
-- **Story:** 1.6 — Quality-gate bypass prevention (all 3 tasks done; awaiting Draft→Open transition + final CI gate)
+- **Story:** 1.6 — Quality-gate bypass prevention (shipped — all 3 tasks + Draft→Open + EPIC_DONE halt complete)
 - **Story File:** `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md`
-- **PR:** #222 Draft — `{isDraft:true, state:OPEN}`; CI wiring is Story 1.16's scope so `statusCheckRollup` stays empty — Draft→Open transition will advance the story to done
+- **PR:** #222 Open — `{isDraft:false, state:OPEN, statusCheckRollup:[]}`; awaiting user merge
