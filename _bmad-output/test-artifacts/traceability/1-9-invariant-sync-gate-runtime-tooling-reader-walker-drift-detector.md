@@ -44,7 +44,7 @@ tempCoverageMatrixPath: '_bmad-output/test-artifacts/traceability/1-9-coverage-m
 
 ---
 
-Note: This workflow does not generate tests. Story 1.9 is a **runtime-tooling** story — the first Epic-1 substrate story with genuine runtime behaviour (walker + drift-detector + CLI). Its § Testing Standards (story file line 117) explicitly declares:
+Note: This workflow does not generate tests. Story 1.9 is a **runtime-tooling** story — the first Epic-1 substrate story with genuine runtime behaviour (walker + drift-detector + CLI). Its § Testing Standards (story file line 120) explicitly declares:
 
 > _"No dedicated unit-test file for `sync-gate.ts` in Story 1.9 scope. Rationale: (a) no test runner is wired at substrate level yet (Story 1.16 scope); (b) Task 5's five runtime smoke tests (clean + drift + performance + AC 2 manifest-side missing-anchor + AC 5 docs-side orphan-anchor) exercise the tool end-to-end — AC 1 / AC 4 / AC 7 fully covered at the shell-invocation level; (c) the manifest's Zod parse + the gate's anchor-regex + the hash comparison are all small pure functions that a future test-runner story (Story 1.16) can add coverage for without structural changes. Story 1.9's CR pass (iter-N) will exercise the adversarial path — Blind Hunter / Edge Case Hunter / Acceptance Auditor should surface any remaining drift-detection gaps before Task 5 closes."_
 
@@ -84,10 +84,10 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ (no automated test) — **SUBSTRATE_VERIFIED end-to-end** via Task 5 clean-path shell-invocation smoke.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence — strong signal):**
-  - Task 5 clean-path smoke (story file lines 94, 137): `pnpm keel-invariants:check` → exit 0, no stderr. AC 1 + AC 7 end-to-end.
-  - `packages/keel-invariants/src/sync-gate.ts#runSyncGate(repoRoot)` exports `Promise<DriftReport>` with `{ status: 'clean' | 'drift', drifts: Drift[] }` (story file line 51, 154).
-  - Dedup of shared-source reads via `uniqueSourcePaths` Set + `Promise.all` parallelism (story file line 54, 154) — one file read per distinct `sourcePath`, not per invariant.
-  - `packages/keel-invariants/src/check.ts` CLI resolves `repoRoot = resolve(import.meta.dirname, '../../..')` (story file line 81, 155). `pnpm keel-invariants:check` wired via repo-root `package.json` `scripts.keel-invariants:check = pnpm --filter @keel/keel-invariants check`.
+  - Task 5 clean-path smoke (story file lines 94, 139): `pnpm keel-invariants:check` → exit 0, no stderr. AC 1 + AC 7 end-to-end.
+  - `packages/keel-invariants/src/sync-gate.ts#runSyncGate(repoRoot)` exports `Promise<DriftReport>` with `{ status: 'clean' | 'drift', drifts: Drift[] }` (story file line 51, 157).
+  - Dedup of shared-source reads via `uniqueSourcePaths` Set + `Promise.all` parallelism (story file line 54, 157) — one file read per distinct `sourcePath`, not per invariant.
+  - `packages/keel-invariants/src/check.ts` CLI resolves `repoRoot = resolve(import.meta.dirname, '../../..')` (story file line 81, 158). `pnpm keel-invariants:check` wired via repo-root `package.json` `scripts.keel-invariants:check = pnpm --filter @keel/keel-invariants check`.
 - **Gaps:** No test-runner-hosted unit test locking the clean-path return shape; no CI re-exercise. Smoke evidence lives in the story file Dev Agent Record, not in an executable test asset.
 - **Recommendation:** Accept Task 5 clean-path smoke as sufficient substrate evidence. Story 1.16 (test-runner) can backfill unit coverage. WAIVED.
 
@@ -98,10 +98,10 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ — schema-level + structural realisation only.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
-  - Schema-level uniqueness: `InvariantsSchema.superRefine((arr, ctx) => { ... duplicate id check ... })` (story file lines 74–75, Task 3 CR defer #3 absorbed).
-  - Anchor-walker realises the anchor-side half of addition drift: an `INV-*` anchor in `INVARIANTS.md` with no matching manifest row → `removed-from-docs-only` (symmetric case; story file line 53, 126).
+  - Schema-level uniqueness: `InvariantsSchema.superRefine((arr, ctx) => { ... duplicate id check ... })` (story file line 75, Task 3 CR defer #3 absorbed).
+  - Anchor-walker realises the anchor-side half of addition drift: an `INV-*` anchor in `INVARIANTS.md` with no matching manifest row → `removed-from-docs-only` (symmetric case; story file line 53, 128).
   - Structural branch exists in `sync-gate.ts`; not exercised in smoke because the baseline substrate has 0 live addition drift (all 10 anchors + 10 manifest rows aligned post-Task-2).
-- **Story 1.9 scope carve-out (story file AC 2 line 23 + § Scope Carve-Out line 124 + § Symmetry line 126):** Source-tree auto-discovery of unregistered rules (walking `packages/keel-invariants/src/**` to enumerate new rule files that lack manifest entries) is **DEFERRED**. The current substrate has 10 invariants all intentionally registered; auto-discovery would require rule-kind introspection heuristics beyond FR43's 1.0 remit. Story 1.9 ships anchor-side + hash-side; source-tree auto-discovery is optional follow-up.
+- **Story 1.9 scope carve-out (story file AC 2 line 23 + § Scope Carve-Out line 126 + § Symmetry line 128):** Source-tree auto-discovery of unregistered rules (walking `packages/keel-invariants/src/**` to enumerate new rule files that lack manifest entries) is **DEFERRED**. The current substrate has 10 invariants all intentionally registered; auto-discovery would require rule-kind introspection heuristics beyond FR43's 1.0 remit. Story 1.9 ships anchor-side + hash-side; source-tree auto-discovery is optional follow-up.
 - **Gaps:** No runtime smoke triggering `added-to-source-only`; no test-runner-hosted structural test. CR adversarial pass (Blind Hunter) is the agreed backstop per § Testing Standards.
 - **Recommendation:** Accept scope carve-out + schema uniqueness refine + anchor-walker as sufficient at 1.9. Defer source-tree auto-discovery to future substrate-hardening story; defer unit coverage to Story 1.16. WAIVED.
 
@@ -112,7 +112,7 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ — structural only.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
-  - Branch exists in `sync-gate.ts`: on `fs.readFile` rejection, `actualHash = null` → Drift kind `removed-from-source-only` with `id` + `sourcePath` (story file line 139).
+  - Branch exists in `sync-gate.ts`: on `fs.readFile` rejection, `actualHash = null` → Drift kind `removed-from-source-only` with `id` + `sourcePath` (story file line 141).
   - Not exercised in smoke — all 8 distinct `sourcePath` files exist on the baseline repo post-Task-2 (`tsconfig.base.json`, `eslint.config.keel-invariants.js`, `prettier.config.keel-invariants.js`, `commitlint.config.keel-invariants.js`, `src/eslint-rules/no-verify-bypass.js`, `.pre-commit-config.yaml`, `package.json`, `docs/invariants/ralph-execute.md`).
 - **Gaps:** No runtime smoke triggering `removed-from-source-only`; no test-runner-hosted structural test.
 - **Recommendation:** Accept structural realisation — branch is a small pure function (file-read rejection → Drift emission). CR adversarial pass (Edge Case Hunter) is the agreed backstop. Story 1.16 can backfill unit coverage. WAIVED.
@@ -124,10 +124,10 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ (no automated test) — **SUBSTRATE_VERIFIED end-to-end** via Task 5 drift-path shell-invocation smoke.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence — strongest AC signal):**
-  - Task 5 drift-path smoke (story file lines 95, 140): mutated `packages/keel-invariants/tsconfig.base.json` (1-character append) → `pnpm keel-invariants:check` → exit 1 + structured JSON DriftReport on stderr for `INV-tsconfig-base` as `content-hash-mismatch` with expected + actual hashes. Reverted; post-revert `sha256sum` matches manifest hash byte-for-byte.
+  - Task 5 drift-path smoke (story file lines 95, 142): mutated `packages/keel-invariants/tsconfig.base.json` (1-character append) → `pnpm keel-invariants:check` → exit 1 + structured JSON DriftReport on stderr for `INV-tsconfig-base` as `content-hash-mismatch` with expected + actual hashes. Reverted; post-revert `sha256sum` matches manifest hash byte-for-byte.
   - `sync-gate.ts` core loop: for each `Invariant`, read `sourcePath` file, `computeSha256`, compare against manifest `contentHash`; mismatch → `Drift { kind: 'content-hash-mismatch', id, sourcePath, expectedHash, actualHash }` (story file line 53).
   - Shared-source dedup means any cross-entry `contentHash` inconsistency between siblings on the same `sourcePath` surfaces as a mismatch against at least one sibling's expected hash (story file line 54; Task 3 CR defer #4 also catches this at schema import-time via `InvariantsSchema.superRefine`).
-  - `packages/keel-invariants/src/manifest-reader.ts` exports `computeSha256(content)` via `node:crypto.createHash('sha256').update(content).digest('hex')` and `readSourceFile(absPath)` via `node:fs/promises.readFile` utf-8 (story file line 50, 153).
+  - `packages/keel-invariants/src/manifest-reader.ts` exports `computeSha256(content)` via `node:crypto.createHash('sha256').update(content).digest('hex')` and `readSourceFile(absPath)` via `node:fs/promises.readFile` utf-8 (story file line 50, 156).
 - **Gaps:** No test-runner-hosted unit test (Story 1.16 scope); no CI re-exercise on every PR yet (Epic 13 scope).
 - **Recommendation:** Accept Task 5 drift-path smoke as strong substrate evidence — AC 4 exercised end-to-end with structured JSON DriftReport verified on stderr. WAIVED.
 
@@ -138,8 +138,8 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ — structural only.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
-  - Anchor-walker implementation (story file line 52, 141): regex `/^-\s+\*\*\`([A-Z][A-Z0-9-]+)\`\*\*/gm` enumerates `INV-*` anchors in `INVARIANTS.md § Invariants index` (10 current anchors at `INVARIANTS.md:24-48`).
-  - Drift detector branch: anchors in `INVARIANTS.md` with no matching manifest entry → `Drift { kind: 'removed-from-docs-only', anchor }` (story file line 53, 126).
+  - Anchor-walker implementation (story file line 52, 127): regex `/^-\s+\*\*\`([A-Z][A-Z0-9-]+)\`\*\*/gm` enumerates `INV-*` anchors in `INVARIANTS.md § Invariants index` (10 current anchors at `INVARIANTS.md:24-48`).
+  - Drift detector branch: anchors in `INVARIANTS.md` with no matching manifest entry → `Drift { kind: 'removed-from-docs-only', anchor }` (story file line 53, 128).
   - Not exercised in smoke — all 10 anchors have matching manifest rows post-Task-2 (which closed the pre-existing `INV-ralph-halt-path-resolution` docs-only drift by adding the 10th manifest entry per story file lines 57–71).
 - **Gaps:** No runtime smoke triggering `removed-from-docs-only`; no test-runner-hosted structural test.
 - **Recommendation:** Accept structural realisation + Task 2 pre-existing drift closure as evidence that the branch works (the original 10th-entry gap was an instance of `removed-from-docs-only` that the spec's Task 2 explicitly closed — if the branch didn't work, Task 2's close would not have produced a clean gate in Task 5's clean-path smoke). CR adversarial pass (Blind Hunter) backstops. Story 1.16 can backfill unit coverage. WAIVED.
@@ -151,11 +151,11 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ (no automated test) — CLI contract verified via AC-4 smoke path.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
-  - `packages/keel-invariants/src/check.ts` exit-code contract: `process.exit(0)` on `status === 'clean'`, `process.exit(1)` on `status === 'drift'` (story file lines 81, 142, 155).
-  - Structured JSON DriftReport printed to stderr via `JSON.stringify(report, null, 2)` on drift (story file line 155) — exercised by Task 5 drift-path smoke (stderr JSON report for `INV-tsconfig-base content-hash-mismatch`).
-  - `pnpm keel-invariants:check` entry point wired via repo-root `package.json` `scripts.keel-invariants:check` → `pnpm --filter @keel/keel-invariants check` → `node dist/check.js` (story file line 82–83, 161, 163).
-  - `packages/keel-invariants/package.json` gained `bin.keel-invariants-check: "./dist/check.js"` for future npm-link consumers (story file line 82, 161).
-- **Story 1.9 scope carve-out (story file AC 6 line 41 + § Scope Carve-Out line 124):** The CI workflow itself lands with Epic 13 (F/E pipeline story). Story 1.9 delivers the CLI + exit-code contract (0 = clean; non-zero = drift, with the structured report on stderr); Epic 13 wires the `.github/workflows/*.yml` step that invokes `pnpm keel-invariants:check`. Verification at Story 1.9 time is via local CLI invocation (clean repo → exit 0; induced drift → exit non-zero with structured JSON report on stderr).
+  - `packages/keel-invariants/src/check.ts` exit-code contract: `process.exit(0)` on `status === 'clean'`, `process.exit(1)` on `status === 'drift'` (story file lines 81, 144, 158).
+  - Structured JSON DriftReport printed to stderr via `JSON.stringify(report, null, 2)` on drift (story file line 158) — exercised by Task 5 drift-path smoke (stderr JSON report for `INV-tsconfig-base content-hash-mismatch`).
+  - `pnpm keel-invariants:check` entry point wired via repo-root `package.json` `scripts.keel-invariants:check` → `pnpm --filter @keel/keel-invariants check` → `node dist/check.js` (story file line 82–83, 164, 166).
+  - `packages/keel-invariants/package.json` gained `bin.keel-invariants-check: "./dist/check.js"` for future npm-link consumers (story file line 82, 164).
+- **Story 1.9 scope carve-out (story file AC 6 line 41 + § Scope Carve-Out line 126):** The CI workflow itself lands with Epic 13 (F/E pipeline story). Story 1.9 delivers the CLI + exit-code contract (0 = clean; non-zero = drift, with the structured report on stderr); Epic 13 wires the `.github/workflows/*.yml` step that invokes `pnpm keel-invariants:check`. Verification at Story 1.9 time is via local CLI invocation (clean repo → exit 0; induced drift → exit non-zero with structured JSON report on stderr).
 - **Gaps:** No GitHub Actions workflow file at Story 1.9 time; Epic 13 wiring is pending.
 - **Recommendation:** Accept CLI contract as pinned + AC-4 smoke as exit-code proof. Defer workflow wiring to Epic 13 per spec carve-out. WAIVED.
 
@@ -166,8 +166,8 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ (no automated test) — **SUBSTRATE_VERIFIED end-to-end** via Task 5 performance shell-invocation smoke.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence — strong signal):**
-  - Task 5 performance smoke (story file lines 96, 143): `time pnpm keel-invariants:check` → **0.77s wall-clock** — well under AC 7's 2s budget; >2x headroom.
-  - Implementation choices load-bearing for the internal <500ms target (story file line 55, 128):
+  - Task 5 performance smoke (story file lines 96, 145): `time pnpm keel-invariants:check` → **0.77s wall-clock** — well under AC 7's 2s budget; >2x headroom.
+  - Implementation choices load-bearing for the internal <500ms target (story file line 55, 130):
     - Shared-source dedup via `uniqueSourcePaths` Set → 8 distinct file reads (not 10) for the current substrate.
     - `Promise.all()` parallelises file-read IO.
     - sha256 on files this size (largest ~8KB) <1ms each; file-read IO dominates.
@@ -431,7 +431,7 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
 
 **Why WAIVED instead of FAIL:**
 
-1. **Story 1.9 is a runtime-tooling story at a pre-test-runner substrate stage.** Its § Testing Standards (story file line 117) states verbatim: _"No dedicated unit-test file for `sync-gate.ts` in Story 1.9 scope. Rationale: (a) no test runner is wired at substrate level yet (Story 1.16 scope); (b) Task 5's five runtime smoke tests (clean + drift + performance + AC 2 manifest-side missing-anchor + AC 5 docs-side orphan-anchor) exercise the tool end-to-end — AC 1 / AC 4 / AC 7 fully covered at the shell-invocation level; (c) the manifest's Zod parse + the gate's anchor-regex + the hash comparison are all small pure functions that a future test-runner story (Story 1.16) can add coverage for without structural changes."_ This is a stakeholder-approved waiver of per-AC unit/E2E coverage for this specific story class.
+1. **Story 1.9 is a runtime-tooling story at a pre-test-runner substrate stage.** Its § Testing Standards (story file line 120) states verbatim: _"No dedicated unit-test file for `sync-gate.ts` in Story 1.9 scope. Rationale: (a) no test runner is wired at substrate level yet (Story 1.16 scope); (b) Task 5's five runtime smoke tests (clean + drift + performance + AC 2 manifest-side missing-anchor + AC 5 docs-side orphan-anchor) exercise the tool end-to-end — AC 1 / AC 4 / AC 7 fully covered at the shell-invocation level; (c) the manifest's Zod parse + the gate's anchor-regex + the hash comparison are all small pure functions that a future test-runner story (Story 1.16) can add coverage for without structural changes."_ This is a stakeholder-approved waiver of per-AC unit/E2E coverage for this specific story class.
 
 2. **Substrate verification exceeded Story 1.8's level** — Story 1.9's three Task 5 shell-invocation smoke tests exercised AC-1 + AC-4 + AC-7 end-to-end, one more AC than Story 1.8's single Task 3 smoke. Specifically:
    - **AC-1 (clean-path):** `pnpm keel-invariants:check` → exit 0, no stderr — gate-clean happy path proven.
@@ -439,7 +439,7 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
    - **AC-7 (performance):** 0.77s wall-clock — NFR met with 62% headroom.
 
 3. **Remaining ACs are explicitly scoped-out or structurally realised:**
-   - **AC-2** (addition drift): source-tree auto-discovery deferred per explicit scope carve-out (story file lines 23, 124, 126); anchor-side realisation is covered via the walker branch + Zod schema uniqueness `superRefine` (Task 3 CR defer #3 absorbed).
+   - **AC-2** (addition drift): source-tree auto-discovery deferred per explicit scope carve-out (story file lines 23, 126, 128); anchor-side realisation is covered via the walker branch + Zod schema uniqueness `superRefine` (Task 3 CR defer #3 absorbed).
    - **AC-3** (removed-from-source): small pure function branch — `fs.readFile` rejection → Drift emission. TypeScript compile-time check + adversarial CR pass (Edge Case Hunter) are the agreed verification surface at 1.9.
    - **AC-5** (removed-from-docs): small pure function branch — anchor-walker finds anchor not in manifest-IDs set → Drift emission. Task 2 closed the pre-existing `INV-ralph-halt-path-resolution` docs-only drift (the original 10th-entry gap was itself an instance of this AC's drift kind; the post-Task-2 clean-path smoke proves the detector works correctly, because otherwise the clean-path smoke would have reported drift).
    - **AC-6** (CI workflow wiring): explicit scope carve-out to Epic 13 (F/E pipeline story). Story 1.9 ships the CLI + exit-code contract (0 = clean, 1 = drift, stderr JSON); Epic 13 wires the `.github/workflows/*.yml` step.
@@ -463,7 +463,7 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
 **Waiver Information**:
 
 - **Waiver Reason**: Story 1.9 is a runtime-tooling story at a pre-test-runner substrate stage. Per-AC automated test-runner coverage is explicitly deferred to Story 1.16 (test-runner landing); GitHub Actions workflow wiring is explicitly deferred to Epic 13 (F/E pipeline); source-tree auto-discovery (AC-2 branch) is explicitly deferred per spec scope carve-out. Substrate verification is strong: 7 quality gates green + 3 runtime smoke tests exercising AC-1 + AC-4 + AC-7 end-to-end.
-- **Waiver Approver**: Story 1.9 itself (stakeholder-authored § Testing Standards line 117 + AC-2 inline scope carve-out line 23 + AC-6 inline scope carve-out line 41 + § Scope Carve-Out line 124 + § Symmetry line 126). See also: `.ralph/@plan.md` iter-3 FR14n ATDD-skip (commit `d5ec5b2`) and Story 1.8 trace WAIVED precedent at `_bmad-output/test-artifacts/traceability/1-8-invariants-manifest-ts-contract-exporter.md`.
+- **Waiver Approver**: Story 1.9 itself (stakeholder-authored § Testing Standards line 120 + AC-2 inline scope carve-out line 23 + AC-6 inline scope carve-out line 41 + § Scope Carve-Out line 126 + § Symmetry line 128). See also: `.ralph/@plan.md` iter-3 FR14n ATDD-skip (commit `d5ec5b2`) and Story 1.8 trace WAIVED precedent at `_bmad-output/test-artifacts/traceability/1-8-invariants-manifest-ts-contract-exporter.md`.
 - **Approval Date**: 2026-04-20 (story authored iter-1, pre-dev SM review iter-2, ATDD-skip iter-3, dev-story iter-4, trace iter-5 — all within the same ISO day).
 - **Waiver Expiry**: expires when **Story 1.16** lands the test runner AND **Epic 13** wires the CI workflow. From those points forward, per-AC automated coverage + CI re-exercise become structurally feasible.
 
