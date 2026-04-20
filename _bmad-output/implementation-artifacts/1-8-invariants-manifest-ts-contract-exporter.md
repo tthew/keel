@@ -142,7 +142,7 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
     ```
   - [ ] Re-export `invariants`, `Invariant`, `InvariantSchema`, `InvariantsSchema` from `packages/keel-invariants/src/index.ts`. Current `index.ts` is `export {};` — replace with the re-exports. Consumers (Story 1.9's sync-gate) import via `@keel/keel-invariants` (the package root; resolves through `./dist/index.js` per `package.json` exports map).
   - [ ] Verify that every `sourcePath` resolves to an existing file at the repo root (Task 3's typecheck/lint doesn't cover this — it's a manual `ls` check against the 9 entries; any stale pointer fails AC 2).
-  - [ ] Normalise architecture.md:922 typo. Current line reads `│   │   ├── invariants-manifest.ts               # FR43 generated manifest (ID+hash)`. Canonical form is dot-delimited `invariants.manifest.ts` (matches epic spec line 863 + PRD FR43 + this story's file path). Edit `_bmad-output/planning-artifacts/architecture.md:922` in place — hyphen → dot. Single-character correction; not a behavioural change. Captured in RALPH.md 2026-04-20 iter-20 signpost as Story 1.7's carry-forward defer.
+  - [x] **Discharged in spec-authoring (commit `8991214`, iter-1).** architecture.md hyphen→dot normalisation was co-landed with this spec; current line is `architecture.md:942` in dot-form (`│   │   ├── invariants.manifest.ts               # FR43 generated manifest (ID+hash)`), matching epic spec + PRD FR43 + this story's file path. RALPH.md 2026-04-20 iter-20 Story-1.7-carry-forward defer is closed — no Dev action needed on this subtask.
 
 - [ ] **Task 2: Add `zod` dependency + wire Zod import-time validation** (AC: 4)
   - [ ] Add `zod` as a runtime dependency to `packages/keel-invariants/package.json`. Pin exact version (per I7 version-pinning posture from epics.md:650). Suggested pin: `"zod": "3.25.0"` (latest stable at authoring time; bump if a fresher pin lands before Dev runs this task — check `npm view zod version` at execution). Add to a new `"dependencies"` block (currently only `"devDependencies"` exists). `pnpm install -w` will update `pnpm-lock.yaml`.
@@ -164,7 +164,7 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
 ## Dev Notes
 
 - Relevant architecture patterns and constraints:
-  - [Source: architecture.md:922 (post-normalisation)] `packages/keel-invariants/src/invariants.manifest.ts` lives under the package's `src/` tree alongside schemas + eslint-rules + semgrep-rules. Role in architecture: "FR43 generated manifest (ID+hash)". Story 1.8's output replaces the hyphen-form placeholder with canonical dot-form.
+  - [Source: architecture.md:942] `packages/keel-invariants/src/invariants.manifest.ts` lives under the package's `src/` tree alongside schemas + eslint-rules + semgrep-rules. Role in architecture: "FR43 generated manifest (ID+hash)". The hyphen→dot normalisation at this line was co-landed with the iter-1 spec-authoring commit (`8991214`); no further architecture.md edit is required for Story 1.8.
   - [Source: prd.md FR43] "System can enforce sync between the machine-enforced layer (`packages/keel-invariants/`) and the agent-readable layer (`INVARIANTS.md`) via a pre-merge gate that reads an exported `invariants.manifest.ts` (stable-ID + content-hash per rule)". Story 1.8 is the **contract side** (the exporter); Story 1.9 is the **enforcement side** (the gate that reads it).
   - [Source: epics.md:860–886] Story 1.8 ACs specify `{ id, description, sourcePath, contentHash, anchors }` shape, `INV-<category>-<slug>` id format, synchronous load, Zod-or-equivalent import-time validation.
   - [Source: `INVARIANTS.md` (Story 1.7 output)] 9 provisional invariants are already indexed in the agent-readable layer. Story 1.8 imports this list verbatim into `raw`. IDs remain identical (the `<!-- Provisional: … -->` header in INVARIANTS.md explicitly grants Story 1.8 license to edit — Story 1.8 chooses to accept all 9 as-is, no renames).
@@ -173,8 +173,8 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
   - **EDIT:** `packages/keel-invariants/src/index.ts` (re-exports; currently `export {};`).
   - **EDIT:** `packages/keel-invariants/package.json` (add `"dependencies": { "zod": "<pin>" }`).
   - **EDIT:** `pnpm-lock.yaml` (auto-updated by `pnpm install`).
-  - **EDIT:** `_bmad-output/planning-artifacts/architecture.md:922` (hyphen → dot-form canonical naming).
   - **EDIT:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (status bump + last_updated).
+  - _(architecture.md:942 hyphen→dot normalisation already discharged in iter-1 spec-authoring commit `8991214`; not a Dev-story edit target.)_
 - Testing standards summary:
   - **§ Testing Standards:** No dedicated unit-test file for `invariants.manifest.ts` in Story 1.8 scope. Rationale: (a) the Zod schema IS the test — any malformed entry fails at module import, caught by Task 3's runtime smoke check (`node -e "import('@keel/keel-invariants')…"`) AND by downstream consumer imports (Story 1.9's sync-gate will import it and exercise Zod parse on every pre-merge invocation); (b) no test runner is wired at substrate level yet (Story 1.16 scope); (c) the 9 content-hashes are frozen data — no behaviour to unit-test beyond "Zod accepts the shape", which Zod's own test suite covers. Story 1.9's sync-gate tests will exercise the manifest end-to-end (anchor-walk vs INVARIANTS.md; file-read vs `contentHash` re-computation).
   - Quality-gate bundle from Stories 1.4/1.5/1.6/1.7 applies: typecheck + lint + format:check + commitlint + prek-runner parity. All MUST pass at Task 3.
@@ -215,3 +215,4 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
 | Date       | Version | Description           | Author |
 | ---------- | ------- | --------------------- | ------ |
 | 2026-04-20 | 1.0     | Initial story authoring (Ralph; spec via /bmad-create-story inline-realisation per Story 1.6/1.7 precedent). | Ralph |
+| 2026-04-20 | 1.1     | Pre-dev SM review (Ralph, iter-2; drafted → validated). Applied one critical fix: discharged the stale architecture.md:922 hyphen→dot normalisation subtask (already landed in iter-1 commit 8991214; line is now :942 dot-form). Source-pointer + contentHash + INV-\* ID audit confirmed 9/9 match INVARIANTS.md + on-disk sha256. ACs 1–4 well-formed; double-anchored scope carve-outs (AC inline + § Project Structure Notes) intact. | Ralph |
