@@ -109,7 +109,7 @@ Priority classification per `test-priorities-matrix.md`:
 
 #### AC-3: Removal drift (source side) — manifest entry whose `sourcePath` is deleted → reports `removed-from-source-only`, exits non-zero (P1)
 
-- **Coverage:** NONE ❌ — structural only.
+- **Coverage:** NONE ❌ (no automated test) — structural-only realisation via `fs.readFile` rejection → `removed-from-source-only` Drift branch; CR adversarial pass is the agreed backstop at 1.9.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
   - Branch exists in `sync-gate.ts`: on `fs.readFile` rejection, `actualHash = null` → Drift kind `removed-from-source-only` with `id` + `sourcePath` (story file line 141).
@@ -202,7 +202,7 @@ Priority classification per `test-priorities-matrix.md`:
    - Impact: LOW — smoke evidence captured for the anchor-side addition-drift branch; the 10 invariants are intentionally registered and new rule authors must co-update manifest + anchor in the same PR (contract).
 
 3. **AC-3: Removal drift (source side)** (P1)
-   - Current Coverage: NONE — structural only (`fs.readFile` rejection → `removed-from-source-only` Drift kind).
+   - Current Coverage: NONE (no automated test) — structural-only realisation via `fs.readFile` rejection → `removed-from-source-only` Drift branch; CR adversarial pass is the agreed backstop at 1.9.
    - Missing Tests: runtime smoke triggering `removed-from-source-only`; test-runner structural test.
    - Recommend: Accept structural realisation; CR pass (Edge Case Hunter) is the 1.9 adversarial backstop; Story 1.16 backfills unit coverage.
    - Impact: LOW — small pure function branch; TypeScript compile-time check + adversarial CR surface any branch defects before landing.
