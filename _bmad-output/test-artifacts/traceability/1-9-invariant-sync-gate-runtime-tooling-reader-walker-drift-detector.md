@@ -95,7 +95,7 @@ Priority classification per `test-priorities-matrix.md`:
 
 #### AC-2: Addition drift — new rule in source without manifest entry → reports `added-to-source-only`, exits non-zero (P1)
 
-- **Coverage:** NONE ❌ — schema-level + structural realisation only.
+- **Coverage:** NONE ❌ (no automated test) — **SUBSTRATE_VERIFIED end-to-end** via iter-8 Task-5 manifest-side missing-anchor smoke.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
   - Schema-level uniqueness: `InvariantsSchema.superRefine((arr, ctx) => { ... duplicate id check ... })` (story file line 75, Task 3 CR defer #3 absorbed).
