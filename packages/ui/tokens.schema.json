@@ -1,0 +1,547 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://keel.dev/schemas/tokens.schema.json",
+  "title": "Keel Design Token Contract",
+  "description": "DTCG-compatible design-token schema. Validates token-source STRUCTURE only: every leaf carries $type + $value, every $value is a literal or {alias} reference, and the root exposes the named semantic groups. Population of concrete token values is Story 1.11; numeric ranges / contrast ratios / value quality are Story 1.13 pre-commit gates. Story 1.10 scope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["color", "type", "font", "space", "radius", "motion", "density", "breakpoint"],
+  "properties": {
+    "color": { "$ref": "#/$defs/colorGroup" },
+    "type": { "$ref": "#/$defs/typeGroup" },
+    "font": { "$ref": "#/$defs/fontGroup" },
+    "space": { "$ref": "#/$defs/spaceGroup" },
+    "radius": { "$ref": "#/$defs/radiusGroup" },
+    "motion": { "$ref": "#/$defs/motionGroup" },
+    "density": { "$ref": "#/$defs/densityGroup" },
+    "breakpoint": { "$ref": "#/$defs/breakpointGroup" },
+    "$modes": { "$ref": "#/$defs/modesOverlay" }
+  },
+  "$defs": {
+    "leafColor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "color" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
+    "leafDimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "dimension" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
+    "leafDuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "duration" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
+    "leafNumber": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "number" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
+    "leafFontFamily": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "fontFamily" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
+    "leafFontWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "fontWeight" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
+    "leafCubicBezier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "cubicBezier" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
+    "colorGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["neutral", "accent", "surface", "text", "border", "status", "severity", "state"],
+      "properties": {
+        "neutral": { "$ref": "#/$defs/colorNeutralRamp" },
+        "accent": { "$ref": "#/$defs/colorAccentRamp" },
+        "surface": { "$ref": "#/$defs/colorSurface" },
+        "text": { "$ref": "#/$defs/colorText" },
+        "border": { "$ref": "#/$defs/colorBorder" },
+        "status": { "$ref": "#/$defs/colorStatus" },
+        "severity": { "$ref": "#/$defs/colorSeverity" },
+        "state": { "$ref": "#/$defs/colorState" }
+      }
+    },
+    "colorNeutralRamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"],
+      "properties": {
+        "50": { "$ref": "#/$defs/leafColor" },
+        "100": { "$ref": "#/$defs/leafColor" },
+        "200": { "$ref": "#/$defs/leafColor" },
+        "300": { "$ref": "#/$defs/leafColor" },
+        "400": { "$ref": "#/$defs/leafColor" },
+        "500": { "$ref": "#/$defs/leafColor" },
+        "600": { "$ref": "#/$defs/leafColor" },
+        "700": { "$ref": "#/$defs/leafColor" },
+        "800": { "$ref": "#/$defs/leafColor" },
+        "900": { "$ref": "#/$defs/leafColor" },
+        "950": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "colorAccentRamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["400", "500", "600", "default", "fg", "focus"],
+      "properties": {
+        "400": { "$ref": "#/$defs/leafColor" },
+        "500": { "$ref": "#/$defs/leafColor" },
+        "600": { "$ref": "#/$defs/leafColor" },
+        "default": { "$ref": "#/$defs/leafColor" },
+        "fg": { "$ref": "#/$defs/leafColor" },
+        "focus": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "colorSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default", "raised", "inset", "overlay"],
+      "properties": {
+        "default": { "$ref": "#/$defs/leafColor" },
+        "raised": { "$ref": "#/$defs/leafColor" },
+        "inset": { "$ref": "#/$defs/leafColor" },
+        "overlay": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "colorText": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "secondary", "muted", "inverse", "accent"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/leafColor" },
+        "secondary": { "$ref": "#/$defs/leafColor" },
+        "muted": { "$ref": "#/$defs/leafColor" },
+        "inverse": { "$ref": "#/$defs/leafColor" },
+        "accent": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "colorBorder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["default", "muted", "accent"],
+      "properties": {
+        "default": { "$ref": "#/$defs/leafColor" },
+        "muted": { "$ref": "#/$defs/leafColor" },
+        "accent": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "colorStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["info", "success", "warning", "error", "critical"],
+      "properties": {
+        "info": { "$ref": "#/$defs/colorStatusVariant" },
+        "success": { "$ref": "#/$defs/colorStatusVariant" },
+        "warning": { "$ref": "#/$defs/colorStatusVariant" },
+        "error": { "$ref": "#/$defs/colorStatusVariant" },
+        "critical": { "$ref": "#/$defs/colorStatusVariant" }
+      }
+    },
+    "colorStatusVariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fg", "bg"],
+      "properties": {
+        "fg": { "$ref": "#/$defs/leafColor" },
+        "bg": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "colorSeverity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["low", "medium", "high", "critical"],
+      "properties": {
+        "low": { "$ref": "#/$defs/leafColor" },
+        "medium": { "$ref": "#/$defs/leafColor" },
+        "high": { "$ref": "#/$defs/leafColor" },
+        "critical": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "colorState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pending", "in-progress", "blocked", "done"],
+      "properties": {
+        "pending": { "$ref": "#/$defs/leafColor" },
+        "in-progress": { "$ref": "#/$defs/leafColor" },
+        "blocked": { "$ref": "#/$defs/leafColor" },
+        "done": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "typeGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["xs", "sm", "base", "lg", "xl", "2xl", "3xl", "4xl"],
+      "properties": {
+        "xs": { "$ref": "#/$defs/leafDimension" },
+        "sm": { "$ref": "#/$defs/leafDimension" },
+        "base": { "$ref": "#/$defs/leafDimension" },
+        "lg": { "$ref": "#/$defs/leafDimension" },
+        "xl": { "$ref": "#/$defs/leafDimension" },
+        "2xl": { "$ref": "#/$defs/leafDimension" },
+        "3xl": { "$ref": "#/$defs/leafDimension" },
+        "4xl": { "$ref": "#/$defs/leafDimension" }
+      }
+    },
+    "fontGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sans", "mono"],
+      "properties": {
+        "sans": { "$ref": "#/$defs/leafFontFamily" },
+        "mono": { "$ref": "#/$defs/leafFontFamily" }
+      }
+    },
+    "spaceGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["0", "1", "2", "3", "4", "5", "6", "8", "10", "12", "16", "20", "24"],
+      "properties": {
+        "0": { "$ref": "#/$defs/leafDimension" },
+        "1": { "$ref": "#/$defs/leafDimension" },
+        "2": { "$ref": "#/$defs/leafDimension" },
+        "3": { "$ref": "#/$defs/leafDimension" },
+        "4": { "$ref": "#/$defs/leafDimension" },
+        "5": { "$ref": "#/$defs/leafDimension" },
+        "6": { "$ref": "#/$defs/leafDimension" },
+        "8": { "$ref": "#/$defs/leafDimension" },
+        "10": { "$ref": "#/$defs/leafDimension" },
+        "12": { "$ref": "#/$defs/leafDimension" },
+        "16": { "$ref": "#/$defs/leafDimension" },
+        "20": { "$ref": "#/$defs/leafDimension" },
+        "24": { "$ref": "#/$defs/leafDimension" }
+      }
+    },
+    "radiusGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["none", "sm", "md", "lg", "full"],
+      "properties": {
+        "none": { "$ref": "#/$defs/leafDimension" },
+        "sm": { "$ref": "#/$defs/leafDimension" },
+        "md": { "$ref": "#/$defs/leafDimension" },
+        "lg": { "$ref": "#/$defs/leafDimension" },
+        "full": { "$ref": "#/$defs/leafDimension" }
+      }
+    },
+    "motionGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale", "instant", "snap", "swift", "smooth", "drift"],
+      "properties": {
+        "scale": { "$ref": "#/$defs/leafNumber" },
+        "instant": { "$ref": "#/$defs/leafDuration" },
+        "snap": { "$ref": "#/$defs/leafDuration" },
+        "swift": { "$ref": "#/$defs/leafDuration" },
+        "smooth": { "$ref": "#/$defs/leafDuration" },
+        "drift": { "$ref": "#/$defs/leafDuration" }
+      }
+    },
+    "densityGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scale", "compact", "default", "comfortable"],
+      "properties": {
+        "scale": { "$ref": "#/$defs/leafNumber" },
+        "compact": { "$ref": "#/$defs/leafNumber" },
+        "default": { "$ref": "#/$defs/leafNumber" },
+        "comfortable": { "$ref": "#/$defs/leafNumber" }
+      }
+    },
+    "breakpointGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sm", "md", "lg", "xl", "2xl"],
+      "properties": {
+        "sm": { "$ref": "#/$defs/leafDimension" },
+        "md": { "$ref": "#/$defs/leafDimension" },
+        "lg": { "$ref": "#/$defs/leafDimension" },
+        "xl": { "$ref": "#/$defs/leafDimension" },
+        "2xl": { "$ref": "#/$defs/leafDimension" }
+      }
+    },
+    "modesOverlay": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "light": { "$ref": "#/$defs/sparseRoot" },
+        "dark": { "$ref": "#/$defs/sparseRoot" },
+        "high-contrast": { "$ref": "#/$defs/sparseRoot" }
+      }
+    },
+    "sparseRoot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": { "$ref": "#/$defs/sparseColorGroup" },
+        "type": { "$ref": "#/$defs/sparseTypeGroup" },
+        "font": { "$ref": "#/$defs/sparseFontGroup" },
+        "space": { "$ref": "#/$defs/sparseSpaceGroup" },
+        "radius": { "$ref": "#/$defs/sparseRadiusGroup" },
+        "motion": { "$ref": "#/$defs/sparseMotionGroup" },
+        "density": { "$ref": "#/$defs/sparseDensityGroup" },
+        "breakpoint": { "$ref": "#/$defs/sparseBreakpointGroup" }
+      }
+    },
+    "sparseColorGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "neutral": { "$ref": "#/$defs/sparseColorNeutralRamp" },
+        "accent": { "$ref": "#/$defs/sparseColorAccentRamp" },
+        "surface": { "$ref": "#/$defs/sparseColorSurface" },
+        "text": { "$ref": "#/$defs/sparseColorText" },
+        "border": { "$ref": "#/$defs/sparseColorBorder" },
+        "status": { "$ref": "#/$defs/sparseColorStatus" },
+        "severity": { "$ref": "#/$defs/sparseColorSeverity" },
+        "state": { "$ref": "#/$defs/sparseColorState" }
+      }
+    },
+    "sparseColorNeutralRamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "50": { "$ref": "#/$defs/leafColor" },
+        "100": { "$ref": "#/$defs/leafColor" },
+        "200": { "$ref": "#/$defs/leafColor" },
+        "300": { "$ref": "#/$defs/leafColor" },
+        "400": { "$ref": "#/$defs/leafColor" },
+        "500": { "$ref": "#/$defs/leafColor" },
+        "600": { "$ref": "#/$defs/leafColor" },
+        "700": { "$ref": "#/$defs/leafColor" },
+        "800": { "$ref": "#/$defs/leafColor" },
+        "900": { "$ref": "#/$defs/leafColor" },
+        "950": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseColorAccentRamp": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "400": { "$ref": "#/$defs/leafColor" },
+        "500": { "$ref": "#/$defs/leafColor" },
+        "600": { "$ref": "#/$defs/leafColor" },
+        "default": { "$ref": "#/$defs/leafColor" },
+        "fg": { "$ref": "#/$defs/leafColor" },
+        "focus": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseColorSurface": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default": { "$ref": "#/$defs/leafColor" },
+        "raised": { "$ref": "#/$defs/leafColor" },
+        "inset": { "$ref": "#/$defs/leafColor" },
+        "overlay": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseColorText": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "primary": { "$ref": "#/$defs/leafColor" },
+        "secondary": { "$ref": "#/$defs/leafColor" },
+        "muted": { "$ref": "#/$defs/leafColor" },
+        "inverse": { "$ref": "#/$defs/leafColor" },
+        "accent": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseColorBorder": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "default": { "$ref": "#/$defs/leafColor" },
+        "muted": { "$ref": "#/$defs/leafColor" },
+        "accent": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseColorStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "info": { "$ref": "#/$defs/sparseColorStatusVariant" },
+        "success": { "$ref": "#/$defs/sparseColorStatusVariant" },
+        "warning": { "$ref": "#/$defs/sparseColorStatusVariant" },
+        "error": { "$ref": "#/$defs/sparseColorStatusVariant" },
+        "critical": { "$ref": "#/$defs/sparseColorStatusVariant" }
+      }
+    },
+    "sparseColorStatusVariant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fg": { "$ref": "#/$defs/leafColor" },
+        "bg": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseColorSeverity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "low": { "$ref": "#/$defs/leafColor" },
+        "medium": { "$ref": "#/$defs/leafColor" },
+        "high": { "$ref": "#/$defs/leafColor" },
+        "critical": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseColorState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pending": { "$ref": "#/$defs/leafColor" },
+        "in-progress": { "$ref": "#/$defs/leafColor" },
+        "blocked": { "$ref": "#/$defs/leafColor" },
+        "done": { "$ref": "#/$defs/leafColor" }
+      }
+    },
+    "sparseTypeGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "xs": { "$ref": "#/$defs/leafDimension" },
+        "sm": { "$ref": "#/$defs/leafDimension" },
+        "base": { "$ref": "#/$defs/leafDimension" },
+        "lg": { "$ref": "#/$defs/leafDimension" },
+        "xl": { "$ref": "#/$defs/leafDimension" },
+        "2xl": { "$ref": "#/$defs/leafDimension" },
+        "3xl": { "$ref": "#/$defs/leafDimension" },
+        "4xl": { "$ref": "#/$defs/leafDimension" }
+      }
+    },
+    "sparseFontGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sans": { "$ref": "#/$defs/leafFontFamily" },
+        "mono": { "$ref": "#/$defs/leafFontFamily" }
+      }
+    },
+    "sparseSpaceGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "0": { "$ref": "#/$defs/leafDimension" },
+        "1": { "$ref": "#/$defs/leafDimension" },
+        "2": { "$ref": "#/$defs/leafDimension" },
+        "3": { "$ref": "#/$defs/leafDimension" },
+        "4": { "$ref": "#/$defs/leafDimension" },
+        "5": { "$ref": "#/$defs/leafDimension" },
+        "6": { "$ref": "#/$defs/leafDimension" },
+        "8": { "$ref": "#/$defs/leafDimension" },
+        "10": { "$ref": "#/$defs/leafDimension" },
+        "12": { "$ref": "#/$defs/leafDimension" },
+        "16": { "$ref": "#/$defs/leafDimension" },
+        "20": { "$ref": "#/$defs/leafDimension" },
+        "24": { "$ref": "#/$defs/leafDimension" }
+      }
+    },
+    "sparseRadiusGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "none": { "$ref": "#/$defs/leafDimension" },
+        "sm": { "$ref": "#/$defs/leafDimension" },
+        "md": { "$ref": "#/$defs/leafDimension" },
+        "lg": { "$ref": "#/$defs/leafDimension" },
+        "full": { "$ref": "#/$defs/leafDimension" }
+      }
+    },
+    "sparseMotionGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scale": { "$ref": "#/$defs/leafNumber" },
+        "instant": { "$ref": "#/$defs/leafDuration" },
+        "snap": { "$ref": "#/$defs/leafDuration" },
+        "swift": { "$ref": "#/$defs/leafDuration" },
+        "smooth": { "$ref": "#/$defs/leafDuration" },
+        "drift": { "$ref": "#/$defs/leafDuration" }
+      }
+    },
+    "sparseDensityGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scale": { "$ref": "#/$defs/leafNumber" },
+        "compact": { "$ref": "#/$defs/leafNumber" },
+        "default": { "$ref": "#/$defs/leafNumber" },
+        "comfortable": { "$ref": "#/$defs/leafNumber" }
+      }
+    },
+    "sparseBreakpointGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sm": { "$ref": "#/$defs/leafDimension" },
+        "md": { "$ref": "#/$defs/leafDimension" },
+        "lg": { "$ref": "#/$defs/leafDimension" },
+        "xl": { "$ref": "#/$defs/leafDimension" },
+        "2xl": { "$ref": "#/$defs/leafDimension" }
+      }
+    }
+  }
+}

@@ -125,6 +125,22 @@ const raw: Invariant[] = [
     contentHash: '8c679cdabcccb8ac122b8da82d4bcb8198451f0cc0a19b3d13b4b2695b6cba8b',
     anchors: ['INV-ralph-halt-path-resolution'],
   },
+  {
+    id: 'INV-tokens-schema-contract',
+    description:
+      'Design-token JSON Schema contract — DTCG-compatible; defines shape of every semantic + primitive token group (color / type / space / radius / motion / density / breakpoint) plus optional $modes overlays. Validated at pre-commit (Story 1.13); consumed by the Story 1.11 source + Story 1.12 emitter.',
+    sourcePath: 'packages/ui/tokens.schema.json',
+    contentHash: 'abb5bc4c779d7cb8029a1c55bf6d3cb86092aa7105f2eb31c247da53093e07ac',
+    anchors: ['INV-tokens-schema-contract'],
+  },
+  {
+    id: 'INV-tokens-semantic-rationale',
+    description:
+      'Semantic-rationale doc pairing every TOKEN-<slug> with a prose line explaining why the slot exists + how cross-runtime consumers reference it. Companion to INV-tokens-schema-contract; Sally "catalog header references rationale" requirement.',
+    sourcePath: 'docs/invariants/tokens.md',
+    contentHash: '2d8d0e3fcce54375ee228cd1d21c3ef7ee54ea76c8622267d9c78b9a84ad25c0',
+    anchors: ['INV-tokens-semantic-rationale'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));

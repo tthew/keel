@@ -45,6 +45,11 @@ Each entry: stable ID + one-line description + source-file pointer.
 
 - **`INV-ralph-halt-path-resolution`** — `ralph.py` (and fork-replacement runtimes) resolve `.ralph/halt`, `.ralph/@plan.md`, `.ralph/PROMPT_*.md`, and `.ralph/logs/` against the worktree path (`.claude/worktrees/<name>/.ralph/`) when `--worktree <name>` is set, else against cwd-relative `.ralph/`. The resolved absolute path is exported to the subprocess env as `RALPH_BASE_DIR` so agent + orchestrator address the same directory. Agents MUST use `$RALPH_BASE_DIR` or relative `.ralph/*` — never hardcoded main-repo absolutes. Normative spec: `docs/invariants/ralph-execute.md` § Path Resolution (FR14k + NFR33a). Runtime source: `ralph.py` `resolve_ralph_base()` + `RalphConfig.ralph_base` + env injection at subprocess spawn. Machine-enforcement of drift between source + spec + manifest lands in Story 1.9's sync-gate (FR43); at 1.0 this invariant is spec-enforced only.
 
+### Design-token schema + semantic rationale (Story 1.10)
+
+- **`INV-tokens-schema-contract`** — DTCG-compatible JSON Schema defining the shape of every semantic + primitive token group (color / type / font / space / radius / motion / density / breakpoint) plus optional `$modes` overlays. Story 1.10 scope is structure-only (every leaf carries `$type` + `$value`; every `$value` is a literal or `{alias}` reference; named semantic groups are required at the root); value population is Story 1.11, pre-commit quality gates (schema-validation + WCAG AA contrast + source-output sync) are Story 1.13. Source: `packages/ui/tokens.schema.json`.
+- **`INV-tokens-semantic-rationale`** — semantic-rationale doc pairing every `TOKEN-<slug>` with a prose line explaining why the slot exists, when to use it, and how cross-runtime consumers (Tailwind preset + Textual TUI theme + Epic 7 catalog) reference it. Companion to `INV-tokens-schema-contract`; Sally's "catalog header references rationale" requirement (UX-DR4; ux-design-specification.md § Architecture of the Design System). Source: `docs/invariants/tokens.md`.
+
 ## Consumption
 
 - **Humans / AI agents:** read this file; cross-reference the listed source files for the machine-enforced form.
