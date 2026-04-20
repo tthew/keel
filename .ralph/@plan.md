@@ -18,6 +18,7 @@ _(none)_
 
 - [x] Post-merge sync — PR #221 merged as `297402c`; new branch `feat/story-1-6-quality-gate-bypass-prevention` from `origin/main`; stale `(AWAIT_MERGE` marker cleared
 - [x] Story 1.6 spec authored — 3-task decomposition; `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md`; sprint-status `1-6 → ready-for-dev`; Scope Carve-Out for AC 1/3/4 (forward-refs to Stories 1.8+1.9)
+- [x] Draft PR #222 created targeting main — `{isDraft:true, state:OPEN, statusCheckRollup:[]}`; IP reflects PR reference (iteration-1 bookkeeping, matches Story 1.5 precedent)
 
 ## Context
 
@@ -26,4 +27,4 @@ _(none)_
 - **Epic Branch:** `feat/story-1-6-quality-gate-bypass-prevention`
 - **Story:** 1.6 — Quality-gate bypass prevention (ready-for-dev)
 - **Story File:** `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md`
-- **PR:** none yet (created this iteration after push)
+- **PR:** #222 Draft (created this iteration; `{isDraft:true, state:OPEN, statusCheckRollup:[]}` — no CI wired yet, Story 1.16's scope)
