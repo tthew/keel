@@ -71,21 +71,52 @@ When NOW = "Address PR review feedback":
 ⊗ NEVER transition Draft→Open until ALL implementation tasks (including CI fixes) are complete.
 ⊗ NEVER address PR review feedback while PR is Draft.
 
+## Story Lifecycle Decision Matrix
+
+Every story moves through a pinned eleven-state lifecycle (normative spec: FR14n). `Story State` in IP § Context drives NOW-task selection. Gate ordering is **coverage (trace) → requirements (SM review) → quality (CR) → done**. Never skip states.
+
+| Story State           | NOW task                                                                                                            | Transition on success                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| _(no story)_          | `Run /bmad-create-story` — picks next story from sprint-status                                                      | `drafted`                                               |
+| `drafted`             | `Run /bmad-create-story (args: "review")` — pre-dev validation of readiness                                         | `validated`                                             |
+| `validated`           | `Run /bmad-testarch-atdd` — red-phase scaffolds (skip → `in-dev` allowed only if story has no testable ACs; record rationale in IP) | `atdd-scaffolded`                   |
+| `atdd-scaffolded`     | `Run /bmad-dev-story (args: "{story_file_path}")`                                                                   | `in-dev` (or `in-dev (partial)` → re-queue next iter)   |
+| `in-dev`              | `Run /bmad-testarch-trace (args: "yolo")` — AC→test coverage gate + traceability matrix                             | `traced` OR `trace-fixes-pending`                       |
+| `trace-fixes-pending` | Top QUEUE fix task (add missing AC test / coverage backfill)                                                        | stays until QUEUE empties → re-run trace → `traced`     |
+| `traced`              | `Run /bmad-create-story (args: "review")` — post-dev SM requirements-satisfaction verification                      | `sm-verified` OR `sm-fixes-pending`                     |
+| `sm-fixes-pending`    | Top QUEUE fix task (satisfy unmet AC in implementation)                                                             | stays until QUEUE empties → re-run validate → `sm-verified` |
+| `sm-verified`         | `Run /bmad-code-review (args: "2")` — pre-selects "Create action items"                                             | `done` (no findings) OR `fixes-pending`                 |
+| `fixes-pending`       | Top QUEUE fix task (one CR action item per iteration)                                                               | stays `fixes-pending` until QUEUE empties → re-run CR   |
+| `done`                | Next story (back to _no story_) OR EPIC_DONE halt if sprint-status has no open stories                              | —                                                       |
+
+⊗ NEVER skip states. If `Story State` is unset, first action MUST be `/bmad-create-story`.
+⊗ NEVER invoke `/bmad-dev-story` while `Story State ≠ atdd-scaffolded` unless IP records an explicit skip rationale.
+⊗ NEVER invoke `/bmad-testarch-trace` while `Story State ≠ in-dev`.
+⊗ NEVER invoke `/bmad-create-story (args: "review")` post-dev while `Story State ≠ traced` — the same skill serves both pre-dev (`drafted → validated`) and post-dev (`traced → sm-verified`); the state governs intent.
+⊗ NEVER invoke `/bmad-code-review` while `Story State ≠ sm-verified`.
+⊗ NEVER mark `done` with un-addressed fix tasks remaining in QUEUE (regardless of origin — trace, SM review, or CR).
+⊗ EVERY trace coverage gap and EVERY SM-review unmet-AC finding becomes a QUEUE fix task unless IP records `defer: <reason>` per item.
+⊗ EVERY CR action item becomes a QUEUE fix task unless IP records `defer: <reason>` per item. Adversarial triage is the default.
+
+After `/bmad-testarch-trace`: record each coverage gap as a QUEUE fix task (AC id, missing test type, file-path target) at the TOP of QUEUE. When QUEUE is empty, re-run `/bmad-testarch-trace` to confirm `traced`.
+After `/bmad-create-story (args: "review")` post-dev: record each unmet-AC finding as a QUEUE fix task (AC id, what's missing in impl) at the TOP of QUEUE. When QUEUE is empty, re-run `/bmad-create-story (args: "review")` to confirm `sm-verified`.
+After `/bmad-code-review`: record each action item as a QUEUE fix task (file, line, requested change) at the TOP of QUEUE. When QUEUE is empty, re-run `/bmad-code-review` to confirm `done`.
+
 ## BMad Workflows
 
 BMad skills in this project use the `bmad-` prefix and are invoked via Claude Code slash commands. Source of truth: `_bmad/_config/bmad-help.csv` and `/bmad-help`.
 
-NOW task descriptions MUST include args when applicable. Examples:
-- `Run /bmad-create-story` — creates next story
-- `Run /bmad-create-story (args: "review")` — validates and corrects story
-- `Run /bmad-testarch-atdd` — ATDD red-phase scaffolds
-- `Run /bmad-code-review (args: "2")` — pre-selects "Create action items"
-- `Run /bmad-testarch-trace (args: "yolo")`
-- `Run /bmad-dev-story (args: "{story_file_path}")` — path from IP Context
+**See § Story Lifecycle Decision Matrix above for which skill to queue given current Story State.** Canonical args:
 
-After ANY workflow: mark NOW `[x]` → NOW = next → quality gate (step 4) → push → EXIT. One workflow per iteration. Each BMad skill runs in a fresh context window (Ralph gives it one).
+- `/bmad-create-story` — no args for create; `(args: "review")` for validate
+- `/bmad-testarch-atdd` — no args; reads story file
+- `/bmad-dev-story (args: "{story_file_path}")` — path from IP Context
+- `/bmad-code-review (args: "2")` — pre-selects "Create action items"
+- `/bmad-testarch-trace (args: "yolo")` — optional traceability matrix
 
-**dev-story budget rule:** Before invoking `/bmad-dev-story`, count the story's tasks. If tasks >= 3, do NOT invoke the workflow. Instead, implement tasks directly, one at a time: first task as NOW, remaining tasks to QUEUE. Each task = one iteration with its own commit, quality gate, and push.
+After ANY workflow: mark NOW `[x]` → update `Story State` per matrix → NOW = next → quality gate (step 4) → push → EXIT. One workflow per iteration. Each BMad skill runs in a fresh context window (Ralph gives it one).
+
+**dev-story invocation:** Always invoke `/bmad-dev-story` in a fresh context window per § Story Lifecycle Decision Matrix. It handles internal task decomposition. Ralph's role is to queue it when `Story State = atdd-scaffolded`, not to pre-split tasks. If dev-story returns with un-finished tasks (partial completion), record `Story State = in-dev (partial)` in IP Context and queue it again in the next iteration.
 
 ## Issue Tracking
 
@@ -119,14 +150,14 @@ Native Tasks are your crash journal — update task status as you progress so th
 
 ## Halt
 
-`echo '{"reason":"EPIC_DONE","epic":N,"pr":PR}' > .ralph/halt` then exit normally. ralph.py detects and stops.
+Halt when `Story State = done` AND QUEUE is empty AND no remaining open story in sprint-status for the current epic. `echo '{"reason":"EPIC_DONE","epic":N,"pr":PR}' > .ralph/halt` then exit normally. ralph.py detects and stops.
 
 ## Guardrails
 
 1. Capture the why — tests and implementation importance.
 2. Single sources of truth. No migrations/adapters. Keep IP <50 lines — prune completed items.
 3. Never wait for user input — choose autonomous path. Never ask "shall I continue?"
-4. Test before commit (ATDD → implement → verify) when a test runner is configured. Pre-push quality gate is mandatory — never push with failing suites. Exception: failures listed in IP § ATDD Red Phase are expected and do not block push. After implementation makes a test GREEN, remove it from IP § ATDD Red Phase. Never skip tests or bypass git hooks.
+4. Test before commit (ATDD → implement → verify) when a test runner is configured. Pre-push quality gate is mandatory — never push with failing suites. Exception: failures listed in IP § ATDD Red Phase are expected and do not block push. After implementation makes a test GREEN, remove it from IP § ATDD Red Phase. Never skip tests or bypass git hooks. For story work, ATDD scaffolding is queued by § Story Lifecycle Decision Matrix (state `validated → atdd-scaffolded`) before `/bmad-dev-story`; red-phase failures produced by that step go into IP § ATDD Red Phase and do not block the `atdd-scaffolded → in-dev` transition.
 5. ONE task per iteration — execute, commit, push, exit. No looping back. Each BMad workflow = one full iteration. Never start a new task after completing one.
 6. Never cheat on tests (empty files, hardcoded data, skip verification). Never auto-compact context — exit cleanly instead.
 7. Implement functionality completely. Placeholders and stubs waste. Never suppress push output or ignore push failures.
@@ -172,6 +203,7 @@ Native Tasks are your crash journal — update task status as you progress so th
 - **Epic Branch:** feat/epic-{N}-{name} (or current branch)
 - **Story:** STORY-ID or "none"
 - **Story File:** path or "n/a"
+- **Story State:** _(no story)_ | drafted | validated | atdd-scaffolded | in-dev | trace-fixes-pending | traced | sm-fixes-pending | sm-verified | fixes-pending | done
 ```
 
 ---
