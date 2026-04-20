@@ -1,0 +1,179 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-20T14:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.9",
+    "label": "invariant sync-gate runtime tooling (reader + walker + drift detector)"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "Clean-exit contract — pnpm keel-invariants:check exits 0 when manifest ↔ anchors ↔ hashes align; non-zero with structured drift report otherwise",
+      "priority": "P1",
+      "coverage": "NONE",
+      "tests": [],
+      "substrate_verification": "Task 5 clean-path smoke: `pnpm keel-invariants:check` → exit 0, no stderr (story file lines 94, 137). AC 1 + AC 7 end-to-end at shell-invocation. Not a test-runner assertion; evidence captured at dev-story.",
+      "scope_notes": "Primary gate-clean happy path. sync-gate.ts#runSyncGate dedupes sourcePath reads via `uniqueSourcePaths` set + `Promise.all`; hash compare bails early on mismatch. check.ts resolves repoRoot via import.meta.dirname + path.resolve back to repo root.",
+      "level_notes": "smoke (shell) — not a runner-hosted unit/integration/e2e"
+    },
+    {
+      "id": "AC-2",
+      "title": "Addition drift — new rule in source without manifest entry → reports added-to-source-only, exits non-zero",
+      "priority": "P1",
+      "coverage": "NONE",
+      "tests": [],
+      "substrate_verification": "Schema-level via InvariantsSchema.superRefine id-uniqueness refine (Story 1.9 Task 3, story file lines 74–75). Anchor-walker branch realises anchor-side half of addition drift (INVARIANTS.md anchor without manifest row → `removed-from-docs-only`). Structural (not exercised in smoke — substrate has 0 live addition drift).",
+      "scope_notes": "Story 1.9 scope carve-out (AC 2 lines 23, 126): source-tree auto-discovery of unregistered rules is DEFERRED — anchor-side realisation only at 1.9. The 10 invariants are intentionally registered; authors of future rules MUST add anchor + manifest row in the same PR (contract).",
+      "level_notes": "schema + structural; adversarial CR pass is agreed backstop"
+    },
+    {
+      "id": "AC-3",
+      "title": "Removal drift (source side) — manifest entry whose sourcePath is deleted → reports removed-from-source-only, exits non-zero",
+      "priority": "P1",
+      "coverage": "NONE",
+      "tests": [],
+      "substrate_verification": "Structural only — sync-gate.ts path: `fs.readFile` rejection → `actualHash = null` → Drift kind `removed-from-source-only` (story file line 139 branch). Not exercised in smoke (all 7 distinct sourcePath files exist on baseline).",
+      "scope_notes": "Small pure-function branch; TypeScript compile-time check + adversarial CR pass are the agreed verification surface at 1.9. Unit-test landing in Story 1.16 (test-runner wiring) can backfill.",
+      "level_notes": "structural"
+    },
+    {
+      "id": "AC-4",
+      "title": "Edit drift — source edit without manifest contentHash bump → reports content-hash-mismatch, exits non-zero",
+      "priority": "P1",
+      "coverage": "NONE",
+      "tests": [],
+      "substrate_verification": "Task 5 drift-path smoke: mutated `packages/keel-invariants/tsconfig.base.json` (1-char append) → exit 1 + structured JSON DriftReport on stderr for `INV-tsconfig-base` as `content-hash-mismatch` with expected + actual hashes (story file line 95, 140). Revert verified byte-for-byte. AC 4 end-to-end at shell-invocation.",
+      "scope_notes": "Core drift-class. Shared-source dedup + per-entry hash compare means any cross-entry contentHash inconsistency between siblings on the same sourcePath surfaces as a mismatch against at least one sibling's expected hash (story file line 54).",
+      "level_notes": "smoke (shell) — end-to-end evidence"
+    },
+    {
+      "id": "AC-5",
+      "title": "Removal drift (docs side) — INVARIANTS.md anchor removed without manifest removal → reports removed-from-docs-only, exits non-zero",
+      "priority": "P1",
+      "coverage": "NONE",
+      "tests": [],
+      "substrate_verification": "Structural only — anchor-walker enumerates INVARIANTS.md anchors via `/^-\\s+\\*\\*\\`([A-Z][A-Z0-9-]+)\\`\\*\\*/gm` regex (story file lines 52, 141). Manifest-row-without-anchor branch is the symmetric case. Not exercised in smoke (all 10 anchors have matching manifest rows post-Task-2).",
+      "scope_notes": "Story 1.9 Task 2 closed the pre-existing `INV-ralph-halt-path-resolution` docs-only drift by adding the 10th manifest entry (story file lines 57–71). Baseline now clean → AC 5 branch not actively triggered.",
+      "level_notes": "structural"
+    },
+    {
+      "id": "AC-6",
+      "title": "CLI exit-code contract for CI — non-zero reliably fails the workflow; drift report renders in CI logs",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "substrate_verification": "CLI contract pinned at check.ts: 0 on `status === 'clean'`, 1 on `status === 'drift'` (story file lines 81, 142). Structured JSON DriftReport printed to stderr on drift (exercised via AC 4 smoke). `pnpm keel-invariants:check` entry point wired at repo-root package.json.",
+      "scope_notes": "Story 1.9 scope carve-out (AC 6 line 41, 124): CI workflow wiring itself lands with Epic 13 (F/E pipeline story). Story 1.9 delivers CLI + exit-code contract; Epic 13 wires the `.github/workflows/*.yml` step that invokes it.",
+      "level_notes": "CLI contract (smoke-verified via AC 4 path); workflow-wiring deferred"
+    },
+    {
+      "id": "AC-7",
+      "title": "Performance NFR — <2 second wall-clock when run on baseline repo",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "substrate_verification": "Task 5 performance smoke: `time pnpm keel-invariants:check` → 0.77s wall-clock — well under AC 7's 2s budget; >2x headroom (story file lines 96, 143). Dedup of shared-source reads + `Promise.all` parallelism is load-bearing for the <500ms internal target.",
+      "scope_notes": "Baseline substrate = 7 distinct source files (10 invariants dedupe to 7). sha256 on files this size (largest ~8KB) <1ms each; file-read IO dominates; cold <100ms expected, warm <20ms. 2s budget leaves ~20x headroom for growth to ~200 invariants.",
+      "level_notes": "smoke (shell timing) — end-to-end evidence"
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 7,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 7,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 5, "covered": 0, "percentage": 0 },
+      "P2": { "total": 2, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [
+      { "id": "AC-1", "priority": "P1" },
+      { "id": "AC-2", "priority": "P1" },
+      { "id": "AC-3", "priority": "P1" },
+      { "id": "AC-4", "priority": "P1" },
+      { "id": "AC-5", "priority": "P1" }
+    ],
+    "medium_gaps": [
+      { "id": "AC-6", "priority": "P2" },
+      { "id": "AC-7", "priority": "P2" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Defer AC-1 / AC-2 / AC-3 / AC-4 / AC-5 unit-test coverage to Story 1.16 (test-runner landing); Task 5 shell-invocation smoke tests already cover AC-1 + AC-4 + AC-7 end-to-end. AC-3 + AC-5 branches are small pure functions that CR adversarial pass backstops at 1.9.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Defer AC-6 GitHub Actions workflow wiring to Epic 13 (F/E pipeline story) per spec scope carve-out. Story 1.9 ships the CLI + exit-code contract; Epic 13 wires the `.github/workflows/*.yml` invocation step.",
+      "requirements": ["AC-6"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "AC-7 <2s performance budget met with >2x headroom (0.77s wall-clock). No follow-up needed unless substrate grows beyond ~200 invariants.",
+      "requirements": ["AC-7"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-code-review (args: \"2\") next — adversarial triage is the agreed backstop for AC-2 / AC-3 / AC-5 structural branches per § Testing Standards + Dev Agent Record AC coverage matrix.",
+      "requirements": []
+    }
+  ]
+}

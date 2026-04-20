@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T14:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.9",
+    "label": "invariant sync-gate runtime tooling (reader + walker + drift detector)"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Runtime-tooling story whose § Testing Standards explicitly defers per-AC automated unit coverage to Story 1.16 (test-runner landing). The deterministic FAIL signal (overall 0% < 80%, P1 0% < 80%) is a structural false-positive; no test runner is wired at substrate level. Task 5's three shell-invocation smoke tests exercised AC 1 + AC 4 + AC 7 end-to-end (clean-path exit 0; drift-path exit 1 + JSON DriftReport on stderr for `INV-tsconfig-base content-hash-mismatch`; performance 0.77s wall-clock <2s budget). AC 2 / AC 3 / AC 5 realised schema-level (Zod superRefine uniqueness) + structurally (sync-gate branches) with CR adversarial pass as the agreed backstop. AC 2 source-tree auto-discovery + AC 6 CI workflow wiring are explicit spec scope carve-outs deferred to later stories. All 7 substrate quality gates green (typecheck / lint / build / format:check / commitlint / prek / install). FR14n ATDD-skip precedent applied at iter-3 on analogous three-prong rationale; trace gate mirrors that decision.",
+  "p0_status": "MET",
+  "p1_status": "NOT_MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}
