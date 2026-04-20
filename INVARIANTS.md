@@ -43,6 +43,10 @@ Each entry: stable ID + one-line description + source-file pointer.
 
 - **`INV-no-verify-bypass`** — ESLint rule `keel-invariants/no-verify-bypass` flags `--no-verify` / `--dangerously-skip-permissions` hook-bypass tokens appearing as string literals or static template-literal quasis in committed JS/TS. Source: `packages/keel-invariants/src/eslint-rules/no-verify-bypass.js` (rule) + `packages/keel-invariants/src/eslint-rules/index.js` (plugin aggregator) + `packages/keel-invariants/eslint.config.keel-invariants.js` (registration in `sharedBase` + `forPackage()`).
 
+### Ralph loop contracts (halt-schema + path-resolution)
+
+- **`INV-ralph-halt-path-resolution`** — `ralph.py` (and fork-replacement runtimes) resolve `.ralph/halt`, `.ralph/@plan.md`, `.ralph/PROMPT_*.md`, and `.ralph/logs/` against the worktree path (`.claude/worktrees/<name>/.ralph/`) when `--worktree <name>` is set, else against cwd-relative `.ralph/`. The resolved absolute path is exported to the subprocess env as `RALPH_BASE_DIR` so agent + orchestrator address the same directory. Agents MUST use `$RALPH_BASE_DIR` or relative `.ralph/*` — never hardcoded main-repo absolutes. Normative spec: `docs/invariants/ralph-execute.md` § Path Resolution (FR14k + NFR33a). Runtime source: `ralph.py` `resolve_ralph_base()` + `RalphConfig.ralph_base` + env injection at subprocess spawn. Machine-enforcement of drift between source + spec + manifest lands in Story 1.9's sync-gate (FR43); at 1.0 this invariant is spec-enforced only.
+
 ## Consumption
 
 - **Humans / AI agents:** read this file; cross-reference the listed source files for the machine-enforced form.

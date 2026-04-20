@@ -19,9 +19,9 @@ There is no build/test/lint suite yet (nothing to build). The operational surfac
 | Run Ralph in planning mode        | `uv run ralph.py plan [N]`                                      |
 | Run Ralph in build mode           | `uv run ralph.py build [N]`                                     |
 | Ralph with custom timeout         | `uv run ralph.py --timeout 30m`                                 |
-| Stop the Ralph loop               | `echo '{"reason":"EPIC_DONE",...}' > .ralph/halt`               |
+| Stop the Ralph loop               | `echo '{"reason":"EPIC_DONE",...}' > "$RALPH_BASE_DIR/halt"`    |
 
-Ralph writes session logs to `.ralph/logs/` (gitignored). `.ralph/halt` is the halt sentinel (also gitignored). See [docs/ralph.md](./docs/ralph.md) for the full TUI reference.
+Ralph writes session logs to `$RALPH_BASE_DIR/logs/` (gitignored). `$RALPH_BASE_DIR/halt` is the halt sentinel (also gitignored). `RALPH_BASE_DIR` is exported by `ralph.py` to every subprocess and resolves to the worktree's `.ralph/` directory when `--worktree X` is set (or cwd-relative `.ralph/` otherwise). See [docs/ralph.md](./docs/ralph.md#halt-path-resolution) for the resolver + invocation-mode table.
 
 ## High-level architecture
 
@@ -34,7 +34,7 @@ Two overlapping systems in this repo:
 - `.ralph/PROMPT_build.md` — one task per iteration, commit + push + exit
 - `.ralph/PROMPT_plan.md` — gap analysis, IP update, no code changes
 
-The loop halts on `.ralph/halt`, on `(AWAIT_MERGE` in `.ralph/@plan.md`, or at `max_iterations`. State carries between iterations via `.ralph/@plan.md` (committed) and native Claude Code tasks (via `CLAUDE_CODE_TASK_LIST_ID`).
+The loop halts on `$RALPH_BASE_DIR/halt`, on `(AWAIT_MERGE` in `$RALPH_BASE_DIR/@plan.md`, or at `max_iterations`. State carries between iterations via `$RALPH_BASE_DIR/@plan.md` (committed) and native Claude Code tasks (via `CLAUDE_CODE_TASK_LIST_ID`). Paths resolve against the worktree when `--worktree X` is set — never use hardcoded main-repo absolutes. See [docs/ralph.md § Halt path resolution](./docs/ralph.md).
 
 ## Knowledge-file contract
 

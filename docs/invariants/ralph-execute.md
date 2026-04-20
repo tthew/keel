@@ -85,7 +85,30 @@ Closed reason enum at 1.0:
 - `BUDGET_EXHAUSTED` — crossed the 25K buffer floor mid-iteration (NFR4b).
 - `CI_BLOCKED` — pre-push CI gate blocks progress until human intervention (FR14i).
 - `SECURITY_CRITICAL` — critical-severity security finding halted the loop (NFR18).
+- `RALPH_STAGE_REGRESSION` — Ralph safe-set L1 stage-upgrade bootstrap-validation failed (FR14m + NFR4c).
+
+## Path Resolution
+
+`ralph.py` (and any fork-replacement runtime) MUST resolve `.ralph/halt`, `.ralph/@plan.md`, `.ralph/PROMPT_*.md`, and `.ralph/logs/` to a single deterministic absolute directory that agrees between orchestrator and agent (`claude -p --worktree X`).
+
+**Algorithm:**
+
+- If `--worktree <name>` is set: resolve against the main repo root derived from `git rev-parse --git-common-dir` (cwd-invariant) — `ralph_base = <main_repo>/.claude/worktrees/<name>/.ralph`.
+- Else: `ralph_base = <cwd>/.ralph` (single-checkout fallback).
+
+`git rev-parse --git-common-dir` is the canonical cwd-invariant pointer: it returns the main repo's `.git/` whether the orchestrator runs from the main repo or from inside a worktree. Its parent is the main repo root, so the worktree-relative `.ralph/` path is identical across invocation modes.
+
+**Env contract (normative).** The orchestrator MUST export `RALPH_BASE_DIR` (absolute path) into the subprocess env alongside `CLAUDE_CODE_TASK_LIST_ID` and the `RALPH_ISSUE_*` vars. Agents MUST address the halt sentinel, plan file, and PROMPT files via one of:
+
+- `$RALPH_BASE_DIR/halt`, `$RALPH_BASE_DIR/@plan.md`, etc.
+- Relative `.ralph/halt`, `.ralph/@plan.md`, etc. — which coincide with `$RALPH_BASE_DIR` when the agent cwd is the worktree (the default under `--worktree`).
+
+Agents MUST NOT use hardcoded main-repo absolute paths (`/workspace/<repo>/.ralph/halt` or similar). That rule was a historical workaround for a cwd-relative halt-detection bug in the orchestrator; the bug is now fixed and the rule is load-bearing-wrong. The 2026-04-20 Story 1.7 iter-22..28 re-entry cascade is the reference incident.
+
+**Startup banner (advisory).** The orchestrator SHOULD log `Ralph base: <abs> (cwd: <abs>)` as the first line of every session log so resolver mismatches surface immediately.
+
+**Defensive dual-path halt read (transitional).** During the post-fix migration window — while cached agent prompts may still carry the pre-fix rule — the orchestrator SHOULD also check `<cwd>/.ralph/halt` as a fallback. If the fallback fires, log a warning naming both paths, migrate the file to `$RALPH_BASE_DIR/halt`, and halt. Remove the fallback at the next Keel major release.
 
 ## Fork enforcement
 
-Forks that replace the runtime (`ralph.py`) honour the halt schema + decision matrix or fork-and-diverge. The matrix is shipped in `packages/keel-templates/PROMPT_build.template.md`; re-scaffolding a fresh fork recovers the canonical version.
+Forks that replace the runtime (`ralph.py`) honour the halt schema + decision matrix + **path-resolution contract** (all three are normative), or fork-and-diverge. The matrix and path-resolution algorithm are shipped in `packages/keel-templates/PROMPT_build.template.md`; re-scaffolding a fresh fork recovers the canonical versions.
