@@ -1,35 +1,29 @@
 # Implementation Plan
 
-(AWAIT_MERGE — PR #221 Open, CLEAN, MERGEABLE, 0 reviews, 0 checks; halt signal now at MAIN repo `/workspace/ralph-bmad/.ralph/halt` so ralph.py actually detects it. Awaiting user merge before Story 1.6.)
-
 ## NOW
 
-_(none — Story 1.5 mini-epic shipped; loop awaits user merge)_
+- [ ] Story 1.6 Task 1 — author `keel-invariants/no-verify-bypass` ESLint rule + register in shared config + `./eslint-plugin` subpath export ~medium
 
-## QUEUE
+## QUEUE (Story 1.6)
 
-_(empty — post-merge iteration picks up Story 1.6)_
+- [ ] Story 1.6 Task 2 — ATDD probes (AC 2 bypass-string rejects / AC 2b template-literal / negative comment / AC 5 prek-runner parity)
+- [ ] Story 1.6 Task 3 — full quality gates + sprint-status `1-6 → done`
+- [ ] Transition PR Draft→Open — final CI gate (after Task 3)
 
 ## BLOCKED
 
 _(none)_
 
-## DONE (Story 1.5 mini-epic)
+## DONE (Story 1.6)
 
-- [x] Story 1.5 spec authored — 3-task decomposition; sprint-status `1-5 → ready-for-dev`
-- [x] Draft PR #221 created — `{isDraft:true, state:OPEN, mergeable:MERGEABLE, mergeStateStatus:CLEAN, statusCheckRollup:[]}`
-- [x] Story 1.5 Task 1 — `.pre-commit-config.yaml` 4th hook entry + `prepare` flag; both shims installed; probes green
-- [x] Story 1.5 Task 2 — ATDD probes via real `git commit`: AC 2 lands exit 0; AC 3 rejects with `subject-empty` + `type-empty`; AC 4 structural note recorded; tree clean
-- [x] Story 1.5 Task 3 — verification gates all FULL TURBO on FIRST call; sprint-status `1-5 → done` co-landed (pre-transition orphan-prevention)
-- [x] PR #221 Draft→Open — title/body rewritten for full 5-commit scope; `gh pr ready`; MERGEABLE / CLEAN / no-reviews / no-checks; EPIC_DONE halt signalled
-- [x] Halt reinforcement — `(AWAIT_MERGE` marker added (belt-and-suspenders — ralph.py:1758 guarantees loop stop if halt file detection at :1750 was missed)
-- [x] Halt path-correction (iter 378) — halt JSON re-written to MAIN repo `/workspace/ralph-bmad/.ralph/halt`; worktree's stale halt removed. Root cause: ralph.py's cwd is main repo, not worktree; writes from inside worktree to relative `.ralph/halt` land at the worktree path and are invisible to ralph.py's detection loop. RALPH.md lesson + Open Question added.
+- [x] Post-merge sync — PR #221 merged as `297402c`; new branch `feat/story-1-6-quality-gate-bypass-prevention` from `origin/main`; stale `(AWAIT_MERGE` marker cleared
+- [x] Story 1.6 spec authored — 3-task decomposition; `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md`; sprint-status `1-6 → ready-for-dev`; Scope Carve-Out for AC 1/3/4 (forward-refs to Stories 1.8+1.9)
 
 ## Context
 
 - **Phase:** 4-implementation
-- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.5 done; 1.6–1.16 backlog)
-- **Epic Branch:** `feat/story-1-5-conventional-commit-enforcement-via-commitlint-prek`
-- **Story:** 1.5 — Conventional-commit enforcement via commitlint + prek (done)
-- **Story File:** `_bmad-output/implementation-artifacts/1-5-conventional-commit-enforcement-via-commitlint-prek.md`
-- **PR:** #221 Open (5 impl commits + 2 bookkeeping commits)
+- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.5 done; 1.6 ready-for-dev; 1.7–1.16 backlog)
+- **Epic Branch:** `feat/story-1-6-quality-gate-bypass-prevention`
+- **Story:** 1.6 — Quality-gate bypass prevention (ready-for-dev)
+- **Story File:** `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md`
+- **PR:** none yet (created this iteration after push)
