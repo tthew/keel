@@ -1,6 +1,6 @@
 # Story 1.6: Quality-gate bypass prevention
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -41,7 +41,7 @@ so that a one-line config edit cannot turn off substrate teeth (FR32).
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Author `keel-invariants/no-verify-bypass` ESLint rule + register in shared config** (AC: 2, 5)
+- [x] **Task 1: Author `keel-invariants/no-verify-bypass` ESLint rule + register in shared config** (AC: 2, 5)
   - [ ] Create `packages/keel-invariants/src/eslint-rules/no-verify-bypass.js` (ESM `.js`, matching the project's established module format — variance from architecture.md line 908 which envisioned `.cjs`; the rest of `keel-invariants` is ESM, so `.js` keeps the package uniform). Rule shape:
     ```js
     // Flags hook-bypass tokens (e.g. --no-verify, --dangerously-skip-permissions)
@@ -177,7 +177,7 @@ so that a one-line config edit cannot turn off substrate teeth (FR32).
     - `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0/0 across existing branch commits (spec commit only at this point).
   - [ ] Commit: `feat(invariants): Story 1.6 Task 1 — add keel-invariants/no-verify-bypass ESLint rule`. Include IP + RALPH.md upkeep in the same commit per step 3a of the build prompt.
 
-- [ ] **Task 2: ATDD probes — valid code passes (AC 5), bypass-string code rejects (AC 2), prek-runner parity (AC 5)** (AC: 2, 5)
+- [x] **Task 2: ATDD probes — valid code passes (AC 5), bypass-string code rejects (AC 2), prek-runner parity (AC 5)** (AC: 2, 5)
   - [ ] Each probe stages a trivial file, attempts `git commit`, observes outcome, cleans up. Every probe's tree state matches the Task-1 tip before AND after. The probes exercise the real git-hook path (not `prek run`) so evidence covers git → `.git/hooks/pre-commit` → prek → ESLint end-to-end.
   - [ ] **AC 2 probe — bypass-string in TS source aborts commit.**
     ```bash
@@ -252,15 +252,15 @@ so that a one-line config edit cannot turn off substrate teeth (FR32).
     - `pnpm exec commitlint --from origin/main --to HEAD` — 0/0 across all branch commits (spec + iter-1 bookkeeping + Task 1 = 3 commits).
   - [ ] Commit: `feat(invariants): Story 1.6 Task 2 — ATDD probes verify no-verify-bypass fires + negative cases pass`.
 
-- [ ] **Task 3: Full quality-gate verification + sprint-status bump** (AC: 5)
-  - [ ] `pnpm install` — expect `Lockfile is up to date`; `prepare` re-runs `prek install -t pre-commit -t commit-msg` idempotently (both shims already in place from Stories 1.4/1.5).
-  - [ ] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on FIRST call (no TS inputs moved across Tasks 1/2).
-  - [ ] `pnpm -w lint` — expect 16/16 `>>> FULL TURBO` on FIRST call (Task 1's rule-registration triggered a single cold run; Task 2 didn't touch lint inputs; the committed tree's lint cache is warm end-to-end).
-  - [ ] `pnpm format:check` — `All matched files use Prettier code style!` exit 0.
-  - [ ] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems / 0 warnings across all branch commits (spec + iter-1 bookkeeping + Task 1 + Task 2; all `feat(invariants):` / `chore(ralph):` / `docs(story):` conventional form).
-  - [ ] `pnpm exec prek run --all-files` — all 3 pre-commit-stage hooks Passed (TypeScript type-check / ESLint / Prettier format:check). Commit-msg stage parity already proven in Task 1's self-verification + Task 2's probes.
-  - [ ] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flip `1-6-quality-gate-bypass-prevention: ready-for-dev → done`; bump `last_updated`. Co-land in this commit per Stories 1.2/1.3/1.4/1.5 orphan-prevention precedent.
-  - [ ] Commit: `feat(invariants): Story 1.6 Task 3 — all quality gates green + sprint-status bump`.
+- [x] **Task 3: Full quality-gate verification + sprint-status bump** (AC: 5)
+  - [x] `pnpm install` — expect `Lockfile is up to date`; `prepare` re-runs `prek install -t pre-commit -t commit-msg` idempotently (both shims already in place from Stories 1.4/1.5).
+  - [x] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on FIRST call (no TS inputs moved across Tasks 1/2).
+  - [x] `pnpm -w lint` — expect 16/16 `>>> FULL TURBO` on FIRST call (Task 1's rule-registration triggered a single cold run; Task 2 didn't touch lint inputs; the committed tree's lint cache is warm end-to-end).
+  - [x] `pnpm format:check` — `All matched files use Prettier code style!` exit 0.
+  - [x] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems / 0 warnings across all branch commits (spec + iter-1 bookkeeping + Task 1 + Task 2; all `feat(invariants):` / `chore(ralph):` / `docs(story):` conventional form). **Actual:** 0 problems across all 4 commits; 1 warning (`footer-leading-blank`) on the iter-1 bookkeeping commit `a4b3be2` — commitlint exits 0 on warnings, pre-push gate passes; documentary variance.
+  - [x] `pnpm exec prek run --all-files` — all 3 pre-commit-stage hooks Passed (TypeScript type-check / ESLint / Prettier format:check). Commit-msg stage parity already proven in Task 1's self-verification + Task 2's probes.
+  - [x] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`: flip `1-6-quality-gate-bypass-prevention: ready-for-dev → done`; bump `last_updated`. Co-land in this commit per Stories 1.2/1.3/1.4/1.5 orphan-prevention precedent.
+  - [x] Commit: `feat(invariants): Story 1.6 Task 3 — all quality gates green + sprint-status bump`.
 
 ## Dev Notes
 
@@ -393,10 +393,97 @@ Convention: `feat(invariants): Story X.Y Task N — <summary>`. Story 1.6 follow
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.7 (1M context) — `claude-opus-4-7[1m]`.
 
 ### Debug Log References
 
+**Task 3 — verification-only iteration (2026-04-20):**
+
+```
+$ pnpm install
+Scope: all 17 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+. prepare$ prek install -t pre-commit -t commit-msg
+. prepare: prek installed at `/workspace/ralph-bmad/.git/hooks/pre-commit`
+. prepare: prek installed at `/workspace/ralph-bmad/.git/hooks/commit-msg`
+. prepare: Done
+Done in 754ms using pnpm v10.29.2
+
+$ pnpm -w typecheck
+…
+ Tasks:    16 successful, 16 total
+Cached:    16 cached, 16 total
+  Time:    135ms >>> FULL TURBO
+
+$ pnpm -w lint
+…
+ Tasks:    16 successful, 16 total
+Cached:    16 cached, 16 total
+  Time:    159ms >>> FULL TURBO
+
+$ pnpm format:check
+> prettier --check .
+Checking formatting...
+All matched files use Prettier code style!
+
+$ pnpm exec commitlint --from origin/main --to HEAD --verbose
+⧗   input: feat(invariants): Story 1.6 Task 2 — …
+✔   found 0 problems, 0 warnings
+⧗   input: feat(invariants): Story 1.6 Task 1 — …
+✔   found 0 problems, 0 warnings
+⧗   input: chore(ralph): Story 1.6 iteration 1 — IP reflects Draft PR #222 creation
+⚠   footer must have leading blank line [footer-leading-blank]
+⚠   found 0 problems, 1 warnings
+⧗   input: docs(story): Story 1.6 spec — quality-gate bypass prevention (spec only — Draft)
+✔   found 0 problems, 0 warnings
+EXIT=0
+
+$ pnpm exec prek run --all-files
+TypeScript type-check (workspace)........................................Passed
+ESLint (workspace).......................................................Passed
+Prettier format:check (workspace)........................................Passed
+EXIT=0
+```
+
+**Evidence interpretation.** Typecheck + lint both hit FULL TURBO on FIRST invocation as predicted (prior task's commit `44ef6c0` touched no turbo inputs — the `_bmad-output/` + `RALPH.md` + `.ralph/@plan.md` edits are under `.prettierignore` and not declared inputs for any turbo task). Format:check clean. Commitlint exits 0 on the whole branch; the single `footer-leading-blank` warning on the iter-1 commit is non-blocking (commitlint's default posture for this rule is `warn`). `prek run --all-files` re-confirms git-hook path parity end-to-end for the 3 pre-commit-stage hooks.
+
 ### Completion Notes List
 
+**Task 3 summary.** Verification-only iteration shipped green. All ACs covered end-to-end:
+
+- **AC 2** — proven by Task 1's self-verify probes (string literal) + Task 2's AC 2 probe (real `git commit`, `packages/audit/src/__s16-ac2-probe.ts`) + Task 2's AC 2b probe (template-literal static + dynamic quasi discrimination) + Task 2's negative probe (comment allowed).
+- **AC 5** — proven by Task 2's prek-runner parity probe (`prek run --all-files lint` on dirty tree → non-zero; clean-tree re-run → exit 0) + Task 3's clean-tree `prek run --all-files` → all 3 hooks Passed + commitlint exits 0 across all 4 branch commits.
+- **AC 1 / AC 3 / AC 4** — scope carve-out (Stories 1.7/1.8/1.9 ship the manifest + sync-gate + three-file ceremony this story architecturally depends on). Story 1.6 forward-references these with `**Story 1.6 scope carve-out:**` lines under each affected AC + a dedicated Project Structure Notes section. Ships in full when the invariants-substrate quartet (1.6–1.9) is complete.
+
+**Documentary variance — commitlint `footer-leading-blank` warning on iter-1 commit.** The Task 3 spec subtask said "0 problems / 0 warnings"; actual is 0 problems / 1 warning on commit `a4b3be2` (`chore(ralph): Story 1.6 iteration 1 — IP reflects Draft PR #222 creation`). The commit's trailing `PR #222 state: {…}` line reads to commitlint as a footer-key candidate but lacks the blank-line separator above. The `footer-leading-blank` rule is set to `warn` severity in `@commitlint/config-conventional` (not configured to error in the keel override), so commitlint exits 0 and the pre-push gate passes. Not amended because:
+
+1. Amending would rewrite the iter-1 commit's SHA and force-push the branch, cascading into PR #222's commit history.
+2. The warning is informational, not blocking.
+3. Future Ralph bookkeeping commits can preempt the same warning by inserting a blank line before any trailing `<key>: <value>` block. Noted in RALPH.md 2026-04-20 for carry-forward.
+
+**Defensive posture — did NOT amend.** Never force-push `main` per AGENTS.md Git conventions; the analogous posture is to avoid rewriting shared branch history for non-blocking issues.
+
+**Sprint-status bump co-landed.** Sixth consecutive story-implementation mini-epic (1.1 + 1.2 + 1.3 + 1.4 + 1.5 + 1.6) where the sprint-status bump lands inside the verification task's commit, BEFORE Draft→Open — preemptive-orphan-prevention precedent now load-bearing.
+
+**FULL TURBO observation — sixth confirmation.** Verification-only iterations hit FULL TURBO on first invocation because the prior task's commit edited only `_bmad-output/` + `.ralph/` + `RALPH.md` + `.md` docs — none declared inputs for turbo's typecheck/lint tasks. Zero-cost from a cache-warming perspective.
+
 ### File List
+
+**Modified (Task 3):**
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `1-6-quality-gate-bypass-prevention: ready-for-dev → done`; `last_updated: 2026-04-20 Task-3 UTC`.
+- `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md` — `Status: ready-for-dev → done`; Task 1/2/3 all checked `[x]`; all Task 3 subtask checkboxes `[x]`; populated `Agent Model Used` / `Debug Log References` / `Completion Notes List` / `File List`.
+- `RALPH.md` — Signposts 2026-04-20 entry added for Task 3 completion (FULL TURBO evidence, 6-mini-epic confirmation, `footer-leading-blank` carry-forward).
+- `.ralph/@plan.md` — NOW flipped to "Transition PR Draft→Open — final CI gate"; Task 3 added to DONE; Context updated.
+
+**Added / Modified across Story 1.6 (spec + iter-1 + Tasks 1–3):**
+
+- `packages/keel-invariants/src/eslint-rules/no-verify-bypass.js` (new, Task 1) — the rule.
+- `packages/keel-invariants/src/eslint-rules/index.js` (new, Task 1) — plugin aggregator.
+- `packages/keel-invariants/eslint.config.keel-invariants.js` (modified, Task 1) — import plugin; register rule in `sharedBase` + `forPackage()`; file-scoped self-exclusion.
+- `packages/keel-invariants/package.json` (modified, Task 1) — `./eslint-plugin` subpath export.
+- `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md` (new, spec) — this file.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified, spec iter-1 + Task 3) — `1-6 → ready-for-dev → done`.
+- `RALPH.md` (modified, spec iter-1 + Tasks 1/2/3) — signposts + lessons + gotchas for each iteration.
+- `.ralph/@plan.md` (modified each iteration) — state carrying.
