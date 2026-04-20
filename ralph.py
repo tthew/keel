@@ -30,6 +30,12 @@ Usage:
 Per-project defaults and custom tools can live in .ralph/tools.json —
 see docs/ralph.md for the schema.
 
+Halt-path resolution: ralph.py resolves `.ralph/halt`, `.ralph/@plan.md`,
+`.ralph/PROMPT_*.md`, and `.ralph/logs/` against the worktree when `--worktree
+X` is set (i.e. `.claude/worktrees/X/.ralph/`), otherwise against cwd. The
+resolved absolute path is exported to the subprocess as `$RALPH_BASE_DIR`,
+so the agent and orchestrator always agree on where the halt sentinel lives.
+
 GitHub Project integration: on startup ralph.py discovers the user's
 GH Project (or uses --gh-project), maps Story / Epic issues by title,
 transitions the current story to "In Progress" at iteration start, and
@@ -110,6 +116,39 @@ def parse_timeout(value: str) -> float:
     if value.endswith("s"):
         return float(value[:-1])
     return float(value)
+
+
+def _main_repo_root() -> Path:
+    """Return the main-repo working-tree root, regardless of cwd.
+
+    `git rev-parse --git-common-dir` points at the main repo's `.git/` for both
+    main-repo cwd and worktree cwd. Its parent is the main-repo root.
+    Falls back to cwd when we're not in a git repo at all.
+    """
+    try:
+        out = subprocess.check_output(
+            ["git", "rev-parse", "--git-common-dir"],
+            text=True, stderr=subprocess.DEVNULL,
+        ).strip()
+        if out:
+            return Path(out).resolve().parent
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
+    return Path.cwd().resolve()
+
+
+def resolve_ralph_base(worktree_name: str) -> Path:
+    """Absolute directory holding halt, @plan.md, PROMPT_*.md, and logs/.
+
+    When --worktree X is set, ralph.py and the agent both target the worktree's
+    .ralph/ regardless of where ralph.py was invoked from (main-repo cwd or
+    inside the worktree). This keeps the halt sentinel + plan file at a single
+    deterministic location. Without --worktree, fall back to cwd-relative
+    .ralph/ (single-checkout runs still work).
+    """
+    if worktree_name:
+        return _main_repo_root() / ".claude" / "worktrees" / worktree_name / ".ralph"
+    return (Path.cwd() / ".ralph").resolve()
 
 
 def format_remaining_time(minutes: int) -> str:
@@ -656,7 +695,7 @@ def load_tool_profiles(config_path: Path) -> dict[str, ToolProfile]:
 @dataclass
 class RalphConfig:
     mode: str = "build"
-    prompt_file: str = ".ralph/PROMPT_build.md"
+    ralph_base: Path = field(default_factory=lambda: (Path.cwd() / ".ralph").resolve())
     max_iterations: int = 0
     timeout_seconds: float = 7200.0  # 120m default
     branch: str = ""
@@ -670,6 +709,22 @@ class RalphConfig:
     tool_flags: list[str] = field(default_factory=list)
     gh_project_url: str = ""
     gh_project_disabled: bool = False
+
+    @property
+    def prompt_file(self) -> Path:
+        return self.ralph_base / f"PROMPT_{self.mode}.md"
+
+    @property
+    def halt_file(self) -> Path:
+        return self.ralph_base / "halt"
+
+    @property
+    def plan_file(self) -> Path:
+        return self.ralph_base / "@plan.md"
+
+    @property
+    def log_dir(self) -> Path:
+        return self.ralph_base / "logs"
 
 
 def _parse_tool_arg(raw: str) -> tuple[str, str]:
@@ -892,8 +947,9 @@ def build_config() -> RalphConfig:
     canonicals: dict[str, Any] = dict(profile.defaults)
     canonicals.update(cli_canonicals)
 
-    prompt_file = f".ralph/PROMPT_{args.mode}.md"
-    if not Path(prompt_file).is_file():
+    ralph_base = resolve_ralph_base(canonicals.get("worktree", "") or "")
+    prompt_file = ralph_base / f"PROMPT_{args.mode}.md"
+    if not prompt_file.is_file():
         print(f"Error: {prompt_file} not found", file=sys.stderr)
         sys.exit(1)
 
@@ -908,13 +964,13 @@ def build_config() -> RalphConfig:
 
     task_list_id = f"ralph-{branch.replace('/', '-')}"
 
-    halt = Path(".ralph/halt")
+    halt = ralph_base / "halt"
     if halt.exists():
         halt.unlink()
 
     return RalphConfig(
         mode=args.mode,
-        prompt_file=prompt_file,
+        ralph_base=ralph_base,
         max_iterations=args.max_iterations,
         timeout_seconds=parse_timeout(args.timeout),
         branch=branch,
@@ -1220,16 +1276,23 @@ class RalphApp(App):
 
     def on_mount(self) -> None:
         # Set up session log file
-        os.makedirs(".ralph/logs", exist_ok=True)
+        log_dir = self.config.log_dir
+        os.makedirs(log_dir, exist_ok=True)
         branch_slug = self.config.branch.replace("/", "-")
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        self._log_path = f".ralph/logs/{branch_slug}-{timestamp}.log"
+        self._log_path = str(log_dir / f"{branch_slug}-{timestamp}.log")
         self._log_file = open(self._log_path, "w")
 
         self.query_one("#footer", Static).update(
             f"  Shift+select to copy \u2502 o: open log \u2502 q: quit"
             f" \u2502 Log: {self._log_path}"
         )
+
+        # Startup banner — makes halt-path resolution visible in every log.
+        self._log_write(Text(
+            f"Ralph base: {self.config.ralph_base}  (cwd: {Path.cwd()})",
+            style="dim",
+        ))
 
         self._update_header()
         self.set_interval(1.0, self._tick_elapsed)
@@ -1461,7 +1524,7 @@ class RalphApp(App):
 
     def _resolve_current_issue(self) -> None:
         """Parse .ralph/@plan.md Context, look up matching issues."""
-        story_id, epic_id = parse_plan_context(Path(".ralph/@plan.md"))
+        story_id, epic_id = parse_plan_context(self.config.plan_file)
         self.current_story_id = story_id
         self.current_epic_id = epic_id
         self.current_issue = None
@@ -1547,7 +1610,7 @@ class RalphApp(App):
         self._log_write(self._section_header("HALT"))
         halt_text = ""
         try:
-            halt_text = Path(".ralph/halt").read_text()
+            halt_text = self.config.halt_file.read_text()
             self._log_write(halt_text)
         except FileNotFoundError:
             pass
@@ -1682,11 +1745,15 @@ class RalphApp(App):
 
             cmd = build_cli_cmd(cfg)
 
-            env = {**os.environ, "CLAUDE_CODE_TASK_LIST_ID": cfg.task_list_id}
+            env = {
+                **os.environ,
+                "CLAUDE_CODE_TASK_LIST_ID": cfg.task_list_id,
+                "RALPH_BASE_DIR": str(cfg.ralph_base),
+            }
             issue_block = self._build_issue_tracking_block(env)
 
             # Build prompt stdin content (optionally augmented with --prompt on iteration 1)
-            prompt_text = Path(cfg.prompt_file).read_text()
+            prompt_text = cfg.prompt_file.read_text()
             if issue_block:
                 prompt_text = f"{prompt_text.rstrip()}\n\n---\n\n{issue_block}"
             if cfg.initial_prompt and self.iteration == 1:
@@ -1746,14 +1813,35 @@ class RalphApp(App):
             if exit_code == 130:  # SIGINT
                 break
 
-            # Halt detection
-            if Path(".ralph/halt").exists():
+            # Halt detection (canonical: cfg.halt_file under ralph_base)
+            if cfg.halt_file.exists():
+                self.call_from_thread(self._on_halt)
+                break
+            # Defensive: catch legacy agents that still write to cwd-relative
+            # .ralph/halt when --worktree shifts the canonical path. Log a
+            # warning so the mis-target is obvious, then halt anyway.
+            legacy_halt = (Path.cwd() / ".ralph" / "halt").resolve()
+            if legacy_halt != cfg.halt_file and legacy_halt.exists():
+                self.call_from_thread(
+                    self._log_write,
+                    Text(
+                        f"⚠ halt detected at {legacy_halt} (expected {cfg.halt_file}). "
+                        f"Agent should write to $RALPH_BASE_DIR/halt.",
+                        style="yellow",
+                    ),
+                )
+                # Move it to the canonical location so _on_halt can read it.
+                try:
+                    cfg.halt_file.write_text(legacy_halt.read_text())
+                    legacy_halt.unlink()
+                except OSError:
+                    pass
                 self.call_from_thread(self._on_halt)
                 break
 
             # AWAIT_MERGE detection
             try:
-                with open(".ralph/@plan.md") as f:
+                with open(cfg.plan_file) as f:
                     for ip_line in f:
                         if ip_line.startswith("(AWAIT_MERGE"):
                             self.call_from_thread(self._on_await_merge)

@@ -58,7 +58,8 @@ Where content belongs, by audience and scope. When you learn something new durin
 - `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.
 - Loop prompts live at `.ralph/PROMPT_build.md` and `.ralph/PROMPT_plan.md`.
 - `RALPH.md` is Ralph's private journal — signposts, lessons, gotchas, decisions. Ralph reads it on orient and updates it before committing.
-- Full reference: [docs/ralph.md](./docs/ralph.md).
+- Halt + plan-file + PROMPT + logs resolve to `$RALPH_BASE_DIR` (an absolute path ralph.py exports to every subprocess). When `--worktree X` is set, `$RALPH_BASE_DIR = <main_repo>/.claude/worktrees/X/.ralph/`; otherwise cwd-relative `.ralph/`. Write halt via `$RALPH_BASE_DIR/halt` — never a hardcoded main-repo absolute path.
+- Full reference: [docs/ralph.md](./docs/ralph.md) — see § Halt path resolution.
 
 ## When you're unsure
 

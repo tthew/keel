@@ -182,14 +182,15 @@ Both are adapted for the `ralph-bmad` workflow: `bmad-*` skill naming, required-
 ```
 ralph.py (Textual App)
   ├── __main__: argparse → app.run()
-  ├── on_mount: start run_loop() worker
+  ├── on_mount: resolve $RALPH_BASE_DIR (see § Halt path resolution), start run_loop()
   └── run_loop() worker thread:
       for each iteration:
+        ├── export RALPH_BASE_DIR to subprocess env
         ├── subprocess.Popen(claude -p --output-format stream-json < PROMPT)
         ├── read stdout line by line → call_from_thread(process_event)
         ├── wait for exit → handle exit code
-        ├── check .ralph/halt file
-        ├── check AWAIT_MERGE in .ralph/@plan.md
+        ├── check $RALPH_BASE_DIR/halt file
+        ├── check AWAIT_MERGE in $RALPH_BASE_DIR/@plan.md
         └── continue or break
 ```
 
@@ -199,14 +200,39 @@ Since `ralph.py` owns the subprocess (not receiving piped stdin), Textual gets t
 
 | Feature                | Details                                                                                                                   |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Halt detection**     | Create `.ralph/halt` to stop the loop. Ralph reads and displays the halt reason.                                          |
-| **AWAIT_MERGE**        | Loop stops when `.ralph/@plan.md` contains a line starting with `(AWAIT_MERGE`.                                           |
+| **Halt detection**     | Create `$RALPH_BASE_DIR/halt` (worktree-resolved, see § Halt path resolution) to stop the loop. Ralph reads + displays the halt reason. |
+| **AWAIT_MERGE**        | Loop stops when `$RALPH_BASE_DIR/@plan.md` contains a line starting with `(AWAIT_MERGE`.                                   |
 | **Timeout**            | Per-iteration timer. On timeout, subprocess is terminated and mapped to exit code 124. Next iteration gets fresh context. |
 | **Task persistence**   | Sets `CLAUDE_CODE_TASK_LIST_ID` so native Tasks survive across iterations. Cleaned up on halt.                            |
+| **Env injection**      | Exports `RALPH_BASE_DIR` (absolute, worktree-resolved), `CLAUDE_CODE_TASK_LIST_ID`, and `RALPH_ISSUE_*` vars to every subprocess. |
 | **Exit code handling** | 130 = SIGINT (break), 124 = timeout (continue), other non-zero = error (continue).                                        |
 | **Session tracking**   | Cumulative cost and elapsed time across all iterations.                                                                   |
 | **ccusage integration**| If `ccusage` is on `$PATH`, shows 5h billing-block spend and remaining time.                                              |
-| **Session logs**       | Every run writes a log to `.ralph/logs/<branch>-<timestamp>.log`. `.ralph/logs/` is gitignored.                           |
+| **Session logs**       | Every run writes a log to `$RALPH_BASE_DIR/logs/<branch>-<timestamp>.log`. `logs/` is gitignored.                          |
+
+## Halt path resolution
+
+`ralph.py` resolves `.ralph/halt`, `.ralph/@plan.md`, `.ralph/PROMPT_*.md`, and `.ralph/logs/` to a single deterministic absolute directory, regardless of whether it was invoked from the main repo or from inside a worktree. The resolved path is exported to the subprocess env as `RALPH_BASE_DIR` so agent + orchestrator address the same files.
+
+**Algorithm:**
+
+- `--worktree <name>` set → `ralph_base = <main_repo>/.claude/worktrees/<name>/.ralph`, where `<main_repo>` is derived from `git rev-parse --git-common-dir` (cwd-invariant).
+- `--worktree` unset → `ralph_base = <cwd>/.ralph` (single-checkout fallback).
+
+| Invocation                                              | `--worktree`  | `RALPH_BASE_DIR` resolves to                                     |
+|---------------------------------------------------------|---------------|------------------------------------------------------------------|
+| `cd /repo && uv run ralph.py --worktree ralph`          | `ralph`       | `/repo/.claude/worktrees/ralph/.ralph`                           |
+| `cd /repo/.claude/worktrees/ralph && uv run ralph.py --worktree ralph` | `ralph` | `/repo/.claude/worktrees/ralph/.ralph` (same)      |
+| `cd /repo && uv run ralph.py`                           | _(none)_      | `/repo/.ralph`                                                   |
+| `cd /repo/.claude/worktrees/ralph && uv run ralph.py`   | _(none)_      | `/repo/.claude/worktrees/ralph/.ralph`                           |
+
+**Agent contract.** Agents MUST write halt via `$RALPH_BASE_DIR/halt` (or relative `.ralph/halt` from the worktree cwd — they coincide). **Never** use a hardcoded main-repo absolute path — that rule was a pre-fix workaround and is load-bearing-wrong. Reference incident: the 2026-04-20 Story 1.7 iter-22..28 re-entry cascade (halt-path mismatch between cwd-relative ralph.py and absolute-path-writing agent).
+
+**Startup banner.** Every session log's first line reads `Ralph base: <abs> (cwd: <abs>)` so resolver mismatches surface immediately. Check the banner when diagnosing halt non-detection.
+
+**Defensive dual-path halt read.** During the post-fix transition window, ralph.py also checks `cwd/.ralph/halt` as a fallback; if it fires, ralph.py migrates the file to `$RALPH_BASE_DIR/halt`, logs a warning, and halts. This safety net helps until cached agent prompts migrate.
+
+Normative spec: `docs/invariants/ralph-execute.md` § Path Resolution (FR14k + NFR33a + `INV-ralph-halt-path-resolution`).
 
 ## Loop contracts
 
@@ -257,7 +283,7 @@ Anti-constraints: never skip states; never invoke `/bmad-dev-story` outside `atd
 
 ### Halt schema
 
-`.ralph/halt` is JSON: `{"reason": "<enum>", "epic": <N|null>, "pr": "<url|null>"}`. Closed reason enum at 1.0: `EPIC_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`. `ralph.py` reads and displays; forks that replace the runtime honour the schema.
+`$RALPH_BASE_DIR/halt` is JSON: `{"reason": "<enum>", "epic": <N|null>, "pr": "<url|null>"}`. Closed reason enum at 1.0: `EPIC_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`, `RALPH_STAGE_REGRESSION`. `ralph.py` reads and displays; forks that replace the runtime honour the schema + path-resolution contract (see § Halt path resolution).
 
 ### Knowledge-file upkeep
 

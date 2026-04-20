@@ -172,7 +172,7 @@ git clone https://github.com/tthew/cc-devbox packages/devbox
 
 **Already decided by PRD (do NOT re-litigate):** TypeScript strict mode; Postgres + Prisma; tRPC; better-auth (DB-backed sessions, Google OAuth + email/password, step-up middleware, `requireRecentAuth`); Paddle (two hardwired shape presets); pg-boss; Resend; TanStack Start on Vite; Tailwind v4; react-hook-form + Zod; Zustand; OpenTelemetry; pnpm workspaces + Turborepo; prek + commitlint; release-please; Docker devbox (Ubuntu 24.04 LTS, non-root `dev`, NET_ADMIN/NET_RAW-only, noexec/nosuid tmpfs, fail-closed DNS, named-volume auth persistence); RLS parameterised over tenancy template via `current_setting('app.current_tenant_id')` + `tenantGuard()`; Google OAuth + email/password at 1.0 with SSO deferred to Growth-tier.
 
-**Critical Decisions (block implementation):** D1 `tenantGuard()` mechanism; D2 migration strategy; D3 synthetic-schema tiered strategy; S3 security-evidence schema; S5 §Egress-Policy Mechanism; G1–G6 §Generator-Normalization-Algorithm; R1 halt schema extensions; R2 `Required tests:` manifest format.
+**Critical Decisions (block implementation):** D1 `tenantGuard()` mechanism; D2 migration strategy; D3 synthetic-schema tiered strategy; S3 security-evidence schema; S5 §Egress-Policy Mechanism; G1–G6 §Generator-Normalization-Algorithm; R1 halt schema extensions; R2 `Required tests:` manifest format; R7 §Ralph Path-Resolution Contract.
 
 **Important Decisions (shape architecture):** D4 §RLS-Performance-Budget; S1 session storage & cleanup; S2 step-up middleware pattern; S4 prompt-injection scan tier; A1–A4 tRPC patterns; F1 component library; F2 design-token manifest; F3 routing & data-loading; F4 Zustand posture; I2 CI/CD workflows; I4 OTel defaults; I5 §Devbox-Reference-Config; R3 PR-lifecycle state machine; R4 knowledge-file upkeep.
 
@@ -376,7 +376,7 @@ All three are machine-parseable, versioned via `$schema`, and consumed by aggreg
 
 ### Ralph Loop Contracts (architecture-owned implementation)
 
-**R1. Halt schema extensions (confirms NFR33a).** Pinned JSON: `{"reason": "<enum>", "epic": <N|null>, "pr": "<url|null>", "iteration_id": "<uuid>", "timestamp": "<ISO8601>"}`. Closed enum: `EPIC_DONE | AWAIT_MERGE | BUDGET_EXHAUSTED | CI_BLOCKED | SECURITY_CRITICAL`. Architecture extends with `iteration_id` + `timestamp` for log correlation. **Affects:** `.ralph/halt`, `packages/keel-invariants/halt.schema.json`.
+**R1. Halt schema extensions (confirms NFR33a).** Pinned JSON: `{"reason": "<enum>", "epic": <N|null>, "pr": "<url|null>", "iteration_id": "<uuid>", "timestamp": "<ISO8601>"}`. Closed enum: `EPIC_DONE | AWAIT_MERGE | BUDGET_EXHAUSTED | CI_BLOCKED | SECURITY_CRITICAL | RALPH_STAGE_REGRESSION`. Architecture extends with `iteration_id` + `timestamp` for log correlation. Path resolution is spec'd separately in **R7** (`$RALPH_BASE_DIR/halt`). **Affects:** `.ralph/halt`, `packages/keel-invariants/halt.schema.json`.
 
 **R2. `Required tests:` manifest format (resolves FR14a2).** Content-hashed, append-only fenced block per-task in `.ralph/@plan.md`:
 
@@ -416,6 +416,26 @@ Pre-merge-fast rejects tasks where `manifest_hash` shrank or the `id` list shran
 The research-output framing: flake data is itself a research artefact. Aggregation into `docs/research/flake-log/` summary markdown is a deferrable tool; raw JSONL is sufficient at 1.0.
 
 **Affects:** `.ralph/flake-log/`, `packages/keel-invariants/src/schemas/flake-log.schema.json`, Vitest custom reporter in `packages/keel-invariants/src/flake-reporter.ts`, GH Actions workflow reporter step, M9 (measurement ship) + M10-or-breach (enforcement build).
+
+**R7. §Ralph Path-Resolution Contract (confirms FR14k + NFR33a).** The orchestrator (`ralph.py` or fork successor) and the agent (`claude --worktree X`) MUST resolve `.ralph/halt`, `.ralph/@plan.md`, `.ralph/PROMPT_*.md`, and `.ralph/logs/` to the same absolute directory, regardless of the orchestrator's cwd. Algorithm:
+
+```
+if cfg.worktree == "":                        # single-checkout fallback
+    ralph_base = abspath(cwd / ".ralph")
+else:                                         # worktree mode
+    main_repo = parent(`git rev-parse --git-common-dir`)
+    ralph_base = main_repo / ".claude/worktrees" / cfg.worktree / ".ralph"
+```
+
+`git rev-parse --git-common-dir` is cwd-invariant — it points at the main repo's `.git/` whether ralph.py was invoked from the main repo or from inside a worktree, so the resolved path is deterministic in both invocation modes.
+
+**Env contract.** Orchestrator MUST export `RALPH_BASE_DIR` (absolute) into the subprocess env alongside `CLAUDE_CODE_TASK_LIST_ID` / `RALPH_ISSUE_NUMBER`. Agents MUST address halt, @plan.md, and PROMPT files via `$RALPH_BASE_DIR` or via relative `.ralph/*` paths (which coincide with `$RALPH_BASE_DIR` when the agent cwd is the worktree) — **never** via hardcoded main-repo absolute paths. A startup banner emits `Ralph base: <abs> (cwd: <abs>)` as the first line of every session log so mismatches surface visibly.
+
+**Defensive dual-path.** During the transition window (while legacy agents may still carry the pre-fix "write halt to main-repo abs path" rule in memory), orchestrator halt detection SHOULD also check `cwd/.ralph/halt` as a fallback, migrate it to the canonical `$RALPH_BASE_DIR/halt` path, and log a warning. Remove the fallback at the next Keel major release after all downstream prompt/knowledge sets have migrated.
+
+**Why this matters.** The 2026-04-20 Story 1.7 iter-22..28 re-entry cascade was root-caused to a cwd-relative halt detection in `ralph.py` racing against an agent that had been told to write halt at the main-repo absolute path. When the orchestrator's cwd shifted to the worktree (user launched ralph.py from inside `.claude/worktrees/ralph`), the two paths diverged and ralph.py never saw the halt; the loop fired eight zero-action iterations inside a single process before the user killed it. A deterministic resolver + env var closes this class of bug without adding complexity to the agent prompt (the agent continues to use `.ralph/halt` relative to its own cwd, which is the worktree, which agrees with `RALPH_BASE_DIR`).
+
+**Affects:** `ralph.py` resolver + env-var injection + startup banner + defensive dual-path halt read; `docs/invariants/ralph-execute.md` § Path Resolution; `INVARIANTS.md` `INV-ralph-halt-path-resolution` row; `docs/ralph.md` § Halt path resolution; `CLAUDE.md` / `AGENTS.md` / `RALPH.md` / `.ralph/PROMPT_build.md` halt-command clarifications; Story 1.9 sync-gate walker (enforces path-resolution drift detection between ralph.py source + docs + manifest entry).
 
 ### §Generator-Normalization-Algorithm (PRD handoff for FR67)
 

@@ -150,7 +150,15 @@ Native Tasks are your crash journal — update task status as you progress so th
 
 ## Halt
 
-Halt when `Story State = done` AND QUEUE is empty AND no remaining open story in sprint-status for the current epic. `echo '{"reason":"EPIC_DONE","epic":N,"pr":PR}' > .ralph/halt` then exit normally. ralph.py detects and stops.
+Halt when `Story State = done` AND QUEUE is empty AND no remaining open story in sprint-status for the current epic. Write the halt sentinel to the canonical path:
+
+```
+echo '{"reason":"EPIC_DONE","epic":N,"pr":PR}' > "$RALPH_BASE_DIR/halt"
+```
+
+then exit normally. ralph.py reads `$RALPH_BASE_DIR/halt` and stops the loop.
+
+**Path rule.** `$RALPH_BASE_DIR` is exported by ralph.py at startup and resolves to the worktree's `.ralph/` when `--worktree X` is set (or cwd-relative `.ralph/` otherwise). Writing to a relative `.ralph/halt` from the worktree cwd is equivalent (both resolve to the same absolute path). Writing to a hardcoded main-repo absolute path (e.g. `/workspace/<repo>/.ralph/halt`) is **wrong** — ralph.py will not detect it and the loop will re-enter. Reference incident: the 2026-04-20 Story 1.7 iter-22..28 re-entry cascade. See `docs/ralph.md` § Halt path resolution for the resolver algorithm.
 
 ## Guardrails
 
