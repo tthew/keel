@@ -38,7 +38,7 @@ So that FR43 has teeth from day 1 (Party-Mode Round 2 / W2 amendment).
 6. **Given** the tool's exit codes,
    **When** Epic 13 wires it into GitHub Actions,
    **Then** non-zero reliably fails the workflow and the drift report renders in CI logs.
-   **Story 1.9 scope carve-out:** the CI workflow itself lands with Epic 13 (F/E pipeline story). Story 1.9 delivers the CLI + exit-code contract (0 = clean; non-zero = drift, with the structured report on stdout); Epic 13 wires the `.github/workflows/*.yml` step that invokes `pnpm keel-invariants:check`. Verification at Story 1.9 time is via local CLI invocation (clean repo → exit 0; induced drift → exit non-zero with structured JSON report on stdout).
+   **Story 1.9 scope carve-out:** the CI workflow itself lands with Epic 13 (F/E pipeline story). Story 1.9 delivers the CLI + exit-code contract (0 = clean; non-zero = drift, with the structured report on stderr); Epic 13 wires the `.github/workflows/*.yml` step that invokes `pnpm keel-invariants:check`. Verification at Story 1.9 time is via local CLI invocation (clean repo → exit 0; induced drift → exit non-zero with structured JSON report on stderr).
 
 7. **Given** the tool is callable locally,
    **When** run on the baseline repo,
