@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T00:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.7",
+    "label": "Invariants knowledge files (INVARIANTS/AGENTS/CLAUDE/RALPH) with promotion rules"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Documentation-artefact story whose § Testing Standards explicitly defers per-AC automated coverage to Stories 1.8 (invariants.manifest.ts) + 1.9 (FR43 sync-gate) + Epic 3 (RS6 lint). The deterministic FAIL signal (overall 0% < 80%) is a structural false-positive; the waiver is stakeholder-authored in the story file itself. All substrate quality gates (typecheck / lint / format:check / commitlint / prek-runner) landed green at dev-story.",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}
