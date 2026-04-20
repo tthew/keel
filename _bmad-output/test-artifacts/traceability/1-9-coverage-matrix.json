@@ -68,7 +68,7 @@
       "tests": [],
       "substrate_verification": "End-to-end via iter-8 Task-5 docs-side orphan-anchor smoke (append `INV-fake-orphan` anchor → exit 1 + `removed-from-docs-only`; revert; byte-identical restore) per story file line 143. Anchor-walker enumerates INVARIANTS.md anchors via `/^-\\s+\\*\\*\\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\\`\\*\\*/gm` regex (story file lines 52, 127). Manifest-row-without-anchor branch is the symmetric case. All 10 production anchors have matching manifest rows post-Task-2; AC-5 branch verified by ephemeral injection in the smoke.",
       "scope_notes": "Story 1.9 Task 2 closed the pre-existing `INV-ralph-halt-path-resolution` docs-only drift by adding the 10th manifest entry (story file lines 57–71). Baseline now clean → AC 5 branch not actively triggered.",
-      "level_notes": "structural"
+      "level_notes": "smoke (shell) — end-to-end evidence"
     },
     {
       "id": "AC-6",
