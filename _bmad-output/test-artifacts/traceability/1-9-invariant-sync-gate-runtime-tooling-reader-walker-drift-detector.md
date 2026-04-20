@@ -214,10 +214,10 @@ Priority classification per `test-priorities-matrix.md`:
    - Impact: LOW — smoke evidence captured for the highest-traffic drift class (every source-file edit is a potential trigger); manifest hash discipline is the load-bearing invariant.
 
 5. **AC-5: Removal drift (docs side)** (P1)
-   - Current Coverage: NONE — structural only (anchor-walker → no-matching-manifest-row → `removed-from-docs-only`).
-   - Missing Tests: runtime smoke triggering `removed-from-docs-only`; test-runner structural test.
-   - Recommend: Accept structural realisation + Task 2 pre-existing drift closure as evidence the branch works (Task 2's `INV-ralph-halt-path-resolution` add was functionally the "close AC-5 drift" case — if the branch were broken, the post-Task-2 clean-path smoke would have reported drift).
-   - Impact: LOW — small pure function branch; adversarial CR (Blind Hunter) is the 1.9 backstop.
+   - Current Coverage: NONE (no automated test); **SUBSTRATE_VERIFIED end-to-end via iter-8 Task 5 docs-side orphan-anchor smoke** (strongest evidence: append `INV-fake-orphan` anchor line to `INVARIANTS.md` → exit 1 + `removed-from-docs-only` DriftReport; revert; byte-identical restore verified).
+   - Missing Tests: test-runner-hosted unit test; CI re-exercise (Epic 13).
+   - Recommend: Accept smoke as strong substrate evidence for the docs-side branch; Story 1.16 backfills unit coverage; Task 2 `INV-ralph-halt-path-resolution` pre-existing drift closure is the load-bearing complement (the original 10th-entry gap was an instance of `removed-from-docs-only` that Task 2 explicitly closed — if the branch were broken, the post-Task-2 clean-path smoke would have reported drift).
+   - Impact: LOW — smoke evidence captured for the docs-side removal-drift branch; all 10 production anchors have matching manifest rows post-Task-2 (contract: anchor authors must co-update manifest in the same PR).
 
 ---
 
