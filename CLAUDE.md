@@ -38,19 +38,30 @@ The loop halts on `.ralph/halt`, on `(AWAIT_MERGE` in `.ralph/@plan.md`, or at `
 
 ## Knowledge-file contract
 
-Three files serve distinct audiences. Don't conflate them.
+Four files serve distinct audiences. Don't conflate them.
 
-| File        | Audience                           | Contents                                                                   |
-| ----------- | ---------------------------------- | -------------------------------------------------------------------------- |
-| `AGENTS.md` | Any AI agent (Claude, Codex, etc.) | Authoritative operational guide — conventions, paths, git rules            |
-| `CLAUDE.md` | Claude Code specifically           | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and RALPH.md |
-| `RALPH.md`  | Ralph (autonomous loop)            | Ralph's private journal — signposts, lessons, gotchas, decisions           |
+| File            | Audience                                       | Contents                                                                                                                         |
+| --------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `AGENTS.md`     | Any AI agent (Claude, Codex, etc.)             | Authoritative operational guide — conventions, paths, git rules                                                                  |
+| `CLAUDE.md`     | Claude Code specifically                       | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and RALPH.md                                                       |
+| `RALPH.md`      | Ralph (autonomous loop)                        | Ralph's private journal — signposts, lessons, gotchas, decisions                                                                 |
+| `INVARIANTS.md` | Any AI agent or human — machine-enforced rules | Agent-readable index of stable IDs mapping to `packages/keel-invariants/` (FR42; drift-detected by Story 1.9 sync-gate per FR43) |
 
 When you discover something new during a session:
 
 - Applies to every agent → promote to `AGENTS.md`
 - Claude-Code-specific (skill behavior, `.claude/` config) → `CLAUDE.md`
 - Ralph-flavored (gotchas, iteration lessons, rationale for past choices) → `RALPH.md`
+- Machine-enforced (config / lint rule / pre-merge gate in code) → `INVARIANTS.md` + `packages/keel-invariants/`
+
+## Promotion rules
+
+| Audience / scope                            | File                                          |
+| ------------------------------------------- | --------------------------------------------- |
+| Applies to every AI agent (ops + truth)     | `AGENTS.md`                                   |
+| Claude-Code-specific (skills, settings)     | `CLAUDE.md`                                   |
+| Ralph-gotchas (iteration-loop lessons)      | `RALPH.md`                                    |
+| Machine-enforced (config/rule/gate in code) | `INVARIANTS.md` + `packages/keel-invariants/` |
 
 ## Claude Code specifics
 

@@ -1,6 +1,6 @@
 # Story 1.7: Invariants knowledge files (INVARIANTS/AGENTS/CLAUDE/RALPH) with promotion rules
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -37,8 +37,8 @@ so that I know which file to read and which to write to (FR42; baseline for FR14
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Author `INVARIANTS.md` at repo root** (AC: 1, 2, 3)
-  - [ ] Create `/workspace/ralph-bmad/.claude/worktrees/ralph/INVARIANTS.md` (i.e. `{repo-root}/INVARIANTS.md`). Use the following skeleton:
+- [x] **Task 1: Author `INVARIANTS.md` at repo root** (AC: 1, 2, 3)
+  - [x] Create `/workspace/ralph-bmad/.claude/worktrees/ralph/INVARIANTS.md` (i.e. `{repo-root}/INVARIANTS.md`). Use the following skeleton:
     ```markdown
     # INVARIANTS.md — agent-readable index of machine-enforced rules
 
@@ -95,14 +95,14 @@ so that I know which file to read and which to write to (FR42; baseline for FR14
 
     Forks that disagree with an invariant extend via `eslint.config.fork.js extends eslint.config.keel-invariants.js` (and equivalent for prettier / commitlint / tsconfig). Source-layer changes to `packages/keel-invariants/` itself require a PR that updates the `invariants.manifest.ts` + `INVARIANTS.md` anchor together — this is the "source-level fork" path (FR32; Story 1.6 + 1.9).
     ```
-  - [ ] Verify the file parses as Markdown (opens cleanly in any viewer) and is under `.prettierignore`-compatible formatting (prettier will format root `.md` — run `pnpm format:check` at Task 3, fix if needed).
-  - [ ] Verify every `Source:` pointer resolves to an existing file: `packages/keel-invariants/tsconfig.base.json`, `packages/keel-invariants/eslint.config.keel-invariants.js`, `packages/keel-invariants/prettier.config.keel-invariants.js`, `packages/keel-invariants/commitlint.config.keel-invariants.js`, `packages/keel-invariants/src/eslint-rules/no-verify-bypass.js`, `packages/keel-invariants/src/eslint-rules/index.js`, `{repo-root}/.pre-commit-config.yaml`, `{repo-root}/package.json`. If any pointer is stale (e.g. a path renamed since spec authorship), update the pointer before committing.
+  - [x] Verify the file parses as Markdown (opens cleanly in any viewer) and is under `.prettierignore`-compatible formatting (prettier will format root `.md` — run `pnpm format:check` at Task 3, fix if needed).
+  - [x] Verify every `Source:` pointer resolves to an existing file: `packages/keel-invariants/tsconfig.base.json`, `packages/keel-invariants/eslint.config.keel-invariants.js`, `packages/keel-invariants/prettier.config.keel-invariants.js`, `packages/keel-invariants/commitlint.config.keel-invariants.js`, `packages/keel-invariants/src/eslint-rules/no-verify-bypass.js`, `packages/keel-invariants/src/eslint-rules/index.js`, `{repo-root}/.pre-commit-config.yaml`, `{repo-root}/package.json`. If any pointer is stale (e.g. a path renamed since spec authorship), update the pointer before committing.
 
-- [ ] **Task 2: Align audience headers + promotion rules in `AGENTS.md` / `CLAUDE.md` / `RALPH.md`** (AC: 1, 2, 4, 5)
-  - [ ] Ensure `AGENTS.md`'s header already names its audience ("provider-neutral guide for any AI coding agent") and has the four-line promotion rule verbatim. Current `AGENTS.md` has a partial mapping under "How to work here" / related prose but does NOT yet include the machine-enforced → `INVARIANTS.md` + `packages/keel-invariants/` line. **Action:** add a top-level `## Promotion rules` section (near the top, after the "What this project is" section) with the four-line mapping table verbatim (same table shape as `INVARIANTS.md`). This is the AC 2 verbatim anchor; the existing "When you discover something new" prose in `CLAUDE.md` is separate and can remain as is.
-  - [ ] Ensure `CLAUDE.md`'s header names its audience ("guidance to Claude Code ... when working with code in this repository") and the body points at `AGENTS.md` as source of truth (already does — Story 1.7 only needs to verify + add the INVARIANTS.md promotion-rule line). **Action:** extend the existing "Knowledge-file contract" table in `CLAUDE.md` to include an `INVARIANTS.md` row: `| INVARIANTS.md | Any AI agent or human — machine-enforced rules | Agent-readable index of stable IDs mapping to packages/keel-invariants/ (FR42; drift-detected by Story 1.9 sync-gate per FR43) |`. Also add the four-line promotion rule in the same verbatim form as `INVARIANTS.md` (either as a new section or merged into the existing promotion-rule prose).
-  - [ ] Ensure `RALPH.md`'s header names its audience ("notes from Ralph, to Ralph") and documents its scope (private journal; append-only-in-spirit; hard lint enforcement lands in Epic 3 per RS6). Current header has audience + "Rules:" prose covering append-don't-rewrite / keep terse / date-every-entry / prune. **Action:** add a one-line pinned scope note right after the audience sentence: `_Scope: Ralph's private journal. Append-only-in-spirit (hard lint enforcement lands in Epic 3 per RS6 — until then, discipline is self-policed)._` This satisfies AC 5. Also add the four-line promotion rule (same verbatim form) — place it as a sibling to the existing "Rules:" block, since the existing rule is about RALPH.md's own upkeep while the promotion rule is about which file OTHER content belongs in.
-  - [ ] Verify the four promotion-rule blocks are textually identical across the four files (character-exact). Use a diff tool or grep to confirm. The canonical form:
+- [x] **Task 2: Align audience headers + promotion rules in `AGENTS.md` / `CLAUDE.md` / `RALPH.md`** (AC: 1, 2, 4, 5)
+  - [x] Ensure `AGENTS.md`'s header already names its audience ("provider-neutral guide for any AI coding agent") and has the four-line promotion rule verbatim. Current `AGENTS.md` has a partial mapping under "How to work here" / related prose but does NOT yet include the machine-enforced → `INVARIANTS.md` + `packages/keel-invariants/` line. **Action:** add a top-level `## Promotion rules` section (near the top, after the "What this project is" section) with the four-line mapping table verbatim (same table shape as `INVARIANTS.md`). This is the AC 2 verbatim anchor; the existing "When you discover something new" prose in `CLAUDE.md` is separate and can remain as is.
+  - [x] Ensure `CLAUDE.md`'s header names its audience ("guidance to Claude Code ... when working with code in this repository") and the body points at `AGENTS.md` as source of truth (already does — Story 1.7 only needs to verify + add the INVARIANTS.md promotion-rule line). **Action:** extend the existing "Knowledge-file contract" table in `CLAUDE.md` to include an `INVARIANTS.md` row: `| INVARIANTS.md | Any AI agent or human — machine-enforced rules | Agent-readable index of stable IDs mapping to packages/keel-invariants/ (FR42; drift-detected by Story 1.9 sync-gate per FR43) |`. Also add the four-line promotion rule in the same verbatim form as `INVARIANTS.md` (either as a new section or merged into the existing promotion-rule prose).
+  - [x] Ensure `RALPH.md`'s header names its audience ("notes from Ralph, to Ralph") and documents its scope (private journal; append-only-in-spirit; hard lint enforcement lands in Epic 3 per RS6). Current header has audience + "Rules:" prose covering append-don't-rewrite / keep terse / date-every-entry / prune. **Action:** add a one-line pinned scope note right after the audience sentence: `_Scope: Ralph's private journal. Append-only-in-spirit (hard lint enforcement lands in Epic 3 per RS6 — until then, discipline is self-policed)._` This satisfies AC 5. Also add the four-line promotion rule (same verbatim form) — place it as a sibling to the existing "Rules:" block, since the existing rule is about RALPH.md's own upkeep while the promotion rule is about which file OTHER content belongs in.
+  - [x] Verify the four promotion-rule blocks are textually identical across the four files (character-exact). Use a diff tool or grep to confirm. The canonical form:
     ```markdown
     | Audience / scope                            | File                                           |
     | ------------------------------------------- | ---------------------------------------------- |
@@ -111,17 +111,17 @@ so that I know which file to read and which to write to (FR42; baseline for FR14
     | Ralph-gotchas (iteration-loop lessons)      | `RALPH.md`                                     |
     | Machine-enforced (config/rule/gate in code) | `INVARIANTS.md` + `packages/keel-invariants/`  |
     ```
-  - [ ] After edits, run `pnpm format` (or `pnpm format:write` if that's the shim) on the four files — Prettier will normalize table column widths. Commit any format-fix in this task (see Story 1.2 Task 7 precedent for markdown format reflow being turbo-cache-safe).
+  - [x] After edits, run `pnpm format` (or `pnpm format:write` if that's the shim) on the four files — Prettier will normalize table column widths. Commit any format-fix in this task (see Story 1.2 Task 7 precedent for markdown format reflow being turbo-cache-safe).
 
-- [ ] **Task 3: Quality gates + sprint-status bump** (no AC — substrate verification)
-  - [ ] `pnpm install` at repo root. Should report `Lockfile is up to date` / `Already up to date`. `prepare` re-runs `prek install -t pre-commit -t commit-msg` idempotently (both shims already installed from Stories 1.4/1.5 Task 1).
-  - [ ] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on first invocation (no TS inputs touched; INVARIANTS.md / AGENTS.md / CLAUDE.md / RALPH.md are not turbo typecheck inputs — same property as Stories 1.2–1.6 verification iterations).
-  - [ ] `pnpm -w lint` — expect 16/16 `>>> FULL TURBO` on first invocation (no ESLint inputs touched; `.md` files aren't lint inputs).
-  - [ ] `pnpm format:check` — must exit 0. If markdown files failed format-check, loop back to Task 2's `pnpm format` step (Prettier-fmt is the source of truth).
-  - [ ] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems across the full branch (spec + iter-1 + Tasks 1–3). Warnings OK (`footer-leading-blank` is warn severity per Story 1.6 Task 3 precedent).
-  - [ ] `pnpm exec prek run --all-files` — all 3 pre-commit-stage hooks `Passed` (TypeScript type-check / ESLint / Prettier format:check). Confirms git-hook-path parity.
-  - [ ] Bump `_bmad-output/implementation-artifacts/sprint-status.yaml`: `1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: ready-for-dev → done`, `last_updated: 2026-04-20 Task-3 UTC`. **Co-land in Task 3's commit** (preemptive-orphan-prevention — Stories 1.1–1.6 precedent; seventh story-implementation confirmation).
-  - [ ] Flip this story file's Status to `done` + mark all Task subtasks `[x]` + populate `## Dev Agent Record` (Agent Model Used / Debug Log References / Completion Notes List / File List).
+- [x] **Task 3: Quality gates + sprint-status bump** (no AC — substrate verification)
+  - [x] `pnpm install` at repo root. Should report `Lockfile is up to date` / `Already up to date`. `prepare` re-runs `prek install -t pre-commit -t commit-msg` idempotently (both shims already installed from Stories 1.4/1.5 Task 1).
+  - [x] `pnpm -w typecheck` — expect 16/16 `>>> FULL TURBO` on first invocation (no TS inputs touched; INVARIANTS.md / AGENTS.md / CLAUDE.md / RALPH.md are not turbo typecheck inputs — same property as Stories 1.2–1.6 verification iterations).
+  - [x] `pnpm -w lint` — expect 16/16 `>>> FULL TURBO` on first invocation (no ESLint inputs touched; `.md` files aren't lint inputs).
+  - [x] `pnpm format:check` — must exit 0. If markdown files failed format-check, loop back to Task 2's `pnpm format` step (Prettier-fmt is the source of truth).
+  - [x] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems across the full branch (spec + iter-1 + Tasks 1–3). Warnings OK (`footer-leading-blank` is warn severity per Story 1.6 Task 3 precedent).
+  - [x] `pnpm exec prek run --all-files` — all 3 pre-commit-stage hooks `Passed` (TypeScript type-check / ESLint / Prettier format:check). Confirms git-hook-path parity.
+  - [x] Bump `_bmad-output/implementation-artifacts/sprint-status.yaml`: `1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: ready-for-dev → done`, `last_updated: 2026-04-20 Task-3 UTC`. **Co-land in Task 3's commit** (preemptive-orphan-prevention — Stories 1.1–1.6 precedent; seventh story-implementation confirmation).
+  - [x] Flip this story file's Status to `done` + mark all Task subtasks `[x]` + populate `## Dev Agent Record` (Agent Model Used / Debug Log References / Completion Notes List / File List).
 
 ## Dev Notes
 
@@ -167,10 +167,33 @@ so that I know which file to read and which to write to (FR42; baseline for FR14
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.7 (1M context) — invoked as `/bmad-dev-story` per Ralph lifecycle state `atdd-scaffolded → in-dev` (with ATDD skip per FR14n matrix row 3; rationale pinned in `.ralph/@plan.md` § ATDD Skip Rationale and Story file § Testing Standards line 141).
 
 ### Debug Log References
 
+- `pnpm install` → `Lockfile is up to date` / `Already up to date`; `prepare` re-ran `prek install -t pre-commit -t commit-msg` idempotently (756–856ms).
+- `pnpm -w typecheck` → 16/16 `>>> FULL TURBO` (228ms; no TS inputs touched this iteration).
+- `pnpm -w lint` → 16/16 `>>> FULL TURBO` (179ms; no ESLint inputs touched).
+- `pnpm format:check` → exit 0 (`All matched files use Prettier code style!` — Prettier normalized CLAUDE.md's Knowledge-file contract table column widths to fit the new INVARIANTS.md row; AGENTS.md / RALPH.md / INVARIANTS.md unchanged by `prettier --write`).
+- `pnpm exec commitlint --from origin/main --to HEAD --verbose` → 0 problems, 0 warnings across the 4 in-flight branch commits prior to this commit (spec + iter-1 + iter-2 + iter-3). Will rise to 5 once this commit lands; AC-check deferred to post-push `commit-msg` hook invocation.
+- `pnpm exec prek run --all-files` → all 3 pre-commit-stage hooks `Passed` (TypeScript type-check / ESLint / Prettier format:check); confirms git-hook-path parity (Stories 1.4/1.5 gate).
+- All 8 INVARIANTS.md `Source:` pointers `ls`-verified before authoring: `packages/keel-invariants/{tsconfig.base.json,eslint.config.keel-invariants.js,prettier.config.keel-invariants.js,commitlint.config.keel-invariants.js,src/eslint-rules/no-verify-bypass.js,src/eslint-rules/index.js}` + `{repo-root}/{.pre-commit-config.yaml,package.json}`.
+- Promotion-rule table verbatim-match verified via `Grep` across the four knowledge files (`INVARIANTS.md` / `AGENTS.md` / `CLAUDE.md` / `RALPH.md`) — all four contain the canonical 4-row form + the `Machine-enforced (config/rule/gate in code) | INVARIANTS.md + packages/keel-invariants/` row (AC 2 pinned-verbatim requirement).
+
 ### Completion Notes List
 
+- **Task 1 complete.** `INVARIANTS.md` authored at repo root using the spec skeleton verbatim (lines 43–97 of the story file). 9 invariants indexed across 5 categories (Shared configs / Import-boundary / prek pre-commit / prek commit-msg / Hook-bypass). Provisional-ID HTML comment included under index header giving Story 1.8's manifest emitter explicit license to rename IDs. All source-file pointers use the canonical repo-root form (no absolute worktree paths).
+- **Task 2 complete.** All three existing knowledge files now carry the canonical `## Promotion rules` table verbatim. AGENTS.md: new `## Promotion rules` section inserted between "What this project is" and "Where things live". CLAUDE.md: Knowledge-file contract table extended from 3 → 4 rows (added INVARIANTS.md row per FR42's "referenced by CLAUDE.md" requirement); "When you discover something new" prose extended with a 4th bullet for machine-enforced → INVARIANTS.md + packages/keel-invariants/; new `## Promotion rules` section with the canonical 4-row table. RALPH.md: single italicised scope note inserted after the audience paragraph (AC 5: "private journal; append-only-in-spirit; hard lint enforcement lands in Epic 3 per RS6 — until then, discipline is self-policed"); `## Promotion rules` section added before Signposts as sibling to the existing "Rules:" upkeep block. Prettier normalized CLAUDE.md's column widths; other three files were already Prettier-clean.
+- **Task 3 complete.** All 6 quality gates pass (install / typecheck / lint / format:check / commitlint / prek). Sprint-status bumped `1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: in-progress → done` with `last_updated: 2026-04-20 Task-3 UTC`. Co-landed in this commit per Stories 1.1–1.6 precedent (preemptive-orphan-prevention; seventh consecutive story-implementation confirmation).
+- **ATDD skip rationale (FR14n matrix row 3) — pinned.** Story 1.7 is a documentation-artifact story with no runtime behaviour to probe. All 5 ACs are static-content checks (file existence + audience-header presence + promotion-rule verbatim-match + INVARIANTS.md index entries + RALPH.md scope note). Story file § Testing Standards line 141 pre-declares: _"no runtime assertion needed until Story 1.9's sync-gate lands."_ Quality gates (typecheck / lint / format:check / commitlint / prek) remain mandatory and are NOT ATDD probes — they are substrate verification.
+- **Scope carve-out (second application of Story 1.6's pattern).** AC 3's canonical list (content hashes, Zod schema, runtime load) ships in Story 1.8's `invariants.manifest.ts`. Story 1.9's sync-gate (FR43) drift-checks INVARIANTS.md anchors vs manifest IDs at pre-merge. Story 1.7 delivers the HUMAN-readable scaffold only — IDs + descriptions + source-file pointers.
+- **Verification-only iteration property holds.** Typecheck + lint hit FULL TURBO on first invocation because the only source changes this iteration are `.md` and `.yaml` artefacts — not turbo typecheck or ESLint inputs. Seventh consecutive story-implementation confirmation of this property.
+
 ### File List
+
+- **NEW:** `INVARIANTS.md` — agent-readable index of 9 machine-enforced invariants with provisional IDs + promotion-rule table (repo root).
+- **EDIT:** `AGENTS.md` — added `## Promotion rules` section with canonical 4-row table.
+- **EDIT:** `CLAUDE.md` — extended Knowledge-file contract table with INVARIANTS.md row; added 4th bullet to "When you discover something new" prose; added `## Promotion rules` section with canonical 4-row table.
+- **EDIT:** `RALPH.md` — added italicised scope note after audience paragraph; added `## Promotion rules` section before Signposts.
+- **EDIT:** `_bmad-output/implementation-artifacts/sprint-status.yaml` — bumped `1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: in-progress → done`; `last_updated: 2026-04-20 Task-3 UTC`.
+- **EDIT:** `_bmad-output/implementation-artifacts/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md` — flipped Status `ready-for-dev → done`; ticked all Task/subtask checkboxes; populated Dev Agent Record.

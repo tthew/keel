@@ -8,6 +8,17 @@ This file is the provider-neutral guide for any AI coding agent working in this 
 
 The install is fresh. There is no product code yet. The first real work is a planning artifact (PRD, product brief, or PRFAQ), not code.
 
+## Promotion rules
+
+Where content belongs, by audience and scope. When you learn something new during a session, promote to the correct file.
+
+| Audience / scope                            | File                                          |
+| ------------------------------------------- | --------------------------------------------- |
+| Applies to every AI agent (ops + truth)     | `AGENTS.md`                                   |
+| Claude-Code-specific (skills, settings)     | `CLAUDE.md`                                   |
+| Ralph-gotchas (iteration-loop lessons)      | `RALPH.md`                                    |
+| Machine-enforced (config/rule/gate in code) | `INVARIANTS.md` + `packages/keel-invariants/` |
+
 ## Where things live
 
 | Path                                     | What's there                                             |
