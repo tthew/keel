@@ -46,7 +46,7 @@
       "priority": "P1",
       "coverage": "NONE",
       "tests": [],
-      "substrate_verification": "Structural only — sync-gate.ts path: `fs.readFile` rejection → `actualHash = null` → Drift kind `removed-from-source-only` (story file line 139 branch). Not exercised in smoke (all 7 distinct sourcePath files exist on baseline).",
+      "substrate_verification": "Structural only — sync-gate.ts path: `fs.readFile` rejection → `actualHash = null` → Drift kind `removed-from-source-only` (story file line 139 branch). Not exercised in smoke (all 8 distinct sourcePath files exist on baseline).",
       "scope_notes": "Small pure-function branch; TypeScript compile-time check + adversarial CR pass are the agreed verification surface at 1.9. Unit-test landing in Story 1.16 (test-runner wiring) can backfill.",
       "level_notes": "structural"
     },
@@ -87,7 +87,7 @@
       "coverage": "NONE",
       "tests": [],
       "substrate_verification": "Task 5 performance smoke: `time pnpm keel-invariants:check` → 0.77s wall-clock — well under AC 7's 2s budget; >2x headroom (story file lines 96, 143). Dedup of shared-source reads + `Promise.all` parallelism is load-bearing for the <500ms internal target.",
-      "scope_notes": "Baseline substrate = 7 distinct source files (10 invariants dedupe to 7). sha256 on files this size (largest ~8KB) <1ms each; file-read IO dominates; cold <100ms expected, warm <20ms. 2s budget leaves ~20x headroom for growth to ~200 invariants.",
+      "scope_notes": "Baseline substrate = 8 distinct source files (10 invariants dedupe to 8). sha256 on files this size (largest ~8KB) <1ms each; file-read IO dominates; cold <100ms expected, warm <20ms. 2s budget leaves ~20x headroom for growth to ~200 invariants.",
       "level_notes": "smoke (shell timing) — end-to-end evidence"
     }
   ],

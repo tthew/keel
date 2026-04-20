@@ -113,7 +113,7 @@ Priority classification per `test-priorities-matrix.md`:
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
   - Branch exists in `sync-gate.ts`: on `fs.readFile` rejection, `actualHash = null` → Drift kind `removed-from-source-only` with `id` + `sourcePath` (story file line 139).
-  - Not exercised in smoke — all 7 distinct `sourcePath` files exist on the baseline repo post-Task-2 (`tsconfig.base.json`, `eslint.config.keel-invariants.js`, `prettier.config.keel-invariants.js`, `commitlint.config.keel-invariants.js`, `src/eslint-rules/no-verify-bypass.js`, `.pre-commit-config.yaml`, `package.json`, `docs/invariants/ralph-execute.md`).
+  - Not exercised in smoke — all 8 distinct `sourcePath` files exist on the baseline repo post-Task-2 (`tsconfig.base.json`, `eslint.config.keel-invariants.js`, `prettier.config.keel-invariants.js`, `commitlint.config.keel-invariants.js`, `src/eslint-rules/no-verify-bypass.js`, `.pre-commit-config.yaml`, `package.json`, `docs/invariants/ralph-execute.md`).
 - **Gaps:** No runtime smoke triggering `removed-from-source-only`; no test-runner-hosted structural test.
 - **Recommendation:** Accept structural realisation — branch is a small pure function (file-read rejection → Drift emission). CR adversarial pass (Edge Case Hunter) is the agreed backstop. Story 1.16 can backfill unit coverage. WAIVED.
 
@@ -168,7 +168,7 @@ Priority classification per `test-priorities-matrix.md`:
 - **Substrate verification (non-gate-eligible evidence — strong signal):**
   - Task 5 performance smoke (story file lines 96, 143): `time pnpm keel-invariants:check` → **0.77s wall-clock** — well under AC 7's 2s budget; >2x headroom.
   - Implementation choices load-bearing for the internal <500ms target (story file line 55, 128):
-    - Shared-source dedup via `uniqueSourcePaths` Set → 7 distinct file reads (not 10) for the current substrate.
+    - Shared-source dedup via `uniqueSourcePaths` Set → 8 distinct file reads (not 10) for the current substrate.
     - `Promise.all()` parallelises file-read IO.
     - sha256 on files this size (largest ~8KB) <1ms each; file-read IO dominates.
     - Cold start expected <100ms; warm (OS page cache) <20ms. 2s budget leaves ~20x headroom for growth to ~200 invariants before performance pressure surfaces.
