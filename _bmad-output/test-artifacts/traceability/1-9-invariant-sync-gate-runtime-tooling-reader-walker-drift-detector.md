@@ -138,7 +138,7 @@ Priority classification per `test-priorities-matrix.md`:
 - **Coverage:** NONE ❌ — structural only.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
-  - Anchor-walker implementation (story file line 52, 127): regex `/^-\s+\*\*\`([A-Z][A-Z0-9-]+)\`\*\*/gm` enumerates `INV-*` anchors in `INVARIANTS.md § Invariants index` (10 current anchors at `INVARIANTS.md:24-48`).
+  - Anchor-walker implementation (story file line 52, 127): regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` enumerates `INV-*` anchors in `INVARIANTS.md § Invariants index` (10 current anchors at `INVARIANTS.md:24-48`).
   - Drift detector branch: anchors in `INVARIANTS.md` with no matching manifest entry → `Drift { kind: 'removed-from-docs-only', anchor }` (story file line 53, 128).
   - Not exercised in smoke — all 10 anchors have matching manifest rows post-Task-2 (which closed the pre-existing `INV-ralph-halt-path-resolution` docs-only drift by adding the 10th manifest entry per story file lines 57–71).
 - **Gaps:** No runtime smoke triggering `removed-from-docs-only`; no test-runner-hosted structural test.
