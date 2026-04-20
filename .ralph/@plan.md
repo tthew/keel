@@ -2,18 +2,19 @@
 
 ## NOW
 
-- [ ] CR fix Q/5 [LOW]: `trace.md:190` vocabulary normalise — swap `**runner-hosted**` → `**test-runner-hosted**` at Fix L preamble. Every other trace.md site (:91, :105, :131, :161, :176) uses `test-runner-hosted`. Pure vocabulary stability — zero substantive claim change. ~small
-
-## QUEUE (Story 1.9 — CR re-run #5 outcome processed: iter-33 Fix O ✓ + iter-34 Fix P ✓; 1 LOW remaining + CR re-run #6; Story State stays `fixes-pending`)
-
 - [ ] CR re-run #6: `/bmad-code-review (args: "2")` adversarial triage against post-Fix-M/N/O/P/Q diff. Expected outcome per FR14n matrix row 10 single-transition edge: zero findings across all 3 layers → `fixes-pending → sm-verified → done`. If new findings surface (seventh round), queue fix tasks and stay `fixes-pending`. Halving hypothesis already falsified at rounds 4 + 5; residual-risk at CR re-run #6 is SIBLING-FIELD-PARALLEL-CASCADE (vocabulary inflation from Fix M/N introducing yet-more NEW phrasing, or § Recommendation / § Mandatory-Remediation sibling paragraphs within AC-2 + AC-5 scope that Fix M/N/O/P scope does not reach). ~large
+
+## QUEUE (Story 1.9 — CR re-run #5 outcome processed: iter-31..35 fixes all landed; CR re-run #6 promoted to NOW; Story State stays `fixes-pending`)
+
+_(empty — CR re-run #6 is the next transition trigger)_
 
 ## BLOCKED
 
 _(none)_
 
-## DONE (Story 1.9 — CR iter-7 through iter-34)
+## DONE (Story 1.9 — CR iter-7 through iter-35)
 
+- [x] iter-35: Fix Q/5 [LOW] landed — `trace.md:190` vocabulary normalise: swap `**runner-hosted**` → `**test-runner-hosted**` at Fix L preamble (§ HP Gaps intro sentence). Single-line surgical change; zero substantive claim change. All 5 MEDIUM + LOW fixes (M/N/O/P/Q) from iter-30 CR re-run #5 now discharged. Story State stays `fixes-pending` — CR re-run #6 is the next transition trigger. Bolded `**runner-hosted**` no longer appears in trace.md; unbolded `runner-hosted` at :175 + :236 + :484 remains out-of-scope (AC-7 Gaps / § Missing Tests / § Verification — all three unbolded AC-7 sites form their own vocabulary cluster; if CR re-run #6 flags them, queue as new fix tasks).
 - [x] iter-34: Fix P/5 [MEDIUM] landed — `_bmad-output/test-artifacts/traceability/1-9-coverage-matrix.json:71` AC-5 `level_notes` one-line surgical upgrade from `"structural"` → `"smoke (shell) — end-to-end evidence"`. Parallelises AC-4 `level_notes` at :61 (identical smoke-evidence vocabulary). Closes the last SIBLING-FIELD-PARALLEL drift site within coverage-matrix.json — body prose at :69 already cited `iter-8 Task-5 docs-side orphan-anchor smoke` end-to-end evidence since iter-8; Fix P propagates body→level_notes, zero regression risk. JSON re-parses clean. SIBLING-FIELD-PARALLEL carry-forward rule (iter-30) fully discharged across both AC-2 + AC-5 × both trace.md + coverage-matrix.json (4-way sweep complete: Fix M AC-2 trace.md :98 ✓ + Fix N AC-5 trace.md :138 ✓ + Fix O AC-2 coverage-matrix.json :41 ✓ + Fix P AC-5 coverage-matrix.json :71 ✓). 1 fix remains (Q → CR re-run #6).
 - [x] iter-33: Fix O/5 [MEDIUM] landed — `_bmad-output/test-artifacts/traceability/1-9-coverage-matrix.json:41` AC-2 `level_notes` one-line surgical upgrade from `"schema + structural; adversarial CR pass is agreed backstop"` → `"smoke (shell) — end-to-end evidence; schema-level uniqueness refine is the load-bearing complement"`. Parallelises AC-4 `level_notes` at :61 (smoke-evidence vocabulary) while preserving schema-refine backstop clause (acknowledges InvariantsSchema.superRefine id-uniqueness as load-bearing complement per substrate_verification body at :39). Two-layer CR convergence (Blind Hunter + Edge Case Hunter both flagged :41) confirmed iter-24 scope-defer is now discharged. JSON re-parses clean. SIBLING-FIELD-PARALLEL carry-forward rule (iter-30) propagating AC-2 substrate_verification vocabulary → AC-2 level_notes. 2 fixes remain (P → Q → CR re-run #6).
 - [x] iter-32: Fix N/5 [MEDIUM] landed — `trace.md:138` AC-5 Coverage header one-line surgical upgrade from `NONE ❌ — structural only.` → `NONE ❌ (no automated test) — **SUBSTRATE_VERIFIED end-to-end** via iter-8 Task-5 docs-side orphan-anchor smoke.`. Parallelises AC-4 header at :124 (and mirrors iter-31's Fix M landing at :98 for AC-2). SIBLING-FIELD-PARALLEL carry-forward rule (iter-30): AC-5 Coverage-header now reads in same smoke-evidence vocabulary as AC-5 substrate_verification body at :143 ("iter-8 Task-5 docs-side orphan-anchor smoke" already present there — Fix N propagates body→header, zero regression risk). 3 fixes remain (O → P → Q → CR re-run #6).
@@ -34,11 +35,11 @@ _(none)_
 ## Context
 
 - **Phase:** 4-implementation
-- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.8 done; 1.9 fixes-pending — iter-34 landed Fix P; 1 LOW vocabulary normalise (Fix Q) remains before CR re-run #6; SIBLING-FIELD-PARALLEL 4-way sweep complete; 7 more stories 1.10–1.16 remain in Epic 1 before EPIC_DONE)
+- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.8 done; 1.9 fixes-pending — iter-35 landed Fix Q; all 5 Fix M/N/O/P/Q fixes from iter-30 CR re-run #5 discharged; CR re-run #6 next iteration; 7 more stories 1.10–1.16 remain in Epic 1 before EPIC_DONE)
 - **Epic Branch:** `feat/story-1-8-invariants-manifest-ts-contract-exporter` (continues — PR #226 stays Draft until Epic 1 EPIC_DONE per PROMPT_build.md step 5c)
 - **Story:** `1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector`
 - **Story File:** `_bmad-output/implementation-artifacts/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md`
-- **Story State:** `fixes-pending` (Ralph FR14n matrix row 10) — sprint-status + story-file Status remain `review`; flips to `done` only on CR re-run #6 (at iter-36 earliest: iter-31 Fix M ✓ + iter-32 Fix N ✓ + iter-33 Fix O ✓ + iter-34 Fix P ✓ + iter-35 Fix Q + iter-36 CR re-run #6) zero-findings outcome per matrix row 10 single-transition edge.
+- **Story State:** `fixes-pending` (Ralph FR14n matrix row 10) — sprint-status + story-file Status remain `review`; flips to `done` only on CR re-run #6 zero-findings outcome per matrix row 10 single-transition edge. All 5 fixes (M/N/O/P/Q) landed iter-31..35; iter-36 runs CR re-run #6.
 - **PR:** #226 (Draft, MERGEABLE, no-CI-checks-reported — expected pre-Story-1.16; stays Draft through Epic 1; Draft→Open at EPIC_DONE)
 
 ## Notes
