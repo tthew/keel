@@ -316,7 +316,7 @@ No test runner is configured at this substrate stage (Story 1.16 scope per `epic
 
 1. **Source-tree auto-discovery** (deferred per AC-2 scope carve-out) — future substrate-hardening story can add rule-kind introspection heuristics to walk `packages/keel-invariants/src/**` and enumerate unregistered rule files. Optional; current contract (manifest row + anchor in the same PR) is the load-bearing discipline.
 2. **Performance-regression test** (per AC-7) — Story 1.16 can add a timing assertion if substrate grows beyond ~50 invariants.
-3. **Additional drift smoke variants** — Story 1.16 can backfill smoke tests for AC-3 (removed-from-source) + AC-5 (removed-from-docs) alongside unit coverage, closing the structural-only posture at 1.9.
+3. **Additional drift smoke variants** — Story 1.16 can backfill smoke tests for AC-3 (removed-from-source) alongside unit coverage, closing the AC-3 structural-only posture at 1.9.
 
 ---
 
