@@ -478,6 +478,7 @@ traceability_and_gate:
     recommendations:
       - 'Defer AC-1 / AC-2 coverage to Story 1.9 FR43 sync-gate'
       - 'Defer AC-3 coverage to Story 1.8 invariants.manifest.ts'
+      - 'Accept manual + Prettier review for AC-4; no planned automated coverage'
       - 'Defer AC-5 enforcement to Epic 3 RS6 lint'
 
   # Phase 2: Gate Decision
