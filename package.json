@@ -13,7 +13,7 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "prek install"
+    "prepare": "prek install -t pre-commit -t commit-msg"
   },
   "devDependencies": {
     "@commitlint/cli": "20.5.0",

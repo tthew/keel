@@ -1,31 +1,35 @@
 # Implementation Plan
 
+(AWAIT_MERGE — PR #221 Open, CLEAN, MERGEABLE, 0 reviews, 0 checks; halt signal now at MAIN repo `/workspace/ralph-bmad/.ralph/halt` so ralph.py actually detects it. Awaiting user merge before Story 1.6.)
+
 ## NOW
 
-_(none — Story 1.4 mini-epic shipped; halt EPIC_DONE)_
+_(none — Story 1.5 mini-epic shipped; loop awaits user merge)_
 
 ## QUEUE
 
-_(none)_
+_(empty — post-merge iteration picks up Story 1.6)_
 
 ## BLOCKED
 
 _(none)_
 
-## DONE (Story 1.4 mini-epic)
+## DONE (Story 1.5 mini-epic)
 
-- [x] Story 1.4 spec authored — 3-task decomposition; sprint-status `1-4 → ready-for-dev`
-- [x] Draft PR #220 created
-- [x] Story 1.4 Task 1 shipped — `@j178/prek@0.3.9` pinned, `.pre-commit-config.yaml` authored, `prepare: prek install` wired
-- [x] Story 1.4 Task 2 shipped — 5 ATDD probes (AC 2/3/4/5/6) all green
-- [x] Story 1.4 Task 3 shipped — quality gates all FULL TURBO; sprint-status `1-4 → done` co-landed
-- [x] PR #220 Draft→Open — title/body rewritten for 5-commit range; `{isDraft:false, state:OPEN, mergeable:MERGEABLE, mergeStateStatus:CLEAN, reviews:[], statusCheckRollup:[]}`
+- [x] Story 1.5 spec authored — 3-task decomposition; sprint-status `1-5 → ready-for-dev`
+- [x] Draft PR #221 created — `{isDraft:true, state:OPEN, mergeable:MERGEABLE, mergeStateStatus:CLEAN, statusCheckRollup:[]}`
+- [x] Story 1.5 Task 1 — `.pre-commit-config.yaml` 4th hook entry + `prepare` flag; both shims installed; probes green
+- [x] Story 1.5 Task 2 — ATDD probes via real `git commit`: AC 2 lands exit 0; AC 3 rejects with `subject-empty` + `type-empty`; AC 4 structural note recorded; tree clean
+- [x] Story 1.5 Task 3 — verification gates all FULL TURBO on FIRST call; sprint-status `1-5 → done` co-landed (pre-transition orphan-prevention)
+- [x] PR #221 Draft→Open — title/body rewritten for full 5-commit scope; `gh pr ready`; MERGEABLE / CLEAN / no-reviews / no-checks; EPIC_DONE halt signalled
+- [x] Halt reinforcement — `(AWAIT_MERGE` marker added (belt-and-suspenders — ralph.py:1758 guarantees loop stop if halt file detection at :1750 was missed)
+- [x] Halt path-correction (iter 378) — halt JSON re-written to MAIN repo `/workspace/ralph-bmad/.ralph/halt`; worktree's stale halt removed. Root cause: ralph.py's cwd is main repo, not worktree; writes from inside worktree to relative `.ralph/halt` land at the worktree path and are invisible to ralph.py's detection loop. RALPH.md lesson + Open Question added.
 
 ## Context
 
 - **Phase:** 4-implementation
-- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (in-progress; Story 1.4 done, many stories remain)
-- **Epic Branch:** `feat/story-1-4-pre-commit-quality-gates-via-prek-type-check-lint-format`
-- **Story:** 1.4 — Pre-commit quality gates via prek — **done** (PR #220 Open; awaiting user merge)
-- **Story File:** `_bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md`
-- **PR:** #220 Open — 5 commits; EPIC_DONE halt set
+- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.5 done; 1.6–1.16 backlog)
+- **Epic Branch:** `feat/story-1-5-conventional-commit-enforcement-via-commitlint-prek`
+- **Story:** 1.5 — Conventional-commit enforcement via commitlint + prek (done)
+- **Story File:** `_bmad-output/implementation-artifacts/1-5-conventional-commit-enforcement-via-commitlint-prek.md`
+- **PR:** #221 Open (5 impl commits + 2 bookkeeping commits)
