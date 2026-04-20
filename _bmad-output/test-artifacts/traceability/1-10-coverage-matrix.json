@@ -1,0 +1,188 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-20T15:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.10",
+    "label": "design-token schema + semantic-rationale contract"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-10-design-token-schema-semantic-rationale-contract.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "packages/ui/tokens.schema.json validates DTCG-format-compatible structure (shape-only)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Schema-level structural contract: import-time `InvariantsSchema.parse(raw)` (which hashes + shape-validates the registered `sourcePath` via `packages/keel-invariants/src/invariants.manifest.ts`) is the load-bearing complement; CR adversarial pass (Blind Hunter) per § Testing Standards is the agreed backstop for the schema-keyword correctness / draft-2020-12 compliance claims.",
+      "substrate_verification": [
+        "File exists on disk: packages/ui/tokens.schema.json (19866 bytes)",
+        "Schema declares `$schema: https://json-schema.org/draft/2020-12/schema` — DTCG-compatible draft-2020-12 contract",
+        "Eight required root semantic groups present (color, type, font, space, radius, motion, density, breakpoint)",
+        "`additionalProperties: false` at every level — duplicate/misspelled keys fail validation",
+        "Per-`$type` leaf defs (leafColor, leafDimension, leafDuration, leafNumber, leafFontFamily, leafFontWeight, leafCubicBezier) each `const` their `$type` and regex-validate `$value`",
+        "Alias pattern `^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|[^{}]+)$` enforces literal-or-{alias} form",
+        "Optional `$modes` overlay keyed by light|dark|high-contrast with sparse-group defs",
+        "`pnpm -w typecheck` ✓ (16 tasks) — compiles consumer packages that reference the schema indirectly via manifest hashing",
+        "`pnpm keel-invariants:check` clean-path ✓ exit 0 — schema file's sha256 matches manifest `INV-tokens-schema-contract.contentHash` (abb5bc4c...e07ac)"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "docs/invariants/tokens.md carries one rationale bullet per semantic token with stable TOKEN-<slug> IDs",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Prose-integrity contract: grep-based enumeration (every schema leaf has a matching TOKEN-<slug> bullet; AC-named exemplars present) is the substrate evidence; CR adversarial pass per § Testing Standards is the agreed backstop for rationale-doc completeness + motion/density two-segment ID consistency per iter-43 scope carve-out.",
+      "substrate_verification": [
+        "File exists on disk: docs/invariants/tokens.md (21097 bytes)",
+        "All three AC-named exemplars present: `TOKEN-surface-raised`, `TOKEN-status-success-fg`/`-bg`, `TOKEN-text-primary`",
+        "11 `###` rationale sections (Neutral / Surfaces / Text / Borders / Accent / Status / Severity / State / Motion / Density / Type scale / Spacing-radius-breakpoints) cover every schema leaf group",
+        "Motion tier IDs resolve per iter-43 scope carve-out: `TOKEN-motion-scale` (dial) + `TOKEN-motion-{instant|snap|swift|smooth|drift}` (tiers) — two-segment per architecture.md:693",
+        "Density tier IDs resolve per iter-43 scope carve-out: `TOKEN-density-scale` (dial) + `TOKEN-density-{compact|default|comfortable}` (tiers) — two-segment",
+        "Purpose + promotion-rules + stable-ID convention + cross-runtime reminder header sections present (Story 1.10 § Task 2 requirements)",
+        "`pnpm keel-invariants:check` clean-path ✓ exit 0 — rationale doc sha256 matches manifest `INV-tokens-semantic-rationale.contentHash` (2d8d0e3f...25c0)"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "Schema + rationale cross-link integrity — every schema token path resolves to a TOKEN-<slug> rationale bullet and vice-versa",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Schema⇄tokens.md cross-link parity contract: grep-based enumeration is the substrate evidence; CR adversarial pass per § Testing Standards is the agreed backstop for cross-link completeness. Story 1.13 pre-commit gates (source-output sync for downstream consumers) will re-exercise integrity once Story 1.11 populates values and Story 1.12 lands the emitter.",
+      "substrate_verification": [
+        "iter-45 Dev Agent Record Debug Log documents the Accent schema/rationale reconciliation — schema extended to six leaves (`400|500|600|default|fg|focus`) + rationale doc carries matching six bullets under `### Accent`; cross-link parity preserved",
+        "iter-45 Dev Agent Record Debug Log documents the Neutral rationale addition — `### Neutral (primitive ramp)` section with 11 stable IDs (`TOKEN-neutral-50..950`) added to match schema's `color.neutral.{50..950}` group",
+        "Epic 7 catalog / Epic 3 TUI reference model: consumer reaches for semantic token ID (e.g. `TOKEN-surface-raised`), resolves to rationale line directly via anchor lookup in tokens.md",
+        "Manifest entry `INV-tokens-semantic-rationale.description` names the companion relationship to `INV-tokens-schema-contract` (packages/keel-invariants/src/invariants.manifest.ts:137-143)"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "Manifest registers both files + Story 1.9 sync-gate catches drift between either file and its manifest contentHash",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Sync-gate runtime contract: Task 4's three shell-invocation smoke branches (clean-path exit 0 + content-hash-mismatch exit 1 + added-to-source-only exit 1) exercise AC 4 end-to-end at the substrate level; CR adversarial pass per § Testing Standards is the agreed backstop for smoke-evidence completeness. SUBSTRATE_VERIFIED end-to-end via three smoke branches — strongest substrate evidence of the four ACs.",
+      "substrate_verification": [
+        "Two sibling manifest entries registered at packages/keel-invariants/src/invariants.manifest.ts:128-143 per § AC 4 scope carve-out (preserves Story 1.8's single-`sourcePath` `Invariant` shape)",
+        "Two sibling anchor bullets appended to INVARIANTS.md:50-51 under new `### Design-token schema + semantic rationale (Story 1.10)` section (column-0 form per sync-gate.ts:24 ANCHOR_REGEX binding)",
+        "Import-time Zod `InvariantsSchema.parse(raw)` validates both new entries (id regex + sha256 regex + sourcePath refine + ID-uniqueness + shared-sourcePath hash-consistency superRefines) — any malformed field fails `pnpm -w typecheck` loudly",
+        "Clean-path smoke ✓ `pnpm keel-invariants:check` → exit 0 — confirms both new manifest entries pair cleanly with their INVARIANTS.md anchors AND the recomputed sha256sum of the two files matches the manifest contentHash fields",
+        "Drift-smoke #1 (content-hash-mismatch) ✓ — appended trailing newline to packages/ui/tokens.schema.json; sync-gate → exit 1 with structured JSON drift naming `INV-tokens-schema-contract` as `content-hash-mismatch` (expected abb5bc4c...e07ac, actual 85a4eee6...1744c); reverted via `pnpm exec prettier --write` (new-untracked-file lesson — `git checkout --` unavailable); post-revert sha256 byte-identical; rerun → exit 0",
+        "Drift-smoke #2 (added-to-source-only) ✓ — deleted Story-1.10 anchor bullets from INVARIANTS.md; sync-gate → exit 1 with `added-to-source-only` Drift for both `INV-tokens-schema-contract` + `INV-tokens-semantic-rationale`; reverted from `/tmp/INVARIANTS.md.bak`; diff -q byte-identical; rerun → exit 0",
+        "Zero test runner at Story 1.10 substrate stage per story § Testing Standards line 162; smoke-invocation evidence is the end-to-end acceptance signal"
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 4, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      {
+        "id": "AC-1",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Defer to Story 1.13 pre-commit schema-validation gate + CR adversarial pass; substrate-level import-time manifest hashing already catches file-mutation drift via Story 1.9 sync-gate."
+      },
+      {
+        "id": "AC-2",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Defer rationale-doc completeness enumeration to Story 1.16 (test-runner landing → grep-based unit tests) + CR adversarial pass; motion/density scope carve-out is stable per iter-43 Signpost."
+      },
+      {
+        "id": "AC-3",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Defer cross-link parity automation to Story 1.16 (grep-based unit tests) + Story 1.13 source-output sync gate (runs post-1.11 value population + 1.12 emitter) + CR adversarial pass."
+      },
+      {
+        "id": "AC-4",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "SUBSTRATE_VERIFIED end-to-end via three sync-gate smoke branches (clean + content-hash-mismatch + added-to-source-only) — strongest substrate evidence. Defer runner-hosted unit coverage to Story 1.16."
+      }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — four P2 ACs are all contract-level with substrate-layer verification (import-time Zod parse + sync-gate smoke branches). Per-AC runner-hosted coverage deferred to Story 1.16 (test-runner landing); runtime enforcement of AC 4 already lands via Story 1.9 sync-gate on every pre-merge.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.13 pre-commit gates (schema-validation + WCAG AA contrast + source-output sync) will re-exercise AC 1 + AC 2 + AC 3 integration once Story 1.11 populates concrete values and Story 1.12 lands the emitter pipeline.",
+      "requirements": ["AC-1", "AC-2", "AC-3"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — this is a no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
