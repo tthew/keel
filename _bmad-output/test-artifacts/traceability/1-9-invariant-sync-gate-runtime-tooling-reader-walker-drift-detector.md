@@ -503,7 +503,7 @@ None. The FAIL signal from the deterministic rule engine is waived (see above).
    - Prettier + TypeScript + ESLint at pre-commit catch drift in all four new/edited source files.
    - Code-review of any future PR editing the sync-gate must verify the four drift kinds still decode correctly (regression surface: anchor-walker regex, shared-source dedup, hash compare, exit-code mapping).
 3. **Mandatory Remediation**
-   - Story 1.16's test-runner landing + per-AC unit/integration tests must cover all 7 ACs (including a structural test for AC-3 + AC-5 branches that are not exercised in 1.9 smoke).
+   - Story 1.16's test-runner landing + per-AC unit/integration tests must cover all 7 ACs (including a structural test for AC-3 branches that are not exercised in 1.9 smoke).
    - Epic 13's F/E pipeline must invoke `pnpm keel-invariants:check` in CI to close AC-6 runtime verification.
    - Neither is a blocker for Story 1.9 merge; both are already scheduled in the epic sprint-plan.
 
