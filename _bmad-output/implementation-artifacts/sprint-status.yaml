@@ -1,5 +1,5 @@
 # generated: 2026-04-19 17:43 UTC
-# last_updated: 2026-04-20 Story-1-9-done UTC
+# last_updated: 2026-04-20 Story-1-10-ready-for-dev UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-20 Story-1-9-review UTC
+last_updated: 2026-04-20 Story-1-10-ready-for-dev UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
   1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: done
   1-8-invariants-manifest-ts-contract-exporter: done
   1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector: done
-  1-10-design-token-schema-semantic-rationale-contract: backlog
+  1-10-design-token-schema-semantic-rationale-contract: ready-for-dev
   1-11-design-token-source-direction-a-baseline-with-motion-density-scales: backlog
   1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme: backlog
   1-13-token-quality-gates-schema-validation-wcag-aa-contrast-source-output-sync: backlog
