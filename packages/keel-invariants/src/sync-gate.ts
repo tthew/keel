@@ -21,7 +21,7 @@ export interface DriftReport {
   drifts: Drift[];
 }
 
-const ANCHOR_REGEX = /^-\s+\*\*`([A-Z][A-Z0-9-]+)`\*\*/gm;
+const ANCHOR_REGEX = /^-\s+\*\*`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)`\*\*/gm;
 
 export async function readAnchors(repoRoot: string): Promise<Set<string>> {
   const content = await readSourceFile(resolve(repoRoot, 'INVARIANTS.md'));
@@ -57,6 +57,13 @@ export async function runSyncGate(repoRoot: string): Promise<DriftReport> {
   );
 
   for (const entry of invariants) {
+    if (!anchors.has(entry.id)) {
+      drifts.push({
+        kind: 'added-to-source-only',
+        id: entry.id,
+        sourcePath: entry.sourcePath,
+      });
+    }
     const actualHash = sourceHashes.get(entry.sourcePath);
     if (actualHash === null) {
       drifts.push({
