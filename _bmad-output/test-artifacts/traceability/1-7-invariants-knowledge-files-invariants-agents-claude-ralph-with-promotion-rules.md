@@ -511,7 +511,7 @@ traceability_and_gate:
     waiver:
       reason: 'Documentation-artefact story; per-AC coverage deferred to Stories 1.8 / 1.9 + Epic 3 per § Scope Carve-Out + § Testing Standards'
       approver: 'Story 1.7 § Testing Standards + § Scope Carve-Out (stakeholder-authored)'
-      expiry: '2026-XX-XX (expires when Story 1.9 sync-gate lands)'
+      expiry: 'deferred (expires when Story 1.9 sync-gate lands)'
       remediation_due: 'Stories 1.8 + 1.9 (Epic 1 backlog)'
 ```
 

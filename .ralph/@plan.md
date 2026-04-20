@@ -2,11 +2,10 @@
 
 ## NOW
 
-- [ ] Story State `fixes-pending` (fix #4/4) → Correct waiver expiry placeholder `2026-XX-XX` in `_bmad-output/test-artifacts/traceability/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md` (YAML snippet near line 1209) — replace with `deferred` or a concrete Story 1.9 landing date ~small
+- [ ] Story State `fixes-pending` → Re-run `/bmad-code-review (args: "2")` — confirm `### Review Findings` cleared; Story State `fixes-pending → sm-verified → done` (no new findings) OR `fixes-pending` again (any new finding queues a fresh fix) ~medium
 
-## QUEUE (Story 1.7 — CR fix pass + re-gate + PR transition)
+## QUEUE (Story 1.7 — re-gate + PR transition)
 
-- [ ] Story State `fixes-pending` → Re-run `/bmad-code-review (args: "2")` — confirm `### Review Findings` cleared; Story State `fixes-pending → sm-verified → done` (no new findings) OR `fixes-pending` again (any new finding queues a fresh fix)
 - [ ] Story State `done` → Transition PR #224 Draft→Open — rewrite title/body for full spec+iter-1+iter-2+iter-3+Tasks-1-3+trace+SM-review+CR commit range; EPIC_DONE halt (mini-epic convention, 7th story-implementation precedent)
 
 ## BLOCKED
@@ -22,9 +21,9 @@ _(none)_
 
 Story 1.7 is a documentation-artefact story with no runtime behaviour to probe. Story file § Testing Standards (line 141) states verbatim: _"No ATDD probe task (contrast Stories 1.3/1.4/1.5/1.6 which had runtime behaviour to probe). The AC checks are satisfied by existence + verbatim-match + markdown-parse; no runtime assertion needed until Story 1.9's sync-gate lands."_ All 5 ACs are static-content checks (file existence + audience-header presence + promotion-rule verbatim-match + INVARIANTS.md index entries + RALPH.md scope note). The FR14n matrix row for `validated` explicitly permits `validated → in-dev` skip when the story has no testable ACs, provided rationale is recorded in IP — which this section satisfies. Quality gates (typecheck/lint/format:check/commitlint/prek-runner parity) in Task 3 remain mandatory and are NOT ATDD probes; they are substrate verification from Stories 1.4/1.5.
 
-## DONE (Story 1.7 iter-10)
+## DONE (Story 1.7 iter-11)
 
-- [x] **CR fix #3/4 — trace JSON heuristics aligned with md prose.** Set `auth_negative_path_status` + `error_path_status` from `"present"` → `"not_applicable"` in `_bmad-output/test-artifacts/traceability/1-7-e2e-trace-summary.json` (actual lines 64-65; CR pointer `609-614` was drifted — live file is 116 lines, no lines >116 exist). JSON heuristics now match the md prose at lines 190/194/198/202 which declare auth/error/UI paths all "Not applicable" for this docs-only story with zero runtime surface. Story-file `### Review Findings` item 3/4 flipped `[ ] → [x]` with **Resolved iter-10** addendum. JSON parsed clean via `python3 -c "import json; json.load(...)"`. **Lesson:** `/bmad-code-review` adversarial layers occasionally emit drifted line-pointers — treat the pointer as a hint, not truth; verify with grep for the token the finding cites (`auth_negative_path_status` in this case) before applying. Pair the JSON ↔ md prose check on every trace regeneration in Story 1.9's sync-gate spec. 1 more CR fix pass (#4/4 waiver-expiry placeholder) before re-running `/bmad-code-review` per FR14n matrix row 10.
+- [x] **CR fix #4/4 — waiver expiry placeholder replaced.** Set trace md line 514 from `expiry: '2026-XX-XX (expires when Story 1.9 sync-gate lands)'` → `expiry: 'deferred (expires when Story 1.9 sync-gate lands)'`. CR pointer `~1209` was drifted again (live trace md is 540 lines, not 1209) — another instance of the iter-10 line-pointer-drift lesson already recorded in RALPH.md, no new journal entry needed. Chose `deferred` over an arbitrary concrete date because Story 1.9's landing isn't fixed; parenthetical preserves remediation trigger and aligns with `remediation_due: 'Stories 1.8 + 1.9 (Epic 1 backlog)'`. Story-file `### Review Findings` item 4/4 flipped `[ ] → [x]` with **Resolved iter-11** addendum. All 4 CR patch findings now resolved; 2 deferred findings retain `[x]` defer status. Next: re-run `/bmad-code-review (args: "2")` per FR14n matrix row 10 — empty `### Review Findings` or new findings surfaced.
 
 ## Context
 
