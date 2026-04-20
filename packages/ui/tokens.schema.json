@@ -326,6 +326,7 @@
     "modesOverlay": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["light", "dark"],
       "properties": {
         "light": { "$ref": "#/$defs/sparseRoot" },
         "dark": { "$ref": "#/$defs/sparseRoot" },

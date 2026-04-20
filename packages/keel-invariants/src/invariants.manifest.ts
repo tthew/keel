@@ -130,7 +130,7 @@ const raw: Invariant[] = [
     description:
       'Design-token JSON Schema contract — DTCG-compatible; defines shape of every semantic + primitive token group (color / type / space / radius / motion / density / breakpoint) plus optional $modes overlays. Validated at pre-commit (Story 1.13); consumed by the Story 1.11 source + Story 1.12 emitter.',
     sourcePath: 'packages/ui/tokens.schema.json',
-    contentHash: 'abb5bc4c779d7cb8029a1c55bf6d3cb86092aa7105f2eb31c247da53093e07ac',
+    contentHash: '15380636645d6eb1610845c7f295629b1f3a0ba3fec9f6c04262ece581b055e6',
     anchors: ['INV-tokens-schema-contract'],
   },
   {
