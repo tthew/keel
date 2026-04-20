@@ -140,7 +140,7 @@ Priority classification per `test-priorities-matrix.md`:
 - **Substrate verification (non-gate-eligible evidence):**
   - Anchor-walker implementation (story file line 52, 127): regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` enumerates `INV-*` anchors in `INVARIANTS.md § Invariants index` (10 current anchors at `INVARIANTS.md:24-48`).
   - Drift detector branch: anchors in `INVARIANTS.md` with no matching manifest entry → `Drift { kind: 'removed-from-docs-only', anchor }` (story file line 53, 128).
-  - Not exercised in smoke — all 10 anchors have matching manifest rows post-Task-2 (which closed the pre-existing `INV-ralph-halt-path-resolution` docs-only drift by adding the 10th manifest entry per story file lines 57–71).
+  - Exercised via iter-8 Task-5 docs-side orphan-anchor smoke (append `- **\`INV-fake-orphan\`**` line to `INVARIANTS.md` → exit 1 + `removed-from-docs-only`; revert; byte-identical restore) per story file line 143. All 10 production anchors have matching manifest rows post-Task-2 (which closed the pre-existing `INV-ralph-halt-path-resolution` docs-only drift by adding the 10th manifest entry per story file lines 57–71) — AC-5 branch verified by ephemeral `INV-fake-orphan` injection in the smoke.
 - **Gaps:** No runtime smoke triggering `removed-from-docs-only`; no test-runner-hosted structural test.
 - **Recommendation:** Accept structural realisation + Task 2 pre-existing drift closure as evidence that the branch works (the original 10th-entry gap was an instance of `removed-from-docs-only` that the spec's Task 2 explicitly closed — if the branch didn't work, Task 2's close would not have produced a clean gate in Task 5's clean-path smoke). CR adversarial pass (Blind Hunter) backstops. Story 1.16 can backfill unit coverage. WAIVED.
 
@@ -257,7 +257,7 @@ Not applicable — Story 1.9 introduces zero auth/session/permission surface. Th
 
 #### Happy-Path-Only Criteria
 
-**Partially applicable.** AC-4 smoke exercises the primary drift-path; AC-3 / AC-5 drift branches are not exercised in smoke (substrate baseline is clean). This is structural-only coverage for two P1 branches. Per § Testing Standards, CR adversarial pass is the agreed backstop.
+**Partially applicable.** AC-4 smoke exercises the primary drift-path; AC-5 drift branch exercised via iter-8 Task-5 docs-side orphan-anchor smoke (append `INV-fake-orphan` anchor → exit 1 + `removed-from-docs-only`; revert; byte-identical restore); AC-3 drift branch not exercised in smoke (substrate has no canonical hash mismatch). This is structural-only coverage for one P1 branch (AC-3). Per § Testing Standards, CR adversarial pass is the agreed backstop.
 
 #### UI Journey & UI State Gaps
 
