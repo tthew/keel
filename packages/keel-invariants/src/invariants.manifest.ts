@@ -138,7 +138,7 @@ const raw: Invariant[] = [
     description:
       'Semantic-rationale doc pairing every TOKEN-<slug> with a prose line explaining why the slot exists + how cross-runtime consumers reference it. Companion to INV-tokens-schema-contract; Sally "catalog header references rationale" requirement.',
     sourcePath: 'docs/invariants/tokens.md',
-    contentHash: '2d8d0e3fcce54375ee228cd1d21c3ef7ee54ea76c8622267d9c78b9a84ad25c0',
+    contentHash: 'efd5fa0d84d3478cd4af530f3cc57c734f9b4e23415d0c7085fb8e6296d1a82c',
     anchors: ['INV-tokens-semantic-rationale'],
   },
 ];

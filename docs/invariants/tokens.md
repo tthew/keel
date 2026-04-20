@@ -146,6 +146,12 @@ One modular scale with 1.125 ratio anchors (ux-design-specification.md § Visual
 - **`TOKEN-type-3xl`** — *hero heading tier (marketing / landing)*. Four steps above `base`. Value: see ux-design-specification.md § Visual Design Foundation; Story 1.11 populates.
 - **`TOKEN-type-4xl`** — *display tier (rare; splash / presentation)*. Five steps above `base`. Value: see ux-design-specification.md § Visual Design Foundation; Story 1.11 populates.
 
+### Font
+
+The font group exposes two typographic role slots (`sans` / `mono`) whose values are DTCG `fontFamily` stacks (arrays of family names with ordered fallbacks). Cross-runtime consumers address the semantic role, not a specific family — a fork re-maps the stack once at source-time without editing component code.
+
+- **`TOKEN-font-{name}`** — *typographic font stack roles (sans / mono)*. Cross-runtime: the Tailwind preset exposes `font-sans` / `font-mono` utility classes; the Textual TUI uses `$font-sans` / `$font-mono` style vars. Individual slugs: `TOKEN-font-sans`, `TOKEN-font-mono`. Value: see ux-design-specification.md § Visual Design Foundation; Story 1.11 populates.
+
 ### Spacing / radius / breakpoints
 
 Primitive scales — rationale is the ratio + base unit, not per-stop meaning. Stable IDs exist for per-stop traceability but each bullet here covers the scale.
