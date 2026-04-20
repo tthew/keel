@@ -1,0 +1,110 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T13:29:07Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "fd99add",
+  "gate_eligible": true,
+  "gate_status": "WAIVED",
+  "target": {
+    "type": "story",
+    "id": "1.8",
+    "label": "invariants.manifest.ts contract + exporter"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-8-invariants-manifest-ts-contract-exporter.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 4, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 4,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "not_applicable",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Defer AC-1 / AC-2 / AC-3 runtime enforcement to Story 1.9 FR43 sync-gate (anchor-walk, sourcePath reachability, ID uniqueness, drift detection)",
+      "requirements": ["AC-1", "AC-2", "AC-3"]
+    },
+    {
+      "priority": "LOW",
+      "action": "AC-4 substrate-verified via Task 3 runtime smoke check; no additional automated coverage required at Story 1.8",
+      "requirements": ["AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Defer dedicated Zod-edge-case unit tests to Story 1.16 test-runner landing + Story 1.9 integration coverage",
+      "requirements": ["AC-4"]
+    }
+  ],
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  },
+  "waiver": {
+    "reason": "Contract-only story whose § Testing Standards explicitly defers per-AC automated coverage: Zod schema + import-time parse IS the test for shape/id/hash-format; Task 3 runtime smoke check exercised AC 4 end-to-end; Story 1.9 sync-gate owns runtime enforcement. Deterministic FAIL (overall 0% < 80%) is a structural false-positive — no test runner exists at substrate level (Story 1.16 scope). FR14n ATDD-skip already applied at iter-3 on the three-prong rationale pinned in .ralph/@plan.md § ATDD Skip Rationale; trace gate mirrors that decision.",
+    "approver": "Story 1.8 § Testing Standards + § Scope Carve-Out (stakeholder-authored)",
+    "expiry": "deferred (expires when Story 1.9 sync-gate lands)",
+    "remediation_due": "Story 1.9 (sync-gate runtime enforcement) + Story 1.16 (test-runner wiring for Zod edge-case unit coverage)"
+  },
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-8-invariants-manifest-ts-contract-exporter.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}

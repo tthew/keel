@@ -1,0 +1,133 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-20T13:29:07Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.8",
+    "label": "invariants.manifest.ts contract + exporter"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-8-invariants-manifest-ts-contract-exporter.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "description": "packages/keel-invariants/src/invariants.manifest.ts exports const invariants: Invariant[] with { id, description, sourcePath, contentHash, anchors } shape per entry.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Shape contract enforced at compile time by TypeScript (tsc -b 16/16 green) and at import time by Zod (InvariantsSchema.parse(raw) runs synchronously). No automated test file — see § Testing Standards. Deferred to Story 1.9's sync-gate which exercises the manifest end-to-end on every pre-merge invocation."
+    },
+    {
+      "id": "AC-2",
+      "description": "Each entry: id matches INV-<category>-<slug>, sourcePath resolves to an existing repo file, contentHash is sha256 of the sourcePath region (whole-file per Story 1.8 scope carve-out).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "ID pattern + contentHash-format (64-hex) enforced by Zod regex at import time. sourcePath existence verified manually at dev-story (Task 1) across all 9 entries; programmatic reachability check deferred to Story 1.9's anchor walker. sha256 values pre-computed and frozen in source per § Scope Carve-Out (whole-file bounding for Story 1.8; sub-region hashing at Story 1.9)."
+    },
+    {
+      "id": "AC-3",
+      "description": "New rule added to keel-invariants MUST register a manifest entry with a fresh stable ID; Story 1.9 treats unregistered rules as drift.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Story 1.8 ships the contract side — canonical pin of 9 existing IDs + Zod shape + hashes. The 'unregistered → drift' enforcement is explicitly scoped to Story 1.9's FR43 sync-gate per AC inline carve-out and § Scope Carve-Out. No Epic 1-stage automated coverage planned at Story 1.8."
+    },
+    {
+      "id": "AC-4",
+      "description": "Manifest loads synchronously (no async I/O) and validates against its Zod schema at import time.",
+      "priority": "P2",
+      "coverage": "SUBSTRATE_VERIFIED",
+      "tests": [],
+      "notes": "End-to-end exercised by Task 3 runtime smoke check: `node --input-type=module -e \"import('@keel/keel-invariants')…\"` printed `OK: 9 invariants` (evidence: story file line 160, Dev Agent Record Task 3). Zod InvariantsSchema.parse(raw) runs synchronously at module import; a bad entry throws ZodError with structured path — verified by the schema definition + the parse invocation at src/invariants.manifest.ts. No dedicated unit test file per § Testing Standards: the Zod schema IS the test. Story 1.9's sync-gate will re-exercise this AC on every pre-merge."
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 4, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Defer AC-1 / AC-2 / AC-3 runtime enforcement to Story 1.9 FR43 sync-gate (anchor-walk, sourcePath reachability, ID uniqueness, drift detection)",
+      "requirements": ["AC-1", "AC-2", "AC-3"]
+    },
+    {
+      "priority": "LOW",
+      "action": "AC-4 substrate-verified via Task 3 runtime smoke check; no additional automated coverage required at Story 1.8. Story 1.9 will re-exercise on every pre-merge invocation",
+      "requirements": ["AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Defer dedicated Zod-edge-case unit tests (bad-id / empty-anchors / bad-hash) to Story 1.16 test-runner landing + Story 1.9 integration coverage. Duplicating Zod's upstream ~1000+ internal tests is not value-adding",
+      "requirements": ["AC-4"]
+    }
+  ]
+}
