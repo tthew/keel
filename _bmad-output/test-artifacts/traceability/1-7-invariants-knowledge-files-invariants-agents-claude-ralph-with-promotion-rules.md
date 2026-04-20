@@ -510,7 +510,7 @@ traceability_and_gate:
       code_coverage: 'not_applicable'
     next_steps: 'Proceed to post-dev SM verify → code review → PR transition per Ralph lifecycle matrix.'
     waiver:
-      reason: 'Documentation-artefact story; per-AC coverage deferred to Stories 1.8 / 1.9 + Epic 3 per § Scope Carve-Out + § Testing Standards'
+      reason: 'Documentation-artefact story; per-AC automated coverage deferred to Stories 1.8 / 1.9 + Epic 3 per § Scope Carve-Out + § Testing Standards'
       approver: 'Story 1.7 § Testing Standards + § Scope Carve-Out (stakeholder-authored)'
       expiry: 'deferred (expires when Story 1.9 sync-gate lands)'
       remediation_due: 'Stories 1.8 + 1.9 (Epic 1 backlog)'
