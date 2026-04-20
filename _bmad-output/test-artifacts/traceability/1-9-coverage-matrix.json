@@ -172,7 +172,7 @@
     },
     {
       "priority": "LOW",
-      "action": "Run /bmad-code-review (args: \"2\") next — adversarial triage is the agreed backstop for AC-2 / AC-3 / AC-5 structural branches per § Testing Standards + Dev Agent Record AC coverage matrix.",
+      "action": "Run /bmad-code-review (args: \"2\") next — adversarial triage is the agreed backstop for AC-3 structural + AC-6 CLI-contract-only branches per § Testing Standards + Dev Agent Record AC coverage matrix.",
       "requirements": []
     }
   ]

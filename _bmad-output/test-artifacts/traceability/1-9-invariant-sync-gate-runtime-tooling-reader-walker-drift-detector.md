@@ -308,7 +308,7 @@ No test runner is configured at this substrate stage (Story 1.16 scope per `epic
 
 #### Short-term Actions (Next Milestones)
 
-1. **Story 1.9 Code Review (Ralph iter-6)** — `/bmad-code-review (args: "2")` adversarial triage (Blind Hunter / Edge Case Hunter / Acceptance Auditor) is the agreed backstop for AC-2 / AC-3 / AC-5 structural branches per § Testing Standards. Any Blind Hunter or Edge Case Hunter finding → QUEUE fix task per the CR triage rule.
+1. **Story 1.9 Code Review (Ralph iter-6)** — `/bmad-code-review (args: "2")` adversarial triage (Blind Hunter / Edge Case Hunter / Acceptance Auditor) is the agreed backstop for AC-3 structural + AC-6 CLI-contract-only branches per § Testing Standards. Any Blind Hunter or Edge Case Hunter finding → QUEUE fix task per the CR triage rule.
 2. **Epic 13** (F/E pipeline story) will wire `.github/workflows/*.yml` to invoke `pnpm keel-invariants:check` — closes AC-6 runtime verification.
 3. **Story 1.16** (test-runner wiring + CI pipeline) will land the Vitest/Jest runner; at that point, unit/structural tests for all 7 ACs can be authored, targeting the drift-kind branches in `sync-gate.ts` + the anchor-walker regex + the shared-source dedup path.
 
@@ -474,7 +474,7 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
 - Every future Ralph iteration that touches the substrate re-runs `pnpm keel-invariants:check` as part of quality-gate rituals; this continuously re-exercises AC-1 clean-path at wall-time.
 - The next dev-time edit to any `sourcePath` file without updating manifest `contentHash` triggers AC-4 drift-path (proven by Task 5 smoke) — this is a continuous live-exercise of the load-bearing drift class.
 - Prettier format-check + TypeScript strict mode + ESLint at pre-commit catch shape/whitespace/rule drift in all four new/edited files.
-- Story 1.9's CR pass (iter-6) will adversarially exercise AC-2 / AC-3 / AC-5 structural branches (Blind Hunter / Edge Case Hunter / Acceptance Auditor).
+- Story 1.9's CR pass (iter-6) will adversarially exercise AC-3 structural + AC-6 CLI-contract-only branches (Blind Hunter / Edge Case Hunter / Acceptance Auditor).
 
 **Remediation Plan**:
 
@@ -520,7 +520,7 @@ None. The FAIL signal from the deterministic rule engine is waived (see above).
 **Follow-up Actions** (Story 1.9 remaining lifecycle):
 
 1. Story State `traced` → run `/bmad-create-story (args: "review")` post-dev SM verification (requirements-satisfaction gate).
-2. On `sm-verified`, run `/bmad-code-review (args: "2")` for adversarial triage (Blind Hunter / Edge Case Hunter / Acceptance Auditor — authoritative backstop for AC-2 / AC-3 / AC-5 structural branches per this trace's rationale).
+2. On `sm-verified`, run `/bmad-code-review (args: "2")` for adversarial triage (Blind Hunter / Edge Case Hunter / Acceptance Auditor — authoritative backstop for AC-3 structural + AC-6 CLI-contract-only branches per this trace's rationale).
 3. On `done`, evaluate sprint-status: if Story 1.9 is the last open story in Epic 1, queue `Transition PR Draft→Open — final CI gate` then EPIC_DONE halt. If not, queue next story via `/bmad-create-story`.
 
 **Stakeholder Communication**:
@@ -557,7 +557,7 @@ traceability_and_gate:
       - 'Defer AC-1 / AC-2 / AC-3 / AC-4 / AC-5 unit-test coverage to Story 1.16 (test-runner landing). Task 5 shell-invocation smokes (iter-8 ×5) already cover AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end; only AC-3 remains schema/structural (and AC-6 CLI-contract-only).'
       - 'Defer AC-6 GitHub Actions workflow wiring to Epic 13 (F/E pipeline). Story 1.9 ships CLI + exit-code contract; Epic 13 wires invocation step.'
       - 'AC-7 performance budget met at 0.77s wall-clock (>2x headroom vs 2s budget); re-measure only if substrate grows beyond ~50 invariants.'
-      - 'Run /bmad-code-review (args: "2") next — adversarial triage is the agreed 1.9 backstop for AC-2 / AC-3 / AC-5 structural branches.'
+      - 'Run /bmad-code-review (args: "2") next — adversarial triage is the agreed 1.9 backstop for AC-3 structural + AC-6 CLI-contract-only branches.'
 
   # Phase 2: Gate Decision
   gate_decision:
