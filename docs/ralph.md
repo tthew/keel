@@ -237,17 +237,23 @@ Anti-constraints: never mark EPIC_DONE while Draft; never transition Draft → O
 
 ### Story-lifecycle decision matrix (abridged)
 
-| Story State       | Next skill                                          |
-|-------------------|-----------------------------------------------------|
-| _(no story)_      | `/bmad-create-story`                                |
-| `drafted`         | `/bmad-create-story (args: "review")`               |
-| `validated`       | `/bmad-testarch-atdd` (or skip with IP rationale)   |
-| `atdd-scaffolded` | `/bmad-dev-story (args: "{story_file_path}")`       |
-| `in-dev`          | `/bmad-code-review (args: "2")`                     |
-| `fixes-pending`   | Top QUEUE fix task (one CR action item per iter)    |
-| `done`            | Next story or EPIC_DONE halt                        |
+Gate ordering: **coverage (trace) → requirements (SM review) → quality (CR) → done**. Full matrix in `docs/invariants/ralph-execute.md`; normative spec FR14n.
 
-Anti-constraints: never skip states; never invoke `/bmad-dev-story` outside `atdd-scaffolded` without an IP-recorded skip rationale; never mark `done` with un-addressed CR action items in QUEUE; every CR action item becomes a QUEUE fix task unless IP records `defer:`.
+| Story State           | Next skill                                                       |
+|-----------------------|------------------------------------------------------------------|
+| _(no story)_          | `/bmad-create-story`                                             |
+| `drafted`             | `/bmad-create-story (args: "review")` — pre-dev                  |
+| `validated`           | `/bmad-testarch-atdd` (or skip with IP rationale)                |
+| `atdd-scaffolded`     | `/bmad-dev-story (args: "{story_file_path}")`                    |
+| `in-dev`              | `/bmad-testarch-trace (args: "yolo")` — coverage gate            |
+| `trace-fixes-pending` | Top QUEUE fix task (add missing AC test)                         |
+| `traced`              | `/bmad-create-story (args: "review")` — post-dev SM verification |
+| `sm-fixes-pending`    | Top QUEUE fix task (satisfy unmet AC)                            |
+| `sm-verified`         | `/bmad-code-review (args: "2")`                                  |
+| `fixes-pending`       | Top QUEUE fix task (one CR action item per iter)                 |
+| `done`                | Next story or EPIC_DONE halt                                     |
+
+Anti-constraints: never skip states; never invoke `/bmad-dev-story` outside `atdd-scaffolded` / `/bmad-testarch-trace` outside `in-dev` / `/bmad-create-story (args: "review")` post-dev outside `traced` / `/bmad-code-review` outside `sm-verified` without IP rationale; never mark `done` with un-addressed fix tasks in QUEUE from any gate (trace, SM, CR); every gate finding becomes a QUEUE fix task unless IP records `defer:`.
 
 ### Halt schema
 

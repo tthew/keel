@@ -73,23 +73,33 @@ When NOW = "Address PR review feedback":
 
 ## Story Lifecycle Decision Matrix
 
-Every story moves through a pinned seven-state lifecycle (normative spec: FR14n). `Story State` in IP § Context drives NOW-task selection. Never skip states.
+Every story moves through a pinned eleven-state lifecycle (normative spec: FR14n). `Story State` in IP § Context drives NOW-task selection. Gate ordering is **coverage (trace) → requirements (SM review) → quality (CR) → done**. Never skip states.
 
-| Story State       | NOW task                                                                        | Transition on success                                  |
-| ----------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| _(no story)_      | `Run /bmad-create-story` — picks next story from sprint-status                  | `drafted`                                              |
-| `drafted`         | `Run /bmad-create-story (args: "review")` — validate readiness                  | `validated`                                            |
-| `validated`       | `Run /bmad-testarch-atdd` — red-phase scaffolds (skip → `in-dev` allowed only if story has no testable ACs; record rationale in IP) | `atdd-scaffolded`    |
-| `atdd-scaffolded` | `Run /bmad-dev-story (args: "{story_file_path}")`                               | `in-dev` (or `in-dev (partial)` → re-queue next iter)  |
-| `in-dev`          | `Run /bmad-code-review (args: "2")` — pre-selects "Create action items"         | `done` (no findings) OR `fixes-pending`                |
-| `fixes-pending`   | Top QUEUE fix task (one CR action item per iteration)                           | stays `fixes-pending` until QUEUE empties → re-run CR  |
-| `done`            | Next story (back to _no story_) OR EPIC_DONE halt if sprint-status has no open stories | —                                             |
+| Story State           | NOW task                                                                                                            | Transition on success                                   |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| _(no story)_          | `Run /bmad-create-story` — picks next story from sprint-status                                                      | `drafted`                                               |
+| `drafted`             | `Run /bmad-create-story (args: "review")` — pre-dev validation of readiness                                         | `validated`                                             |
+| `validated`           | `Run /bmad-testarch-atdd` — red-phase scaffolds (skip → `in-dev` allowed only if story has no testable ACs; record rationale in IP) | `atdd-scaffolded`                   |
+| `atdd-scaffolded`     | `Run /bmad-dev-story (args: "{story_file_path}")`                                                                   | `in-dev` (or `in-dev (partial)` → re-queue next iter)   |
+| `in-dev`              | `Run /bmad-testarch-trace (args: "yolo")` — AC→test coverage gate + traceability matrix                             | `traced` OR `trace-fixes-pending`                       |
+| `trace-fixes-pending` | Top QUEUE fix task (add missing AC test / coverage backfill)                                                        | stays until QUEUE empties → re-run trace → `traced`     |
+| `traced`              | `Run /bmad-create-story (args: "review")` — post-dev SM requirements-satisfaction verification                      | `sm-verified` OR `sm-fixes-pending`                     |
+| `sm-fixes-pending`    | Top QUEUE fix task (satisfy unmet AC in implementation)                                                             | stays until QUEUE empties → re-run validate → `sm-verified` |
+| `sm-verified`         | `Run /bmad-code-review (args: "2")` — pre-selects "Create action items"                                             | `done` (no findings) OR `fixes-pending`                 |
+| `fixes-pending`       | Top QUEUE fix task (one CR action item per iteration)                                                               | stays `fixes-pending` until QUEUE empties → re-run CR   |
+| `done`                | Next story (back to _no story_) OR EPIC_DONE halt if sprint-status has no open stories                              | —                                                       |
 
 ⊗ NEVER skip states. If `Story State` is unset, first action MUST be `/bmad-create-story`.
 ⊗ NEVER invoke `/bmad-dev-story` while `Story State ≠ atdd-scaffolded` unless IP records an explicit skip rationale.
-⊗ NEVER mark `done` with un-addressed CR action items remaining in QUEUE.
+⊗ NEVER invoke `/bmad-testarch-trace` while `Story State ≠ in-dev`.
+⊗ NEVER invoke `/bmad-create-story (args: "review")` post-dev while `Story State ≠ traced` — the same skill serves both pre-dev (`drafted → validated`) and post-dev (`traced → sm-verified`); the state governs intent.
+⊗ NEVER invoke `/bmad-code-review` while `Story State ≠ sm-verified`.
+⊗ NEVER mark `done` with un-addressed fix tasks remaining in QUEUE (regardless of origin — trace, SM review, or CR).
+⊗ EVERY trace coverage gap and EVERY SM-review unmet-AC finding becomes a QUEUE fix task unless IP records `defer: <reason>` per item.
 ⊗ EVERY CR action item becomes a QUEUE fix task unless IP records `defer: <reason>` per item. Adversarial triage is the default.
 
+After `/bmad-testarch-trace`: record each coverage gap as a QUEUE fix task (AC id, missing test type, file-path target) at the TOP of QUEUE. When QUEUE is empty, re-run `/bmad-testarch-trace` to confirm `traced`.
+After `/bmad-create-story (args: "review")` post-dev: record each unmet-AC finding as a QUEUE fix task (AC id, what's missing in impl) at the TOP of QUEUE. When QUEUE is empty, re-run `/bmad-create-story (args: "review")` to confirm `sm-verified`.
 After `/bmad-code-review`: record each action item as a QUEUE fix task (file, line, requested change) at the TOP of QUEUE. When QUEUE is empty, re-run `/bmad-code-review` to confirm `done`.
 
 ## BMad Workflows
@@ -193,7 +203,7 @@ Halt when `Story State = done` AND QUEUE is empty AND no remaining open story in
 - **Epic Branch:** feat/epic-{N}-{name} (or current branch)
 - **Story:** STORY-ID or "none"
 - **Story File:** path or "n/a"
-- **Story State:** _(no story)_ | drafted | validated | atdd-scaffolded | in-dev | review-pending | fixes-pending | done
+- **Story State:** _(no story)_ | drafted | validated | atdd-scaffolded | in-dev | trace-fixes-pending | traced | sm-fixes-pending | sm-verified | fixes-pending | done
 ```
 
 ---
