@@ -46,7 +46,7 @@ tempCoverageMatrixPath: '_bmad-output/test-artifacts/traceability/1-9-coverage-m
 
 Note: This workflow does not generate tests. Story 1.9 is a **runtime-tooling** story — the first Epic-1 substrate story with genuine runtime behaviour (walker + drift-detector + CLI). Its § Testing Standards (story file line 120) explicitly declares:
 
-> _"No dedicated unit-test file for `sync-gate.ts` in Story 1.9 scope. Rationale: (a) no test runner is wired at substrate level yet (Story 1.16 scope); (b) Task 5's five runtime smoke tests (clean + drift + performance + AC 2 manifest-side missing-anchor + AC 5 docs-side orphan-anchor) exercise the tool end-to-end — AC 1 / AC 4 / AC 7 fully covered at the shell-invocation level; (c) the manifest's Zod parse + the gate's anchor-regex + the hash comparison are all small pure functions that a future test-runner story (Story 1.16) can add coverage for without structural changes. Story 1.9's CR pass (iter-N) will exercise the adversarial path — Blind Hunter / Edge Case Hunter / Acceptance Auditor should surface any remaining drift-detection gaps before Task 5 closes."_
+> _"No dedicated unit-test file for `sync-gate.ts` in Story 1.9 scope. Rationale: (a) no test runner is wired at substrate level yet (Story 1.16 scope); (b) Task 5's five runtime smoke tests (clean + drift + performance + AC 2 manifest-side missing-anchor + AC 5 docs-side orphan-anchor) exercise the tool end-to-end — AC 1 / AC 2 / AC 4 / AC 5 / AC 7 fully covered at the shell-invocation level; (c) the manifest's Zod parse + the gate's anchor-regex + the hash comparison are all small pure functions that a future test-runner story (Story 1.16) can add coverage for without structural changes. Story 1.9's CR pass (iter-N) will exercise the adversarial path — Blind Hunter / Edge Case Hunter / Acceptance Auditor should surface any remaining drift-detection gaps before Task 5 closes."_
 
 Automated per-AC test coverage is intentionally deferred; see § Rationale below. This gate decision mirrors the FR14n ATDD-skip clause already applied at iter-3 (commit `d5ec5b2`), per the analogous three-prong rationale pinned in `.ralph/@plan.md` iter-3 and the Story 1.8 trace WAIVED precedent (commit sequence ec9eb4e → f5201d0 → d5ec5b2 → 4129a28).
 
@@ -304,7 +304,7 @@ No test runner is configured at this substrate stage (Story 1.16 scope per `epic
 #### Immediate Actions (Before PR Merge)
 
 1. **Mark this gate WAIVED and proceed.** All seven AC coverage gaps are explicitly scoped-out by Story 1.9's own § Testing Standards + inline AC scope carve-outs (AC-2 source-tree auto-discovery, AC-6 CI workflow wiring). The deterministic FAIL signal (0% overall, P1 0% < 80%) is a structural false-positive artefact of a runtime-tooling story having zero test-runner surface at Story 1.9's authoring moment.
-2. **Confirm substrate verification** — Tasks 1–5 quality gates (typecheck / lint / format-check / commitlint / prek-runner) all passed at dev-story, plus Task 5's three runtime smoke tests exercised AC-1 + AC-4 + AC-7 end-to-end: clean-path (`pnpm keel-invariants:check` → exit 0), drift-path (mutated `tsconfig.base.json` → exit 1 + JSON DriftReport on stderr), performance (0.77s wall-clock). These are the authoritative quality signals for a runtime-tooling story at a pre-test-runner substrate stage.
+2. **Confirm substrate verification** — Tasks 1–5 quality gates (typecheck / lint / format-check / commitlint / prek-runner) all passed at dev-story, plus Task 5's five runtime smoke tests exercised AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end: clean-path (`pnpm keel-invariants:check` → exit 0), drift-path (mutated `tsconfig.base.json` → exit 1 + JSON DriftReport on stderr), performance (0.77s wall-clock), plus iter-8 manifest-side missing-anchor (AC-2) + docs-side orphan-anchor (AC-5) smokes with byte-identical revert restore. These are the authoritative quality signals for a runtime-tooling story at a pre-test-runner substrate stage.
 
 #### Short-term Actions (Next Milestones)
 
@@ -346,7 +346,7 @@ No test runner is configured at this substrate stage (Story 1.16 scope per `epic
 
 **Overall Pass Rate**: n/a
 
-**Test Results Source**: substrate quality-gate bundle + three Task 5 runtime smoke tests (Story 1.9 Task 5 Completion Notes — `pnpm install` / `pnpm -w typecheck 16/16` / `pnpm -w lint 16/16` / `pnpm -w build 16/16` / `pnpm format:check` after prettier --write on 2 new files / `pnpm exec commitlint --from origin/main --to HEAD --verbose` 0 problems / `pnpm exec prek run --all-files` 3/3 hooks Passed; clean-path smoke `exit 0`; drift-path smoke `exit 1` + JSON DriftReport for `INV-tsconfig-base content-hash-mismatch` with revert round-trip verified; performance smoke 0.77s).
+**Test Results Source**: substrate quality-gate bundle + five Task 5 runtime smoke tests (Story 1.9 Task 5 Completion Notes — `pnpm install` / `pnpm -w typecheck 16/16` / `pnpm -w lint 16/16` / `pnpm -w build 16/16` / `pnpm format:check` after prettier --write on 2 new files / `pnpm exec commitlint --from origin/main --to HEAD --verbose` 0 problems / `pnpm exec prek run --all-files` 3/3 hooks Passed; clean-path smoke `exit 0`; drift-path smoke `exit 1` + JSON DriftReport for `INV-tsconfig-base content-hash-mismatch` with revert round-trip verified; performance smoke 0.77s; iter-8 AC-2 manifest-side missing-anchor smoke `exit 1` + `added-to-source-only` with byte-identical revert; iter-8 AC-5 docs-side orphan-anchor smoke `exit 1` + `removed-from-docs-only` with byte-identical revert).
 
 ---
 
@@ -431,11 +431,13 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
 
 **Why WAIVED instead of FAIL:**
 
-1. **Story 1.9 is a runtime-tooling story at a pre-test-runner substrate stage.** Its § Testing Standards (story file line 120) states verbatim: _"No dedicated unit-test file for `sync-gate.ts` in Story 1.9 scope. Rationale: (a) no test runner is wired at substrate level yet (Story 1.16 scope); (b) Task 5's five runtime smoke tests (clean + drift + performance + AC 2 manifest-side missing-anchor + AC 5 docs-side orphan-anchor) exercise the tool end-to-end — AC 1 / AC 4 / AC 7 fully covered at the shell-invocation level; (c) the manifest's Zod parse + the gate's anchor-regex + the hash comparison are all small pure functions that a future test-runner story (Story 1.16) can add coverage for without structural changes."_ This is a stakeholder-approved waiver of per-AC unit/E2E coverage for this specific story class.
+1. **Story 1.9 is a runtime-tooling story at a pre-test-runner substrate stage.** Its § Testing Standards (story file line 120) states verbatim: _"No dedicated unit-test file for `sync-gate.ts` in Story 1.9 scope. Rationale: (a) no test runner is wired at substrate level yet (Story 1.16 scope); (b) Task 5's five runtime smoke tests (clean + drift + performance + AC 2 manifest-side missing-anchor + AC 5 docs-side orphan-anchor) exercise the tool end-to-end — AC 1 / AC 2 / AC 4 / AC 5 / AC 7 fully covered at the shell-invocation level; (c) the manifest's Zod parse + the gate's anchor-regex + the hash comparison are all small pure functions that a future test-runner story (Story 1.16) can add coverage for without structural changes."_ This is a stakeholder-approved waiver of per-AC unit/E2E coverage for this specific story class.
 
-2. **Substrate verification exceeded Story 1.8's level** — Story 1.9's three Task 5 shell-invocation smoke tests exercised AC-1 + AC-4 + AC-7 end-to-end, one more AC than Story 1.8's single Task 3 smoke. Specifically:
+2. **Substrate verification exceeded Story 1.8's level** — Story 1.9's five Task 5 shell-invocation smoke tests exercised AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end, four more ACs than Story 1.8's single Task 3 smoke. Specifically:
    - **AC-1 (clean-path):** `pnpm keel-invariants:check` → exit 0, no stderr — gate-clean happy path proven.
+   - **AC-2 (addition drift, anchor-side):** iter-8 smoke — delete `INV-commitlint-shared` anchor from `INVARIANTS.md` → exit 1 + `added-to-source-only` Drift with sourcePath; revert; byte-identical restore — anchor-side realisation per § Scope Carve-Out proven.
    - **AC-4 (drift-path):** mutated `tsconfig.base.json` → exit 1 + JSON DriftReport on stderr for `INV-tsconfig-base` as `content-hash-mismatch` with expected + actual hashes; revert round-trip verified byte-for-byte — core drift-class proven.
+   - **AC-5 (removed-from-docs):** iter-8 smoke — append `- **\`INV-fake-orphan\`**` line to `INVARIANTS.md` → exit 1 + `removed-from-docs-only`; revert; byte-identical restore — anchor-walker drift-emission proven end-to-end.
    - **AC-7 (performance):** 0.77s wall-clock — NFR met with 62% headroom.
 
 3. **Remaining ACs are explicitly scoped-out or structurally realised:**
@@ -462,7 +464,7 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
 
 **Waiver Information**:
 
-- **Waiver Reason**: Story 1.9 is a runtime-tooling story at a pre-test-runner substrate stage. Per-AC automated test-runner coverage is explicitly deferred to Story 1.16 (test-runner landing); GitHub Actions workflow wiring is explicitly deferred to Epic 13 (F/E pipeline); source-tree auto-discovery (AC-2 branch) is explicitly deferred per spec scope carve-out. Substrate verification is strong: 7 quality gates green + 3 runtime smoke tests exercising AC-1 + AC-4 + AC-7 end-to-end.
+- **Waiver Reason**: Story 1.9 is a runtime-tooling story at a pre-test-runner substrate stage. Per-AC automated test-runner coverage is explicitly deferred to Story 1.16 (test-runner landing); GitHub Actions workflow wiring is explicitly deferred to Epic 13 (F/E pipeline); source-tree auto-discovery (AC-2 branch) is explicitly deferred per spec scope carve-out. Substrate verification is strong: 7 quality gates green + 5 runtime smoke tests exercising AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end.
 - **Waiver Approver**: Story 1.9 itself (stakeholder-authored § Testing Standards line 120 + AC-2 inline scope carve-out line 23 + AC-6 inline scope carve-out line 41 + § Scope Carve-Out line 126 + § Symmetry line 128). See also: `.ralph/@plan.md` iter-3 FR14n ATDD-skip (commit `d5ec5b2`) and Story 1.8 trace WAIVED precedent at `_bmad-output/test-artifacts/traceability/1-8-invariants-manifest-ts-contract-exporter.md`.
 - **Approval Date**: 2026-04-20 (story authored iter-1, pre-dev SM review iter-2, ATDD-skip iter-3, dev-story iter-4, trace iter-5 — all within the same ISO day).
 - **Waiver Expiry**: expires when **Story 1.16** lands the test runner AND **Epic 13** wires the CI workflow. From those points forward, per-AC automated coverage + CI re-exercise become structurally feasible.
@@ -481,7 +483,7 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
 - **Owner**: Epic 1 substrate team (Ralph loop).
 - **Verification**: Story 1.16 will turn all 7 AC branches green in a runner-hosted test; Epic 13 will turn AC-6 workflow-wiring green at CI.
 
-**Business Justification**: Forcing automated per-AC tests on a runtime-tooling story at a pre-test-runner substrate stage inverts the substrate architecture contract (Story 1.16 is explicitly scoped as the test-runner landing). Double-gating delays Epic 1 substrate completion without risk reduction — Task 5's shell-invocation smoke tests already cover the three highest-impact ACs end-to-end, and the CR adversarial pass is the agreed backstop for the two structural-only P1 branches. Authoring dead-code red-phase probes before Story 1.16 wires a runner wastes iteration budget and has no automatic re-execution path.
+**Business Justification**: Forcing automated per-AC tests on a runtime-tooling story at a pre-test-runner substrate stage inverts the substrate architecture contract (Story 1.16 is explicitly scoped as the test-runner landing). Double-gating delays Epic 1 substrate completion without risk reduction — Task 5's shell-invocation smoke tests already cover five of seven ACs (AC-1 + AC-2 + AC-4 + AC-5 + AC-7) end-to-end, and the CR adversarial pass is the agreed backstop for the one structural-only P1 branch (AC-3) plus the one CLI-contract-only P2 branch (AC-6). Authoring dead-code red-phase probes before Story 1.16 wires a runner wastes iteration budget and has no automatic re-execution path.
 
 ---
 
@@ -523,7 +525,7 @@ None. The FAIL signal from the deterministic rule engine is waived (see above).
 
 **Stakeholder Communication**:
 
-- Notify PM / SM / Dev lead: **Story 1.9 trace GATE=WAIVED** (runtime-tooling story; coverage enforcement deferred to Story 1.16 FR43 sync-gate test-runner landing + Epic 13 CI workflow wiring per § Testing Standards + inline AC scope carve-outs; substrate verification is STRONG — all 7 quality gates green + 3 runtime smoke tests exercising AC-1 + AC-4 + AC-7 end-to-end, including a mutation-revert round-trip for `INV-tsconfig-base content-hash-mismatch`).
+- Notify PM / SM / Dev lead: **Story 1.9 trace GATE=WAIVED** (runtime-tooling story; coverage enforcement deferred to Story 1.16 FR43 sync-gate test-runner landing + Epic 13 CI workflow wiring per § Testing Standards + inline AC scope carve-outs; substrate verification is STRONG — all 7 quality gates green + 5 runtime smoke tests exercising AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end, including a mutation-revert round-trip for `INV-tsconfig-base content-hash-mismatch` plus iter-8 anchor-injection/deletion revert round-trips for AC-2 + AC-5).
 
 ---
 
@@ -552,7 +554,7 @@ traceability_and_gate:
       blocker_issues: 0
       warning_issues: 0
     recommendations:
-      - 'Defer AC-1 / AC-2 / AC-3 / AC-4 / AC-5 unit-test coverage to Story 1.16 (test-runner landing). Task 5 shell-invocation smoke already covers AC-1 + AC-4 + AC-7 end-to-end.'
+      - 'Defer AC-1 / AC-2 / AC-3 / AC-4 / AC-5 unit-test coverage to Story 1.16 (test-runner landing). Task 5 shell-invocation smokes (iter-8 ×5) already cover AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end; only AC-3 remains schema/structural (and AC-6 CLI-contract-only).'
       - 'Defer AC-6 GitHub Actions workflow wiring to Epic 13 (F/E pipeline). Story 1.9 ships CLI + exit-code contract; Epic 13 wires invocation step.'
       - 'AC-7 performance budget met at 0.77s wall-clock (>2x headroom vs 2s budget); re-measure only if substrate grows beyond ~50 invariants.'
       - 'Run /bmad-code-review (args: "2") next — adversarial triage is the agreed 1.9 backstop for AC-2 / AC-3 / AC-5 structural branches.'
@@ -580,7 +582,7 @@ traceability_and_gate:
       min_overall_pass_rate: 95
       min_coverage: 80
     evidence:
-      test_results: 'substrate quality-gate bundle (7/7 green) + 3 runtime smoke tests (clean-path exit 0; drift-path exit 1 + JSON DriftReport for INV-tsconfig-base content-hash-mismatch; performance 0.77s wall-clock) — Story 1.9 Task 5 Completion Notes'
+      test_results: 'substrate quality-gate bundle (7/7 green) + 5 runtime smoke tests (clean-path exit 0; drift-path exit 1 + JSON DriftReport for INV-tsconfig-base content-hash-mismatch; performance 0.77s wall-clock; iter-8 AC-2 manifest-side missing-anchor exit 1 + added-to-source-only with byte-identical revert; iter-8 AC-5 docs-side orphan-anchor exit 1 + removed-from-docs-only with byte-identical revert) — Story 1.9 Task 5 Completion Notes'
       traceability: '_bmad-output/test-artifacts/traceability/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md'
       nfr_assessment: 'inferred_from_story_dev_notes'
       code_coverage: 'not_applicable'
@@ -611,7 +613,7 @@ traceability_and_gate:
 - **Agent-readable index (source of truth for the 10 IDs):** `INVARIANTS.md` (Stories 1.7–1.9 outputs; provisional header discharged by this story's sibling Story 1.9).
 - **Test Design:** not applicable (runtime-tooling story; no test design doc authored — § Testing Standards defers all to Story 1.16).
 - **Tech Spec:** `_bmad-output/planning-artifacts/architecture.md` (§ Complete Project Directory Structure line 942; FR42/FR43), `_bmad-output/planning-artifacts/prd.md` FR42/FR43, `_bmad-output/planning-artifacts/epics.md` lines 888–924 (Story 1.9 AC block; 7 ACs verbatim-match the story file's AC 1–7).
-- **Test Results:** substrate quality-gate bundle + Task 5 three runtime smoke tests (clean-path / drift-path / performance — Story 1.9 Task 5 Completion Notes).
+- **Test Results:** substrate quality-gate bundle + Task 5 five runtime smoke tests (clean-path / drift-path / performance / iter-8 AC-2 manifest-side missing-anchor / iter-8 AC-5 docs-side orphan-anchor — Story 1.9 Task 5 Completion Notes).
 - **NFR Assessment:** inferred (not a formal NFR doc).
 - **Test Files:** none (no test runner until Story 1.16).
 - **Precedent:** `_bmad-output/test-artifacts/traceability/1-8-invariants-manifest-ts-contract-exporter.md` (Story 1.8 WAIVED — first application of the substrate WAIVED posture on a contract-authoring story; Story 1.9 is the second application on a runtime-tooling story, with MORE end-to-end evidence).

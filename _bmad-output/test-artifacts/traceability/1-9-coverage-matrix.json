@@ -157,7 +157,7 @@
   "recommendations": [
     {
       "priority": "HIGH",
-      "action": "Defer AC-1 / AC-2 / AC-3 / AC-4 / AC-5 unit-test coverage to Story 1.16 (test-runner landing); Task 5 shell-invocation smoke tests already cover AC-1 + AC-4 + AC-7 end-to-end. AC-3 + AC-5 branches are small pure functions that CR adversarial pass backstops at 1.9.",
+      "action": "Defer AC-1 / AC-2 / AC-3 / AC-4 / AC-5 unit-test coverage to Story 1.16 (test-runner landing); Task 5 shell-invocation smoke tests already cover AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end. AC-3 remains a small pure function branch that CR adversarial pass backstops at 1.9.",
       "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
     },
     {
