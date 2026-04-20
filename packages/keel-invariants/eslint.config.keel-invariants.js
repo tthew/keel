@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import globals from 'globals';
+import { keelInvariants } from './src/eslint-rules/index.js';
 
 const sharedBase = [
   {
@@ -70,6 +71,23 @@ const sharedBase = [
       ],
     },
   },
+  {
+    files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+    plugins: { 'keel-invariants': keelInvariants },
+    rules: {
+      'keel-invariants/no-verify-bypass': 'error',
+    },
+  },
+  {
+    // Self-exclusion: the rule's own definition and test fixtures must be
+    // allowed to contain the bypass-token string literally. File-scoped rule
+    // override (not blanket `ignores:`) preserves tseslint + no-restricted-imports
+    // coverage on the rule source.
+    files: ['**/eslint-rules/**', '**/keel-invariants/test/**'],
+    rules: {
+      'keel-invariants/no-verify-bypass': 'off',
+    },
+  },
 ];
 
 export default sharedBase;
@@ -112,6 +130,19 @@ export function forPackage(ownName) {
             ],
           },
         ],
+      },
+    },
+    {
+      files: ['**/*.{ts,tsx,js,jsx,mjs,cjs}'],
+      plugins: { 'keel-invariants': keelInvariants },
+      rules: {
+        'keel-invariants/no-verify-bypass': 'error',
+      },
+    },
+    {
+      files: ['**/eslint-rules/**', '**/keel-invariants/test/**'],
+      rules: {
+        'keel-invariants/no-verify-bypass': 'off',
       },
     },
   ];

@@ -13,7 +13,8 @@
     "./tsconfig": "./tsconfig.base.json",
     "./eslint": "./eslint.config.keel-invariants.js",
     "./prettier": "./prettier.config.keel-invariants.js",
-    "./commitlint": "./commitlint.config.keel-invariants.js"
+    "./commitlint": "./commitlint.config.keel-invariants.js",
+    "./eslint-plugin": "./src/eslint-rules/index.js"
   },
   "scripts": {
     "build": "tsc -b",
