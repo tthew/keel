@@ -21,6 +21,9 @@
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint ."
   },
+  "dependencies": {
+    "zod": "3.25.76"
+  },
   "devDependencies": {
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",

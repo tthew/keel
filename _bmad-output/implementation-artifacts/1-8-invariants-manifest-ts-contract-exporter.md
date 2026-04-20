@@ -1,6 +1,6 @@
 # Story 1.8: `invariants.manifest.ts` contract + exporter
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -36,9 +36,9 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Author `packages/keel-invariants/src/invariants.manifest.ts`** (AC: 1, 2, 3, 4)
-  - [ ] Create `packages/keel-invariants/src/invariants.manifest.ts` as ESM TypeScript (package is `"type": "module"`; `tsc -b` compiles to `dist/` per `packages/keel-invariants/tsconfig.json` — variance: the rest of `keel-invariants/` uses `.js` ESM source; Story 1.8 introduces `.ts` under `src/` because the contract requires a typed `Invariant` interface. Matches `src/index.ts` which is already `.ts`.)
-  - [ ] Author the `Invariant` interface + Zod schema + canonical list of 9 entries. Skeleton:
+- [x] **Task 1: Author `packages/keel-invariants/src/invariants.manifest.ts`** (AC: 1, 2, 3, 4)
+  - [x] Create `packages/keel-invariants/src/invariants.manifest.ts` as ESM TypeScript (package is `"type": "module"`; `tsc -b` compiles to `dist/` per `packages/keel-invariants/tsconfig.json` — variance: the rest of `keel-invariants/` uses `.js` ESM source; Story 1.8 introduces `.ts` under `src/` because the contract requires a typed `Invariant` interface. Matches `src/index.ts` which is already `.ts`.)
+  - [x] Author the `Invariant` interface + Zod schema + canonical list of 9 entries. Skeleton:
     ```typescript
     import { z } from 'zod';
 
@@ -140,26 +140,26 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
 
     export const invariants: Invariant[] = InvariantsSchema.parse(raw);
     ```
-  - [ ] Re-export `invariants`, `Invariant`, `InvariantSchema`, `InvariantsSchema` from `packages/keel-invariants/src/index.ts`. Current `index.ts` is `export {};` — replace with the re-exports. Consumers (Story 1.9's sync-gate) import via `@keel/keel-invariants` (the package root; resolves through `./dist/index.js` per `package.json` exports map).
-  - [ ] Verify that every `sourcePath` resolves to an existing file at the repo root (Task 3's typecheck/lint doesn't cover this — it's a manual `ls` check against the 9 entries; any stale pointer fails AC 2).
+  - [x] Re-export `invariants`, `Invariant`, `InvariantSchema`, `InvariantsSchema` from `packages/keel-invariants/src/index.ts`. Current `index.ts` is `export {};` — replace with the re-exports. Consumers (Story 1.9's sync-gate) import via `@keel/keel-invariants` (the package root; resolves through `./dist/index.js` per `package.json` exports map).
+  - [x] Verify that every `sourcePath` resolves to an existing file at the repo root (Task 3's typecheck/lint doesn't cover this — it's a manual `ls` check against the 9 entries; any stale pointer fails AC 2).
   - [x] **Discharged in spec-authoring (commit `8991214`, iter-1).** architecture.md hyphen→dot normalisation was co-landed with this spec; current line is `architecture.md:942` in dot-form (`│   │   ├── invariants.manifest.ts               # FR43 generated manifest (ID+hash)`), matching epic spec + PRD FR43 + this story's file path. RALPH.md 2026-04-20 iter-20 Story-1.7-carry-forward defer is closed — no Dev action needed on this subtask.
 
-- [ ] **Task 2: Add `zod` dependency + wire Zod import-time validation** (AC: 4)
-  - [ ] Add `zod` as a runtime dependency to `packages/keel-invariants/package.json`. Pin exact version (per I7 version-pinning posture from epics.md:650). Suggested pin: `"zod": "3.25.0"` (latest stable at authoring time; bump if a fresher pin lands before Dev runs this task — check `npm view zod version` at execution). Add to a new `"dependencies"` block (currently only `"devDependencies"` exists). `pnpm install -w` will update `pnpm-lock.yaml`.
-  - [ ] Verify Zod import-time validation is load-bearing: the `InvariantsSchema.parse(raw)` call at the bottom of `invariants.manifest.ts` runs synchronously at module import. A bad entry (malformed `id`, empty `anchors`, bad `contentHash` length) throws `ZodError` with a structured path, failing any downstream consumer loudly. This is AC 4's "validates against its own Zod (or equivalent) schema at import time" — realised by the `parse` call, not a post-load validator.
-  - [ ] No separate `validate-manifest.ts` helper needed. The schema + parse call live inline in `invariants.manifest.ts` (single file, one contract). Future Ralph adding a new invariant: append to `raw` array, Zod catches any shape error at next `tsc -b`. Simpler than a separate validator module.
+- [x] **Task 2: Add `zod` dependency + wire Zod import-time validation** (AC: 4)
+  - [x] Add `zod` as a runtime dependency to `packages/keel-invariants/package.json`. Pin exact version (per I7 version-pinning posture from epics.md:650). **Applied pin: `"zod": "3.25.76"`** (latest 3.x patch at dev time 2026-04-20; skipped v4.x major-version line — breaking changes vs 3.x would widen scope beyond Story 1.8's contract-only remit). `pnpm install -w` updated `pnpm-lock.yaml` (+1 package).
+  - [x] Verify Zod import-time validation is load-bearing: the `InvariantsSchema.parse(raw)` call at the bottom of `invariants.manifest.ts` runs synchronously at module import. A bad entry (malformed `id`, empty `anchors`, bad `contentHash` length) throws `ZodError` with a structured path, failing any downstream consumer loudly. This is AC 4's "validates against its own Zod (or equivalent) schema at import time" — realised by the `parse` call, not a post-load validator.
+  - [x] No separate `validate-manifest.ts` helper needed. The schema + parse call live inline in `invariants.manifest.ts` (single file, one contract). Future Ralph adding a new invariant: append to `raw` array, Zod catches any shape error at next `tsc -b`. Simpler than a separate validator module.
 
-- [ ] **Task 3: Quality gates + sprint-status bump** (no AC — substrate verification)
-  - [ ] `pnpm install` at repo root. `pnpm-lock.yaml` updates with zod + its deps. `prepare` re-runs `prek install -t pre-commit -t commit-msg` idempotently.
-  - [ ] `pnpm -w typecheck` — expect `keel-invariants#typecheck` to MISS turbo cache (new `.ts` source added; `src/invariants.manifest.ts` is a new typecheck input), rebuild, then cache. Downstream packages (16 workspaces) may or may not hit turbo depending on their dep edges — a clean pass is the success criterion, not FULL TURBO. Count: 16/16 executed, 0 failures.
-  - [ ] `pnpm -w lint` — ESLint runs over `packages/keel-invariants/src/invariants.manifest.ts`. The file is ESM TypeScript with no imports other than `zod`; no self-import of `@keel/keel-invariants` (would trip AC 3 of Story 1.3's import-boundary rule). 16/16 executed, 0 failures.
-  - [ ] `pnpm -w build` — `keel-invariants#build` emits `dist/index.js` + `dist/invariants.manifest.js` + `.d.ts` files. Verify `dist/invariants.manifest.js` parses cleanly (synchronous Zod parse doesn't throw — the 9 hand-authored entries validate).
-  - [ ] `pnpm format:check` — must exit 0. Prettier formats `.ts` source; if it rewrites anything, re-run and commit.
-  - [ ] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems across the full branch (spec + iter-1 + Tasks 1–3).
-  - [ ] `pnpm exec prek run --all-files` — all 3 pre-commit-stage hooks `Passed`.
-  - [ ] Runtime smoke check: `node --input-type=module -e "import('@keel/keel-invariants').then(m => { if (m.invariants.length !== 9) throw new Error('expected 9 invariants, got ' + m.invariants.length); console.log('OK:', m.invariants.length, 'invariants'); })"`. Should print `OK: 9 invariants`. If Zod parse fails, the import rejects — script exits non-zero. Captures AC 4 end-to-end in one shell command.
-  - [ ] Bump `_bmad-output/implementation-artifacts/sprint-status.yaml`: `1-8-invariants-manifest-ts-contract-exporter: ready-for-dev → done`, `last_updated: 2026-04-20 Task-3 UTC`. **Co-land in Task 3's commit** (preemptive-orphan-prevention — Stories 1.1–1.7 precedent; eighth story-implementation confirmation).
-  - [ ] Flip this story file's Status to `done` + mark all Task subtasks `[x]` + populate `## Dev Agent Record` (Agent Model Used / Debug Log References / Completion Notes List / File List).
+- [x] **Task 3: Quality gates + sprint-status bump** (no AC — substrate verification)
+  - [x] `pnpm install` at repo root. `pnpm-lock.yaml` updates with zod + its deps. `prepare` re-runs `prek install -t pre-commit -t commit-msg` idempotently.
+  - [x] `pnpm -w typecheck` — 16/16 successful, 0 failures (1.833s; cache miss on new `.ts` input as expected).
+  - [x] `pnpm -w lint` — 16/16 successful. **Note (dev-time finding):** first run flagged `INV-no-verify-bypass` description literal for naming the `--no-verify` / `--dangerously-skip-permissions` tokens (the rule catches itself when the flag names appear as string literals in committed JS/TS). Fix: rewrote the description to reference the rule source (`src/eslint-rules/no-verify-bypass.js BYPASS_PATTERNS`) rather than naming the tokens inline — cleaner DRY posture (tokens live in one authoritative place). INVARIANTS.md kept verbatim (markdown is out of rule scope; human-readable layer benefits from naming the tokens explicitly). Consistent with `sharedBase`'s self-exclusion pattern for `eslint-rules/**`.
+  - [x] `pnpm -w build` — `keel-invariants#build` emits `dist/index.js` + `dist/invariants.manifest.js` + `.d.ts` files; 16/16 successful.
+  - [x] `pnpm format:check` — first pass flagged `invariants.manifest.ts` (line-wrapping); ran `pnpm exec prettier --write` to auto-fix; re-check passes 0 problems.
+  - [x] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — 0 problems across the branch.
+  - [x] `pnpm exec prek run --all-files` — TypeScript type-check / ESLint / Prettier format:check all `Passed`.
+  - [x] Runtime smoke check: `node --input-type=module -e "import('@keel/keel-invariants')…"` prints `OK: 9 invariants`. Zod parse succeeds at import time (AC 4 end-to-end).
+  - [x] Bump `_bmad-output/implementation-artifacts/sprint-status.yaml`: `1-8-invariants-manifest-ts-contract-exporter: ready-for-dev → done` (direct jump; skipped the `in-progress → review` BMad intermediate per Story 1.7 precedent — Ralph's FR14n lifecycle owns the gates that follow). `last_updated: 2026-04-20 Story-1-8-done UTC`.
+  - [x] Flipped this story file's Status to `done`, marked all Task subtasks `[x]`, populated `## Dev Agent Record`.
 
 ## Dev Notes
 
@@ -192,23 +192,36 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
 
 ### Context Reference
 
-<!-- Populated by dev-story on completion. Usually a path to `_bmad-output/test-artifacts/traceability/<story-id>-*.md` or similar. -->
+_(Ralph-hosted `/bmad-dev-story` executed this story inline; no separate traceability artifact produced at dev-story time. Story 1.9's `/bmad-testarch-trace` (queued in IP) will produce the traceability matrix if applicable.)_
 
 ### Agent Model Used
 
-<!-- To be populated by dev-story. -->
+Claude Opus 4.7 (1M context) — via Ralph iteration loop hosting `/bmad-dev-story`.
 
 ### Debug Log References
 
-<!-- To be populated by dev-story. Captures any noteworthy mid-task decisions or anomalies. -->
+Two dev-time findings, both fixed in-iteration without deferrals:
+
+1. **ESLint self-reference collision on `INV-no-verify-bypass` description** — first lint pass failed because the manifest entry's description literal named the bypass tokens (`--no-verify` / `--dangerously-skip-permissions`) and the `keel-invariants/no-verify-bypass` rule flags those tokens as string literals in committed JS/TS. Considered three options: (a) expand the rule's self-exclusion glob to include `invariants.manifest.{ts,js}` — rejected because it would cascade `eslint.config.keel-invariants.js` hash updates into `INV-eslint-shared` + `INV-eslint-import-boundary` contentHash values; (b) split the tokens via string concatenation — rejected as non-obvious to future maintainers; (c) rewrite the description to reference the rule source's `BYPASS_PATTERNS` constant rather than naming tokens inline — **adopted**: one authoritative place for the tokens (the rule source), DRY, no hash cascade. INVARIANTS.md kept verbatim (markdown is out of the rule's JS/TS scope; human-readable layer benefits from naming tokens explicitly for agent comprehension).
+
+2. **Prettier line-wrapping on authored file** — first `format:check` pass flagged `invariants.manifest.ts`. Ran `pnpm exec prettier --write`; prettier collapsed the multi-line key/value pairs for shorter entries (e.g., `INV-tsconfig-base`) and preserved wrapping for longer descriptions. Re-check passed. No semantic change.
+
+**Zod version pin decision:** spec suggested `3.25.0` with a "bump if a fresher pin lands" clause. At dev time (2026-04-20), `npm view zod version` returned `4.3.6`; `npm view zod@3 version` tip was `3.25.76`. Chose `3.25.76` (latest 3.x patch) over `4.3.6`. Rationale: Zod 4.x is a major-version line with breaking changes from 3.x; jumping majors would widen Story 1.8's scope beyond its contract-only remit. The spec author's `3.25.0` suggestion signalled the 3.x line; `3.25.76` is a patch-level bump within that line, consistent with the spec's intent.
 
 ### Completion Notes List
 
-<!-- To be populated by dev-story. Short prose per task describing what landed and any variance from spec. -->
+- **Task 1 (AC 1, 2, 3, 4):** authored `packages/keel-invariants/src/invariants.manifest.ts` with the `Invariant` type + `InvariantSchema` + `InvariantsSchema` Zod schemas + canonical list of 9 invariant entries matching INVARIANTS.md. ContentHashes match freshly-computed `sha256sum` for all 7 distinct sourcePath files (verified before authoring). `src/index.ts` replaced with `export * from './invariants.manifest.js';` (NodeNext module resolution requires runtime `.js` extension in the specifier). All 9 sourcePath files exist on disk.
+- **Task 2 (AC 4):** added `"dependencies": { "zod": "3.25.76" }` to `packages/keel-invariants/package.json`. `pnpm install -w` added 1 package + updated `pnpm-lock.yaml`. Zod import-time validation is load-bearing: `InvariantsSchema.parse(raw)` runs synchronously at module import; a bad entry throws `ZodError` → downstream consumers fail loudly. Verified via runtime smoke test (see Task 3).
+- **Task 3 (substrate verification):** quality-gate bundle all green — `pnpm -w typecheck` 16/16 (1.833s), `pnpm -w lint` 16/16 after description fix (6.87s), `pnpm -w build` 16/16 (2.88s) emitting `dist/invariants.manifest.js` + `.d.ts`, `pnpm format:check` 0 problems after prettier auto-write, `pnpm exec commitlint --from origin/main --to HEAD` 0 problems, `pnpm exec prek run --all-files` all 3 hooks `Passed`. Runtime smoke test: `node --input-type=module -e "import('@keel/keel-invariants')…"` prints `OK: 9 invariants` (AC 4 end-to-end in one shell command). Sprint-status bumped `1-8: ready-for-dev → done`, `last_updated: 2026-04-20 Story-1-8-done UTC` (direct jump past the `in-progress → review` BMad intermediate, per Story 1.7 precedent — Ralph's FR14n lifecycle owns the trace/SM-review/CR gates that follow this dev-completion commit).
 
 ### File List
 
-<!-- To be populated by dev-story. Enumerates every file created or edited. -->
+- **NEW:** `packages/keel-invariants/src/invariants.manifest.ts`
+- **MODIFIED:** `packages/keel-invariants/src/index.ts` (`export {};` → `export * from './invariants.manifest.js';`)
+- **MODIFIED:** `packages/keel-invariants/package.json` (added `"dependencies": { "zod": "3.25.76" }`)
+- **MODIFIED:** `pnpm-lock.yaml` (auto-updated by `pnpm install -w`; +1 package)
+- **MODIFIED:** `_bmad-output/implementation-artifacts/sprint-status.yaml` (`1-8: ready-for-dev → done`; `last_updated` bumped)
+- **MODIFIED:** `_bmad-output/implementation-artifacts/1-8-invariants-manifest-ts-contract-exporter.md` (Status `in-progress → done`; Task checkboxes `[x]`; Dev Agent Record populated; Change Log v1.2 added)
 
 ## Change Log
 
@@ -216,3 +229,4 @@ So that the sync-gate tooling has a machine-readable contract to drift-detect ag
 | ---------- | ------- | --------------------- | ------ |
 | 2026-04-20 | 1.0     | Initial story authoring (Ralph; spec via /bmad-create-story inline-realisation per Story 1.6/1.7 precedent). | Ralph |
 | 2026-04-20 | 1.1     | Pre-dev SM review (Ralph, iter-2; drafted → validated). Applied one critical fix: discharged the stale architecture.md:922 hyphen→dot normalisation subtask (already landed in iter-1 commit 8991214; line is now :942 dot-form). Source-pointer + contentHash + INV-\* ID audit confirmed 9/9 match INVARIANTS.md + on-disk sha256. ACs 1–4 well-formed; double-anchored scope carve-outs (AC inline + § Project Structure Notes) intact. | Ralph |
+| 2026-04-20 | 1.2     | Dev-story execution (Ralph-hosted `/bmad-dev-story`, iter-4; atdd-scaffolded → in-dev). All 3 Tasks landed in one iteration: Task 1 authored `invariants.manifest.ts` + updated `src/index.ts`; Task 2 added `zod@3.25.76` (3.x patch, skipped 4.x major); Task 3 ran full quality-gate bundle (all green). Two dev-time findings fixed in-iteration: (a) rewrote `INV-no-verify-bypass` description to reference the rule source rather than naming the flagged tokens inline (avoids ESLint self-reference collision + DRY); (b) prettier auto-write on `invariants.manifest.ts`. Runtime smoke test `OK: 9 invariants`. Status flipped to `done`; sprint-status `1-8: ready-for-dev → done`. | Ralph |
