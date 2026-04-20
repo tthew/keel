@@ -16,10 +16,14 @@
     "./commitlint": "./commitlint.config.keel-invariants.js",
     "./eslint-plugin": "./src/eslint-rules/index.js"
   },
+  "bin": {
+    "keel-invariants-check": "./dist/check.js"
+  },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "check": "node dist/check.js"
   },
   "dependencies": {
     "zod": "3.25.76"
@@ -28,6 +32,7 @@
     "@commitlint/cli": "20.5.0",
     "@commitlint/config-conventional": "20.5.0",
     "@eslint/js": "10.0.1",
+    "@types/node": "20.19.0",
     "eslint": "10.2.1",
     "globals": "17.5.0",
     "prettier": "3.8.3",

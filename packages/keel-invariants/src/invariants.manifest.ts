@@ -3,14 +3,47 @@ import { z } from 'zod';
 export const InvariantSchema = z.object({
   id: z.string().regex(/^INV-[a-z0-9]+(-[a-z0-9]+)+$/),
   description: z.string().min(1),
-  sourcePath: z.string().min(1),
+  sourcePath: z
+    .string()
+    .min(1)
+    .refine(
+      (p) => !p.startsWith('/') && !p.startsWith('\\') && !p.includes('..') && !p.includes('\\'),
+      { message: 'sourcePath must be a repo-relative forward-slash path without traversal' },
+    ),
   contentHash: z.string().regex(/^[0-9a-f]{64}$/),
   anchors: z.array(z.string().min(1)).min(1),
 });
 
 export type Invariant = z.infer<typeof InvariantSchema>;
 
-export const InvariantsSchema = z.array(InvariantSchema);
+export const InvariantsSchema = z
+  .array(InvariantSchema)
+  .superRefine((arr, ctx) => {
+    const ids = new Set<string>();
+    for (const { id } of arr) {
+      if (ids.has(id)) {
+        ctx.addIssue({ code: 'custom', message: `duplicate invariant id: ${id}` });
+      }
+      ids.add(id);
+    }
+  })
+  .superRefine((arr, ctx) => {
+    const hashesBySource = new Map<string, Set<string>>();
+    for (const entry of arr) {
+      if (!hashesBySource.has(entry.sourcePath)) {
+        hashesBySource.set(entry.sourcePath, new Set());
+      }
+      hashesBySource.get(entry.sourcePath)!.add(entry.contentHash);
+    }
+    for (const [sourcePath, hashes] of hashesBySource) {
+      if (hashes.size > 1) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `contentHash mismatch across entries sharing sourcePath ${sourcePath}: ${[...hashes].join(', ')}`,
+        });
+      }
+    }
+  });
 
 const raw: Invariant[] = [
   {
@@ -65,7 +98,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: '0ba4c6fb37950832c7c132aac36eded95141d372dd93cb507141e031d7c40476',
+    contentHash: 'c83420f2bb52cb9e8097a4268bed952c217f83052612292200d65bc116f3d76e',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -84,6 +117,14 @@ const raw: Invariant[] = [
     contentHash: '08bf6e89c0936ce5106e9d24f22ef61ca3e8198ce005041b10e2989fa92ba674',
     anchors: ['INV-no-verify-bypass'],
   },
+  {
+    id: 'INV-ralph-halt-path-resolution',
+    description:
+      'ralph.py resolves .ralph/{halt,@plan.md,PROMPT_*.md,logs/} against the worktree path when --worktree X is set (else cwd-relative .ralph/); absolute path exported as RALPH_BASE_DIR. Normative spec in docs/invariants/ralph-execute.md § Path Resolution (FR14k + NFR33a).',
+    sourcePath: 'docs/invariants/ralph-execute.md',
+    contentHash: '8c679cdabcccb8ac122b8da82d4bcb8198451f0cc0a19b3d13b4b2695b6cba8b',
+    anchors: ['INV-ralph-halt-path-resolution'],
+  },
 ];
 
-export const invariants: Invariant[] = InvariantsSchema.parse(raw);
+export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));

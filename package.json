@@ -13,6 +13,7 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "keel-invariants:check": "pnpm --filter @keel/keel-invariants check",
     "prepare": "prek install -t pre-commit -t commit-msg"
   },
   "devDependencies": {

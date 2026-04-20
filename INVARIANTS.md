@@ -2,9 +2,7 @@
 
 **Audience:** any AI agent or human contributor needing to know which substrate rules are _machine-enforced_ (and where their enforcement source lives).
 
-This file is the human-readable companion to `packages/keel-invariants/` (FR42). Every entry here has a stable ID (`INV-<category>-<slug>`) that Story 1.8's `invariants.manifest.ts` will pin with a content hash, and Story 1.9's sync-gate (FR43) will drift-check at pre-merge.
-
-<!-- Provisional: canonical IDs pinned by Story 1.8 manifest; drift-detection lands in Story 1.9. -->
+This file is the human-readable companion to `packages/keel-invariants/` (FR42). Every entry here has a stable ID (`INV-<category>-<slug>`) pinned by `invariants.manifest.ts` (Story 1.8) with a content hash, drift-checked at pre-merge by the sync-gate (Story 1.9, FR43).
 
 ## Promotion rules
 
