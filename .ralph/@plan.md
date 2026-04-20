@@ -2,11 +2,10 @@
 
 ## NOW
 
-- [ ] Story State `fixes-pending` → CR re-review iter-12 fix #1/2: Normalise `1-7-e2e-trace-summary.json:107` waiver `expiry` from `"On Story 1.9 sync-gate landing"` → `"deferred (expires when Story 1.9 sync-gate lands)"` to match iter-11 canonical md YAML form; run quality-gate bundle ~small
-
-## QUEUE (Story 1.7 — CR re-review iter-12 fixes + re-run + PR transition)
-
 - [ ] Story State `fixes-pending` → CR re-review iter-12 fix #2/2: Add AC-4 recommendation line to trace md YAML `recommendations:` list at lines 478-481 (`- 'Accept manual + Prettier review for AC-4; no planned automated coverage'`) to match sibling JSONs ~small
+
+## QUEUE (Story 1.7 — CR re-review iter-12 re-run + PR transition)
+
 - [ ] Story State `fixes-pending` → Re-run `/bmad-code-review (args: "2")` — confirm iter-12 re-review findings cleared; Story State `fixes-pending → sm-verified → done` (no new findings) OR `fixes-pending` again (any new finding queues a fresh fix) ~medium
 - [ ] Story State `done` → Transition PR #224 Draft→Open — rewrite title/body for full spec+iter-1+iter-2+iter-3+Tasks-1-3+trace+SM-review+CR commit range; EPIC_DONE halt (mini-epic convention, 7th story-implementation precedent)
 
@@ -22,6 +21,10 @@ _(none)_
 ## ATDD Skip Rationale (FR14n matrix row 3)
 
 Story 1.7 is a documentation-artefact story with no runtime behaviour to probe. Story file § Testing Standards (line 141) states verbatim: _"No ATDD probe task (contrast Stories 1.3/1.4/1.5/1.6 which had runtime behaviour to probe). The AC checks are satisfied by existence + verbatim-match + markdown-parse; no runtime assertion needed until Story 1.9's sync-gate lands."_ All 5 ACs are static-content checks (file existence + audience-header presence + promotion-rule verbatim-match + INVARIANTS.md index entries + RALPH.md scope note). The FR14n matrix row for `validated` explicitly permits `validated → in-dev` skip when the story has no testable ACs, provided rationale is recorded in IP — which this section satisfies. Quality gates (typecheck/lint/format:check/commitlint/prek-runner parity) in Task 3 remain mandatory and are NOT ATDD probes; they are substrate verification from Stories 1.4/1.5.
+
+## DONE (Story 1.7 iter-13)
+
+- [x] **CR re-review iter-12 fix #1/2 — cross-artefact waiver-`expiry` normalisation.** Flipped `_bmad-output/test-artifacts/traceability/1-7-e2e-trace-summary.json:107` from `"On Story 1.9 sync-gate landing"` → `"deferred (expires when Story 1.9 sync-gate lands)"` to match iter-11 canonical md YAML form (`traceability/1-7-...-promotion-rules.md:514`). Single-line JSON string flip; no sibling triage needed (coverage-matrix.json + gate-decision.json have no `expiry` key per Grep). Quality gates PASS: prettier `All matched files use Prettier code style!`, turbo typecheck `16/16 successful (FULL TURBO cache hit)`, turbo lint `16/16 successful (FULL TURBO cache hit)`. RALPH.md extended with dated gotcha: sibling-artefact wording drift rule (after a phrasing edit in one of a md/json/yaml triplet, Grep + fix every sibling in the same iteration). One findings cleared (MEDIUM JSON-md drift), one remains (LOW AC-4 recommendations-list gap) → fix #2/2 is next NOW.
 
 ## DONE (Story 1.7 iter-12)
 
