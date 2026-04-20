@@ -172,7 +172,7 @@ Priority classification per `test-priorities-matrix.md`:
     - `Promise.all()` parallelises file-read IO.
     - sha256 on files this size (largest ~8KB) <1ms each; file-read IO dominates.
     - Cold start expected <100ms; warm (OS page cache) <20ms. 2s budget leaves ~20x headroom for growth to ~200 invariants before performance pressure surfaces.
-- **Gaps:** No runner-hosted performance regression test; no CI timing assertion. Task 5 measurement is a single dev-time sample.
+- **Gaps:** No test-runner-hosted performance regression test; no CI timing assertion. Task 5 measurement is a single dev-time sample.
 - **Recommendation:** Accept single-sample 0.77s (62% under budget; >2x headroom) as sufficient at current substrate scale. Re-measure if/when substrate exceeds ~50 invariants. Story 1.16 can add a performance-regression test if desired. WAIVED.
 
 ---
@@ -233,7 +233,7 @@ Priority classification per `test-priorities-matrix.md`:
 
 2. **AC-7: <2s performance NFR** (P2)
    - Current Coverage: NONE (no automated performance-regression test); **SUBSTRATE_VERIFIED via Task 5 performance smoke** (0.77s wall-clock; 62% under budget; >2x headroom).
-   - Missing Tests: runner-hosted performance-regression test; CI timing assertion.
+   - Missing Tests: test-runner-hosted performance-regression test; CI timing assertion.
    - Recommend: Accept single-sample 0.77s as sufficient at current scale; Story 1.16 can add perf-regression coverage if desired.
    - Impact: LOW at current scale; re-measure as substrate grows.
 
@@ -481,7 +481,7 @@ The deterministic rule engine would emit **FAIL** on both Rule 1 (P1 coverage 0%
 - **Fix Target**: Story 1.16 (test-runner wiring + per-AC unit/integration tests) + Epic 13 (F/E pipeline CI workflow invoking `pnpm keel-invariants:check`).
 - **Due Date**: per epic sprint-plan; not a blocker for Story 1.9 merge.
 - **Owner**: Epic 1 substrate team (Ralph loop).
-- **Verification**: Story 1.16 will turn all 7 AC branches green in a runner-hosted test; Epic 13 will turn AC-6 workflow-wiring green at CI.
+- **Verification**: Story 1.16 will turn all 7 AC branches green in a test-runner-hosted test; Epic 13 will turn AC-6 workflow-wiring green at CI.
 
 **Business Justification**: Forcing automated per-AC tests on a runtime-tooling story at a pre-test-runner substrate stage inverts the substrate architecture contract (Story 1.16 is explicitly scoped as the test-runner landing). Double-gating delays Epic 1 substrate completion without risk reduction — Task 5's shell-invocation smoke tests already cover five of seven ACs (AC-1 + AC-2 + AC-4 + AC-5 + AC-7) end-to-end, and the CR adversarial pass is the agreed backstop for the one structural-only P1 branch (AC-3) plus the one CLI-contract-only P2 branch (AC-6). Authoring dead-code red-phase probes before Story 1.16 wires a runner wastes iteration budget and has no automatic re-execution path.
 
