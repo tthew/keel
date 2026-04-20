@@ -588,7 +588,7 @@ traceability_and_gate:
       code_coverage: 'not_applicable'
     next_steps: 'Proceed to post-dev SM verify → code review → (optionally) PR Draft→Open + EPIC_DONE per Ralph lifecycle matrix.'
     waiver:
-      reason: 'Runtime-tooling story at pre-test-runner substrate stage. Per-AC automated coverage deferred to Story 1.16 (test-runner) + Epic 13 (CI workflow). AC-2 source-tree auto-discovery deferred per spec carve-out. Substrate verification strong: 7 gates green + 3 end-to-end smoke tests. FR14n ATDD-skip (iter-3) + Story 1.8 trace WAIVED precedent both load-bearing.'
+      reason: 'Runtime-tooling story at pre-test-runner substrate stage. Per-AC automated coverage deferred to Story 1.16 (test-runner) + Epic 13 (CI workflow). AC-2 source-tree auto-discovery deferred per spec carve-out. Substrate verification strong: 7 gates green + 5 end-to-end smoke tests. FR14n ATDD-skip (iter-3) + Story 1.8 trace WAIVED precedent both load-bearing.'
       approver: 'Story 1.9 § Testing Standards + inline AC-2/AC-6 scope carve-outs + § Scope Carve-Out (stakeholder-authored)'
       expiry: 'deferred (expires when Story 1.16 test-runner + Epic 13 CI workflow land)'
       remediation_due: 'Story 1.16 (test-runner wiring) + Epic 13 (F/E pipeline CI workflow)'
