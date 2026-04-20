@@ -1,6 +1,6 @@
 # Story 1.7: Invariants knowledge files (INVARIANTS/AGENTS/CLAUDE/RALPH) with promotion rules
 
-Status: done
+Status: in-progress
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -197,3 +197,14 @@ Claude Opus 4.7 (1M context) — invoked as `/bmad-dev-story` per Ralph lifecycl
 - **EDIT:** `RALPH.md` — added italicised scope note after audience paragraph; added `## Promotion rules` section before Signposts.
 - **EDIT:** `_bmad-output/implementation-artifacts/sprint-status.yaml` — bumped `1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: in-progress → done`; `last_updated: 2026-04-20 Task-3 UTC`.
 - **EDIT:** `_bmad-output/implementation-artifacts/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md` — flipped Status `ready-for-dev → done`; ticked all Task/subtask checkboxes; populated Dev Agent Record.
+
+### Review Findings
+
+Post-dev adversarial code review — iter-7 via `/bmad-code-review (args: "2")` — three parallel layers (Blind Hunter / Edge Case Hunter / Acceptance Auditor). Acceptance Auditor: APPROVED (all 5 ACs PASS). Blind + Edge surfaced content-accuracy defects in INVARIANTS.md descriptions and trace artefact metadata. Triage: 4 patch / 2 defer / 11 dismissed (false positives, cosmetic, narrative noise, user-handle false alarm).
+
+- [ ] [Review][Patch] INV-eslint-shared description states "6-entry flat-config default export" but the actual default export has 9 entries [`INVARIANTS.md:25`] — HIGH; Story 1.9 sync-gate will trip on the content-hash drift once it lands. Fix by rewriting to name-based anchors or correcting the count + enumeration.
+- [ ] [Review][Patch] INV-eslint-import-boundary source pointer "7th entry + `forPackage()` 8th entry" is off-by-one; `no-restricted-imports` is index 6 (7th) of `sharedBase` but the `forPackage()` overlay lands at index 9 (10th) [`INVARIANTS.md:31`] — MEDIUM; replace with name-based reference or correct indices.
+- [ ] [Review][Patch] Trace JSON `auth_negative_path_status` / `error_path_status` values say `"present"` but the accompanying md declares "not applicable" for this docs-only story [`_bmad-output/test-artifacts/traceability/1-7-e2e-trace-summary.json:609-614`] — LOW; update JSON values to `"not_applicable"` to match md prose.
+- [ ] [Review][Patch] Waiver expiry YAML snippet carries the unfilled placeholder `expiry: '2026-XX-XX'` [`_bmad-output/test-artifacts/traceability/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md:~1209`] — LOW; replace with `deferred` or a concrete expiry date tied to Story 1.9's landing.
+- [x] [Review][Defer] `1-7-gate-decision.json` lacks structured `waiver: {reason, approver, expiry, remediation_due}` sub-object; `rationale` prose is present; the structured waiver block IS present in `1-7-e2e-trace-summary.json` [`_bmad-output/test-artifacts/traceability/1-7-gate-decision.json`] — deferred, trace-skill schema concern not Story 1.7 scope.
+- [x] [Review][Defer] `architecture.md:891` shows an idealised `packages/keel-invariants/src/` layout but on-disk is `packages/keel-invariants/` at package root (no `src/` parent for config files) [`_bmad-output/planning-artifacts/architecture.md:891`] — deferred, pre-existing architecture-doc gap predating Story 1.7; Story 1.8's manifest will reconcile.
