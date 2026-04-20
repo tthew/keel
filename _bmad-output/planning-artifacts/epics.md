@@ -84,7 +84,7 @@ FR14c: System can configure a substrate-default subagent fan-out cap (Sonnet-cla
 FR14d: Agent can emit structured context-utilisation metrics per iteration to `.ralph/logs/<iteration-id>/context-meter.json` (advertised-vs-usable context window, specs load, orient load, execute load, output load, percentage utilisation). Triggers: exit cleanly above 80% utilisation; flag above 60% for drift observability.
 FR14e: Developer can opt a task into LLM-as-judge acceptance via a fixture (pattern-named `lib/llm-review.ts`) that runs a scoped Opus-class subagent against the diff with the task's subjective acceptance criteria and returns pass/fail. Failure counts as test failure under FR8 backpressure. Growth-tier default; 1.0 ships the pattern contract.
 FR14f: Agent can execute a pinned eight-step orient sequence (epic/story, plan file, knowledge files, phase-gate, application source, budget headroom, native task list, PR/CI state) before the execute phase. Skipping any step fails the iteration self-check.
-FR14g: Agent can execute exactly one task per iteration along the orient → execute → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit spine. Compound NOW tasks containing "AND" are rejected at orient and decomposed. Each BMad-workflow invocation consumes one full iteration. Stories with ≥ 3 tasks invoked via `/bmad-dev-story` are rejected and decomposed per-iteration.
+FR14g: Agent can execute exactly one task per iteration along the orient → execute → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit spine. Compound NOW tasks containing "AND" are rejected at orient and decomposed. Each BMad-workflow invocation consumes one full iteration. `/bmad-dev-story` is invoked as a single-iteration workflow in a fresh context regardless of task count; story-cycle sequencing is governed by FR14n.
 FR14h: Agent can apply a schema-versioned six-row PR-state × Epic-state × CI-state decision matrix to select the next action per iteration. Three anti-constraints are non-toggle-able invariants: never mark EPIC_DONE while PR is Draft; never transition Draft→Open until all implementation tasks complete; never address PR review feedback while Draft.
 FR14i: System can block `git push` while any check on the current PR is in-progress or pending. Ralph queues "Monitor PR CI" at QUEUE top, commits the plan-file update locally, and exits without pushing; unpushed commits carry to the next iteration. CI failures produce a triage entry at QUEUE top with failing-check name, root-cause note, and fix approach.
 FR14j: Agent can maintain three audience-scoped knowledge files (`RALPH.md` private journal, `AGENTS.md` shared operational, `CLAUDE.md` Claude-Code-specific) with pinned promotion rules. Iterations producing non-obvious learnings update at least one file alongside the work.
@@ -2027,11 +2027,6 @@ So that iteration atomicity + budget predictability hold (FR14g, NFR4b XL decomp
 **When** the estimated token cost is ≥60K,
 **Then** the task is rejected as XL
 **And** decomposed pre-start per NFR4b (iteration exits cleanly; decomposed tasks land in @plan.md).
-
-**Given** a story invoked via `/bmad-dev-story` has ≥3 tasks,
-**When** orient reads the story,
-**Then** Ralph rejects the bulk invocation
-**And** decomposes per-iteration (each task in its own iteration).
 
 **Given** a BMad-workflow skill invocation (e.g., `/bmad-create-story`),
 **When** Ralph picks it up,

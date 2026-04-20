@@ -220,7 +220,7 @@ This doc describes the Ralph TUI runtime. The loop's **behavioural contracts** �
 
 **orient → one task → commit → update IP → pre-push quality gate → pre-push CI gate → push → exit**
 
-One task per iteration, no exceptions. Compound NOW tasks ("do X AND Y") decompose at orient. Each BMad-workflow invocation consumes one full iteration. Stories with ≥ 3 tasks decompose via the dev-story budget rule.
+One task per iteration, no exceptions. Compound NOW tasks ("do X AND Y") decompose at orient. Each BMad-workflow invocation consumes one full iteration. `/bmad-dev-story` runs in a fresh context window regardless of task count — it owns its own internal decomposition. Story-cycle sequencing is governed by the Story-lifecycle decision matrix below (FR14n).
 
 ### PR-lifecycle decision matrix (abridged)
 
@@ -234,6 +234,20 @@ One task per iteration, no exceptions. Compound NOW tasks ("do X AND Y") decompo
 | Open     | Review feedback | Queue fix tasks → implement → re-run CI gate.                |
 
 Anti-constraints: never mark EPIC_DONE while Draft; never transition Draft → Open until all tasks done; never address review feedback while Draft.
+
+### Story-lifecycle decision matrix (abridged)
+
+| Story State       | Next skill                                          |
+|-------------------|-----------------------------------------------------|
+| _(no story)_      | `/bmad-create-story`                                |
+| `drafted`         | `/bmad-create-story (args: "review")`               |
+| `validated`       | `/bmad-testarch-atdd` (or skip with IP rationale)   |
+| `atdd-scaffolded` | `/bmad-dev-story (args: "{story_file_path}")`       |
+| `in-dev`          | `/bmad-code-review (args: "2")`                     |
+| `fixes-pending`   | Top QUEUE fix task (one CR action item per iter)    |
+| `done`            | Next story or EPIC_DONE halt                        |
+
+Anti-constraints: never skip states; never invoke `/bmad-dev-story` outside `atdd-scaffolded` without an IP-recorded skip rationale; never mark `done` with un-addressed CR action items in QUEUE; every CR action item becomes a QUEUE fix task unless IP records `defer:`.
 
 ### Halt schema
 
