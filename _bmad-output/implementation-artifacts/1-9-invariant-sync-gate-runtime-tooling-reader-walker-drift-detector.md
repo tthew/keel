@@ -99,6 +99,17 @@ So that FR43 has teeth from day 1 (Party-Mode Round 2 / W2 amendment).
   - [x] Bumped `_bmad-output/implementation-artifacts/sprint-status.yaml`: `1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector: in-progress → review`. `last_updated: 2026-04-20 Story-1-9-review UTC`. The spec's eventual `→ done` target is reached at the post-CR iteration per Ralph's FR14n Story Lifecycle matrix (trace → SM review → CR → done); dev-story ends at `review` / Ralph state `in-dev` per dev-story workflow step 9.
   - [x] Flipped this story file's Status to `review` (per dev-story workflow step 9; FR14n `atdd-scaffolded → in-dev`). All Task subtasks marked `[x]`. `## Dev Agent Record` populated with File List + Completion Notes (below). Provisional-ID header removed from `INVARIANTS.md` (both halves of the Story 1.7 provisional note — "canonical IDs pinned by 1.8" + "drift-detection lands in 1.9" — are discharged).
 
+### Review Findings (iter-18 CR re-run — 2026-04-20)
+
+Ralph-hosted three-layer fan-out against post-Fix-A/B/C diff (`5a984e0..HEAD`, 192 lines across 5 artefacts). Blind Hunter: PASS (no falsifiable claims in diff). Acceptance Auditor: PASS (all 7 ACs consistent between spec Dev Agent Record and diff trace-narrative). Edge Case Hunter: NEW_FINDINGS (1 MEDIUM + 1 LOW — Fix C missed 6 sites using the "AC-2 / AC-3 / AC-5 structural branches" phrasing plus 1 stale "AC-5 backfill" clause). Same semantic-drift-from-impl-upgrade class as Fix C; Fix D + Fix E are literal broad-scope swaps.
+
+- [ ] [Review][Patch] Fix D (MEDIUM) — stale "AC-2 / AC-3 / AC-5 structural branches" framing survives in 6 steady-state sites; replace with "AC-3 structural + AC-6 CLI-contract-only branches" (or functionally equivalent phrasing), dropping AC-2 + AC-5 since Fix B + Fix C promoted both to end-to-end smoke-exercised.
+  - Sites: `_bmad-output/test-artifacts/traceability/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md:311`, `:477`, `:523`, `:560`; `_bmad-output/test-artifacts/traceability/1-9-coverage-matrix.json:175`; `_bmad-output/test-artifacts/traceability/1-9-e2e-trace-summary.json:88`.
+- [ ] [Review][Patch] Fix E (LOW) — `trace.md:319` carries stale "Story 1.16 can backfill smoke tests for AC-3 (removed-from-source) + AC-5 (removed-from-docs) ... closing the structural-only posture at 1.9" clause; drop the ` + AC-5 (removed-from-docs)` fragment (AC-5 already exercised end-to-end via iter-8 docs-side orphan-anchor smoke per spec:143 + Fix B) so the recommendation reads `...backfill smoke tests for AC-3 (removed-from-source) ... closing the AC-3 structural-only posture at 1.9`.
+  - Site: `_bmad-output/test-artifacts/traceability/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md:319`.
+
+Status remains `review` (Ralph FR14n matrix row 10 — `fixes-pending` stays on `review` until next clean CR re-run flips to `done`). No fixes applied this iteration per `/bmad-code-review (args: "2")` option 2 ("Leave as action items"). Fixes queued in `.ralph/@plan.md`; next CR re-run after Fix D + Fix E land.
+
 ## Dev Notes
 
 - Relevant architecture patterns and constraints:
