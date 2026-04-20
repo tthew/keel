@@ -196,10 +196,10 @@ Priority classification per `test-priorities-matrix.md`:
    - Impact: LOW — smoke evidence is load-bearing and was captured in the story Dev Agent Record. Every future Ralph iteration that touches the substrate will re-run `pnpm keel-invariants:check` as part of quality-gate rituals.
 
 2. **AC-2: Addition drift (anchor-side + schema-level)** (P1)
-   - Current Coverage: NONE — schema-level via `InvariantsSchema.superRefine` id-uniqueness + anchor-walker branch.
-   - Missing Tests: runtime smoke triggering `added-to-source-only` branch; test-runner structural test.
-   - Recommend: Accept scope carve-out (source-tree auto-discovery deferred); Story 1.16 backfills unit coverage; CR pass (Blind Hunter) is the 1.9 adversarial backstop.
-   - Impact: LOW — the 10 invariants are intentionally registered; new rule authors must co-update manifest + anchor in the same PR (contract). Schema uniqueness refine catches manifest-side duplicates.
+   - Current Coverage: NONE (no automated test); **SUBSTRATE_VERIFIED end-to-end via iter-8 Task 5 manifest-side missing-anchor smoke** (strongest evidence: delete `INV-commitlint-shared` anchor line from `INVARIANTS.md` → exit 1 + `added-to-source-only` DriftReport with `sourcePath`; revert; byte-identical restore verified).
+   - Missing Tests: test-runner-hosted unit test; CI re-exercise (Epic 13).
+   - Recommend: Accept smoke as strong substrate evidence for the anchor-side branch; Story 1.16 backfills unit coverage; schema-level uniqueness refine (`InvariantsSchema.superRefine`) is the load-bearing complement for manifest-side duplicates.
+   - Impact: LOW — smoke evidence captured for the anchor-side addition-drift branch; the 10 invariants are intentionally registered and new rule authors must co-update manifest + anchor in the same PR (contract).
 
 3. **AC-3: Removal drift (source side)** (P1)
    - Current Coverage: NONE — structural only (`fs.readFile` rejection → `removed-from-source-only` Drift kind).
