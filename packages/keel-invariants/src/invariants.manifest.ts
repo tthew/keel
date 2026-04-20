@@ -141,6 +141,14 @@ const raw: Invariant[] = [
     contentHash: 'efd5fa0d84d3478cd4af530f3cc57c734f9b4e23415d0c7085fb8e6296d1a82c',
     anchors: ['INV-tokens-semantic-rationale'],
   },
+  {
+    id: 'INV-tokens-source',
+    description:
+      'Direction A design-token source — DTCG JSON file populated with every semantic + primitive token value per ux-design-specification.md § Visual Design Foundation + § Design Direction Decision. Light + dark mode overlays; motion + density tier hierarchies; aliases into neutral ramp + accent ramp + status/severity/state families. Consumed by Story 1.12 emitter (web CSS + Tailwind preset + TUI theme); validated against INV-tokens-schema-contract by Story 1.13 pre-commit gate.',
+    sourcePath: 'packages/ui/tokens.json',
+    contentHash: '27e8cb58d338dddcd197904f8777bc5d25926bf0698cd7d993a733338f95cc90',
+    anchors: ['INV-tokens-source'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));
