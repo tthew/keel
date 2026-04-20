@@ -1,31 +1,31 @@
-(AWAIT_MERGE — Story 1.6 shipped; PR #222 Open; waiting for user merge)
-
 # Implementation Plan
 
 ## NOW
 
-_(none — Story 1.6 mini-epic complete; EPIC_DONE halt written)_
+- [ ] Story 1.7 Task 1 — author `INVARIANTS.md` at repo root with audience header + promotion-rule table + 9-entry stable-ID index (Stories 1.2/1.3/1.4/1.5/1.6 invariants) ~medium
 
-## QUEUE
+## QUEUE (Story 1.7)
 
-_(none — new story spec authored in next iteration after user merges PR #222)_
+- [ ] Story 1.7 Task 2 — align audience headers + promotion-rule table (verbatim) in `AGENTS.md` / `CLAUDE.md` / `RALPH.md`; extend CLAUDE.md's Knowledge-file contract table with INVARIANTS.md row; add RALPH.md scope note per AC 5
+- [ ] Story 1.7 Task 3 — quality gates (typecheck / lint / format:check / commitlint / prek-runner) + sprint-status bump `1-7 → done` + story Status `ready-for-dev → done`
+- [ ] Transition PR #? Draft→Open — rewrite title/body for full spec+Tasks-1-3 commit range; EPIC_DONE halt (mini-epic convention)
 
 ## BLOCKED
 
 _(none)_
 
-## DONE (Story 1.6)
+## DONE (Story 1.7 iter-1)
 
-- [x] Story 1.6 Task 1 — authored `keel-invariants/no-verify-bypass` ESLint rule; plugin aggregator; registered in `sharedBase` + `forPackage()` with self-exclusion; `./eslint-plugin` subpath export; self-verify probes pass; all quality gates green
-- [x] Story 1.6 Task 2 — ATDD probes all pass (AC 2 string-literal reject / AC 2b template-literal static-quasi reject + dynamic-quasi allow / negative comment-only allow / AC 5 prek-runner parity dirty-reject + clean-pass); defensive quality gates 16/16 FULL TURBO typecheck + lint, format:check clean, commitlint 0/0
-- [x] Story 1.6 Task 3 — full quality gates green (typecheck 16/16 FULL TURBO / lint 16/16 FULL TURBO / format:check clean / commitlint exit 0 across 4 branch commits / prek run --all-files all 3 pre-commit hooks Passed); sprint-status `1-6 → done`
-- [x] Transition PR #222 Draft→Open — title/body rewritten for 5-commit scope; `gh pr ready`; CI rollup empty (Story 1.16's scope); no reviews; EPIC_DONE halt written to `/workspace/ralph-bmad/.ralph/halt`
+- [x] Cut fresh branch `feat/story-1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules` from `origin/main` (--no-track)
+- [x] Author `_bmad-output/implementation-artifacts/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md` (3-task decomposition; scope carve-out for AC 3 → Stories 1.8/1.9)
+- [x] Bump sprint-status `1-7 → ready-for-dev` + `last_updated`
+- [x] Reset IP (clear stale AWAIT_MERGE, seed Story 1.7 context)
 
 ## Context
 
 - **Phase:** 4-implementation
-- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.6 done; 1.7–1.16 backlog)
-- **Epic Branch:** `feat/story-1-6-quality-gate-bypass-prevention`
-- **Story:** 1.6 — Quality-gate bypass prevention (shipped — all 3 tasks + Draft→Open + EPIC_DONE halt complete)
-- **Story File:** `_bmad-output/implementation-artifacts/1-6-quality-gate-bypass-prevention.md`
-- **PR:** #222 Open — `{isDraft:false, state:OPEN, statusCheckRollup:[]}`; awaiting user merge
+- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (Stories 1.1–1.6 done; 1.7 in flight; 1.8–1.16 backlog)
+- **Epic Branch:** `feat/story-1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules`
+- **Story:** 1.7 — Invariants knowledge files (INVARIANTS/AGENTS/CLAUDE/RALPH) with promotion rules
+- **Story File:** `_bmad-output/implementation-artifacts/1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules.md`
+- **Story State:** drafted

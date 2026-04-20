@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-20 Task-3 UTC
+last_updated: 2026-04-20 Story-1-7-iter-1 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -49,7 +49,7 @@ development_status:
   1-4-pre-commit-quality-gates-via-prek-type-check-lint-format: done
   1-5-conventional-commit-enforcement-via-commitlint-prek: done
   1-6-quality-gate-bypass-prevention: done
-  1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: backlog
+  1-7-invariants-knowledge-files-invariants-agents-claude-ralph-with-promotion-rules: ready-for-dev
   1-8-invariants-manifest-ts-contract-exporter: backlog
   1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector: backlog
   1-10-design-token-schema-semantic-rationale-contract: backlog
