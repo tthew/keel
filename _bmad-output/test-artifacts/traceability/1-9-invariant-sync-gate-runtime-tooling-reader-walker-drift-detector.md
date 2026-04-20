@@ -135,7 +135,7 @@ Priority classification per `test-priorities-matrix.md`:
 
 #### AC-5: Removal drift (docs side) — `INVARIANTS.md` anchor removed without manifest entry removal → reports `removed-from-docs-only`, exits non-zero (P1)
 
-- **Coverage:** NONE ❌ — structural only.
+- **Coverage:** NONE ❌ (no automated test) — **SUBSTRATE_VERIFIED end-to-end** via iter-8 Task-5 docs-side orphan-anchor smoke.
 - **Tests:** 0 automated tests.
 - **Substrate verification (non-gate-eligible evidence):**
   - Anchor-walker implementation (story file line 52, 127): regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` enumerates `INV-*` anchors in `INVARIANTS.md § Invariants index` (10 current anchors at `INVARIANTS.md:24-48`).
