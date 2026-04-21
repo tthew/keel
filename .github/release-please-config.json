@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "include-v-in-tag": true,
+  "separate-pull-requests": false,
+  "plugins": [{ "type": "linked-versions", "groupName": "keel", "components": ["keel"] }],
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "refactor", "section": "Code Refactoring" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "chore", "section": "Miscellaneous Chores", "hidden": true },
+    { "type": "test", "section": "Tests", "hidden": true },
+    { "type": "build", "section": "Build System", "hidden": true },
+    { "type": "ci", "section": "Continuous Integration", "hidden": true }
+  ],
+  "packages": {
+    ".": { "component": "keel", "package-name": "keel" },
+    "apps/web": { "component": "keel", "package-name": "@keel/web" },
+    "packages/audit": { "component": "keel", "package-name": "@keel/audit" },
+    "packages/billing": { "component": "keel", "package-name": "@keel/billing" },
+    "packages/config": { "component": "keel", "package-name": "@keel/config" },
+    "packages/contracts": { "component": "keel", "package-name": "@keel/contracts" },
+    "packages/core": { "component": "keel", "package-name": "@keel/core" },
+    "packages/create-keel-app": { "component": "keel", "package-name": "@keel/create-keel-app" },
+    "packages/db": { "component": "keel", "package-name": "@keel/db" },
+    "packages/devbox": { "component": "keel", "package-name": "@keel/devbox" },
+    "packages/email": { "component": "keel", "package-name": "@keel/email" },
+    "packages/flags": { "component": "keel", "package-name": "@keel/flags" },
+    "packages/jobs": { "component": "keel", "package-name": "@keel/jobs" },
+    "packages/keel-generator": { "component": "keel", "package-name": "@keel/keel-generator" },
+    "packages/keel-invariants": { "component": "keel", "package-name": "@keel/keel-invariants" },
+    "packages/keel-templates": { "component": "keel", "package-name": "@keel/keel-templates" },
+    "packages/ui": { "component": "keel", "package-name": "@keel/ui" }
+  }
+}

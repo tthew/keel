@@ -1,0 +1,188 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-20T16:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.11",
+    "label": "design-token source, Direction A baseline with motion + density scales"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-11-design-token-source-direction-a-baseline-with-motion-density-scales.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "packages/ui/tokens.json validates against tokens.schema.json + every Direction A semantic-token value populated",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "DTCG JSON schema-conformance + value-population contract: one-shot `pnpm dlx ajv-cli@5 validate --spec=draft2020` exit 0 is the substrate end-to-end evidence; CR adversarial pass per § Testing Standards is the agreed backstop for Direction A value-correctness vs ux-spec.",
+      "substrate_verification": [
+        "File exists on disk: packages/ui/tokens.json (NEW — iter-56 Task 1 output, DTCG JSON source)",
+        "One-shot ajv-cli@5 validate exit 0: `pnpm dlx ajv-cli@5 validate -s packages/ui/tokens.schema.json -d packages/ui/tokens.json --spec=draft2020 --all-errors` → `packages/ui/tokens.json valid` (zero errors)",
+        "Direction A values populated: 11-step neutral OKLCH ramp (true-neutral chroma 0); 6 accent slots with Direction A `oklch(54% 0.18 245)` at 500 (per ux-spec:613 § Design Direction Decision precedence over :492 per story § AC 1 carve-out); 4 surface + 5 text + 3 border aliases; 10 status leaves (5 hue families × fg/bg); 4 severity + 4 kanban-state aliases; 8-stop modular type scale; 2 font-family stacks (sans + mono comma-separated strings per § AC 1 carve-out); 13-stop 4px space; 5-stop radius; 6 motion leaves; 4 density leaves; 5 breakpoint stops",
+        "Light + dark `$modes` overlays present: `$modes.light = {}` sparse; `$modes.dark` overlay remaps surface/text/border/accent.fg + status.bg variants",
+        "Import-time manifest hashing: `INV-tokens-source.contentHash = 27e8cb58d338dddcd197904f8777bc5d25926bf0698cd7d993a733338f95cc90` covers tokens.json byte-for-byte; Zod `InvariantsSchema.parse` validated at `pnpm -w typecheck` time",
+        "`pnpm keel-invariants:check` clean-path ✓ exit 0 — tokens.json sha256 matches manifest contentHash",
+        "Quality-gate bundle (iter-56): `pnpm -w typecheck` ✓ (16 tasks), `pnpm -w lint` ✓, `pnpm -w build` ✓ (16 tasks with scoped @keel/keel-invariants rebuild per iter-51 lesson), `pnpm format:check` ✓, `pnpm exec prek run --all-files` 3/3 hooks Pass",
+        "Pre-documented variances (NOT gaps): root-provenance-block skip per Story 1.10 schema's root-level `additionalProperties: false` (resolution: per-leaf `$description` + Debug Log + commit trailer + Change Log v1.2); leafFontFamily array-form deferral per § AC 1 carve-out + deferred-work.md"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "Directions B (GOV.UK-adjacent) and C (Developer-notebook) are NOT in tokens.json; preset overlays live in Epic 7",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Negative-space / filesystem-absence contract: filesystem-absence check + commit-diff substring scan are the substrate evidence; CR adversarial pass per § Testing Standards is the agreed backstop. Epic 7 is the positive-space landing site for B/C preset overlays.",
+      "substrate_verification": [
+        "Filesystem-absence check: zero files under `docs/design/presets/` authored, modified, or referenced (directory does not exist); confirmed at iter-56",
+        "tokens.json contains zero `preset` / `direction-b` / `direction-c` substrings — populated source is Direction-A-only",
+        "Commit 6b1790a diff adds exactly one new data file (`packages/ui/tokens.json`); zero files under `docs/design/presets/`",
+        "Story § AC 2 scope carve-out + ux-spec:621 + epics.md:635-666 W1 party-mode amendment confirm Epic 7 as positive-space scope for B/C preset overlays"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "motion.scale defines ≥5 tiers (instant|snap|swift|smooth|drift) + density.scale defines ≥3 tiers (compact|default|comfortable) with numeric literal values",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Tier-enumeration + literal-value contract: tier-name enumeration by inspection + ajv exit 0 are the substrate evidence; CR adversarial pass per § Testing Standards is the agreed backstop. Tier values are literals (not aliases) per story § AC 3 carve-out — preserves dial independence (tier × dial product is Story 1.12 emitter scope).",
+      "substrate_verification": [
+        "motion.scale group: 1 dial (`scale` $type=number $value=\"1\") + 5 named tiers (instant|snap|swift|smooth|drift, each $type=duration, $value=60ms|120ms|200ms|320ms|500ms — pinned from docs/invariants/tokens.md § Motion lines 116-125)",
+        "density.scale group: 1 dial (`scale` $type=number $value=\"1\") + 3 named tiers (compact|default|comfortable, each $type=number, $value=0.875|1|1.125 — pinned from docs/invariants/tokens.md § Density lines 127-134 + ux-spec:555)",
+        "All tier $value entries are literals (not aliases) — preserves dial independence per story § AC 3 carve-out",
+        "Schema accepts the shape: `ajv-cli@5 validate` exit 0 confirms motion.scale conforms to packages/ui/tokens.schema.json:295 (dial) + per-tier leafDuration; density.scale conforms to :308 (dial) + per-tier leafNumber",
+        "additionalProperties: false at motion.scale + density.scale precludes silent extra-tier slip-in",
+        "Two-segment stable IDs preserved: TOKEN-motion-{instant,snap,swift,smooth,drift} + TOKEN-density-{compact,default,comfortable} per architecture.md:693 + iter-43 stable-ID cross-check (no three-segment TOKEN-motion-scale-* forms; DTCG group-node $type prohibition holds)",
+        "Cross-link parity (inherited from Story 1.10 AC 3 precedent): every motion/density leaf in tokens.json resolves to a matching TOKEN-<slug> bullet in docs/invariants/tokens.md § Motion + § Density"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "Manifest registers packages/ui/tokens.json under INV-tokens-source + Story 1.9 sync-gate catches drift + INVARIANTS.md carries column-0 anchor bullet",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Sync-gate runtime contract: Task 4's two shell-invocation smoke branches (content-hash-mismatch exit 1 + added-to-source-only exit 1) + clean-path baseline (exit 0) exercise AC 4 end-to-end at the substrate level; third smoke branch (removed-from-docs-only) SKIPPED per story § Task 4 rationale as duplicate Story 1.9 AC 2 coverage. SUBSTRATE_VERIFIED end-to-end — strongest substrate evidence of the four ACs.",
+      "substrate_verification": [
+        "Manifest registration: one new sibling entry appended to packages/keel-invariants/src/invariants.manifest.ts per § AC 4 scope carve-out (preserves Story 1.8's single-`sourcePath` `Invariant` shape) — `INV-tokens-source` → `packages/ui/tokens.json`, sha256 `27e8cb58d338dddcd197904f8777bc5d25926bf0698cd7d993a733338f95cc90`, anchors `['INV-tokens-source']`. raw array grows from 12 → 13 entries.",
+        "Anchor registration: one new column-0 bullet appended to INVARIANTS.md under new `### Design-token source (Story 1.11)` section (column-0 form per sync-gate.ts:24 ANCHOR_REGEX binding); section inserted between § Design-token schema + semantic rationale (Story 1.10) and § Consumption; no fenced-code-block examples (iter-14 / deferred-work.md:38 carry-forward preserved)",
+        "Import-time Zod `InvariantsSchema.parse(raw)` validates new entry (id regex + sha256 regex + sourcePath refine + ID-uniqueness across 13 entries + shared-sourcePath hash-consistency superRefines) — `pnpm -w typecheck` ✓ (16 tasks)",
+        "Clean-path smoke ✓ `pnpm keel-invariants:check` → exit 0 — confirms new manifest entry pairs cleanly with INVARIANTS.md anchor AND recomputed sha256 matches manifest contentHash",
+        "Drift-smoke #1 (content-hash-mismatch) ✓ — `echo \"\" >> packages/ui/tokens.json`; sync-gate → exit 1 with structured JSON drift naming `INV-tokens-source` as `content-hash-mismatch` (expected `27e8cb58...`, actual `52865468...`); reverted via `pnpm exec prettier --write` (iter-45 new-untracked-file revert pattern); post-revert sha256 matches manifest; rerun → exit 0",
+        "Drift-smoke #2 (added-to-source-only) ✓ — Edit-tool deleted INV-tokens-source anchor bullet from INVARIANTS.md; sync-gate → exit 1 with `added-to-source-only` Drift naming `INV-tokens-source`; revert via `git checkout -- INVARIANTS.md` INITIALLY wiped uncommitted edit (extends Story 1.10 iter-45 lesson for tracked files with uncommitted changes); recovery via re-applying the Edit; rerun → exit 0",
+        "Drift-smoke #3 (removed-from-docs-only) SKIPPED per story § Task 4 rationale — duplicate coverage of Story 1.9 AC 2; re-smoke would add zero new signal on a contract-populator story",
+        "Zero test runner at Story 1.11 substrate stage per story § Testing Standards line 197; smoke-invocation evidence + ajv exit 0 are the end-to-end acceptance signal"
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 4, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      {
+        "id": "AC-1",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Defer pre-commit integration to Story 1.13 schema-validation gate (replaces iter-56 one-shot `pnpm dlx ajv-cli@5` evidence with committed gate); defer red-phase 'malform + expect validator error' probes + ux-spec snapshot tests to Story 1.16 test-runner. Substrate-level ajv exit 0 + Zod import-time + sync-gate clean-path are the agreed substrate evidence."
+      },
+      {
+        "id": "AC-2",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Defer automated filesystem-absence assertion to Story 1.16 (test-runner landing). Epic 7 is the positive-space landing site for Directions B/C preset overlays; until Epic 7 lands, AC 2 is trivially satisfied."
+      },
+      {
+        "id": "AC-3",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Defer automated tier-enumeration + literal-value-type assertions to Story 1.16 (test-runner landing). Tier names + counts are encoded in ux-spec:555 + tokens.md § Motion + § Density + story § AC 3 carve-out; CR adversarial pass is the agreed backstop. Story 1.12 emitter will fail loudly on missing tier (positive-space coverage)."
+      },
+      {
+        "id": "AC-4",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "SUBSTRATE_VERIFIED end-to-end via two sync-gate smoke branches (content-hash-mismatch + added-to-source-only) + clean-path baseline + Zod import-time validation; third smoke branch (removed-from-docs-only) SKIPPED per story § Task 4 rationale as duplicate Story 1.9 AC 2 coverage. Defer runner-hosted unit coverage to Story 1.16 (would duplicate Story 1.9 internals)."
+      }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — four P2 ACs are all contract/data-level with substrate-layer verification: AC 1 ajv-cli@5 validate exit 0 + Zod import-time + sync-gate clean-path; AC 2 filesystem-absence; AC 3 tier-enumeration by inspection + ajv exit 0; AC 4 two sync-gate smoke branches end-to-end. Per-AC runner-hosted coverage deferred to Story 1.16 (test-runner landing); runtime enforcement of AC 4 already lands via Story 1.9 sync-gate on every pre-merge.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.13 pre-commit gates (schema-validation + WCAG AA contrast + source-output sync) will re-exercise AC 1 + AC 3 integration once Story 1.12 lands the emitter pipeline. Story 1.12 emitter consumption is positive-space coverage of the populated source.",
+      "requirements": ["AC-1", "AC-3"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — this is a no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}

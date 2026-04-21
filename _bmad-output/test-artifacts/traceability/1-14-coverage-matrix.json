@@ -1,0 +1,129 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-21T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.14",
+    "label": "release-please monorepo config — single-bundled mode"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-14-release-please-monorepo-config-single-bundled-mode.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "Config is single-bundled (separate-pull-requests:false + linked-versions plugin groupName=keel); 17-key packages map (root `.` + apps/web + 15 packages/*); 17-key manifest with every entry at 0.0.0 matching current package.json:version",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Configuration-surface substrate contract. Substrate evidence STRONG: Task 7 smokes 1 + 2 + 3 + 4 directly probe AC 1 at CLI-exit-code level — smoke 1 asserts both files parse as JSON; smoke 2 asserts `separate-pull-requests === false` AND a `linked-versions` plugin with `groupName === 'keel'` exists AND `Object.keys(packages).length === 17`; smoke 3 asserts `Object.keys(config.packages).sort()` strictly equals `Object.keys(manifest).sort()` (17 entries both); smoke 4 asserts every manifest value parses the corresponding `packages/*/package.json` and returns `version === '0.0.0'` with the root `.` pinned at `0.0.0`. All four smokes re-verified LIVE at iter-78 trace-time — PASS with byte-identical outputs to iter-77 dev-story record.",
+      "substrate_verification": [
+        "Files exist on disk at the spec paths: `.github/release-please-config.json` (2329 bytes, sha256 `bd7a6c6c1aac702548bb512c0610633fcd84e630586ab91ad2bc78b577239318`) + `.github/.release-please-manifest.json` (515 bytes, sha256 `4df2aacf54a9849e8e550377c5915cec6efe155b33834b200a6e0c81aedc42e8`). Both sha256 hashes match iter-77 dev-story pinned values exactly (re-verified LIVE at iter-78 via `shasum -a 256`).",
+        "Smoke 1 — static JSON parse (BOTH files): `node -e \"JSON.parse(require('fs').readFileSync('.github/release-please-config.json','utf8')); JSON.parse(require('fs').readFileSync('.github/.release-please-manifest.json','utf8'))\"` exits 0 with `OK: both files parse as JSON` (re-verified LIVE at iter-78).",
+        "Smoke 2 — single-bundled-mode shape: `separate-pull-requests: false` pinned at line 9 of config; `plugins` array contains `{ \"type\": \"linked-versions\", \"groupName\": \"keel\", \"components\": [\"keel\"] }` at line 10-12; `packages:` object has exactly 17 keys (1 root `.` + 1 `apps/web` + 15 `packages/*`). CLI smoke prints `OK: single-bundled mode; 17 packages`. Re-verified LIVE at iter-78.",
+        "Smoke 3 — config-manifest key parity: both files enumerate the same 17 paths in identical sort order. Print output: `OK: config-manifest key parity; 17 entries`. The linked-versions plugin contract requires this parity on every release-please invocation; drift would fail the first runtime invocation under Story 13.5. Re-verified LIVE at iter-78.",
+        "Smoke 4 — manifest-version parity: every manifest key parses `packages/<member>/package.json` (or `apps/web/package.json`) and the manifest value equals that `version` field. Root `.` entry is verified to be literal `\"0.0.0\"` (no package.json cross-read — root package.json per Story 1.1 is version-less). Print output: `OK: manifest-version parity across 17 entries`. Re-verified LIVE at iter-78.",
+        "File location carve-out: both JSON files live under `.github/` per AC 1 Given-clause. Architecture.md § Source-tree (line 791 onwards) shows `release-please-config.json` at repo root (line 807) with only `release-please-manifest.json` inside `.github/` (line 809) — that drafting is stale vs Epic 1 Story 1.14 sprint-decomposed AC. Sprint-decomposed AC wins per RALPH.md 2026-04-19 Lesson. Story 13.5 will override the release-please-action defaults via explicit `config-file: .github/release-please-config.json` + `manifest-file: .github/.release-please-manifest.json` inputs.",
+        "Single-bundled vs per-package choice pinned by `{ \"type\": \"linked-versions\", \"groupName\": \"keel\", \"components\": [\"keel\"] }` plugin entry. All 17 packages are labeled with `\"component\": \"keel\"` so they share a single release group + move in lockstep. Per architecture.md § Deferred / Post-1.0 line 1342: per-package release mode is the deferred alternative.",
+        "Manifest `.` entry represents the monorepo root component. In single-bundled mode, the root `.` entry is the shared release component; the per-workspace entries (`apps/web`, `packages/audit`, etc.) also exist and all share the same group. Versions bump atomically via the linked-versions plugin.",
+        "Pre-1.0 bump-flag pinning: `bump-minor-pre-major: true` + `bump-patch-for-minor-pre-major: true` in config ensure pre-1.0 `feat:` → MINOR (0.0.0→0.1.0) and pre-1.0 `fix:` → PATCH (0.0.0→0.0.1). Intent-matching for AC 2/3; runtime verification deferred to Story 13.5.",
+        "Zero token-layer change: `packages/ui/tokens.json` + `packages/ui/scripts/generate-tokens.ts` + all downstream emitted files untouched per Story 1.14 § Project Structure Notes; confirmed by `pnpm keel-invariants:tokens-sync` (Story 1.13) exit 0 (part of `check-all` run — see AC 6 substrate evidence)."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "feat: commit → Release-PR minor-bump entry under `### Features`; no Release PR yet merged (accumulates until Tthew merges it — AC 5)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Downstream Story-13.5 consumer AC explicitly carved out of Story 1.14 scope per § AC 2 + § AC 5 scope carve-outs. Substrate verification is the config-shape contract (no runtime verification possible at Story 1.14 stage — no workflow invokes release-please until Story 13.5 lands `.github/workflows/release-please.yml`).",
+      "substrate_verification": [
+        "Config `bump-minor-pre-major: true` at `.github/release-please-config.json:5` pins pre-1.0 `feat:` → MINOR semantics.",
+        "Config `changelog-sections: [{ \"type\": \"feat\", \"section\": \"Features\" }, ...]` at `.github/release-please-config.json:13-23` pins the `feat` → `Features` section header.",
+        "release-please's conventional-commit parser intrinsically classifies `feat:` as a MINOR bump (at pre-1.0 with the bump-flag combinations above, MINOR bump is `0.0.0 → 0.1.0`). No additional config flag needed.",
+        "Adversarial AC-2 coverage delegated to iter-80 `/bmad-code-review (args: \"2\")` per § Testing Standards hybrid ground-(c) variant-(iii) spec-declared-CR-substitution: Blind Hunter / Edge Case Hunter / Acceptance Auditor examine the `changelog-sections` array + `bump-minor-pre-major: true` flag + `feat` → `Features` mapping for drift vs release-please canonical behaviour.",
+        "Runtime verification deferred to Story 13.5 (`.github/workflows/release-please.yml` — epics.md:5585-5602). Until Story 13.5 lands no Release PR is emitted (zero runtime behaviour at Story 1.14 substrate stage).",
+        "Story 1.16 unlocks a future unit-test probe: mock a release-please invocation with a `feat: foo` commit + the Story-1.14 config + manifest, assert emitted Release-PR changelog contains `### Features` section with `foo` entry + bumps `0.0.0 → 0.1.0`."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "fix: commit → Release-PR patch-bump entry under `### Bug Fixes`; Release-PR tracks accumulating feat/fix/perf/refactor/docs entries per `changelog-sections` contract (9 types; 4 visible + 5 hidden)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Downstream Story-13.5 consumer AC explicitly carved out of Story 1.14 scope per § AC 5 scope carve-out. Substrate verification is the `changelog-sections` array contract (see iter-77 Task 1 config shape).",
+      "substrate_verification": [
+        "Config `bump-patch-for-minor-pre-major: true` at `.github/release-please-config.json:6` pins pre-1.0 `fix:` → PATCH semantics (0.0.0 → 0.0.1).",
+        "Config `changelog-sections` array at `.github/release-please-config.json:13-23` enumerates 9 conventional-commit types matching architecture.md § Commit / PR / Knowledge-file Patterns lines 673-684 (`feat | fix | docs | chore | refactor | test | build | ci | perf`). 4 visible sections (`Features` / `Bug Fixes` / `Performance Improvements` / `Code Refactoring`) + 1 visible (`Documentation`) + 4 hidden sections (`Miscellaneous Chores` / `Tests` / `Build System` / `Continuous Integration`).",
+        "release-please intrinsically classifies `fix:` as a PATCH bump.",
+        "Adversarial AC-3 coverage delegated to iter-80 CR per § Testing Standards.",
+        "Runtime verification deferred to Story 13.5.",
+        "Story 1.16 unlocks a future unit-test probe: mock release-please with `fix: bar` + Story-1.14 config; assert emitted changelog contains `### Bug Fixes` with `bar` + bumps `0.0.0 → 0.0.1`."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "feat!: commit OR BREAKING CHANGE: footer → Release-PR major-bump; release-please emits `### ⚠ BREAKING CHANGES` changelog section; commitlint (INV-commitlint-shared) accepts both forms",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Downstream Story-13.5 consumer AC explicitly carved out of Story 1.14 scope per § AC 5 scope carve-out. release-please handles breaking-change detection intrinsically via conventional-commit parsing; no explicit config flag needed.",
+      "substrate_verification": [
+        "No config flag required: release-please's bump classifier intrinsically escalates to MAJOR on `!` in the commit header OR a `BREAKING CHANGE:` footer in the commit body. Architecture.md § Commit / PR / Knowledge-file Patterns line 681 pins this contract.",
+        "commitlint config (`INV-commitlint-shared` at `packages/keel-invariants/src/invariants.manifest.ts` — Story 1.5) uses `@commitlint/config-conventional` which ACCEPTS both forms. No Story 1.14 commitlint edit needed.",
+        "Adversarial AC-4 coverage delegated to iter-80 CR per § Testing Standards: Acceptance Auditor verifies commitlint `breaking: true` acceptance + release-please `breaking-change-bump` parsing parity across both forms.",
+        "Pre-1.0 → 1.0 transition: `BREAKING CHANGE:` commits at 0.x.y produce `1.0.0` per conventional-commit + release-please rules. Post-1.0: `N.x.y → (N+1).0.0`.",
+        "Runtime verification deferred to Story 13.5.",
+        "Story 1.16 unlocks a future unit-test probe with `feat!: baz` AND `feat: baz\\n\\nBREAKING CHANGE: qux` commit variants; assert both emit MAJOR bump + the breaking-change changelog section."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": "Tthew merges Release PR → release-please tags the release on main (v<semver> format) + publishes GitHub Release notes + next conventional-commit starts a fresh Release PR",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Downstream Story-13.5 consumer AC explicitly carved out of Story 1.14 scope (most explicit carve-out — story § AC 5 scope carve-out verbatim: \"the release-please WORKFLOW is Story 13.5 scope, NOT Story 1.14\"). Substrate verification is the `include-v-in-tag: true` config flag; runtime verification requires the Epic-13 workflow.",
+      "substrate_verification": [
+        "Config `include-v-in-tag: true` at `.github/release-please-config.json:7` pins the `v`-prefix tag format (`v0.1.0` / `v1.0.0` etc.). Prevents Renovate or other auto-detection tooling from disagreeing on the prefix convention.",
+        "release-please emits GitHub Release notes automatically on Release-PR merge — the notes body is the changelog section for the newly-released version. No custom template needed at 1.0.",
+        "release-please's next-Release-PR lifecycle: once a Release PR is merged, the next conventional-commit to `main` starts a fresh Release PR that accumulates entries until the next release. This is intrinsic release-please behaviour, not a config flag.",
+        "Adversarial AC-5 coverage delegated to iter-80 CR per § Testing Standards: variant-(ii) downstream — Story 13.5's integration test (Release-PR merge smoke + tag emission smoke + release-notes body smoke + next-Release-PR emergence smoke) validates this end-to-end.",
+        "Runtime verification deferred to Story 13.5 — the `.github/workflows/release-please.yml` invokes `googleapis/release-please-action@v4` (or pinned equivalent) on every push to `main`; until that workflow lands, no Release PR is emitted from the Story-1.14 config files.",
+        "Story 1.16 unlocks a future integration probe via `release-please release-pr --dry-run` against the Story-1.14 config files."
+      ]
+    },
+    {
+      "id": "AC-6",
+      "title": "Single-bundled choice documented — $schema reference in config + companion `docs/invariants/release.md` markdown with verbatim architecture.md:1342 pointer + commit-type → semver mapping + fork-extension guidance; 3 new manifest entries (`INV-release-please-config` + `INV-release-please-manifest` + `INV-release-please-rationale`); 3 new column-0 INVARIANTS.md anchors under `### Release management (Story 1.14)` H3; manifest grows 17 → 20 entries",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Configuration-surface + documentation-layer substrate contract. Substrate evidence STRONG: Task 7 smokes 5 + 6 directly probe AC 6 at CLI-exit-code level — smoke 5 asserts the `@keel/keel-invariants` import returns `invariants.length === 20` (17 pre-Story-1.14 + 3 new); smoke 6 asserts `pnpm keel-invariants:check-all` (umbrella of Story 1.9 sync-gate + Story 1.13 tokens-sync) exits 0 silent with all 20 entries walked + 20 sha256 content-hashes matched + 20 INVARIANTS.md anchors resolved including the 3 new ones. All re-verified LIVE at iter-78 trace-time.",
+      "substrate_verification": [
+        "`docs/invariants/release.md` exists (7711 bytes, sha256 `c37ac2a89cc14d965f15cf2fe5a7695f0c9c0d1536e704d447f7b0a636ea547c`). Contains verbatim architecture.md:1342 pointer (\"release-please-monorepo per-package release mode — deferred; single-bundled release is the N=1 choice\") per AC 6 spec, commit-type → semver mapping table (4 rows: `feat:` → MINOR pre-major + PATCH pre-major depending on flags, `fix:` → PATCH, `feat!:`/`BREAKING CHANGE:` → MAJOR, other types per `changelog-sections`), fork-extension pointer (FR44), and the `INV-release-please-rationale` column-0 anchor bullet.",
+        "Smoke 5 — manifest-load: `import('@keel/keel-invariants').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))` prints `OK: 20 invariants`. Re-verified LIVE at iter-78 from `packages/keel-invariants/` working directory (post-`pnpm --filter @keel/keel-invariants build` which compiled `src/invariants.manifest.ts` → `dist/invariants.manifest.js` per iter-77 Gotcha: the `@keel/keel-invariants` export reads the compiled `dist/` variant, NOT the TS source).",
+        "Smoke 6 — sync-gate clean: `pnpm keel-invariants:check-all` exits 0 silent (2.9s total wall for umbrella; Story 1.9 sync-gate portion ~0.8s under AC 7 <2s budget). Re-verified LIVE at iter-78. This validates (a) 20 entries parse via Zod `InvariantSchema`; (b) 20 sha256 content-hashes match the file bytes on disk (including the 3 new Story 1.14 hashes); (c) 20 INVARIANTS.md anchors resolve via the `ANCHOR_REGEX` walker (including the 3 new column-0 anchors under `### Release management (Story 1.14)`); (d) the Story 1.13 tokens-sync gate (part of check-all) is unaffected (no token-layer change in Story 1.14).",
+        "3 new manifest entries at `packages/keel-invariants/src/invariants.manifest.ts` raw array tail (post-`INV-tokens-sync-gate`): (1) `INV-release-please-config` — sourcePath `.github/release-please-config.json`, contentHash `bd7a6c6c…`, anchors `['INV-release-please-config']`; (2) `INV-release-please-manifest` — sourcePath `.github/.release-please-manifest.json`, contentHash `4df2aacf…`, anchors `['INV-release-please-manifest']`; (3) `INV-release-please-rationale` — sourcePath `docs/invariants/release.md`, contentHash `c37ac2a8…`, anchors `['INV-release-please-rationale']`.",
+        "3 new column-0 anchor bullets in `INVARIANTS.md` under a new `### Release management (Story 1.14)` H3 section inserted between existing `### Design-token quality gates (Story 1.13)` H3 and `## Consumption` H2. Each bullet matches the Story-1.9 walker's `ANCHOR_REGEX` shape `^-\\s+\\*\\*\\`INV-[a-z0-9]+(?:-[a-z0-9]+)+\\`\\*\\*`.",
+        "Stable-ID regex verification (L1 preventative layer): all three IDs match the Zod regex `^INV-[a-z0-9]+(-[a-z0-9]+)+$` at `invariants.manifest.ts:4` — `INV-release-please-config` (4 segments), `INV-release-please-manifest` (4 segments), `INV-release-please-rationale` (4 segments). No uppercase, no underscores, no segment shorter than 1 char.",
+        "Config `$schema` field at line 2 of `.github/release-please-config.json` points at `https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json` — standard release-please config schema discovery aid. The rationale pointer itself is NOT inline in the JSON (JSON strict spec forbids `//` comments); the rationale lives in `docs/invariants/release.md` (primary site), Story 1.14 § Dev Notes (secondary), and the `INV-release-please-config`/`INV-release-please-rationale` manifest `description` fields (tertiary).",
+        "3-ID shape per AC 6 scope carve-out: per-file drift is surgical (a silent edit to config is distinct drift from a silent edit to the manifest, distinct from a silent edit to the rationale doc). An alternative single `INV-release-please-bundle` collapsing all three was rejected for the same reason Story 1.13 rejected bundling its 3 gates (AC 4 § carve-out): bundling collapses drift detection. Manifest grows 17 → 20 entries (+17.6%); Story 1.9 walker performance O(n+m) in entries × doc lines stays comfortably under the 2s budget (0.63s observed at iter-77; ~69% margin).",
+        "Adversarial AC-6 coverage delegated to iter-80 CR per § Testing Standards: Acceptance Auditor verifies `docs/invariants/release.md` contains the architecture.md:1342 verbatim string + the architecture-path cite + the commit-type → semver mapping table. Blind Hunter flags any drift in the mapping table vs AC 2/3/4 numeric-bump claims."
+      ]
+    }
+  ],
+  "gaps": []
+}

@@ -40,12 +40,15 @@ The loop halts on `$RALPH_BASE_DIR/halt`, on `(AWAIT_MERGE` in `$RALPH_BASE_DIR/
 
 Four files serve distinct audiences. Don't conflate them.
 
-| File            | Audience                                       | Contents                                                                                                                         |
-| --------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `AGENTS.md`     | Any AI agent (Claude, Codex, etc.)             | Authoritative operational guide — conventions, paths, git rules                                                                  |
-| `CLAUDE.md`     | Claude Code specifically                       | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and RALPH.md                                                       |
-| `RALPH.md`      | Ralph (autonomous loop)                        | Ralph's private journal — signposts, lessons, gotchas, decisions                                                                 |
-| `INVARIANTS.md` | Any AI agent or human — machine-enforced rules | Agent-readable index of stable IDs mapping to `packages/keel-invariants/` (FR42; drift-detected by Story 1.9 sync-gate per FR43) |
+| File                                         | Audience                                           | Contents                                                                                                                                                                                                                                                         |
+| -------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AGENTS.md`                                  | Any AI agent (Claude, Codex, etc.)                 | Authoritative operational guide — conventions, paths, git rules                                                                                                                                                                                                  |
+| `CLAUDE.md`                                  | Claude Code specifically                           | Claude-Code quirks (skills, settings) + pointers to AGENTS.md and RALPH.md                                                                                                                                                                                       |
+| `RALPH.md`                                   | Ralph (autonomous loop)                            | Ralph's private journal — signposts, lessons, gotchas, decisions                                                                                                                                                                                                 |
+| `INVARIANTS.md`                              | Any AI agent or human — machine-enforced rules     | Agent-readable index of stable IDs mapping to `packages/keel-invariants/` (FR42; drift-detected by Story 1.9 sync-gate per FR43)                                                                                                                                 |
+| `INVARIANTS.fork.md` (Growth-tier, optional) | Fork-specific agent/human — machine-enforced rules | Fork-owned additive rules to upstream INVARIANTS.md; substrate rules take precedence (FR45; `docs/invariants/fork.md` § Precedence). Not present at 1.0 — fork operators opt in by copying `packages/keel-invariants/templates/INVARIANTS.fork.md` to repo root. |
+
+Precedence: upstream `INVARIANTS.md` is authoritative for every rule registered in `invariants.manifest.ts`; `INVARIANTS.fork.md` (when a fork opts in) is additive — fork rules ADD TO substrate but cannot override it. See `docs/invariants/fork.md` § Precedence + § Amendment-vs-fork decision tree for the opt-in flow + conflict-resolution paths.
 
 When you discover something new during a session:
 

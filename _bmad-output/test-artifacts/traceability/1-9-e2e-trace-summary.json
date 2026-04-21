@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T14:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "4129a28",
+  "gate_eligible": true,
+  "gate_status": "WAIVED",
+  "target": {
+    "type": "story",
+    "id": "1.9",
+    "label": "invariant sync-gate runtime tooling (reader + walker + drift detector)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 7,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 7,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 5, "covered": 0, "pct": 0 },
+      "P2": { "total": 2, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 5,
+    "medium_gaps": 2,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "not_applicable",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Defer AC-1 / AC-2 / AC-3 / AC-4 / AC-5 unit-test coverage to Story 1.16 (test-runner landing); Task 5 shell-invocation smoke tests already cover AC-1 + AC-2 + AC-4 + AC-5 + AC-7 end-to-end. AC-3 remains a small pure function branch that CR adversarial pass backstops at 1.9.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Defer AC-6 GitHub Actions workflow wiring to Epic 13 (F/E pipeline story) per spec scope carve-out. Story 1.9 ships the CLI + exit-code contract; Epic 13 wires the `.github/workflows/*.yml` invocation step.",
+      "requirements": ["AC-6"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "AC-7 <2s performance budget met with >2x headroom (0.77s wall-clock). No follow-up needed unless substrate grows beyond ~200 invariants.",
+      "requirements": ["AC-7"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-code-review (args: \"2\") next — adversarial triage is the agreed backstop for AC-3 structural + AC-6 CLI-contract-only branches per § Testing Standards + Dev Agent Record AC coverage matrix.",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "0%",
+    "p1_status": "NOT_MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

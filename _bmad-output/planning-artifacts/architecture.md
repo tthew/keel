@@ -939,7 +939,7 @@ ralph-bmad/                                # Keel repo (this fork absorbs ralph-
     │   │   │   ├── zero-width.ts
     │   │   │   ├── jailbreak-triggers.ts
     │   │   │   └── diff-patterns.ts
-    │   │   ├── invariants-manifest.ts               # FR43 generated manifest (ID+hash)
+    │   │   ├── invariants.manifest.ts               # FR43 generated manifest (ID+hash)
     │   │   ├── i18n-keys.ts                         # Typed key enumeration
     │   │   └── ci-matrix.ts                         # FR28–FR34 gate-profile definitions
     │   ├── test/                                    # Schema + rule-regression tests

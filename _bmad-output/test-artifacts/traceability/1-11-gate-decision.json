@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T16:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.11",
+    "label": "design-token source, Direction A baseline with motion + density scales"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Contract-populator / data-authoring story whose § Testing Standards (story line 197-200) explicitly defers per-AC automated coverage to Story 1.13 (pre-commit schema-validation + source-output sync gates, running post-1.12 emitter landing) + Story 1.16 (test-runner landing — red-phase schema-rejection probes / filesystem-absence assertion / tier-enumeration assertion / sync-gate fixture tests if still deemed value-adding). The deterministic FAIL signal (overall 0% < 80%) is a structural false-positive; no test runner is wired at substrate level. Iter-56 substrate evidence: AC 1 verified via `pnpm dlx ajv-cli@5 validate -s packages/ui/tokens.schema.json -d packages/ui/tokens.json --spec=draft2020 --all-errors` → `packages/ui/tokens.json valid` (exit 0, zero errors) — one-shot end-to-end schema-conformance evidence; ~106-leaf Direction A value population verified by inspection against ux-spec § Visual Design Foundation + § Design Direction Decision (`oklch(54% 0.18 245)` Direction A accent.500 per :613 precedence over :492). AC 2 verified via filesystem-absence check (docs/design/presets/ absent) + zero Direction-B/C substrings in commit 6b1790a diff. AC 3 verified via motion.scale 1+5 tier inventory (scale dial + instant|snap|swift|smooth|drift; 60ms/120ms/200ms/320ms/500ms literal durations) + density.scale 1+3 tier inventory (scale dial + compact|default|comfortable; 0.875/1/1.125 literal numbers); all literals (not aliases) preserving dial independence per story § AC 3 carve-out. AC 4 substrate-verified strongest: Task 4 two shell-invocation smoke branches exercised end-to-end — clean-path `pnpm keel-invariants:check` exit 0 confirming `INV-tokens-source` (sha256 `27e8cb58...`) pairs cleanly with INVARIANTS.md anchor AND sha256 matches; drift-path `content-hash-mismatch` exit 1 + structured JSON drift report on packages/ui/tokens.json newline-append (actual `52865468...`) with byte-identical revert via `pnpm exec prettier --write` (iter-45 new-untracked-file revert pattern); drift-path `added-to-source-only` exit 1 + structured Drift report on INVARIANTS.md anchor deletion with revert via re-applied Edit (extends Story 1.10 iter-45 `git checkout --` revert gotcha for tracked files with uncommitted edits; canonical pattern for Story 1.12+ drift-smoke 2 = `cp INVARIANTS.md /tmp/.bak` + `cp /tmp/.bak INVARIANTS.md`); third drift branch (removed-from-docs-only) SKIPPED per story § Task 4 rationale — duplicate coverage of Story 1.9 AC 2. Pre-documented variances (NOT gaps): root-provenance-block skip per Story 1.10 schema's root-level `additionalProperties: false` (resolution: per-leaf `$description` + Debug Log + commit trailer + Change Log v1.2); leafFontFamily array-form deferral per § AC 1 carve-out + deferred-work.md. All substrate quality gates green (typecheck 16 tasks / lint 16 / build 16 with scoped @keel/keel-invariants rebuild per iter-51 / format:check / prek 3 hooks Pass). FR14n ATDD-skip precedent applied at iter-55 on hybrid-ground-(c) rationale (Story 1.13 downstream-gate + CR adversarial substitution); trace gate mirrors that decision — fifth cumulative WAIVED precedent for contract-only/contract-populator/data-only substrate stories (Stories 1.7 + 1.8 + 1.9 + 1.10 + 1.11).",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-11-design-token-source-direction-a-baseline-with-motion-density-scales.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}

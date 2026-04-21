@@ -10,3 +10,7 @@ docs/
 .ralph/
 *.py
 uv.lock
+# Generated token outputs (Story 1.12) — byte-stable form owned by the emitter,
+# not prettier. Emitter: packages/ui/scripts/generate-tokens.ts.
+packages/ui/src/tokens.css
+packages/ui/tailwind.preset.ts

@@ -13,6 +13,11 @@
     "lint": "turbo run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "keel-invariants:check": "pnpm --filter @keel/keel-invariants check",
+    "keel-invariants:tokens-schema": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-schema",
+    "keel-invariants:tokens-contrast": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-contrast",
+    "keel-invariants:tokens-sync": "pnpm --filter @keel/ui generate-tokens -- --check",
+    "keel-invariants:check-all": "pnpm keel-invariants:check && pnpm keel-invariants:tokens-sync",
     "prepare": "prek install -t pre-commit -t commit-msg"
   },
   "devDependencies": {

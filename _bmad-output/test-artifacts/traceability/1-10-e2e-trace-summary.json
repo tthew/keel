@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T15:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "1.10",
+    "label": "design-token schema + semantic-rationale contract"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-10-design-token-schema-semantic-rationale-contract.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 4, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 4,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "present",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — four P2 ACs are all contract-level with substrate-layer verification (import-time Zod parse + sync-gate smoke branches). Per-AC runner-hosted coverage deferred to Story 1.16 (test-runner landing); runtime enforcement of AC 4 already lands via Story 1.9 sync-gate on every pre-merge.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.13 pre-commit gates (schema-validation + WCAG AA contrast + source-output sync) will re-exercise AC 1 + AC 2 + AC 3 integration once Story 1.11 populates concrete values and Story 1.12 lands the emitter pipeline.",
+      "requirements": ["AC-1", "AC-2", "AC-3"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — this is a no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-10-design-token-schema-semantic-rationale-contract.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

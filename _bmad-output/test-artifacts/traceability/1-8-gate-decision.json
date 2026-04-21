@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T13:29:07Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.8",
+    "label": "invariants.manifest.ts contract + exporter"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Contract-only story whose § Testing Standards explicitly defers per-AC automated coverage to Stories 1.9 (FR43 sync-gate — runtime enforcement) + 1.16 (test-runner landing — Zod edge-case unit tests). The deterministic FAIL signal (overall 0% < 80%) is a structural false-positive; no test runner is wired at substrate level (Story 1.16 scope). Zod InvariantsSchema.parse(raw) is the import-time test; Task 3 runtime smoke check (`node -e \"import('@keel/keel-invariants')…\"` → `OK: 9 invariants`) exercised AC 4 end-to-end. All substrate quality gates (typecheck / lint / format:check / commitlint / prek-runner) landed green at dev-story. FR14n ATDD-skip already applied at iter-3 on three-prong rationale; trace gate mirrors that decision.",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-8-invariants-manifest-ts-contract-exporter.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}

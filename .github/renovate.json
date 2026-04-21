@@ -1,0 +1,47 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Berlin",
+  "schedule": ["before 9am on monday"],
+  "dependencyDashboard": true,
+  "labels": ["dependencies", "renovate"],
+  "automerge": false,
+  "rangeStrategy": "replace",
+  "packageRules": [
+    {
+      "description": "I7: Vitest pinned exact; grouped as one PR per ecosystem bump.",
+      "matchPackageNames": ["vitest"],
+      "matchPackagePatterns": ["^vitest($|/)", "^@vitest/"],
+      "groupName": "vitest",
+      "rangeStrategy": "pin",
+      "automerge": false
+    },
+    {
+      "description": "I7: OpenTelemetry JS SDK pinned exact; @opentelemetry/sdk-node + @opentelemetry/api + every instrumentation grouped into one PR.",
+      "matchPackagePatterns": ["^@opentelemetry/"],
+      "groupName": "opentelemetry",
+      "rangeStrategy": "pin",
+      "automerge": false
+    },
+    {
+      "description": "I7: Radix UI primitives grouped; pin mode matches the substrate-wide UI-primitive discipline (epics.md:3984 Story 7.2 AC — Story 1.15 renovate covers).",
+      "matchPackagePatterns": ["^@radix-ui/"],
+      "groupName": "radix-ui",
+      "rangeStrategy": "pin",
+      "automerge": false
+    },
+    {
+      "description": "pg_uuidv7 Postgres image pin (Story 2.1 devbox docker-compose consumer); flagged for manual review on any tag change.",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["ghcr.io/fboulnois/pg_uuidv7"],
+      "groupName": "pg-uuidv7",
+      "rangeStrategy": "pin",
+      "automerge": false
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 9am on the first day of the month"],
+    "automerge": false
+  }
+}

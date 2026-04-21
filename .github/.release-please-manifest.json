@@ -1,0 +1,19 @@
+{
+  ".": "0.0.0",
+  "apps/web": "0.0.0",
+  "packages/audit": "0.0.0",
+  "packages/billing": "0.0.0",
+  "packages/config": "0.0.0",
+  "packages/contracts": "0.0.0",
+  "packages/core": "0.0.0",
+  "packages/create-keel-app": "0.0.0",
+  "packages/db": "0.0.0",
+  "packages/devbox": "0.0.0",
+  "packages/email": "0.0.0",
+  "packages/flags": "0.0.0",
+  "packages/jobs": "0.0.0",
+  "packages/keel-generator": "0.0.0",
+  "packages/keel-invariants": "0.0.0",
+  "packages/keel-templates": "0.0.0",
+  "packages/ui": "0.0.0"
+}

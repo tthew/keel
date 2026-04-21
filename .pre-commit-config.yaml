@@ -23,6 +23,18 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: tokens-schema
+        name: Design-token schema validation (@keel/keel-invariants)
+        entry: pnpm keel-invariants:tokens-schema
+        language: system
+        pass_filenames: false
+        files: ^packages/ui/tokens\.json$
+      - id: tokens-contrast
+        name: Design-token WCAG AA contrast check (@keel/keel-invariants)
+        entry: pnpm keel-invariants:tokens-contrast
+        language: system
+        pass_filenames: false
+        files: ^packages/ui/tokens\.json$
       - id: commitlint
         name: commitlint (conventional commits)
         entry: pnpm exec commitlint --edit

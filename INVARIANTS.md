@@ -2,9 +2,7 @@
 
 **Audience:** any AI agent or human contributor needing to know which substrate rules are _machine-enforced_ (and where their enforcement source lives).
 
-This file is the human-readable companion to `packages/keel-invariants/` (FR42). Every entry here has a stable ID (`INV-<category>-<slug>`) that Story 1.8's `invariants.manifest.ts` will pin with a content hash, and Story 1.9's sync-gate (FR43) will drift-check at pre-merge.
-
-<!-- Provisional: canonical IDs pinned by Story 1.8 manifest; drift-detection lands in Story 1.9. -->
+This file is the human-readable companion to `packages/keel-invariants/` (FR42). Every entry here has a stable ID (`INV-<category>-<slug>`) pinned by `invariants.manifest.ts` (Story 1.8) with a content hash, drift-checked at pre-merge by the sync-gate (Story 1.9, FR43).
 
 ## Promotion rules
 
@@ -46,6 +44,47 @@ Each entry: stable ID + one-line description + source-file pointer.
 ### Ralph loop contracts (halt-schema + path-resolution)
 
 - **`INV-ralph-halt-path-resolution`** — `ralph.py` (and fork-replacement runtimes) resolve `.ralph/halt`, `.ralph/@plan.md`, `.ralph/PROMPT_*.md`, and `.ralph/logs/` against the worktree path (`.claude/worktrees/<name>/.ralph/`) when `--worktree <name>` is set, else against cwd-relative `.ralph/`. The resolved absolute path is exported to the subprocess env as `RALPH_BASE_DIR` so agent + orchestrator address the same directory. Agents MUST use `$RALPH_BASE_DIR` or relative `.ralph/*` — never hardcoded main-repo absolutes. Normative spec: `docs/invariants/ralph-execute.md` § Path Resolution (FR14k + NFR33a). Runtime source: `ralph.py` `resolve_ralph_base()` + `RalphConfig.ralph_base` + env injection at subprocess spawn. Machine-enforcement of drift between source + spec + manifest lands in Story 1.9's sync-gate (FR43); at 1.0 this invariant is spec-enforced only.
+
+### Design-token schema + semantic rationale (Story 1.10)
+
+- **`INV-tokens-schema-contract`** — DTCG-compatible JSON Schema defining the shape of every semantic + primitive token group (color / type / font / space / radius / motion / density / breakpoint) plus optional `$modes` overlays. Story 1.10 scope is structure-only (every leaf carries `$type` + `$value`; every `$value` is a literal or `{alias}` reference; named semantic groups are required at the root); value population is Story 1.11, pre-commit quality gates (schema-validation + WCAG AA contrast + source-output sync) are Story 1.13. Source: `packages/ui/tokens.schema.json`.
+- **`INV-tokens-semantic-rationale`** — semantic-rationale doc pairing every `TOKEN-<slug>` with a prose line explaining why the slot exists, when to use it, and how cross-runtime consumers (Tailwind preset + Textual TUI theme + Epic 7 catalog) reference it. Companion to `INV-tokens-schema-contract`; Sally's "catalog header references rationale" requirement (UX-DR4; ux-design-specification.md § Architecture of the Design System). Source: `docs/invariants/tokens.md`.
+
+### Design-token source (Story 1.11)
+
+- **`INV-tokens-source`** — DTCG JSON file populated with every Direction A semantic + primitive token value per ux-design-specification.md § Visual Design Foundation + § Design Direction Decision. Ships the 11-step neutral ramp, accent primitives + semantic aliases, surface/text/border aliases into the ramp, 5-tier status families with fg+bg pairs, severity + kanban-state alias vocabularies, 8-stop modular type scale (1.125 ratio), sans + mono font stacks, 13-stop 4px space scale, 5-stop radius scale, motion dial + 5 duration tiers (instant/snap/swift/smooth/drift), density dial + 3 scale tiers (compact/default/comfortable), 5 breakpoint stops, and light + dark `$modes` overlays (light empty since base = light; dark re-maps surface/text/border/accent.fg + status.bg variants). Consumed by Story 1.12 emitter (web CSS custom properties + Tailwind preset + Textual theme) and validated against `INV-tokens-schema-contract` by Story 1.13's pre-commit schema-validation + WCAG AA contrast + source-output sync gates. Source: `packages/ui/tokens.json`.
+
+### Design-token emitter pipeline (Story 1.12)
+
+- **`INV-tokens-emitter`** — deterministic TypeScript emitter that reads `packages/ui/tokens.json` (`INV-tokens-source`) and emits three byte-stable cross-runtime artefacts per FR67-adapted purity contract: `packages/ui/src/tokens.css` (web CSS custom properties under `:root { }` base + `[data-theme="dark"] { }` overlay), `packages/ui/tailwind.preset.ts` (Tailwind v4 preset exporting `keelTailwindPreset` with flat-kebab keys under `theme.extend.{colors,fontSize,fontFamily,spacing,borderRadius,transitionDuration,motionScale,densityScale,screens}`), and `packages/devbox/tui/theme.py` (Textual Python `SimpleNamespace` constants under `theme.colors.*` + `theme.{type,font,space,radius,motion,density,breakpoint}.*` + sparse `theme.dark.colors.*`). Flattens DTCG `{alias}` references at emit-time (cycle-detected DFS with a mutated in-progress set so diamond-DAG alias graphs resolve without false positives); no network / no time / no RNG / no env vars; reads only `packages/ui/tokens.json`; writes only the three target paths. Source-SHA resolver for the provenance header uses `git log -1 --format=%h --abbrev=12 -- packages/ui/tokens.json` and is hoisted to a single per-run call threaded into the three emit stages, with tagged `git-unavailable-` / `stderr-error-` / `uncommitted-` fallback prefixes when git fails. Invocation: `pnpm --filter @keel/ui generate-tokens`. `--check` mode (Story 1.13) re-emits to in-memory buffers and byte-compares against committed output paths without writing. Consumed by Epic 7 Story 7-1 (Tailwind preset + CSS vars), Epic 3 Story 3.33 (TUI theme.py re-theme seam), Epic 12 shape-aware templates. Validated end-to-end by the Story 1.13 pre-merge source-output sync gate (`INV-tokens-sync-gate`, `--check` mode). Source: `packages/ui/scripts/generate-tokens.ts`.
+
+### Design-token quality gates (Story 1.13)
+
+- **`INV-tokens-schema-validate`** — pre-commit gate validating `packages/ui/tokens.json` against `packages/ui/tokens.schema.json` via Ajv-2020 (JSON Schema Draft 2020-12); rejects schema-violating commits with a structured JSON error on stderr naming `instancePath` + `schemaPath` + `keyword` + expected/received values. Runs before the token-contrast + sync gates so downstream stages can trust source shape. Source: `packages/keel-invariants/src/check-tokens-schema.ts`.
+- **`INV-tokens-contrast-check`** — pre-commit gate computing WCAG 2.1 AA contrast ratios for every semantic `text × surface`, `status.fg × status.bg`, `severity × surface`, `state × surface`, `accent × surface`, and `border.accent × surface` pair in light + dark overlay modes; gamut-maps OKLCH → in-gamut sRGB (3-iteration chroma reduction + hard clamp) before relative-luminance math; threshold `4.5` for normal text / `3.0` for UI components per WCAG 1.4.11. Source: `packages/keel-invariants/src/check-tokens-contrast.ts`.
+- **`INV-tokens-sync-gate`** — pre-merge gate invoking the emitter in `--check` mode to byte-compare re-emitted outputs against committed `packages/ui/src/tokens.css` + `packages/ui/tailwind.preset.ts` + `packages/devbox/tui/theme.py`; shares `sourcePath` with `INV-tokens-emitter` (additive `--check` flag on the existing writer). Source: `packages/ui/scripts/generate-tokens.ts`.
+
+### Release management (Story 1.14)
+
+Single-bundled release-please config + per-workspace manifest + companion rationale doc; conventional-commits → semver bumps → rolling Release PR.
+
+- **`INV-release-please-config`**: .github/release-please-config.json — single-bundled monorepo config (release-type node + linked-versions plugin + bump-minor-pre-major + 17-key `packages:` map).
+- **`INV-release-please-manifest`**: .github/.release-please-manifest.json — per-path version state-of-record (17 entries; initial 0.0.0 everywhere).
+- **`INV-release-please-rationale`**: docs/invariants/release.md — single-bundled vs per-package trade-off rationale + commit-type semver mapping + fork-extension guidance.
+
+### Dependency upgrade discipline (Story 1.15)
+
+I7 version-pinning policy authored in `.github/renovate.json` + companion rationale doc; Vitest + OTEL + Radix UI + pg_uuidv7 pin-mode + grouped-update rules; inert until the Renovate GitHub App is installed.
+
+- **`INV-deps-version-pinning`**: .github/renovate.json — 4 packageRules (Vitest + @opentelemetry/\* + @radix-ui/\* + pg_uuidv7) with rangeStrategy pin + per-ecosystem groupName + automerge false.
+- **`INV-renovate-rationale`**: docs/invariants/renovate.md — I7 posture + per-package pinning rules table + grouping rationale + fork-extension guidance.
+
+### Fork extension (Story 1.16)
+
+FR44 ESLint-extend pattern (`eslint.config.fork.js` importing `@keel/keel-invariants/eslint`) + FR45 Growth-tier `INVARIANTS.fork.md` scaffold template; substrate-wins precedence via spread-at-end convention; fork operators opt into the Growth-tier scaffold manually at 1.0 (Epic 15a's `--include-fork-invariants` flag lands later).
+
+- **`INV-fork-extension-rationale`**: docs/invariants/fork.md — FR44 ESLint-extend pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold + substrate-wins precedence + amendment-vs-fork decision tree.
+- **`INV-fork-invariants-scaffold`**: packages/keel-invariants/templates/INVARIANTS.fork.md — Growth-tier fork-invariants template with H1 + § Precedence + § Fork invariants index + § Consumption + § Extension + commented FORK-\<fork-slug\>-\<category\>-\<slug\> naming example.
 
 ## Consumption
 

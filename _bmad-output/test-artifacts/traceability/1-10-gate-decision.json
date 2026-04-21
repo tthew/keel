@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-20T15:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.10",
+    "label": "design-token schema + semantic-rationale contract"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Contract-only story whose § Testing Standards (story line 162) explicitly defers per-AC automated coverage to Story 1.13 (pre-commit schema-validation + source-output sync gates, running post-1.11 value population + 1.12 emitter landing) + Story 1.16 (test-runner landing — grep-based rationale-doc completeness / cross-link parity unit tests if still deemed value-adding). The deterministic FAIL signal (overall 0% < 80%) is a structural false-positive; no test runner is wired at substrate level. Task 4's three shell-invocation smoke branches exercised AC 4 end-to-end: clean-path `pnpm keel-invariants:check` exit 0 confirming both manifest entries pair cleanly with INVARIANTS.md anchors AND sha256 matches; drift-path `content-hash-mismatch` exit 1 + structured JSON drift report on packages/ui/tokens.schema.json with byte-identical revert via `pnpm exec prettier --write` (new-untracked-file revert pattern — iter-45 lesson); drift-path `added-to-source-only` exit 1 + structured Drift report on INVARIANTS.md anchor deletion with byte-identical revert from /tmp backup. AC 1 substrate verification: schema file exists (19866 bytes), declares draft-2020-12, eight required root semantic groups, `additionalProperties: false` everywhere, per-`$type` leaf defs, optional `$modes` overlay. AC 2 substrate verification: rationale doc exists (21097 bytes), 11 `###` rationale sections cover every schema leaf group, all three AC-named exemplars present. AC 3 substrate verification: iter-45 Debug Log documents Accent schema/rationale reconciliation + Neutral rationale addition preserving cross-link parity. All substrate quality gates green (typecheck / lint / build / format:check / prek 3/3 / commitlint). FR14n ATDD-skip precedent applied at iter-44 on hybrid-ground-(c) rationale (Story 1.13 downstream-gate + CR adversarial substitution); trace gate mirrors that decision — fourth cumulative WAIVED precedent for contract-only/data-only substrate stories.",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-10-design-token-schema-semantic-rationale-contract.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}
