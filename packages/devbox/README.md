@@ -114,7 +114,7 @@ entry below. Forks running on non-M4-Pro hardware are expected to retune
 `.envrc` knobs (Story 2.2) rather than blocking on the baseline budget; see
 `architecture.md § I5` (lines 275-293).
 
-### Pending first bake
+#### Pending first bake
 
 Story 2.1 iter-123 produced the first `keel-devbox:local` image inside the
 Ralph iteration environment (backend B per
