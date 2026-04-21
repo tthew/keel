@@ -23,9 +23,9 @@ Update this file when a new image is baked.
 | pnpm                        | `10.29.2`                                             | Pinned to match root `package.json@packageManager`.                                         |
 | `@anthropic-ai/claude-code` | `2.1.116` (iter-128 CR-pinned; iter-123 bake capture) | `npm install -g @anthropic-ai/claude-code@2.1.116`; Renovate `npm` manager tracks bump PRs. |
 | GitHub CLI (`gh`)           | apt via `cli.github.com/packages`                     | Renovate `apt` manager tracks.                                                              |
-| `uv` (Astral)               | _recorded-at-bake_                                    | Official installer; captures latest stable at bake.                                         |
+| `uv` (Astral)               | `0.11.7` (iter-123 bake capture)                      | Official installer; captures latest stable at bake.                                         |
 | AWS CLI                     | v2 (arch-aware installer)                             | Refresh on every bake.                                                                      |
-| Supabase CLI                | latest release `.deb` (arch-aware)                    | Arch-aware fallback; skipped if asset missing for host.                                     |
+| Supabase CLI                | latest release `.deb` (arch-aware)                    | Fail-closed if asset missing for host arch (matches git-delta pattern per iter-134 AI-6).   |
 | git-delta                   | latest release `.deb` (arch-aware)                    | Fail-closed if asset missing (diff pager is mandatory for I8 workflows).                    |
 | Playwright OS deps          | `npx --yes playwright@latest install-deps` post-apt   | Reconciles apt list with Playwright's current requirement set.                              |
 | `postgresql-client`         | apt (Ubuntu 24.04 default)                            | Provides `psql` for Epic 6 Story 6.5 forward-compat.                                        |
