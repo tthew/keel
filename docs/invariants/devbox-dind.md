@@ -5,6 +5,10 @@
 **Machine-enforced in:** spec-enforced at 1.0 (this doc is the source of truth); runtime check implementation deferred to a dedicated `packages/keel-invariants/` rule + unit test on a later Ralph iteration.
 **Normative reference:** `_bmad-output/planning-artifacts/architecture.md` § I5 §Devbox-Reference-Config; `AGENTS.md` § Where things live.
 
+## INV-devbox-dind-available
+
+Stable ID for the invariant authored by this doc — pinned in `packages/keel-invariants/src/invariants.manifest.ts` (content-hash of this file) and anchored in `INVARIANTS.md` § Devbox iteration substrate (Story 2.1). Story 1.9's pre-merge sync-gate (FR43) detects drift between this doc's on-disk sha256 and the manifest's `contentHash` field, and between the manifest's `anchors: ['INV-devbox-dind-available']` entry and the matching `INVARIANTS.md` bullet. The heading is intentionally the bare stable-ID string so `grep '## INV-devbox-dind-available' docs/invariants/devbox-dind.md` makes the manifest's anchor claim self-verifiable without cross-file traversal.
+
 ## The invariant
 
 The Ralph iteration environment MUST provide a **functional** Docker runtime — daemon reachability alone is NOT sufficient.
