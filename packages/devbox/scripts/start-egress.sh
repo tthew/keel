@@ -26,6 +26,7 @@ WHITELIST_DEFAULT="${DEVBOX_DIR}/whitelist.default.txt"
 WHITELIST_FRAGMENTS_DIR="${DEVBOX_DIR}/whitelist"
 COMPOSED_WHITELIST="/run/keel-whitelist.composed.txt"
 TAILER_PID_FILE="/run/keel-egress-tailer.pid"
+DNSMASQ_PID_FILE="/run/dnsmasq.pid"
 
 log() { printf 'start-egress: %s\n' "$*" >&2; }
 
@@ -115,9 +116,34 @@ printf '%s\n' "${tailer_pid}" > "${TAILER_PID_FILE}"
 log "egress-log-tailer.sh launched (pid=${tailer_pid})"
 
 # --- Step 6: verify dnsmasq is serving (AC 5 fail-closed guard) -----------
+# Positive-serving liveness probe. Replaces the former `pgrep -x dnsmasq`
+# process-table match which passed for any process named "dnsmasq" regardless
+# of whether the daemon actually bound its listening socket — a dnsmasq that
+# crashed mid-init or wedged before dropping privileges would escape. Two
+# gates, both MUST pass within 5s:
+#
+#   (a) Pidfile non-empty AND pid is alive (`kill -0`). Verifies dnsmasq
+#       started cleanly enough to write its pidfile; pgrep-x caught process
+#       presence but not pidfile integrity.
+#   (b) 127.0.0.1:53 accepts TCP connects. Confirms dnsmasq bound its
+#       listening socket per dnsmasq.conf's `listen-address=127.0.0.1,::1`
+#       + `bind-interfaces` + `port=53` directives — this is the SC-13
+#       fail-closed resolver-reachability contract. Uses bash's /dev/tcp
+#       builtin (no external tool), capped by `timeout 1` per attempt.
+#
+# Stronger `getent ahostsv4 <whitelisted-domain>` probing was rejected: it
+# couples liveness to upstream DNS reachability (a legitimately-orthogonal
+# failure mode) and turns transient upstream outages into false-negative
+# container-start failures with misleading diagnostics.
 dnsmasq_up=0
 for attempt in 1 2 3 4 5; do
-	if pgrep -x dnsmasq >/dev/null 2>&1; then
+	dnsmasq_probe_pid=""
+	if [[ -s "${DNSMASQ_PID_FILE}" ]]; then
+		dnsmasq_probe_pid="$(cat "${DNSMASQ_PID_FILE}" 2>/dev/null || true)"
+	fi
+	if [[ -n "${dnsmasq_probe_pid}" ]] \
+		&& kill -0 "${dnsmasq_probe_pid}" 2>/dev/null \
+		&& timeout 1 bash -c '</dev/tcp/127.0.0.1/53' 2>/dev/null; then
 		dnsmasq_up=1
 		break
 	fi
@@ -125,7 +151,7 @@ for attempt in 1 2 3 4 5; do
 done
 
 if [[ "${dnsmasq_up}" -ne 1 ]]; then
-	log "FATAL: dnsmasq not running after 5s — egress policy is not active"
+	log "FATAL: dnsmasq liveness probe failed after 5s (pidfile=${DNSMASQ_PID_FILE} missing/stale OR 127.0.0.1:53 not accepting TCP) — egress policy is not active"
 	exit 1
 fi
 

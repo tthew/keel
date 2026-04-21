@@ -82,8 +82,10 @@ Backend-B iteration-env cannot exercise these smokes (kernel-nftables privilege 
   # Expect exactly:
   # nameserver 127.0.0.1
   # options edns0 single-request-reopen
-  docker exec keel-devbox pgrep -x dnsmasq
-  # Expect a non-empty pid.
+  docker exec keel-devbox bash -c '[[ -s /run/dnsmasq.pid ]] && kill -0 "$(cat /run/dnsmasq.pid)" && timeout 1 bash -c "</dev/tcp/127.0.0.1/53"'
+  # Expect exit 0: pidfile non-empty + pid alive + 127.0.0.1:53 accepting TCP.
+  # (Positive-serving probe matching start-egress.sh step 6; `pgrep -x dnsmasq`
+  # would match any process named "dnsmasq" regardless of socket-bind state.)
   ```
 - **AC 2 (IPv4/IPv6 parity — SC-7 verbatim):**
   ```sh
