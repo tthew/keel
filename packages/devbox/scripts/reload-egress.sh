@@ -132,11 +132,21 @@ fi
 # | sort -u` collapses to unique IPv4s. Same for `ahostsv6`. Skip domains
 # whose resolution fails (log but continue — fail-closed default still blocks
 # traffic because no accept rule is emitted).
+#
+# Capture `getent` exit status BEFORE piping to awk|sort. A single pipeline
+# `getent | awk | sort` is brittle here: awk and sort always succeed on the
+# empty stdout that a resolution failure produces, so without a separate
+# `if getent …; then …` check the WARN branch only fires when pipefail is
+# honoured across command substitution — and even then the failure signal
+# (DNS unresolvable vs. malformed output vs. awk/sort fault) is indistinguishable.
+# Splitting the call makes "real DNS failure → WARN branch" unconditional and
+# narrows the pipefail surface to the downstream cleanup where it belongs.
 nft_ipv4_rules=""
 nft_ipv6_rules=""
 
 for domain in "${domains[@]}"; do
-	if ipv4s="$(getent ahostsv4 "${domain}" 2>/dev/null | awk '{print $1}' | LC_ALL=C sort -u)"; then
+	if ipv4_raw="$(getent ahostsv4 "${domain}" 2>/dev/null)"; then
+		ipv4s="$(printf '%s' "${ipv4_raw}" | awk '{print $1}' | LC_ALL=C sort -u)"
 		while IFS= read -r ip; do
 			[[ -z "${ip}" ]] && continue
 			nft_ipv4_rules+="		ip daddr ${ip} accept"$'\n'
@@ -144,7 +154,8 @@ for domain in "${domains[@]}"; do
 	else
 		log "WARN: ipv4 resolution failed for ${domain}; no accept rule emitted (fail-closed default applies)"
 	fi
-	if ipv6s="$(getent ahostsv6 "${domain}" 2>/dev/null | awk '{print $1}' | LC_ALL=C sort -u)"; then
+	if ipv6_raw="$(getent ahostsv6 "${domain}" 2>/dev/null)"; then
+		ipv6s="$(printf '%s' "${ipv6_raw}" | awk '{print $1}' | LC_ALL=C sort -u)"
 		while IFS= read -r ip6; do
 			[[ -z "${ip6}" ]] && continue
 			nft_ipv6_rules+="		ip6 daddr ${ip6} accept"$'\n'
