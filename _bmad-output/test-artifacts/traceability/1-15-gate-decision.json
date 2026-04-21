@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-21T00:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.15",
+    "label": "Renovate config with version-pinning rules (I7)"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Configuration-surface substrate story whose § Dev Notes → Testing Standards (story v1.2 iter-83 subsection lines 250–258) explicitly defers per-AC automated coverage to Story 1.16 (test-runner landing) via hybrid ground-(c) variant-(ii)+(iii) ATDD-skip clause. (a) substrate-verification-covers-ACs: Task 6 authored SIX SMOKES — (1) static JSON parse of `.github/renovate.json`; (2) `$schema` canonical Renovate URL + `extends` array includes `config:recommended`; (3) `packageRules.length === 4` AND sorted `groupName` values equal `[\"opentelemetry\",\"pg-uuidv7\",\"radix-ui\",\"vitest\"]` AND top-level `automerge === false`; (4) every packageRules entry has `rangeStrategy === 'pin'` (I7 invariance); (5) manifest-load smoke (`@keel/keel-invariants` exports 22 invariants = 20 pre-Story-1.15 + 2 new after `pnpm --filter @keel/keel-invariants build`); (6) sync-gate clean via `pnpm keel-invariants:check` exit 0 silent (Story 1.9 sync-gate walks the 22-entry manifest + verifies 2 new sha256 hashes + 2 new INVARIANTS.md anchors; 0.638s wall, 68.1% budget margin under AC 7 <2s). All 6 smokes re-verified LIVE at iter-85 trace-time with byte-identical outputs to iter-84 dev-story record: file hashes `.github/renovate.json: c02f2bfe97a7811c3cdabc693e02f0c7b9d6a2a280b1c9701aee0d8d56cc4cd0` + `docs/invariants/renovate.md: a18a353f3efc1496b208bf84bf5158daf72a0728ef1ada1b9976a300b7f81c56`. (b) no test runner at Story 1.15 time — Story 1.16 / Epic-13 scope; recursive probe for vitest/jest/playwright/cypress configs returns zero matches. (c) HYBRID variant-(ii)+(iii): variant (ii) downstream-story-covers-integration — Renovate GitHub App (Mend-hosted; one-time repo-admin ops install carved out of Story 1.15 scope) + Epic 13 integration-test CI workflow + GH branch-protection status-check rule are the runtime consumers + formal integration gate for the auto-merge-gating + grouped-update-PR-shape assertions; 2 of 4 ACs (AC 2 auto-merge gate + AC 3 OTEL atomic update) describe downstream consumer behaviour EXPLICITLY CARVED OUT of Story 1.15 scope (see story § AC 1 Renovate-GitHub-App-install carve-out + § AC 2 downstream-Epic-13 carve-out + § AC 3 pnpm.overrides-consumer carve-out); variant (iii) spec-declared-CR-substitution — § Testing Standards 'Adversarial coverage (deferred to CR pass)' subsection affirmatively declares AC 1 + AC 4 substrate + AC 2 + AC 3 scope-carves covered by `/bmad-code-review (args: '2')` Blind Hunter / Edge Case Hunter / Acceptance Auditor fan-out at iter-87. The deterministic FAIL signal (overall 0% < 80%) is a structural false-positive; no test runner is wired at Story 1.15 substrate stage. **NINTH CUMULATIVE WAIVED PRECEDENT** for contract-only / contract-populator / data-only / emitter+tooling / gate-authoring / configuration-surface / dependency-upgrade-policy-config substrate stories (Stories 1.7 iter-4 + 1.8 iter-3 + 1.9 iter-3 + 1.10 iter-46 + 1.11 iter-57 + 1.12 iter-64 + 1.13 iter-71 + 1.14 iter-78 + 1.15 iter-85). Structural trace-artefact inheritance from Stories 1.11-1.14 (~90% reasoning-cost savings per iter-46/57/64/71/78 precedent; mechanical adaptation of 1-14 template to 1.15's 4-AC configuration-surface substrate with Renovate-specific evidence replacing release-please-specific evidence — FEWER ACs than 1.14 since AC 2 + AC 3 are single-ecosystem downstream consumer pins rather than the multi-commit-type bump mapping of 1.14's AC 2/3/4/5 lifecycle). Story 1.15 does NOT mutate any existing substrate package or emit new runtime code — pure one-JSON-file + one-markdown-file + two-manifest-entries + two-INVARIANTS.md-bullets authoring (lower-complexity surface than Story 1.14's three-file + three-manifest-entries configuration-surface; ~10% lower manifest growth vs 1.14's +17.6%).",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-15-renovate-config-with-version-pinning-rules-i7.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}
