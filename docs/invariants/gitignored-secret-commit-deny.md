@@ -39,8 +39,8 @@ echo $?   # → 0
 Negative case (gitignored payload — hook denies):
 
 ```sh
-echo 'SECRET=abc' > /tmp/fake.envrc
-pnpm keel-invariants:no-committed-dotfiles /tmp/fake.envrc
+echo 'SECRET=abc' > /tmp/.envrc
+pnpm keel-invariants:no-committed-dotfiles /tmp/.envrc
 echo $?   # → 1, stderr pointer error naming the match
 ```
 
