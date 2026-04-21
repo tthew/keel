@@ -116,10 +116,39 @@ entry below. Forks running on non-M4-Pro hardware are expected to retune
 
 ### Pending first bake
 
-Story 2.1 did not run the benchmark in the Ralph container environment — no
-Docker daemon present. The first bake + benchmark entry lands from an
-operator workstation (M4-Pro per NFR2 or a documented substitute). See
-`.ralph/@plan.md § BLOCKED` for the scheduled follow-up.
+Story 2.1 iter-123 produced the first `keel-devbox:local` image inside the
+Ralph iteration environment (backend B per
+`docs/invariants/devbox-dind.md`; safe-subset: `docker compose build` is
+additive-only, no host-state mutation). See `VERSIONS.md § Bake log` for the
+full toolchain matrix + image stats.
+
+iter-124 confirmed Task 7.3 (`docker compose config` — exit 0, resolved YAML
+valid). Dynamic runtime steps (`docker compose run --rm devbox pnpm test` +
+`pnpm lint` for Task 4; `scripts/benchmark.sh --skip-cold` for Task 5
+warm-only) are BLOCKED under backend B when invoked from the Ralph
+iteration container: the compose file's workspace bind-mount source
+resolves to the iteration-container-internal path
+(`/workspace/.../worktrees/<name>`), which is not shared with the host
+Docker Desktop daemon — the daemon refuses container creation with
+`mounts denied: <path> is not shared from the host and is not known to
+Docker`. This is an **iteration-context limitation of backend B**, not a
+defect of the compose file or `benchmark.sh`; the host daemon can only
+bind-mount paths it has been configured to share (e.g. macOS Docker
+Desktop → Preferences → Resources → File Sharing, which by default
+includes `/Users`, `/tmp`, `/private`, and `/Volumes` but NOT the
+iteration container's internal root).
+
+Consequently, **every bind-mount-based compose runtime** (`compose run`,
+`compose up -d`, substrate `pnpm test/lint` against the mounted workspace,
+warm-start benchmark) joins the existing operator-owned carve-out
+alongside the destructive cold-prune pass. The first authoritative
+benchmark entry (cold + warm) still lands from an operator workstation —
+either M4-Pro native (AC 4 authoritative path, backend A equivalent via
+its own Docker Desktop because the worktree lives on the host-shared
+`/Users/...` tree) or a backend-A isolated DinD harness where the
+iteration container owns its own daemon. Ralph iteration-context bakes
+remain valid for the static/build subset only (image build + version
+matrix capture + compose config validation).
 
 ## cc-devbox upstream provenance
 
