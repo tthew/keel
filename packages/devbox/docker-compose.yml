@@ -20,7 +20,16 @@
 
 services:
   devbox:
-    container_name: keel-devbox
+    # Parameterised so two worktrees / two forks sharing a single host
+    # daemon (backend B per `INV-devbox-dind-available`) do not collide
+    # on a globally-unique container name. Default preserves operator
+    # muscle-memory (`docker ps | grep keel-devbox`, `docker logs
+    # keel-devbox`); second worktrees / forks override via
+    # `KEEL_DEVBOX_CONTAINER_NAME` in `.envrc`. Dropping the key entirely
+    # would let Compose auto-name `<project>_devbox_1` per project — kept
+    # as an explicit default for log-greppability + doc continuity.
+    # Rationale: Story 2.1 CR AI-2 (iter-128 Blind + Edge Case Hunter).
+    container_name: ${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}
     image: keel-devbox:local
     build:
       context: .
@@ -28,9 +37,15 @@ services:
     # env_file path resolves relative to this compose file, so ../../.envrc
     # points at the monorepo root's direnv config (I6). The file is
     # gitignored; forks copy `.envrc.example` (lands in Story 2.2) to
-    # seed it. The block is wrapped in a default via `file:` + `required:
+    # seed it. The block is wrapped in a default via `path:` + `required:
     # false` so Story 2.1's compose parses even before Story 2.2 ships
-    # `.envrc.example`.
+    # `.envrc.example`. **Object-form `env_file:` syntax requires Docker
+    # Compose v2.20+** (2024-02; docker/compose#11365). See
+    # `packages/devbox/VERSIONS.md § Host Compose floor` for the fallback
+    # path — on older Compose, rewrite this block as flat-list
+    # (`env_file: [../../.envrc]`) but note that the fallback loses
+    # `required: false`, so a missing `.envrc` hardens into a parse error
+    # instead of being tolerated.
     env_file:
       - path: ../../.envrc
         required: false

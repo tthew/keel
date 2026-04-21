@@ -30,6 +30,34 @@ Update this file when a new image is baked.
 | Playwright OS deps          | `npx --yes playwright@latest install-deps` post-apt   | Reconciles apt list with Playwright's current requirement set.                              |
 | `postgresql-client`         | apt (Ubuntu 24.04 default)                            | Provides `psql` for Epic 6 Story 6.5 forward-compat.                                        |
 
+## Host Compose floor
+
+`packages/devbox/docker-compose.yml` uses one feature that has a hard lower
+bound on the operator's Docker Compose release:
+
+- **`env_file:` object-form shorthand** (`path:` + `required:`) landed in
+  Docker Compose **v2.20** (February 2024 — see
+  [docker/compose#11365](https://github.com/docker/compose/pull/11365)).
+  Story 2.1's compose file relies on `required: false` so the file parses
+  even before Story 2.2 ships `.envrc.example`.
+
+Forks running older Compose releases can either (a) upgrade Compose to
+v2.20+ (recommended — current Docker Desktop + the buildx-bundled CLI both
+exceed this floor at 2026-04-21), or (b) rewrite the `env_file:` block to
+the v1-compatible flat-list form:
+
+```yaml
+env_file:
+  - ../../.envrc
+```
+
+Fallback caveat: the flat-list form loses the `required: false` opt-out,
+so a missing `.envrc` hardens into a compose-parse error rather than being
+tolerated. This only matters between Story 2.1 and Story 2.2 — once
+`.envrc.example` ships, the fallback is fine because forks seed their own
+`.envrc` from the example. Recorded as Story 2.1 CR AI-2 (iter-128 Blind
+Hunter + Edge Case Hunter).
+
 ## Epic 6 forward-compatibility roster (Story 2.1 AC 3 Dev Note)
 
 Story 2.1 bakes every tool Epic 6's `pnpm rls:explain` (Story 6.5) will invoke
