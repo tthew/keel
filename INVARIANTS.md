@@ -72,6 +72,13 @@ Single-bundled release-please config + per-workspace manifest + companion ration
 - **`INV-release-please-manifest`**: .github/.release-please-manifest.json — per-path version state-of-record (17 entries; initial 0.0.0 everywhere).
 - **`INV-release-please-rationale`**: docs/invariants/release.md — single-bundled vs per-package trade-off rationale + commit-type semver mapping + fork-extension guidance.
 
+### Dependency upgrade discipline (Story 1.15)
+
+I7 version-pinning policy authored in `.github/renovate.json` + companion rationale doc; Vitest + OTEL + Radix UI + pg_uuidv7 pin-mode + grouped-update rules; inert until the Renovate GitHub App is installed.
+
+- **`INV-deps-version-pinning`**: .github/renovate.json — 4 packageRules (Vitest + @opentelemetry/\* + @radix-ui/\* + pg_uuidv7) with rangeStrategy pin + per-ecosystem groupName + automerge false.
+- **`INV-renovate-rationale`**: docs/invariants/renovate.md — I7 posture + per-package pinning rules table + grouping rationale + fork-extension guidance.
+
 ## Consumption
 
 - **Humans / AI agents:** read this file; cross-reference the listed source files for the machine-enforced form.

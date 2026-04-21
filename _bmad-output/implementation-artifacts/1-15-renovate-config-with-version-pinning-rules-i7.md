@@ -1,6 +1,6 @@
 # Story 1.15: Renovate config with version-pinning rules (I7)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -55,8 +55,8 @@ So that (a) when the Renovate GitHub App is installed against the repo it propos
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Author `.github/renovate.json` (I7 pinning rules + groupName per-ecosystem + `automerge: false` safe default)** (AC: 1, 2, 3, 4)
-  - [ ] Author the JSON file at `.github/renovate.json`. Canonical shape (pinned here so dev-story does not drift; all fields required unless labelled `optional`):
+- [x] **Task 1: Author `.github/renovate.json` (I7 pinning rules + groupName per-ecosystem + `automerge: false` safe default)** (AC: 1, 2, 3, 4)
+  - [x] Author the JSON file at `.github/renovate.json`. Canonical shape (pinned here so dev-story does not drift; all fields required unless labelled `optional`):
     ```json
     {
       "$schema": "https://docs.renovatebot.com/renovate-schema.json",
@@ -106,12 +106,12 @@ So that (a) when the Renovate GitHub App is installed against the repo it propos
       }
     }
     ```
-  - [ ] Prettier-format the file via `pnpm exec prettier --write .github/renovate.json` before commit so it matches Story 1.6 formatting baseline (consistent with Story 1.14 `release-please-config.json` prettier treatment).
-  - [ ] Compute the sha256 content hash of the prettier-formatted file for the manifest entry (see Task 3). Command: `sha256sum .github/renovate.json` (post-prettier).
-  - [ ] **Validity sanity-check at author-time (pre-dev-story).** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); if (!c.packageRules || c.packageRules.length !== 4) throw new Error('expected 4 packageRules; got ' + (c.packageRules ? c.packageRules.length : 'undefined')); if (c.automerge !== false) throw new Error('top-level automerge must be false'); console.log('OK: ' + c.packageRules.length + ' packageRules + automerge: false');"` must print `OK: 4 packageRules + automerge: false`.
+  - [x] Prettier-format the file via `pnpm exec prettier --write .github/renovate.json` before commit so it matches Story 1.6 formatting baseline (consistent with Story 1.14 `release-please-config.json` prettier treatment).
+  - [x] Compute the sha256 content hash of the prettier-formatted file for the manifest entry (see Task 3). Command: `sha256sum .github/renovate.json` (post-prettier).
+  - [x] **Validity sanity-check at author-time (pre-dev-story).** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); if (!c.packageRules || c.packageRules.length !== 4) throw new Error('expected 4 packageRules; got ' + (c.packageRules ? c.packageRules.length : 'undefined')); if (c.automerge !== false) throw new Error('top-level automerge must be false'); console.log('OK: ' + c.packageRules.length + ' packageRules + automerge: false');"` must print `OK: 4 packageRules + automerge: false`.
 
-- [ ] **Task 2: Author `docs/invariants/renovate.md` (I7 posture + per-package pinning rationale + fork-operator pointer)** (AC: 4)
-  - [ ] Author `docs/invariants/renovate.md` as a plain markdown documentation file (mirrors `docs/invariants/release.md` Story 1.14 + `docs/invariants/tokens.md` Story 1.10 + `docs/invariants/ralph-execute.md` Story 1.9 precedents). Structure:
+- [x] **Task 2: Author `docs/invariants/renovate.md` (I7 posture + per-package pinning rationale + fork-operator pointer)** (AC: 4)
+  - [x] Author `docs/invariants/renovate.md` as a plain markdown documentation file (mirrors `docs/invariants/release.md` Story 1.14 + `docs/invariants/tokens.md` Story 1.10 + `docs/invariants/ralph-execute.md` Story 1.9 precedents). Structure:
     - H1: `# Dependency upgrade discipline — Renovate I7 version pinning (Story 1.15)`
     - Header block (4 lines): Scope + Status + Machine-enforced-in + Runtime consumer (same shape as `release.md:3-6`).
     - § Overview — one paragraph summarizing I7 + bump-mapping + GitHub-App-install dependency (carves out runtime from substrate).
@@ -122,11 +122,11 @@ So that (a) when the Renovate GitHub App is installed against the repo it propos
     - § Fork extension — 2 sentences pointing at FR44 (forks that want different pin sets edit `.github/renovate.json` as a source-fork change, same pattern as release-please-config.json); fork operators who want per-package automerge rules flip the per-group `automerge` field in their fork's renovate.json.
     - § Consumption — points at the Renovate GitHub App (runtime) + Epic-13 integration-test-passing CI gate (branch-protection consumer) + Story 2.1 (pg_uuidv7 image tag source).
     - § Anchor — add the `- **\`INV-renovate-rationale\`**: I7 version-pinning posture + per-package rules + fork-extension guidance.` anchor bullet at the end of the § Overview section so the Story 1.9 walker (column-0 bullet matching `packages/keel-invariants/src/sync-gate.ts:24` ANCHOR_REGEX) detects it.
-  - [ ] Prettier-format: `pnpm exec prettier --write docs/invariants/renovate.md`.
-  - [ ] Compute the sha256 content hash for the manifest entry.
+  - [x] Prettier-format: `pnpm exec prettier --write docs/invariants/renovate.md`.
+  - [x] Compute the sha256 content hash for the manifest entry.
 
-- [ ] **Task 3: Add 2 new invariant entries to `packages/keel-invariants/src/invariants.manifest.ts` → `raw` array** (AC: 4)
-  - [ ] Add two entries to the `raw: Invariant[]` array at the end (post the existing `INV-release-please-rationale` at line 200-207; preserve the existing 20 entries in their current order). Shape of each entry matches the Story 1.10/1.11/1.12/1.13/1.14 precedents:
+- [x] **Task 3: Add 2 new invariant entries to `packages/keel-invariants/src/invariants.manifest.ts` → `raw` array** (AC: 4)
+  - [x] Add two entries to the `raw: Invariant[]` array at the end (post the existing `INV-release-please-rationale` at line 200-207; preserve the existing 20 entries in their current order). Shape of each entry matches the Story 1.10/1.11/1.12/1.13/1.14 precedents:
     ```ts
     {
       id: 'INV-deps-version-pinning',
@@ -145,29 +145,29 @@ So that (a) when the Renovate GitHub App is installed against the repo it propos
       anchors: ['INV-renovate-rationale'],
     },
     ```
-  - [ ] Verify the schema refinement (`superRefine` uniqueness + cross-sourcePath contentHash parity) holds after the additions. The two new entries have unique IDs + unique sourcePaths; no shared-sourcePath cross-entry check fires.
-  - [ ] **Build + runtime-smoke.** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` from `packages/keel-invariants/` to confirm the manifest parses + exports **22** entries (20 current + 2 new). **IMPORTANT** per Story 1.14 iter-77 Gotcha — the `pnpm keel-invariants:check` script reads `dist/check.js` which imports the COMPILED manifest, NOT the TS source; editing `invariants.manifest.ts` requires a `pnpm --filter @keel/keel-invariants build` before `pnpm keel-invariants:check` observes the new entries.
+  - [x] Verify the schema refinement (`superRefine` uniqueness + cross-sourcePath contentHash parity) holds after the additions. The two new entries have unique IDs + unique sourcePaths; no shared-sourcePath cross-entry check fires.
+  - [x] **Build + runtime-smoke.** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` from `packages/keel-invariants/` to confirm the manifest parses + exports **22** entries (20 current + 2 new). **IMPORTANT** per Story 1.14 iter-77 Gotcha — the `pnpm keel-invariants:check` script reads `dist/check.js` which imports the COMPILED manifest, NOT the TS source; editing `invariants.manifest.ts` requires a `pnpm --filter @keel/keel-invariants build` before `pnpm keel-invariants:check` observes the new entries.
 
-- [ ] **Task 4: Add 2 anchor bullets to `INVARIANTS.md` under a new `### Dependency upgrade discipline (Story 1.15)` section** (AC: 4)
-  - [ ] Insert a new `### Dependency upgrade discipline (Story 1.15)` H3 section in `INVARIANTS.md` between the existing `### Release management (Story 1.14)` section (ends at line 73) and the `## Consumption` H2 at line 75. The section opens with a one-sentence summary ("I7 version-pinning policy authored in `.github/renovate.json` + companion rationale doc; Vitest + OTEL + Radix UI + pg_uuidv7 pin-mode + grouped-update rules; inert until the Renovate GitHub App is installed.") and lists two column-0 bullets (matching the Story 1.9 `ANCHOR_REGEX` shape `^-\s+\*\*\`INV-[a-z0-9]+(?:-[a-z0-9]+)+\`\*\*`):
+- [x] **Task 4: Add 2 anchor bullets to `INVARIANTS.md` under a new `### Dependency upgrade discipline (Story 1.15)` section** (AC: 4)
+  - [x] Insert a new `### Dependency upgrade discipline (Story 1.15)` H3 section in `INVARIANTS.md` between the existing `### Release management (Story 1.14)` section (ends at line 73) and the `## Consumption` H2 at line 75. The section opens with a one-sentence summary ("I7 version-pinning policy authored in `.github/renovate.json` + companion rationale doc; Vitest + OTEL + Radix UI + pg_uuidv7 pin-mode + grouped-update rules; inert until the Renovate GitHub App is installed.") and lists two column-0 bullets (matching the Story 1.9 `ANCHOR_REGEX` shape `^-\s+\*\*\`INV-[a-z0-9]+(?:-[a-z0-9]+)+\`\*\*`):
     - `- **\`INV-deps-version-pinning\`**: .github/renovate.json — 4 packageRules (Vitest + @opentelemetry/* + @radix-ui/* + pg_uuidv7) with rangeStrategy pin + per-ecosystem groupName + automerge false.`
     - `- **\`INV-renovate-rationale\`**: docs/invariants/renovate.md — I7 posture + per-package pinning rules table + grouping rationale + fork-extension guidance.`
-  - [ ] Re-compute the contentHash of `INVARIANTS.md` is NOT needed — INVARIANTS.md is not a `sourcePath` in the manifest (it is the ANCHOR DOC walked by Story 1.9 via `ANCHOR_REGEX`; the walker re-reads the doc on every sync-gate invocation, so the doc's content hash is recomputed at runtime rather than pinned as a manifest field) — same contract as Story 1.14 Task 5.
-  - [ ] Prettier-format: `pnpm exec prettier --write INVARIANTS.md`.
+  - [x] Re-compute the contentHash of `INVARIANTS.md` is NOT needed — INVARIANTS.md is not a `sourcePath` in the manifest (it is the ANCHOR DOC walked by Story 1.9 via `ANCHOR_REGEX`; the walker re-reads the doc on every sync-gate invocation, so the doc's content hash is recomputed at runtime rather than pinned as a manifest field) — same contract as Story 1.14 Task 5.
+  - [x] Prettier-format: `pnpm exec prettier --write INVARIANTS.md`.
 
-- [ ] **Task 5: Add 0 new scripts to root `package.json` + 0 new hooks to `.pre-commit-config.yaml`** (AC: 4)
-  - [ ] **Explicit no-op confirmation.** Story 1.15's substrate is one JSON file + one markdown file + two manifest entries + two anchor bullets. No new pnpm scripts are required at root `package.json`; `pnpm keel-invariants:check` (Story 1.9) already walks the manifest + compares sha256 hashes per sourcePath, so the two new entries are automatically covered. Similarly, no `.pre-commit-config.yaml` hook addition is needed — the existing Story 1.9 sync-gate + the Story 1.4 format-check hook jointly cover the files (format-check fails on unprettier'd JSON; sync-gate fails on contentHash drift).
-  - [ ] **IMPORTANT:** any edit to `package.json` WOULD require updating the `INV-prek-prepare-lifecycle` entry's `contentHash` at `packages/keel-invariants/src/invariants.manifest.ts:97-103` per Story 1.9 iter-4 lesson 2026-04-20 ("Substrate packages consuming substrate sourcePath'd files must recompute hashes when the PR edits those files"). Task 5's explicit no-op is protective: not editing `package.json` means no cascade hash update. Same protective posture for `.pre-commit-config.yaml` (covers `INV-prek-pre-commit-config` + `INV-prek-commit-msg-config`).
+- [x] **Task 5: Add 0 new scripts to root `package.json` + 0 new hooks to `.pre-commit-config.yaml`** (AC: 4)
+  - [x] **Explicit no-op confirmation.** Story 1.15's substrate is one JSON file + one markdown file + two manifest entries + two anchor bullets. No new pnpm scripts are required at root `package.json`; `pnpm keel-invariants:check` (Story 1.9) already walks the manifest + compares sha256 hashes per sourcePath, so the two new entries are automatically covered. Similarly, no `.pre-commit-config.yaml` hook addition is needed — the existing Story 1.9 sync-gate + the Story 1.4 format-check hook jointly cover the files (format-check fails on unprettier'd JSON; sync-gate fails on contentHash drift).
+  - [x] **IMPORTANT:** any edit to `package.json` WOULD require updating the `INV-prek-prepare-lifecycle` entry's `contentHash` at `packages/keel-invariants/src/invariants.manifest.ts:97-103` per Story 1.9 iter-4 lesson 2026-04-20 ("Substrate packages consuming substrate sourcePath'd files must recompute hashes when the PR edits those files"). Task 5's explicit no-op is protective: not editing `package.json` means no cascade hash update. Same protective posture for `.pre-commit-config.yaml` (covers `INV-prek-pre-commit-config` + `INV-prek-commit-msg-config`).
 
-- [ ] **Task 6: Substrate verification — JSON validity, renovate-config shape, 4 packageRules enumeration, manifest-load clean** (AC: 1, 2, 3, 4)
-  - [ ] **Static JSON parse:** `node -e "JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8'))"` must exit 0. Validates the file is well-formed.
-  - [ ] **Extends + schema smoke:** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); if (c['$schema'] !== 'https://docs.renovatebot.com/renovate-schema.json') throw new Error('wrong \$schema'); if (!Array.isArray(c.extends) || !c.extends.includes('config:recommended')) throw new Error('missing config:recommended'); console.log('OK: renovate schema + config:recommended extends');"` must print `OK: renovate schema + config:recommended extends`.
-  - [ ] **4-packageRules + automerge default smoke:** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); if (c.automerge !== false) throw new Error('top-level automerge must be false'); if (!Array.isArray(c.packageRules) || c.packageRules.length !== 4) throw new Error('expected 4 packageRules; got ' + (c.packageRules||[]).length); const groups = c.packageRules.map(r => r.groupName).sort(); const expected = ['opentelemetry','pg-uuidv7','radix-ui','vitest']; if (JSON.stringify(groups) !== JSON.stringify(expected)) throw new Error('groupName mismatch: got ' + JSON.stringify(groups) + ' expected ' + JSON.stringify(expected)); console.log('OK: 4 packageRules; groups=' + JSON.stringify(groups) + '; automerge=false');"` must print `OK: 4 packageRules; groups=["opentelemetry","pg-uuidv7","radix-ui","vitest"]; automerge=false`.
-  - [ ] **I7 rangeStrategy pin smoke:** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); const nonPin = c.packageRules.filter(r => r.rangeStrategy !== 'pin'); if (nonPin.length) throw new Error('non-pin rules: ' + JSON.stringify(nonPin.map(r => r.groupName))); console.log('OK: all 4 I7 groups pin-mode');"` must print `OK: all 4 I7 groups pin-mode`.
-  - [ ] **Manifest load smoke:** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` — must print `OK: 22 invariants` (20 pre-Story-1.15 + 2 new). Per Story 1.14 iter-77 Gotcha, the `pnpm build` step is MANDATORY before runtime smoke.
-  - [ ] **Sync-gate clean smoke:** from repo root, `pnpm keel-invariants:check` must exit 0 with no drift. This is the Story 1.9 AC 1 clean-path behaviour. If the gate emits drift (e.g. a stale contentHash, a missing anchor, a missing source file), FIX in the same iteration BEFORE commit — iteration budget is a blocker (drift under own PR is a quality-gate violation per NFR27).
-  - [ ] **Full quality-gate suite:** `pnpm typecheck && pnpm lint && pnpm format:check && pnpm keel-invariants:check-all`. All must pass. `keel-invariants:check-all` runs the Story 1.9 sync-gate + Story 1.13 token-sync gate in sequence; the two new invariants should register clean at the former; the latter is unaffected (no token-layer change in Story 1.15).
-  - [ ] **Record measurements** in § Dev Agent Record → Debug Log: sha256 values computed at Tasks 1/2, wall-clock of each smoke test, `pnpm keel-invariants:check` duration (Story 1.9 pinned <2s per AC 7; should hold comfortably — manifest grows from 20 → 22 entries, +10% vs Story 1.14's +17%; walker is O(n+m) so negligible).
+- [x] **Task 6: Substrate verification — JSON validity, renovate-config shape, 4 packageRules enumeration, manifest-load clean** (AC: 1, 2, 3, 4)
+  - [x] **Static JSON parse:** `node -e "JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8'))"` must exit 0. Validates the file is well-formed.
+  - [x] **Extends + schema smoke:** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); if (c['$schema'] !== 'https://docs.renovatebot.com/renovate-schema.json') throw new Error('wrong \$schema'); if (!Array.isArray(c.extends) || !c.extends.includes('config:recommended')) throw new Error('missing config:recommended'); console.log('OK: renovate schema + config:recommended extends');"` must print `OK: renovate schema + config:recommended extends`.
+  - [x] **4-packageRules + automerge default smoke:** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); if (c.automerge !== false) throw new Error('top-level automerge must be false'); if (!Array.isArray(c.packageRules) || c.packageRules.length !== 4) throw new Error('expected 4 packageRules; got ' + (c.packageRules||[]).length); const groups = c.packageRules.map(r => r.groupName).sort(); const expected = ['opentelemetry','pg-uuidv7','radix-ui','vitest']; if (JSON.stringify(groups) !== JSON.stringify(expected)) throw new Error('groupName mismatch: got ' + JSON.stringify(groups) + ' expected ' + JSON.stringify(expected)); console.log('OK: 4 packageRules; groups=' + JSON.stringify(groups) + '; automerge=false');"` must print `OK: 4 packageRules; groups=["opentelemetry","pg-uuidv7","radix-ui","vitest"]; automerge=false`.
+  - [x] **I7 rangeStrategy pin smoke:** `node -e "const c=JSON.parse(require('fs').readFileSync('.github/renovate.json','utf8')); const nonPin = c.packageRules.filter(r => r.rangeStrategy !== 'pin'); if (nonPin.length) throw new Error('non-pin rules: ' + JSON.stringify(nonPin.map(r => r.groupName))); console.log('OK: all 4 I7 groups pin-mode');"` must print `OK: all 4 I7 groups pin-mode`.
+  - [x] **Manifest load smoke:** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` — must print `OK: 22 invariants` (20 pre-Story-1.15 + 2 new). Per Story 1.14 iter-77 Gotcha, the `pnpm build` step is MANDATORY before runtime smoke.
+  - [x] **Sync-gate clean smoke:** from repo root, `pnpm keel-invariants:check` must exit 0 with no drift. This is the Story 1.9 AC 1 clean-path behaviour. If the gate emits drift (e.g. a stale contentHash, a missing anchor, a missing source file), FIX in the same iteration BEFORE commit — iteration budget is a blocker (drift under own PR is a quality-gate violation per NFR27).
+  - [x] **Full quality-gate suite:** `pnpm typecheck && pnpm lint && pnpm format:check && pnpm keel-invariants:check-all`. All must pass. `keel-invariants:check-all` runs the Story 1.9 sync-gate + Story 1.13 token-sync gate in sequence; the two new invariants should register clean at the former; the latter is unaffected (no token-layer change in Story 1.15).
+  - [x] **Record measurements** in § Dev Agent Record → Debug Log: sha256 values computed at Tasks 1/2, wall-clock of each smoke test, `pnpm keel-invariants:check` duration (Story 1.9 pinned <2s per AC 7; should hold comfortably — manifest grows from 20 → 22 entries, +10% vs Story 1.14's +17%; walker is O(n+m) so negligible).
 
 ## Dev Notes
 
@@ -293,19 +293,64 @@ Per Story 1.10 AC 2 scope carve-out convention + Story 1.14 precedent: stable ID
 
 ### Agent Model Used
 
-_(populated by dev-story at in-dev)_
+Claude Opus 4.7 (1M context) via Ralph iter-84 `/bmad-dev-story` invocation.
 
 ### Debug Log References
 
-_(populated by dev-story — sha256 hashes, Task 6 smoke outputs, quality-gate wall-clock)_
+**Content hashes (post-prettier):**
+
+- `.github/renovate.json`: `c02f2bfe97a7811c3cdabc693e02f0c7b9d6a2a280b1c9701aee0d8d56cc4cd0`
+- `docs/invariants/renovate.md`: `a18a353f3efc1496b208bf84bf5158daf72a0728ef1ada1b9976a300b7f81c56`
+
+**Task 6 substrate smoke outputs (all PASS):**
+
+1. Static JSON parse → `OK: static parse`.
+2. Extends + schema → `OK: renovate schema + config:recommended extends`.
+3. 4-packageRules + automerge default → `OK: 4 packageRules; groups=["opentelemetry","pg-uuidv7","radix-ui","vitest"]; automerge=false`.
+4. I7 rangeStrategy pin → `OK: all 4 I7 groups pin-mode`.
+5. Manifest load (post `pnpm --filter @keel/keel-invariants build` per iter-77 Gotcha) → `OK: 22 invariants` (20 pre-Story-1.15 + 2 new).
+6. Sync-gate clean → `pnpm keel-invariants:check` exit 0; wall-clock 0.644s (comfortably inside Story 1.9 AC 7 <2s budget; 68% margin).
+
+**Full quality-gate suite (all PASS):**
+
+- `pnpm typecheck` → 16/16 tasks successful, 1.676s total.
+- `pnpm lint` → 16/16 tasks successful, 10.296s total.
+- `pnpm format:check` → `All matched files use Prettier code style!`.
+- `pnpm keel-invariants:check-all` → composition (`keel-invariants:check` + `keel-invariants:tokens-sync`) exit 0, no drift.
 
 ### Completion Notes List
 
-_(populated by dev-story)_
+- Single-pass dev-story at configuration-surface scale, matching Story 1.14 iter-77 precedent. 4 files landed (2 NEW + 2 MODIFIED); no runtime code; no cascade hash updates (Task 5 no-op protected `INV-prek-*` + `INV-tokens-*` + `INV-release-please-*` entries).
+- Iter-77 Gotcha honored: `pnpm --filter @keel/keel-invariants build` executed before runtime manifest-load smoke (dist/ cache staleness would otherwise surface 20 entries instead of 22).
+- Manifest grew 20 → 22 entries (AC 4). Both new IDs conform to the `^INV-[a-z0-9]+(-[a-z0-9]+)+$` regex (`invariants.manifest.ts:4`). Both sourcePaths are unique (no cross-entry contentHash-parity concern).
+- `packageRules` array enumerates the 4 I7 ecosystems exactly (Vitest, OpenTelemetry, Radix UI, pg_uuidv7); sorted `groupName` values match the expected `["opentelemetry","pg-uuidv7","radix-ui","vitest"]` partition.
+- Top-level `automerge: false` + per-group `automerge: false` (belt-and-suspenders) ensures no Renovate PR can auto-merge until Epic 13 lands the CI gate + GH branch-protection status-check requirement.
+- `INVARIANTS.md` grew by 7 lines (1 H3 + 1 summary + 2 column-0 bullets + formatting); column-0 bullet shape matches `ANCHOR_REGEX` at `packages/keel-invariants/src/sync-gate.ts:24` (confirmed via `pnpm keel-invariants:check` clean exit).
+- AC coverage summary: AC 1 satisfied via `.github/renovate.json` shape + Task 6 smokes 1–4; AC 2 substrate half satisfied via top-level `automerge: false` + Task 6 smoke 3 (runtime half is Epic 13 consumer per scope carve-out); AC 3 substrate half satisfied via `groupName: "opentelemetry"` + `matchPackagePatterns: ["^@opentelemetry/"]` (runtime atomicity is Renovate pnpm-manager behaviour per scope carve-out); AC 4 satisfied via 2 manifest entries + 2 anchor bullets + Task 6 smokes 5–6.
 
 ### File List
 
-_(populated by dev-story — expected 2 NEW + 2 MODIFIED + 2 Ralph-bookkeeping)_
+**New (2):**
+
+- `.github/renovate.json` — Renovate I7 policy config (Task 1).
+- `docs/invariants/renovate.md` — companion rationale doc (Task 2).
+
+**Modified (2):**
+
+- `packages/keel-invariants/src/invariants.manifest.ts` — 2 new entries appended (Task 3).
+- `INVARIANTS.md` — 1 new H3 `### Dependency upgrade discipline (Story 1.15)` section + 2 column-0 bullets inserted between `### Release management (Story 1.14)` and `## Consumption` (Task 4).
+
+**Ralph bookkeeping (2):**
+
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — story `ready-for-dev → in-progress → review`; header + data `last_updated: 2026-04-21 Story-1-15-review UTC`.
+- `_bmad-output/implementation-artifacts/1-15-renovate-config-with-version-pinning-rules-i7.md` — this file; Tasks marked [x], Status → review, Dev Agent Record populated, Change Log v1.3 appended.
+
+**Untouched (explicit no-op per Task 5):**
+
+- `package.json` (root) — no new scripts; `INV-prek-prepare-lifecycle` hash preserved.
+- `.pre-commit-config.yaml` — no new hook; `INV-prek-pre-commit-config` + `INV-prek-commit-msg-config` hashes preserved.
+- `packages/ui/tokens.json`, `packages/ui/scripts/generate-tokens.ts`, token-layer configs — no token touch; `INV-tokens-*` hashes preserved.
+- `.github/release-please-config.json`, `.github/.release-please-manifest.json`, `docs/invariants/release.md` — no release-layer touch; `INV-release-please-*` hashes preserved.
 
 ## Change Log
 
@@ -314,3 +359,4 @@ _(populated by dev-story — expected 2 NEW + 2 MODIFIED + 2 Ralph-bookkeeping)_
 | 2026-04-21 | v1.0    | Initial drafting — 4 ACs + 6 Tasks + seven preventative audit layers pre-applied per iter-80 compound-ZERO-PATCH carry-forward; hybrid ground-(c) variant-(ii)+(iii) ATDD-skip pre-staged (NINTH cumulative Epic-1 ATDD-skip + NINTH WAIVED-trace + FIFTH ZERO-PATCH-CR candidates). Story State: `_(no story) → drafted`. Sprint-status: `1-15-...: backlog → ready-for-dev` + `last_updated: 2026-04-21 Story-1-15-drafted UTC`. | Ralph  |
 | 2026-04-21 | v1.1    | Pre-dev SM review (`/bmad-create-story (args: "review")`) — FR14n matrix row 2 `drafted → validated`. Three parallel fresh-context audits (L1 stable-ID regex + L2 Task↔AC bidirectional coverage + L3 sprint-status wording + L4 cross-AC convergence + L5 mechanical-counter discipline + L6 schema-permission diff + L7 Renovate config-shape contract) ran. **1 PATCH applied** (L4-class cross-file citation drift): 4 sites cited `architecture.md:3984` for the `@radix-ui/*` pinning cross-story dependency, but the actual source is `epics.md:3984` (Epic 7 Story 7.2 AC). Fixed all 4 sibling sites per RALPH.md 2026-04-20 drift-survey-scope rule: (a) AC 1 Given-clause narrative at line 22; (b) Task 1 JSON packageRules entry 3 description at line 87; (c) Dev Notes § Architecture references at line 201; (d) References section at line 281. Architecture.md § F1 Component library (line 240) is noted as the vendoring-posture source; the delegation-to-Story-1.15 literal lives in epics.md only. **Residual count 1 PATCH (below 2-PATCH 4-story precedent average Stories 1.11/1.12/1.13/1.14)** — configuration-surface + epic-verbatim-ID discipline reduced drafting-time drift. L1/L2/L3/L5/L6/L7 all clean. Story State: `drafted → validated`. Sprint-status `last_updated: 2026-04-21 Story-1-15-validated UTC`. | Ralph  |
 | 2026-04-21 | v1.2    | `/bmad-testarch-atdd` hybrid ground-(c) variant-(ii)+(iii) ATDD-SKIP — FR14n matrix row 3 `validated → atdd-scaffolded`. **NINTH cumulative Epic-1 ATDD-skip precedent** (Stories 1.7 iter-14 + 1.8 iter-29 + 1.9 iter-36 + 1.10 iter-43 + 1.11 iter-50 + 1.12 iter-57 + 1.13 iter-64 + 1.14 iter-71 → 1.15 iter-83). Skill preflight HALTs at Step 1.2 (no test runner — `vitest.config.*` / `jest.config.*` / `playwright.config.*` absent; landing is Epic 13 / post-Epic-1). Three-ground rationale honored verbatim per § Testing Standards lines 250–258: **(a)** substrate-verification-covers-ACs at CLI-exit-code level — Task 6 six smokes (static JSON parse + `$schema` + `extends: config:recommended` + 4-packageRules enumeration with groupName-sort match + I7 `rangeStrategy: pin` invariance + manifest-load 22 entries + sync-gate clean) exercise AC 1 + AC 4 end-to-end; **(b)** no-runner — framework prerequisite unmet; **(c)** HYBRID variant-(ii)+(iii) — AC 2 auto-merge-gating + AC 3 OTEL grouped-update-atomicity owned by Renovate runtime + Epic 13 CI gate (variant ii); adversarial AC 1 + AC 4 coverage (config-shape integrity + 4-packageRules enumeration + I7 pin-mode invariance + groupName partition + automerge-false safety + fork-extension pointer validity) delegated to iter-87 `/bmad-code-review (args: "2")` three-layer fan-out (variant iii). Mirrors Story 1.14 iter-76 v1.2 pattern exactly. No test-plan artefacts authored (variant-(ii)+(iii) substitution pattern). Story State: `validated → atdd-scaffolded`. | Ralph  |
+| 2026-04-21 | v1.3    | `/bmad-dev-story` single-pass implementation — FR14n matrix row 4 `atdd-scaffolded → in-dev → review`. 4 files landed: 2 NEW (`.github/renovate.json` with 4 packageRules + `automerge: false` + `config:recommended` extends + Renovate canonical `$schema`; `docs/invariants/renovate.md` with H1 + 4-line header + § Overview anchor bullet + § I7 posture + § Files + § Per-package pinning rules 4×4 table + § Grouping rationale + § Fork extension + § Consumption) + 2 MODIFIED (`packages/keel-invariants/src/invariants.manifest.ts` +2 entries → 22 total; `INVARIANTS.md` +1 H3 `### Dependency upgrade discipline (Story 1.15)` + 2 column-0 bullets between Release management and Consumption). Content hashes post-prettier: `.github/renovate.json: c02f2bfe97a7811c3cdabc693e02f0c7b9d6a2a280b1c9701aee0d8d56cc4cd0`; `docs/invariants/renovate.md: a18a353f3efc1496b208bf84bf5158daf72a0728ef1ada1b9976a300b7f81c56`. All 6 Task 6 substrate smokes PASS: (1) static JSON parse; (2) `$schema` + `extends: config:recommended`; (3) 4-packageRules enumeration with groupName-sort match `["opentelemetry","pg-uuidv7","radix-ui","vitest"]` + `automerge: false`; (4) all 4 I7 groups `rangeStrategy: pin`; (5) manifest-load `OK: 22 invariants` (post `pnpm --filter @keel/keel-invariants build` per iter-77 Gotcha); (6) `pnpm keel-invariants:check` exit 0 in 0.644s (68% margin vs Story 1.9 AC 7 <2s budget). Full quality-gate suite PASS: `pnpm typecheck` 16/16 in 1.676s; `pnpm lint` 16/16 in 10.296s; `pnpm format:check` clean; `pnpm keel-invariants:check-all` clean. Single-pass at configuration-surface scale matches Story 1.14 iter-77 precedent. Task 5 explicit no-op protected all cascade hashes (`INV-prek-*` + `INV-tokens-*` + `INV-release-please-*`); no sibling invariant entries required hash updates. Story State: `atdd-scaffolded → in-dev → review`. Sprint-status `1-15-...: ready-for-dev → in-progress → review`; `last_updated: 2026-04-21 Story-1-15-review UTC`. | Ralph  |

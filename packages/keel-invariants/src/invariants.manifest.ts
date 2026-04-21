@@ -205,6 +205,22 @@ const raw: Invariant[] = [
     contentHash: 'c37ac2a89cc14d965f15cf2fe5a7695f0c9c0d1536e704d447f7b0a636ea547c',
     anchors: ['INV-release-please-rationale'],
   },
+  {
+    id: 'INV-deps-version-pinning',
+    description:
+      'Renovate I7 dependency-upgrade policy configuration — .github/renovate.json; extends config:recommended + 4 packageRules (Vitest, @opentelemetry/*, @radix-ui/*, ghcr.io/fboulnois/pg_uuidv7) each carrying rangeStrategy: pin + per-ecosystem groupName + automerge: false. Top-level automerge: false forbids Renovate auto-merge at 1.0 until Epic 13 lands the integration-test-passing CI gate + GH branch-protection status-check requirement. Enforces the architecture.md § I7 three-agent-convergence pinning decision (Vitest exact minor + OTEL exact in pnpm.overrides + pg_uuidv7 image tag). Inert substrate until Tthew installs the Renovate GitHub App against the repo (one-time ops action per § Fork extension). Consumed at runtime by the Renovate App + Epic 13 integration-test CI gate; static drift detected by Story 1.9 pre-merge sync-gate (FR43).',
+    sourcePath: '.github/renovate.json',
+    contentHash: 'c02f2bfe97a7811c3cdabc693e02f0c7b9d6a2a280b1c9701aee0d8d56cc4cd0',
+    anchors: ['INV-deps-version-pinning'],
+  },
+  {
+    id: 'INV-renovate-rationale',
+    description:
+      "Documentation-layer rationale for the Renovate I7 pinning posture — docs/invariants/renovate.md; mirrors Story 1.10's INV-tokens-semantic-rationale + Story 1.14's INV-release-please-rationale pattern (companion doc to a machine-enforced invariant, drift-detected at the doc layer). Explains (a) the I7 posture with a verbatim pointer to architecture.md § I7 line 342 + PRD I7 amendment, (b) per-package pinning rules table (Vitest / OTEL / Radix UI / pg_uuidv7) + groupName rationale, (c) fork-extension guidance (FR44 — per-fork renovate.json edits change automerge posture per group), (d) consumption pointer to Renovate GitHub App runtime + Epic 13 CI gate + Story 2.1 pg_uuidv7 image tag source. Companion to INV-deps-version-pinning.",
+    sourcePath: 'docs/invariants/renovate.md',
+    contentHash: 'a18a353f3efc1496b208bf84bf5158daf72a0728ef1ada1b9976a300b7f81c56',
+    anchors: ['INV-renovate-rationale'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));
