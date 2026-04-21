@@ -120,6 +120,7 @@ The current iteration's story and epic come from `.ralph/@plan.md` § Context:
 | Iteration start (story in plan) | Transition story issue `→ In Progress` (idempotent — skipped if already set).                 |
 | Iteration exit (any outcome)    | No transition from Ralph. Left to GH's native PR-merge automation via `Closes #N` in PR body. |
 | `EPIC_DONE` halt                | Transition the epic issue `→ Done` directly.                                                  |
+| `ALL_EPICS_DONE` halt           | No transition — terminal state, no epic to close.                                             |
 | Failure / timeout               | No transition — issue stays `In Progress` to signal attention.                                |
 
 Story → Done is deliberately NOT driven from ralph.py. GitHub Projects has a built-in workflow that moves an issue to Done when it's closed, and `Closes #N` in a merged PR closes the issue. Double-transitioning from ralph.py would race this workflow and produce misleading history.
@@ -277,13 +278,13 @@ Gate ordering: **coverage (trace) → requirements (SM review) → quality (CR) 
 | `sm-fixes-pending`    | Top QUEUE fix task (satisfy unmet AC)                            |
 | `sm-verified`         | `/bmad-code-review (args: "2")`                                  |
 | `fixes-pending`       | Top QUEUE fix task (one CR action item per iter)                 |
-| `done`                | Next story or EPIC_DONE halt                                     |
+| `done`                | Next story in current epic; if epic has no more open stories → cross-epic transition (auto-advance via `/bmad-create-story` if prior PR merged + next epic in backlog; else `EPIC_DONE` halt pending merge, or `ALL_EPICS_DONE` if terminal) |
 
 Anti-constraints: never skip states; never invoke `/bmad-dev-story` outside `atdd-scaffolded` / `/bmad-testarch-trace` outside `in-dev` / `/bmad-create-story (args: "review")` post-dev outside `traced` / `/bmad-code-review` outside `sm-verified` without IP rationale; never mark `done` with un-addressed fix tasks in QUEUE from any gate (trace, SM, CR); every gate finding becomes a QUEUE fix task unless IP records `defer:`.
 
 ### Halt schema
 
-`$RALPH_BASE_DIR/halt` is JSON: `{"reason": "<enum>", "epic": <N|null>, "pr": "<url|null>"}`. Closed reason enum at 1.0: `EPIC_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`, `RALPH_STAGE_REGRESSION`. `ralph.py` reads and displays; forks that replace the runtime honour the schema + path-resolution contract (see § Halt path resolution).
+`$RALPH_BASE_DIR/halt` is JSON: `{"reason": "<enum>", "epic": <N|null>, "pr": "<url|null>"}`. Closed reason enum at 1.0: `EPIC_DONE`, `ALL_EPICS_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`, `RALPH_STAGE_REGRESSION`. `EPIC_DONE` is a single-pass halt at epic close pending human merge; on re-entry, Ralph's cross-epic branch auto-advances (no re-halt loop). `ALL_EPICS_DONE` is terminal (`epic:null, pr:null`). **Autonomy constraint (non-toggle-able, `INV-ralph-halt-reason-enum`):** every reason is bounded — self-resolving or triggered by a concrete external condition; no reason blocks on open-ended human input; Ralph does NOT invoke `AskUserQuestion` from the runtime loop. `ralph.py` reads and displays; forks that replace the runtime honour the schema + autonomy constraint + path-resolution contract (see § Halt path resolution).
 
 ### Knowledge-file upkeep
 

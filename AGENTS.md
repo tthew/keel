@@ -80,7 +80,9 @@ export default [
 - Loop prompts live at `.ralph/PROMPT_build.md` and `.ralph/PROMPT_plan.md`.
 - `RALPH.md` is Ralph's private journal — signposts, lessons, gotchas, decisions. Ralph reads it on orient and updates it before committing.
 - Halt + plan-file + PROMPT + logs resolve to `$RALPH_BASE_DIR` (an absolute path ralph.py exports to every subprocess). When `--worktree X` is set, `$RALPH_BASE_DIR = <main_repo>/.claude/worktrees/X/.ralph/`; otherwise cwd-relative `.ralph/`. Write halt via `$RALPH_BASE_DIR/halt` — never a hardcoded main-repo absolute path.
-- Full reference: [docs/ralph.md](./docs/ralph.md) — see § Halt path resolution.
+- **Cross-epic transitions auto-advance in build-mode** (FR14n 2026-04-21): when the current epic's last story is `done` and the PR has merged, Ralph queues `/bmad-create-story` for the next epic's first story — no plan-mode roundtrip, no re-halt loop. See `.ralph/PROMPT_build.md` § Cross-epic transition.
+- **Halt autonomy guardrail** (`INV-ralph-halt-reason-enum`): every halt reason is bounded; Ralph never halts waiting for open-ended human input; `AskUserQuestion` is not invoked from the runtime loop. Closed reason-set at 1.0: `EPIC_DONE`, `ALL_EPICS_DONE`, `AWAIT_MERGE`, `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`, `RALPH_STAGE_REGRESSION`.
+- Full reference: [docs/ralph.md](./docs/ralph.md) — see § Halt path resolution + § Halt schema.
 
 ## When you're unsure
 
