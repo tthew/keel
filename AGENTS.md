@@ -53,6 +53,27 @@ Where content belongs, by audience and scope. When you learn something new durin
 - Branch names: `chore/*`, `feat/*`, `fix/*`, or `docs/*` — match the scope.
 - Never force-push to `main`. Never skip hooks or signing.
 
+## Fork extension (FR44)
+
+Forks extend substrate ESLint rules without editing `packages/keel-invariants/` by creating `eslint.config.fork.js` at the fork root and importing `@keel/keel-invariants/eslint` (subpath export declared at `packages/keel-invariants/package.json:14`). Canonical copy-ready example:
+
+```js
+import sharedConfig from '@keel/keel-invariants/eslint';
+
+export default [
+  {
+    rules: {
+      /* fork-specific rules */
+    },
+  },
+  ...sharedConfig, // substrate LAST → substrate wins (docs/invariants/fork.md § Precedence)
+];
+```
+
+- **Precedence rule.** Substrate rules take precedence over fork rules at the same file glob via ESLint flat-config last-write-wins semantics + the spread-at-end convention. Forks that want the opposite posture (fork-wins) spread substrate FIRST; this is unusual and should carry a comment in the fork's `eslint.config.fork.js` explaining why.
+- **Amendment-vs-fork decision.** Three paths when a fork disagrees with substrate: (a) FORK — fork-specific need, use `eslint.config.fork.js`; (b) AMEND — substrate-wide need, open a PR against `packages/keel-invariants/` + `INVARIANTS.md` + manifest entry + anchor bullet (the Story 1.6 + 1.9 source-level fork path); (c) DEFER — premature need, log in `_bmad-output/implementation-artifacts/deferred-work.md`.
+- **Growth-tier `INVARIANTS.fork.md`.** See `docs/invariants/fork.md` § INVARIANTS.fork.md scaffold for the Growth-tier opt-in flow; Epic 15a's `create-keel-app --include-fork-invariants` flag is the downstream runtime automating the manual template copy.
+
 ## Ralph loop
 
 - `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.

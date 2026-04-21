@@ -1,6 +1,6 @@
 # Story 1.16: Fork extension-config pattern + Growth-tier `INVARIANTS.fork.md` scaffold
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -49,9 +49,9 @@ So that (a) forks can layer ESLint rules on top of substrate without modifying `
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Author `packages/keel-invariants/templates/INVARIANTS.fork.md` (Growth-tier scaffold template)** (AC: 3, 4)
-  - [ ] Create the `packages/keel-invariants/templates/` directory if it does not exist (first-time directory addition under `packages/keel-invariants/`; sibling to `src/` + existing config files).
-  - [ ] Author `packages/keel-invariants/templates/INVARIANTS.fork.md` as the canonical scaffold template. Canonical shape (pinned here so dev-story does not drift; all sections required unless labelled `optional`):
+- [x] **Task 1: Author `packages/keel-invariants/templates/INVARIANTS.fork.md` (Growth-tier scaffold template)** (AC: 3, 4)
+  - [x] Create the `packages/keel-invariants/templates/` directory if it does not exist (first-time directory addition under `packages/keel-invariants/`; sibling to `src/` + existing config files).
+  - [x] Author `packages/keel-invariants/templates/INVARIANTS.fork.md` as the canonical scaffold template. Canonical shape (pinned here so dev-story does not drift; all sections required unless labelled `optional`):
     ```markdown
     # INVARIANTS.fork.md — fork-specific machine-enforced rules
 
@@ -88,12 +88,12 @@ So that (a) forks can layer ESLint rules on top of substrate without modifying `
 
     To add a fork invariant, follow the upstream naming convention (`FORK-<fork-slug>-<category>-<slug>`; ≥ 2 hyphen-separated segments after the `FORK-<slug>-` prefix; all lowercase; no underscores) and add a one-line entry under the appropriate H3 section above. Commit alongside the source file being enforced.
     ```
-  - [ ] Prettier-format: `pnpm exec prettier --write packages/keel-invariants/templates/INVARIANTS.fork.md`.
-  - [ ] Compute the sha256 content hash for the manifest entry (Task 3). Command: `sha256sum packages/keel-invariants/templates/INVARIANTS.fork.md` (post-prettier).
-  - [ ] **Validity sanity-check at author-time (pre-dev-story).** `node -e "const s=require('fs').readFileSync('packages/keel-invariants/templates/INVARIANTS.fork.md','utf8'); if (!/^# INVARIANTS\.fork\.md/m.test(s)) throw new Error('missing H1'); if (!/## Precedence/m.test(s)) throw new Error('missing Precedence section'); if (!/## Fork invariants index/m.test(s)) throw new Error('missing index section'); if (!/^FORK-<fork-slug>/m.test(s) && !/FORK-<fork-slug>-<category>-<slug>/.test(s)) throw new Error('missing fork-ID naming example'); console.log('OK: scaffold template shape valid');"` must print `OK: scaffold template shape valid`.
+  - [x] Prettier-format: `pnpm exec prettier --write packages/keel-invariants/templates/INVARIANTS.fork.md`.
+  - [x] Compute the sha256 content hash for the manifest entry (Task 3). Command: `sha256sum packages/keel-invariants/templates/INVARIANTS.fork.md` (post-prettier).
+  - [x] **Validity sanity-check at author-time (pre-dev-story).** `node -e "const s=require('fs').readFileSync('packages/keel-invariants/templates/INVARIANTS.fork.md','utf8'); if (!/^# INVARIANTS\.fork\.md/m.test(s)) throw new Error('missing H1'); if (!/## Precedence/m.test(s)) throw new Error('missing Precedence section'); if (!/## Fork invariants index/m.test(s)) throw new Error('missing index section'); if (!/^FORK-<fork-slug>/m.test(s) && !/FORK-<fork-slug>-<category>-<slug>/.test(s)) throw new Error('missing fork-ID naming example'); console.log('OK: scaffold template shape valid');"` must print `OK: scaffold template shape valid`.
 
-- [ ] **Task 2: Author `docs/invariants/fork.md` (rationale doc: ESLint-extend pattern + INVARIANTS.fork scaffold + precedence + amendment-vs-fork decision tree + fork-operator pointer)** (AC: 1, 2, 3, 4)
-  - [ ] Author `docs/invariants/fork.md` as a plain markdown documentation file (mirrors `docs/invariants/release.md` Story 1.14 + `docs/invariants/renovate.md` Story 1.15 + `docs/invariants/tokens.md` Story 1.10 + `docs/invariants/ralph-execute.md` Story 1.9 precedents). Structure:
+- [x] **Task 2: Author `docs/invariants/fork.md` (rationale doc: ESLint-extend pattern + INVARIANTS.fork scaffold + precedence + amendment-vs-fork decision tree + fork-operator pointer)** (AC: 1, 2, 3, 4)
+  - [x] Author `docs/invariants/fork.md` as a plain markdown documentation file (mirrors `docs/invariants/release.md` Story 1.14 + `docs/invariants/renovate.md` Story 1.15 + `docs/invariants/tokens.md` Story 1.10 + `docs/invariants/ralph-execute.md` Story 1.9 precedents). Structure:
     - H1: `# Fork extension — eslint.config.fork.js + INVARIANTS.fork.md scaffold (Story 1.16)`
     - Header block (4 lines): Scope + Status + Machine-enforced-in + Runtime consumer (same shape as `release.md:3-6` + `renovate.md:3-6`).
     - § Overview — one paragraph summarizing FR44 (ESLint-extend pattern at 1.0) + FR45 (Growth-tier INVARIANTS.fork.md scaffold) + substrate-wins convention.
@@ -121,11 +121,11 @@ So that (a) forks can layer ESLint rules on top of substrate without modifying `
     - § Fork extension — 2 sentences matching the `release.md:48` + `renovate.md:44` pattern: forks that want to change the fork-extension pattern itself (e.g., a fork-of-a-fork nesting pattern) edit substrate files as a source-fork change per Story 1.6 + 1.9; this is meta-recursive but the path is the same.
     - § Consumption — points at `AGENTS.md § Fork extension (FR44)` as the primary agent-facing doc + Epic 15a's future `create-keel-app --include-fork-invariants` CLI flag as the runtime consumer of the scaffold template.
     - § Anchor — add the `- **\`INV-fork-extension-rationale\`**: FR44 ESLint-extend pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold + substrate-wins precedence + amendment-vs-fork decision tree.` anchor bullet at the end of the § Overview section so the Story 1.9 walker (column-0 bullet matching `packages/keel-invariants/src/sync-gate.ts:24` ANCHOR_REGEX) detects it.
-  - [ ] Prettier-format: `pnpm exec prettier --write docs/invariants/fork.md`.
-  - [ ] Compute the sha256 content hash for the manifest entry.
+  - [x] Prettier-format: `pnpm exec prettier --write docs/invariants/fork.md`.
+  - [x] Compute the sha256 content hash for the manifest entry.
 
-- [ ] **Task 3: Add 2 new invariant entries to `packages/keel-invariants/src/invariants.manifest.ts` → `raw` array** (AC: 3, 4)
-  - [ ] Add two entries to the `raw: Invariant[]` array at the end (post the existing `INV-renovate-rationale` at line 217-223; preserve the existing 22 entries in their current order). Shape of each entry matches the Story 1.10/1.11/1.12/1.13/1.14/1.15 precedents:
+- [x] **Task 3: Add 2 new invariant entries to `packages/keel-invariants/src/invariants.manifest.ts` → `raw` array** (AC: 3, 4)
+  - [x] Add two entries to the `raw: Invariant[]` array at the end (post the existing `INV-renovate-rationale` at line 217-223; preserve the existing 22 entries in their current order). Shape of each entry matches the Story 1.10/1.11/1.12/1.13/1.14/1.15 precedents:
     ```ts
     {
       id: 'INV-fork-extension-rationale',
@@ -144,18 +144,18 @@ So that (a) forks can layer ESLint rules on top of substrate without modifying `
       anchors: ['INV-fork-invariants-scaffold'],
     },
     ```
-  - [ ] Verify the schema refinement (`superRefine` uniqueness + cross-sourcePath contentHash parity) holds after the additions. The two new entries have unique IDs + unique sourcePaths; no shared-sourcePath cross-entry check fires.
-  - [ ] **Build + runtime-smoke.** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` from `packages/keel-invariants/` to confirm the manifest parses + exports **24** entries (22 current + 2 new). **IMPORTANT** per Story 1.14 iter-77 Gotcha — the `pnpm keel-invariants:check` script reads `dist/check.js` which imports the COMPILED manifest, NOT the TS source; editing `invariants.manifest.ts` requires a `pnpm --filter @keel/keel-invariants build` before `pnpm keel-invariants:check` observes the new entries.
+  - [x] Verify the schema refinement (`superRefine` uniqueness + cross-sourcePath contentHash parity) holds after the additions. The two new entries have unique IDs + unique sourcePaths; no shared-sourcePath cross-entry check fires.
+  - [x] **Build + runtime-smoke.** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` from `packages/keel-invariants/` to confirm the manifest parses + exports **24** entries (22 current + 2 new). **IMPORTANT** per Story 1.14 iter-77 Gotcha — the `pnpm keel-invariants:check` script reads `dist/check.js` which imports the COMPILED manifest, NOT the TS source; editing `invariants.manifest.ts` requires a `pnpm --filter @keel/keel-invariants build` before `pnpm keel-invariants:check` observes the new entries.
 
-- [ ] **Task 4: Add 2 anchor bullets to `INVARIANTS.md` under a new `### Fork extension (Story 1.16)` section** (AC: 3, 4)
-  - [ ] Insert a new `### Fork extension (Story 1.16)` H3 section in `INVARIANTS.md` between the existing `### Dependency upgrade discipline (Story 1.15)` section (ends at line 80) and the `## Consumption` H2 at line 82. The section opens with a one-sentence summary ("FR44 ESLint-extend pattern (`eslint.config.fork.js` importing `@keel/keel-invariants/eslint`) + FR45 Growth-tier `INVARIANTS.fork.md` scaffold template; substrate-wins precedence via spread-at-end convention; fork operators opt into the Growth-tier scaffold manually at 1.0 (Epic 15a's `--include-fork-invariants` flag lands later).") and lists two column-0 bullets (matching the Story 1.9 `ANCHOR_REGEX` shape `^-\s+\*\*\`INV-[a-z0-9]+(?:-[a-z0-9]+)+\`\*\*`):
+- [x] **Task 4: Add 2 anchor bullets to `INVARIANTS.md` under a new `### Fork extension (Story 1.16)` section** (AC: 3, 4)
+  - [x] Insert a new `### Fork extension (Story 1.16)` H3 section in `INVARIANTS.md` between the existing `### Dependency upgrade discipline (Story 1.15)` section (ends at line 80) and the `## Consumption` H2 at line 82. The section opens with a one-sentence summary ("FR44 ESLint-extend pattern (`eslint.config.fork.js` importing `@keel/keel-invariants/eslint`) + FR45 Growth-tier `INVARIANTS.fork.md` scaffold template; substrate-wins precedence via spread-at-end convention; fork operators opt into the Growth-tier scaffold manually at 1.0 (Epic 15a's `--include-fork-invariants` flag lands later).") and lists two column-0 bullets (matching the Story 1.9 `ANCHOR_REGEX` shape `^-\s+\*\*\`INV-[a-z0-9]+(?:-[a-z0-9]+)+\`\*\*`):
     - `- **\`INV-fork-extension-rationale\`**: docs/invariants/fork.md — FR44 ESLint-extend pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold + substrate-wins precedence + amendment-vs-fork decision tree.`
     - `- **\`INV-fork-invariants-scaffold\`**: packages/keel-invariants/templates/INVARIANTS.fork.md — Growth-tier fork-invariants template with H1 + § Precedence + § Fork invariants index + § Consumption + § Extension + commented FORK-\<fork-slug\>-\<category\>-\<slug\> naming example.`
-  - [ ] Re-compute the contentHash of `INVARIANTS.md` is NOT needed — INVARIANTS.md is not a `sourcePath` in the manifest (it is the ANCHOR DOC walked by Story 1.9 via `ANCHOR_REGEX`; the walker re-reads the doc on every sync-gate invocation, so the doc's content hash is recomputed at runtime rather than pinned as a manifest field) — same contract as Story 1.14 Task 5 + Story 1.15 Task 4.
-  - [ ] Prettier-format: `pnpm exec prettier --write INVARIANTS.md`.
+  - [x] Re-compute the contentHash of `INVARIANTS.md` is NOT needed — INVARIANTS.md is not a `sourcePath` in the manifest (it is the ANCHOR DOC walked by Story 1.9 via `ANCHOR_REGEX`; the walker re-reads the doc on every sync-gate invocation, so the doc's content hash is recomputed at runtime rather than pinned as a manifest field) — same contract as Story 1.14 Task 5 + Story 1.15 Task 4.
+  - [x] Prettier-format: `pnpm exec prettier --write INVARIANTS.md`.
 
-- [ ] **Task 5: Update `AGENTS.md` — new `## Fork extension (FR44)` section + ESLint-extend pattern + precedence + amendment-vs-fork decision** (AC: 1, 2)
-  - [ ] Insert a new `## Fork extension (FR44)` section in `AGENTS.md` between the existing `## Git / PR conventions` section (ends at line 54) and the `## Ralph loop` section (starts at line 56). The section covers:
+- [x] **Task 5: Update `AGENTS.md` — new `## Fork extension (FR44)` section + ESLint-extend pattern + precedence + amendment-vs-fork decision** (AC: 1, 2)
+  - [x] Insert a new `## Fork extension (FR44)` section in `AGENTS.md` between the existing `## Git / PR conventions` section (ends at line 54) and the `## Ralph loop` section (starts at line 56). The section covers:
     - **ESLint-extend pattern.** Fork operators extend ESLint rules by creating `eslint.config.fork.js` at the fork root that imports `@keel/keel-invariants/eslint` (subpath export already declared at `packages/keel-invariants/package.json:14`). Code block (single copy-ready example — same code block that lives in `docs/invariants/fork.md` for consistency; one line commenting the substrate-wins convention):
       ```js
       import sharedConfig from '@keel/keel-invariants/eslint';
@@ -168,25 +168,25 @@ So that (a) forks can layer ESLint rules on top of substrate without modifying `
     - **Precedence rule.** Substrate rules take precedence over fork rules at the same file glob (via ESLint flat-config last-write-wins semantics + spread-at-end convention). If a fork needs the opposite posture (fork-wins), spread substrate FIRST; this is unusual and should be accompanied by a comment in the fork's `eslint.config.fork.js` explaining why.
     - **Amendment-vs-fork decision.** Three paths when a fork disagrees with substrate: (a) FORK — fork-specific need, use `eslint.config.fork.js`; (b) AMEND — substrate-wide need, open a PR against `packages/keel-invariants/` + `INVARIANTS.md` + manifest entry + anchor (Story 1.6 + 1.9 source-level fork path); (c) DEFER — premature need, log in `_bmad-output/implementation-artifacts/deferred-work.md`.
     - **Growth-tier `INVARIANTS.fork.md`.** Pointer: see `docs/invariants/fork.md` § INVARIANTS.fork.md scaffold for the Growth-tier opt-in flow; `create-keel-app --include-fork-invariants` (Epic 15a) is the downstream runtime automating the manual template copy.
-  - [ ] No manifest entry for `AGENTS.md` is needed — AGENTS.md is a KNOWLEDGE FILE (general ops guide) not a substrate invariant source; it evolves frequently and hashing it would cause churn without signal. The fork-extension pattern itself is hash-pinned via `INV-fork-extension-rationale` (`docs/invariants/fork.md`); `AGENTS.md` is a consumption-layer pointer to the rationale doc.
+  - [x] No manifest entry for `AGENTS.md` is needed — AGENTS.md is a KNOWLEDGE FILE (general ops guide) not a substrate invariant source; it evolves frequently and hashing it would cause churn without signal. The fork-extension pattern itself is hash-pinned via `INV-fork-extension-rationale` (`docs/invariants/fork.md`); `AGENTS.md` is a consumption-layer pointer to the rationale doc.
 
-- [ ] **Task 6: Update `CLAUDE.md` — add `INVARIANTS.fork.md` to knowledge-file contract + precedence rule** (AC: 3)
-  - [ ] Update the `## Knowledge-file contract` table in `CLAUDE.md` (currently 4 rows: AGENTS.md, CLAUDE.md, RALPH.md, INVARIANTS.md) to add a 5th row for `INVARIANTS.fork.md`:
+- [x] **Task 6: Update `CLAUDE.md` — add `INVARIANTS.fork.md` to knowledge-file contract + precedence rule** (AC: 3)
+  - [x] Update the `## Knowledge-file contract` table in `CLAUDE.md` (currently 4 rows: AGENTS.md, CLAUDE.md, RALPH.md, INVARIANTS.md) to add a 5th row for `INVARIANTS.fork.md`:
     ```
     | `INVARIANTS.fork.md` (Growth-tier, optional) | Fork-specific agent/human — machine-enforced rules | Fork-owned additive rules to upstream INVARIANTS.md; substrate rules take precedence (FR45; docs/invariants/fork.md § Precedence). Not present at 1.0 — fork operators opt in by copying packages/keel-invariants/templates/INVARIANTS.fork.md to repo root. |
     ```
-  - [ ] Add a sentence after the table (or in the `## Claude Code specifics` section) pointing at `docs/invariants/fork.md` for the opt-in flow + precedence rules.
-  - [ ] No manifest entry for `CLAUDE.md` is needed — same reasoning as Task 5 for AGENTS.md (CLAUDE.md is a knowledge-file consumption-layer pointer, not an invariant source).
+  - [x] Add a sentence after the table (or in the `## Claude Code specifics` section) pointing at `docs/invariants/fork.md` for the opt-in flow + precedence rules.
+  - [x] No manifest entry for `CLAUDE.md` is needed — same reasoning as Task 5 for AGENTS.md (CLAUDE.md is a knowledge-file consumption-layer pointer, not an invariant source).
 
-- [ ] **Task 7: Substrate verification — scaffold shape, rationale-doc shape, manifest-load clean, sync-gate clean, full quality-gate suite** (AC: 1, 2, 3, 4)
-  - [ ] **Static scaffold shape smoke:** `node -e "const s=require('fs').readFileSync('packages/keel-invariants/templates/INVARIANTS.fork.md','utf8'); const sections=['# INVARIANTS.fork.md','## Precedence','## Fork invariants index','## Consumption','## Extension']; const missing=sections.filter(sec => !s.includes(sec)); if (missing.length) throw new Error('missing sections: ' + missing.join(', ')); if (!/FORK-<fork-slug>/.test(s)) throw new Error('missing FORK-<fork-slug> naming convention example'); console.log('OK: scaffold template all 5 sections + naming example present');"` must print `OK: scaffold template all 5 sections + naming example present`.
-  - [ ] **Static rationale-doc shape smoke:** `node -e "const s=require('fs').readFileSync('docs/invariants/fork.md','utf8'); const sections=['# Fork extension','## Overview','## ESLint-extend pattern','## INVARIANTS.fork.md scaffold','## Precedence','## Amendment-vs-fork decision tree','## Growth-tier opt-in','## Files','## Fork extension','## Consumption']; const missing=sections.filter(sec => !s.includes(sec)); if (missing.length) throw new Error('missing sections: ' + missing.join(', ')); if (!/INV-fork-extension-rationale/.test(s)) throw new Error('missing anchor bullet'); console.log('OK: rationale doc all 10 sections + anchor bullet present');"` must print `OK: rationale doc all 10 sections + anchor bullet present`.
-  - [ ] **AGENTS.md update smoke:** `node -e "const s=require('fs').readFileSync('AGENTS.md','utf8'); if (!/## Fork extension \(FR44\)/.test(s)) throw new Error('missing AGENTS.md § Fork extension'); if (!/@keel\/keel-invariants\/eslint/.test(s)) throw new Error('missing subpath-export reference'); if (!/amendment/i.test(s) || !/decision/i.test(s)) throw new Error('missing amendment-vs-fork decision tree keywords'); console.log('OK: AGENTS.md § Fork extension + subpath-export + decision-tree present');"` must print `OK: AGENTS.md § Fork extension + subpath-export + decision-tree present`.
-  - [ ] **CLAUDE.md update smoke:** `node -e "const s=require('fs').readFileSync('CLAUDE.md','utf8'); if (!/INVARIANTS\.fork\.md/.test(s)) throw new Error('missing CLAUDE.md INVARIANTS.fork.md reference'); if (!/precedence/i.test(s)) throw new Error('missing precedence keyword'); console.log('OK: CLAUDE.md INVARIANTS.fork.md + precedence reference present');"` must print `OK: CLAUDE.md INVARIANTS.fork.md + precedence reference present`.
-  - [ ] **Manifest load smoke:** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` — must print `OK: 24 invariants` (22 pre-Story-1.16 + 2 new). Per Story 1.14 iter-77 Gotcha, the `pnpm build` step is MANDATORY before runtime smoke.
-  - [ ] **Sync-gate clean smoke:** from repo root, `pnpm keel-invariants:check` must exit 0 with no drift. This is the Story 1.9 AC 1 clean-path behaviour. If the gate emits drift (e.g. a stale contentHash, a missing anchor, a missing source file), FIX in the same iteration BEFORE commit — iteration budget is a blocker (drift under own PR is a quality-gate violation per NFR27).
-  - [ ] **Full quality-gate suite:** `pnpm typecheck && pnpm lint && pnpm format:check && pnpm keel-invariants:check-all`. All must pass. `keel-invariants:check-all` runs the Story 1.9 sync-gate + Story 1.13 token-sync gate in sequence; the two new invariants should register clean at the former; the latter is unaffected (no token-layer change in Story 1.16).
-  - [ ] **Record measurements** in § Dev Agent Record → Debug Log: sha256 values computed at Tasks 1/2, wall-clock of each smoke test, `pnpm keel-invariants:check` duration (Story 1.9 pinned <2s per AC 7; should hold comfortably — manifest grows from 22 → 24 entries, +9% vs Story 1.15's +10%; walker is O(n+m) so negligible).
+- [x] **Task 7: Substrate verification — scaffold shape, rationale-doc shape, manifest-load clean, sync-gate clean, full quality-gate suite** (AC: 1, 2, 3, 4)
+  - [x] **Static scaffold shape smoke:** `node -e "const s=require('fs').readFileSync('packages/keel-invariants/templates/INVARIANTS.fork.md','utf8'); const sections=['# INVARIANTS.fork.md','## Precedence','## Fork invariants index','## Consumption','## Extension']; const missing=sections.filter(sec => !s.includes(sec)); if (missing.length) throw new Error('missing sections: ' + missing.join(', ')); if (!/FORK-<fork-slug>/.test(s)) throw new Error('missing FORK-<fork-slug> naming convention example'); console.log('OK: scaffold template all 5 sections + naming example present');"` must print `OK: scaffold template all 5 sections + naming example present`.
+  - [x] **Static rationale-doc shape smoke:** `node -e "const s=require('fs').readFileSync('docs/invariants/fork.md','utf8'); const sections=['# Fork extension','## Overview','## ESLint-extend pattern','## INVARIANTS.fork.md scaffold','## Precedence','## Amendment-vs-fork decision tree','## Growth-tier opt-in','## Files','## Fork extension','## Consumption']; const missing=sections.filter(sec => !s.includes(sec)); if (missing.length) throw new Error('missing sections: ' + missing.join(', ')); if (!/INV-fork-extension-rationale/.test(s)) throw new Error('missing anchor bullet'); console.log('OK: rationale doc all 10 sections + anchor bullet present');"` must print `OK: rationale doc all 10 sections + anchor bullet present`.
+  - [x] **AGENTS.md update smoke:** `node -e "const s=require('fs').readFileSync('AGENTS.md','utf8'); if (!/## Fork extension \(FR44\)/.test(s)) throw new Error('missing AGENTS.md § Fork extension'); if (!/@keel\/keel-invariants\/eslint/.test(s)) throw new Error('missing subpath-export reference'); if (!/amendment/i.test(s) || !/decision/i.test(s)) throw new Error('missing amendment-vs-fork decision tree keywords'); console.log('OK: AGENTS.md § Fork extension + subpath-export + decision-tree present');"` must print `OK: AGENTS.md § Fork extension + subpath-export + decision-tree present`.
+  - [x] **CLAUDE.md update smoke:** `node -e "const s=require('fs').readFileSync('CLAUDE.md','utf8'); if (!/INVARIANTS\.fork\.md/.test(s)) throw new Error('missing CLAUDE.md INVARIANTS.fork.md reference'); if (!/precedence/i.test(s)) throw new Error('missing precedence keyword'); console.log('OK: CLAUDE.md INVARIANTS.fork.md + precedence reference present');"` must print `OK: CLAUDE.md INVARIANTS.fork.md + precedence reference present`.
+  - [x] **Manifest load smoke:** `cd packages/keel-invariants && pnpm build && node -e "import('./dist/invariants.manifest.js').then(m => console.log('OK: ' + m.invariants.length + ' invariants'))"` — must print `OK: 24 invariants` (22 pre-Story-1.16 + 2 new). Per Story 1.14 iter-77 Gotcha, the `pnpm build` step is MANDATORY before runtime smoke.
+  - [x] **Sync-gate clean smoke:** from repo root, `pnpm keel-invariants:check` must exit 0 with no drift. This is the Story 1.9 AC 1 clean-path behaviour. If the gate emits drift (e.g. a stale contentHash, a missing anchor, a missing source file), FIX in the same iteration BEFORE commit — iteration budget is a blocker (drift under own PR is a quality-gate violation per NFR27).
+  - [x] **Full quality-gate suite:** `pnpm typecheck && pnpm lint && pnpm format:check && pnpm keel-invariants:check-all`. All must pass. `keel-invariants:check-all` runs the Story 1.9 sync-gate + Story 1.13 token-sync gate in sequence; the two new invariants should register clean at the former; the latter is unaffected (no token-layer change in Story 1.16).
+  - [x] **Record measurements** in § Dev Agent Record → Debug Log: sha256 values computed at Tasks 1/2, wall-clock of each smoke test, `pnpm keel-invariants:check` duration (Story 1.9 pinned <2s per AC 7; should hold comfortably — manifest grows from 22 → 24 entries, +9% vs Story 1.15's +10%; walker is O(n+m) so negligible).
 
 ## Dev Notes
 
@@ -260,19 +260,72 @@ Pattern: Story 1.15 shipped 5 commits across 7 iterations (iter-81 drafting + it
 
 ### Agent Model Used
 
-TBD (filled at `/bmad-dev-story` time — typically claude-sonnet-4-6 or claude-opus-4-7)
+claude-opus-4-7 (1M context)
 
 ### Debug Log References
 
-_(filled during `/bmad-dev-story` at iter-91)_
+**sha256 content hashes (computed post-prettier):**
+
+- `packages/keel-invariants/templates/INVARIANTS.fork.md`: `167ba6b2a8f1153df02f7e572b1d1e31415731493b0729415f6573cc1a696218`
+- `docs/invariants/fork.md`: `be6f3d8919e7bb2b6258d768895d8a1e4d4a37c5fef95f5121f1ca878da192f2`
+
+**Task 7 substrate-verification suite results (all PASS):**
+
+1. Scaffold template shape smoke → `OK: scaffold template all 5 sections + naming example present` (<0.1s)
+2. Rationale doc shape smoke → `OK: rationale doc all 10 sections + anchor bullet present` (<0.1s)
+3. AGENTS.md update smoke → `OK: AGENTS.md § Fork extension + subpath-export + decision-tree present` (<0.1s)
+4. CLAUDE.md update smoke → `OK: CLAUDE.md INVARIANTS.fork.md + precedence reference present` (<0.1s)
+5. Manifest load smoke (post-`pnpm --filter @keel/keel-invariants build`) → `OK: 24 invariants` (<0.1s)
+6. Sync-gate clean smoke (`pnpm keel-invariants:check`) → exit 0 silent in **0.776s** wall-clock (61.2% margin vs Story 1.9 AC 7 <2s budget; slightly higher than iter-86's 0.629s baseline due to +2 manifest entries + 2 new sourcePath file reads, still well within budget)
+7. Full quality-gate suite: `pnpm typecheck` 16/16 in 1.446s; `pnpm lint` 16/16 in 7.926s; `pnpm format:check` clean (all matched files); `pnpm keel-invariants:check-all` (sync-gate + tokens-sync) both exit 0
+
+**Iter-77 Gotcha honored:** `pnpm --filter @keel/keel-invariants build` executed before runtime manifest-load smoke. The `dist/invariants.manifest.js` compiled output is consumed by `dist/check.js`; editing `src/invariants.manifest.ts` requires rebuild before sync-gate observes new entries.
+
+**No cascade-hash updates:** `AGENTS.md`, `CLAUDE.md`, `INVARIANTS.md` are knowledge-file consumption-layer pointers (not sourcePaths in the manifest); edits to these files do NOT trigger contentHash cascade updates on any existing invariant entry per L6 no-cascade-hash check.
 
 ### Completion Notes List
 
-_(filled during `/bmad-dev-story` at iter-91)_
+**Single-pass dev (iter-91) at configuration-surface + documentation-tier scale** — matches Story 1.10/1.11/1.12/1.13/1.14/1.15 precedent (6-story single-pass cumulative precedent for Epic-1 substrate configuration/scaffolding stories).
+
+- **Authored surface (4 new files + 3 knowledge-file edits):**
+  - NEW: `packages/keel-invariants/templates/INVARIANTS.fork.md` (Growth-tier scaffold template — H1 + § Precedence + § Fork invariants index + § Consumption + § Extension + commented `FORK-<fork-slug>-<category>-<slug>` naming example)
+  - NEW: `docs/invariants/fork.md` (10-section rationale doc — ESLint-extend pattern + INVARIANTS.fork.md scaffold + substrate-wins precedence + amendment-vs-fork decision tree + Growth-tier opt-in)
+  - MODIFIED: `packages/keel-invariants/src/invariants.manifest.ts` (+2 entries → 24 total)
+  - MODIFIED: `INVARIANTS.md` (new `### Fork extension (Story 1.16)` H3 section + 2 column-0 anchor bullets between line 80 and `## Consumption`)
+  - MODIFIED: `AGENTS.md` (new `## Fork extension (FR44)` H2 section between `## Git / PR conventions` and `## Ralph loop`)
+  - MODIFIED: `CLAUDE.md` (5th row `INVARIANTS.fork.md` added to § Knowledge-file contract table + precedence paragraph appended)
+
+- **Manifest growth:** 22 → 24 entries (+9% vs Story 1.15's +10%). Sync-gate wall-clock unchanged-to-within-noise (0.776s vs iter-86's 0.629s baseline — +147ms per +2 entries is O(n+m) walker adding 2 file reads + 2 hash computations; well within the <2s NFR budget).
+
+- **Substrate-wins precedence canonicalized** across 5 surfaces: AGENTS.md § Fork extension (FR44) precedence rule + docs/invariants/fork.md § Precedence three-layer hierarchy + packages/keel-invariants/templates/INVARIANTS.fork.md § Precedence (ships in the fork's copy) + CLAUDE.md § Knowledge-file contract precedence paragraph + INVARIANTS.md § Fork extension (Story 1.16) section introduction. All 5 surfaces use consistent language ("substrate rules are AUTHORITATIVE; fork rules ADD TO substrate; conflicts via amendment-or-scope-narrowing") so fork operators reading any one surface reach the same conclusion.
+
+- **ESLint-extend pattern documented** with a single copy-ready code block replicated verbatim across AGENTS.md § Fork extension (FR44) and docs/invariants/fork.md § ESLint-extend pattern. The `@keel/keel-invariants/eslint` subpath export already declared at `packages/keel-invariants/package.json:14` (Story 1.2) is referenced but not modified — Story 1.16 documentation-only scope preserved.
+
+- **Amendment-vs-fork decision tree** encoded as three exit paths (FORK / AMEND via Story 1.6 + 1.9 source-level path / DEFER) in both AGENTS.md § Fork extension (FR44) and docs/invariants/fork.md § Amendment-vs-fork decision tree. Cross-linked from INVARIANTS.md § Fork extension (Story 1.16) summary line.
+
+- **Growth-tier opt-in flow canonicalized** in docs/invariants/fork.md § INVARIANTS.fork.md scaffold + § Growth-tier opt-in. At 1.0 Epic 15a's `create-keel-app --include-fork-invariants` flag defaults to `false` per AC 4 (CLI not yet authored — `packages/create-keel-app/` verified not-yet-existing at drafting per L4); scaffold copy is manual via `cp packages/keel-invariants/templates/INVARIANTS.fork.md ./INVARIANTS.fork.md`.
+
+- **Seven preventative audit layers held ZERO-PATCH at dev-story time:**
+  - **L1** — Both new IDs regex-pass Zod `^INV-[a-z0-9]+(-[a-z0-9]+)+$` at `invariants.manifest.ts:4` (verified live via the `pnpm --filter @keel/keel-invariants build` + manifest-load smoke exit 0): `INV-fork-extension-rationale` (3 segments: fork / extension / rationale) + `INV-fork-invariants-scaffold` (3 segments: fork / invariants / scaffold); both lowercase; no underscores; ≥ 2 hyphenated segments.
+  - **L2** — Task↔AC bidirectional coverage complete: AC 1 → Tasks 2, 5, 7; AC 2 → Tasks 2, 5, 7; AC 3 → Tasks 1, 2, 3, 4, 6, 7; AC 4 → Tasks 2, 3, 6, 7. Every Task serves ≥ 1 AC; no dead tasks.
+  - **L3** — Sprint-status transitions held: `1-16-...: ready-for-dev → in-progress` + `last_updated: 2026-04-21 Story-1-16-in-dev UTC` at both header-comment (line 2) and data-field (line 38).
+  - **L4** — Cross-file convergence verified: architecture.md convergence points at :49/:777/:906 + prd.md:1010-1011 (FR44/FR45 normative statement) + epics.md:1110-1137 (ACs verbatim).
+  - **L5** — Mechanical counter: Story 1.16 = 6th cumulative single-pass-dev precedent for Epic-1 substrate configuration/scaffolding stories (Stories 1.10/1.11/1.12/1.13/1.14/1.15 → 1.16).
+  - **L6** — No-cascade-hash check: all 22 pre-Story-1.16 invariants' `contentHash` values unchanged (knowledge files edited are NOT manifest sourcePaths; INVARIANTS.md is the walker's ANCHOR DOC not a sourcePath).
+  - **L7** — Domain carve-out held: scaffolding-story + configuration-surface-tier + documentation-tier attack surface (substrate ships static content authored once, drift-detected on every commit, inert until a downstream opts-in consumer fires). ZERO-PATCH discipline carries forward.
+
+- **Epic 1 FINAL open-story implementation** — post-iter-91 `in-dev` state begins the final Story 1.16 FR14n lifecycle → iter-92 trace (TENTH cumulative WAIVED precedent candidate) → iter-93 post-dev SM (SIXTH cumulative ZERO-PATCH precedent candidate) → iter-94 CR (SIXTH cumulative ZERO-PATCH precedent candidate) → iter-95 Transition PR #226 Draft → Open + final CI gate + EPIC_DONE halt. Story 1.16 is the LAST story in Epic 1 sprint-status; after it closes, Epic 1 = done and PR #226 transitions from Draft (20+ commits across Stories 1.8-1.16) to Open.
 
 ### File List
 
-_(filled during `/bmad-dev-story` at iter-91)_
+- `packages/keel-invariants/templates/INVARIANTS.fork.md` (NEW — Growth-tier scaffold template; `INV-fork-invariants-scaffold` sourcePath)
+- `docs/invariants/fork.md` (NEW — rationale doc; `INV-fork-extension-rationale` sourcePath)
+- `packages/keel-invariants/src/invariants.manifest.ts` (MODIFIED — 2 new entries appended; 22 → 24 total)
+- `INVARIANTS.md` (MODIFIED — new `### Fork extension (Story 1.16)` H3 + 2 anchor bullets)
+- `AGENTS.md` (MODIFIED — new `## Fork extension (FR44)` H2 section)
+- `CLAUDE.md` (MODIFIED — 5th row `INVARIANTS.fork.md` in § Knowledge-file contract table + precedence paragraph)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (MODIFIED — `1-16-...: ready-for-dev → in-progress`; will flip to `review` at Step 9 completion)
+- `_bmad-output/implementation-artifacts/1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold.md` (MODIFIED — Tasks checked [x] + Dev Agent Record + File List + Change Log v1.3 + Status: review)
 
 ## Change Log
 
@@ -282,4 +335,5 @@ _(filled during `/bmad-dev-story` at iter-91)_
   - **PATCH 2 — References block architecture.md line numbers.** Removed 4 fabricated entries (:237 "Implementation Invariants pinning overview", :913 "Agent-facing fork invariants", :1010 "Functional Requirements FR44", :1011 "Functional Requirements FR45") which point to unrelated Frontend / commitlint.config / test-utils content; verified via `Grep "INVARIANTS\.fork"` on architecture.md returning 0 matches (architecture.md contains NO INVARIANTS.fork.md reference). Added the three ACTUAL architecture.md convergence points: :49 (Requirements Overview FR41-FR45 Invariants cluster), :777 (FR→Artefact mapping table), :906 (directory-tree FR42-FR44 annotation; retained from v1.0).
   - **PATCH 3 — Dev Notes L4 cross-file convergence paragraph.** Rewrote the "Architecture.md:906 + :913 + :1010 + :1011 + :237 all converge" claim to reflect ground truth: architecture.md covers FR41-FR45 through the cluster enumeration at :49 + the FR→Artefact mapping table at :777 + the directory-tree annotation at :906; the normative FR44/FR45 prose lives in PRD.md:1010-1011, NOT architecture.md. Clarifies that architecture.md does not mention `INVARIANTS.fork.md` directly; the pointer is indirect (through `docs/invariants/` in the mapping table).
   - Story class unchanged. ZERO-PATCH pre-dev target narrowly missed at 3 surgical citation-drift corrections; this matches Story 1.11/1.12/1.13/1.14/1.15 1-2 PATCH pre-dev average (Story 1.14 iter-75 = 1 PATCH; Story 1.15 iter-82 = 1 PATCH). The 3-PATCH count is CALIBRATION-CORRECT for a story with novel multi-file (architecture.md + prd.md) reference surface — configuration-surface-tier stories with single-file references average ≤2 PATCH; Story 1.16's References block cites 18 distinct sources across 5 files (highest count to date), so a higher drift surface is expected. Lesson recorded in RALPH.md for future multi-file-reference stories. Story State transitions `drafted → validated` via FR14n row 2.
+- **v1.3** (2026-04-21 iter-91): `/bmad-dev-story` single-pass at configuration-surface + documentation-tier scale — FR14n matrix row 4 `atdd-scaffolded → in-dev`. **SIXTH cumulative single-pass-dev precedent** for Epic-1 substrate configuration/scaffolding stories (Stories 1.10/1.11/1.12/1.13/1.14/1.15 → 1.16). Authored 2 NEW files (`packages/keel-invariants/templates/INVARIANTS.fork.md` scaffold template + `docs/invariants/fork.md` rationale doc) + MODIFIED 4 files (manifest +2 entries; INVARIANTS.md +1 H3 section + 2 anchor bullets; AGENTS.md +1 H2 section; CLAUDE.md +1 table row + precedence paragraph). sha256 hashes pinned post-prettier: `167ba6b2...6218` (scaffold) + `be6f3d89...92f2` (rationale). All 7 substrate-verification smokes PASS; full quality-gate suite (typecheck/lint/format:check/keel-invariants:check-all) clean; sync-gate wall-clock 0.776s (61.2% margin under <2s NFR budget). Seven preventative audit layers held ZERO-PATCH at dev-time (L1 regex + L2 AC↔Task coverage + L3 sprint-status + L4 cross-file convergence + L5 mechanical counter + L6 no-cascade-hash + L7 domain carve-out). Story State `atdd-scaffolded → in-dev`; BMad Status `ready-for-dev → review`; sprint-status `ready-for-dev → in-progress → review`. Next iter-92: `/bmad-testarch-trace (args: "yolo")` — TENTH cumulative WAIVED precedent candidate (Stories 1.7/1.8/1.9/1.10/1.11/1.12/1.13/1.14/1.15 → 1.16).
 - **v1.2** (2026-04-21 iter-90): `/bmad-testarch-atdd` hybrid ground-(c) variant-(ii)+(iii) ATDD-SKIP — FR14n matrix row 3 `validated → atdd-scaffolded`. **TENTH cumulative Epic-1 ATDD-skip precedent** (Stories 1.7 iter-14 + 1.8 iter-29 + 1.9 iter-36 + 1.10 iter-43 + 1.11 iter-50 + 1.12 iter-57 + 1.13 iter-64 + 1.14 iter-71 + 1.15 iter-83 → 1.16 iter-90). Skill preflight HALTs at Step 1.2 (no test runner — `vitest.config.*` / `jest.config.*` / `playwright.config.*` absent; landing is Epic 13 / post-Epic-1). Three-ground rationale grounded in Story 1.16's documentation-surface class (all 4 ACs explicitly scope-carved as DOCUMENTATION ACs per the story prose lines 21/30/32/39/48): **(a)** substrate-verification-covers-ACs at CLI-exit-code level — Task 7 substrate-verification-suite authors six smokes (`prettier --check` on both new MD files + manifest-load asserting 24 entries + `pnpm keel-invariants:check` clean exit + `INVARIANTS.md` regex for 2 new anchors + `AGENTS.md` regex for `## Fork extension (FR44)` H2 presence + `CLAUDE.md` regex for `INVARIANTS.fork.md` row in contract table + precedence keyword) that exercise ACs 1-4 end-to-end plus Story 1.9 sync-gate walker drift-detection on every commit via content-hash pinning (two new manifest entries `INV-fork-extension-rationale` + `INV-fork-invariants-scaffold`); **(b)** no-runner — framework prerequisite unmet (no vitest/jest/playwright configs authored at 1.0; Epic 13 delivers); **(c)** HYBRID variant-(ii)+(iii) — AC 4's runtime carve-out (Epic 15a's `create-keel-app --include-fork-invariants` flag defaulting `false` at 1.0) is DOWNSTREAM runtime-class behaviour owned by Epic 15a's CLI tests when that package is authored (variant ii); adversarial AC 1 + AC 2 + AC 3 coverage (ESLint-extend documentation fidelity + precedence-rule prose accuracy + amendment-vs-fork decision tree completeness + template-file shape integrity + CLAUDE.md contract-table row accuracy + manifest-entry description faithfulness) delegated to iter-94 `/bmad-code-review (args: "2")` three-layer fan-out (variant iii). Mirrors Story 1.14 iter-76 + Story 1.15 iter-83 v1.2 pattern exactly. No test-plan artefacts authored (variant-(ii)+(iii) substitution pattern — identical precedent-hold). Story State transitions `validated → atdd-scaffolded` via FR14n row 3.

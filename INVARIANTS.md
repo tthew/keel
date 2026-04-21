@@ -79,6 +79,13 @@ I7 version-pinning policy authored in `.github/renovate.json` + companion ration
 - **`INV-deps-version-pinning`**: .github/renovate.json — 4 packageRules (Vitest + @opentelemetry/\* + @radix-ui/\* + pg_uuidv7) with rangeStrategy pin + per-ecosystem groupName + automerge false.
 - **`INV-renovate-rationale`**: docs/invariants/renovate.md — I7 posture + per-package pinning rules table + grouping rationale + fork-extension guidance.
 
+### Fork extension (Story 1.16)
+
+FR44 ESLint-extend pattern (`eslint.config.fork.js` importing `@keel/keel-invariants/eslint`) + FR45 Growth-tier `INVARIANTS.fork.md` scaffold template; substrate-wins precedence via spread-at-end convention; fork operators opt into the Growth-tier scaffold manually at 1.0 (Epic 15a's `--include-fork-invariants` flag lands later).
+
+- **`INV-fork-extension-rationale`**: docs/invariants/fork.md — FR44 ESLint-extend pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold + substrate-wins precedence + amendment-vs-fork decision tree.
+- **`INV-fork-invariants-scaffold`**: packages/keel-invariants/templates/INVARIANTS.fork.md — Growth-tier fork-invariants template with H1 + § Precedence + § Fork invariants index + § Consumption + § Extension + commented FORK-\<fork-slug\>-\<category\>-\<slug\> naming example.
+
 ## Consumption
 
 - **Humans / AI agents:** read this file; cross-reference the listed source files for the machine-enforced form.

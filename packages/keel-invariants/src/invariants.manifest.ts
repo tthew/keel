@@ -221,6 +221,22 @@ const raw: Invariant[] = [
     contentHash: 'a18a353f3efc1496b208bf84bf5158daf72a0728ef1ada1b9976a300b7f81c56',
     anchors: ['INV-renovate-rationale'],
   },
+  {
+    id: 'INV-fork-extension-rationale',
+    description:
+      "Documentation-layer rationale for the FR44 fork-extension pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold — docs/invariants/fork.md; mirrors Story 1.10's INV-tokens-semantic-rationale + Story 1.14's INV-release-please-rationale + Story 1.15's INV-renovate-rationale pattern (companion doc to a machine-enforced substrate surface, drift-detected at the doc layer). Explains (a) the FR44 ESLint-extend pattern — forks author eslint.config.fork.js importing @keel/keel-invariants/eslint via the subpath export already declared at packages/keel-invariants/package.json:14, with spread-at-end convention for substrate-wins precedence, (b) the FR45 Growth-tier INVARIANTS.fork.md scaffold opt-in flow — fork operators copy packages/keel-invariants/templates/INVARIANTS.fork.md to their fork root + reference from their CLAUDE.md, (c) substrate-wins precedence rule + amendment-vs-fork decision tree (FORK / AMEND via Story 1.6 + 1.9 source-level path / DEFER), (d) Growth-tier opt-in — at 1.0 create-keel-app does NOT auto-create; Epic 15a's --include-fork-invariants flag lands downstream per AC 4. Companion to INV-fork-invariants-scaffold.",
+    sourcePath: 'docs/invariants/fork.md',
+    contentHash: 'be6f3d8919e7bb2b6258d768895d8a1e4d4a37c5fef95f5121f1ca878da192f2',
+    anchors: ['INV-fork-extension-rationale'],
+  },
+  {
+    id: 'INV-fork-invariants-scaffold',
+    description:
+      "Growth-tier INVARIANTS.fork.md scaffold template — packages/keel-invariants/templates/INVARIANTS.fork.md; fork-operator opt-in source for the fork-specific invariants surface (FR45). Ships a canonical template with H1 + § Precedence + § Fork invariants index + § Consumption + § Extension sections + a commented FORK-<fork-slug>-<category>-<slug> naming-convention example. Fork operators copy this file to their fork root (manual cp at 1.0; Epic 15a's create-keel-app --include-fork-invariants flag automates later per AC 4 downstream). Substrate-wins precedence rule pinned verbatim in the template's § Precedence section; fork rules ADD TO substrate rules but CANNOT override them (substrate-wins convention). Inert substrate until a fork operator opts in; static drift detected by Story 1.9 pre-merge sync-gate (FR43).",
+    sourcePath: 'packages/keel-invariants/templates/INVARIANTS.fork.md',
+    contentHash: '167ba6b2a8f1153df02f7e572b1d1e31415731493b0729415f6573cc1a696218',
+    anchors: ['INV-fork-invariants-scaffold'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));
