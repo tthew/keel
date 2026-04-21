@@ -99,10 +99,16 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 RUN npm install -g pnpm@10.29.2 \
  && pnpm --version
 
-# @anthropic-ai/claude-code globally — exact installed version captured in
-# VERSIONS.md; Renovate (Story 1.15) tracks npm version via custom manager.
-RUN npm install -g @anthropic-ai/claude-code \
- && claude --version || true
+# @anthropic-ai/claude-code globally — version pinned to the iter-123 first-bake
+# capture (`packages/devbox/VERSIONS.md § Bake log`). Renovate (Story 1.15)
+# tracks the npm datasource and raises PRs to bump the pin. The version probe
+# is scoped with a parenthesised `||` so a probe failure does not short-circuit
+# the pinned install: either `claude --version` succeeds (normal path) or we
+# emit a diagnostic to stderr while the RUN step stays exit-0 on `npm install`
+# success. Dropping the trailing `|| true` that previously masked a failed
+# install (CR fix AI-1, iter-129).
+RUN npm install -g @anthropic-ai/claude-code@2.1.116 \
+ && (claude --version || echo "claude version probe failed (install succeeded)" >&2)
 
 # ---------------------------------------------------------------------------
 # GitHub CLI (`gh`) via the official apt repository.

@@ -16,19 +16,19 @@ Update this file when a new image is baked.
 
 ## Baked at image-build (Dockerfile)
 
-| Tool                        | Pin / source                                        | Notes                                                                    |
-| --------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
-| Ubuntu base                 | `ubuntu:24.04`                                      | LTS support through April 2029.                                          |
-| Node.js                     | `20.x` via NodeSource `setup_20.x`                  | Exact minor recorded per bake; `engines.node` in root `package.json`.    |
-| pnpm                        | `10.29.2`                                           | Pinned to match root `package.json@packageManager`.                      |
-| `@anthropic-ai/claude-code` | _recorded-at-bake_                                  | `npm install -g`; Renovate `npm` manager tracks.                         |
-| GitHub CLI (`gh`)           | apt via `cli.github.com/packages`                   | Renovate `apt` manager tracks.                                           |
-| `uv` (Astral)               | _recorded-at-bake_                                  | Official installer; captures latest stable at bake.                      |
-| AWS CLI                     | v2 (arch-aware installer)                           | Refresh on every bake.                                                   |
-| Supabase CLI                | latest release `.deb` (arch-aware)                  | Arch-aware fallback; skipped if asset missing for host.                  |
-| git-delta                   | latest release `.deb` (arch-aware)                  | Fail-closed if asset missing (diff pager is mandatory for I8 workflows). |
-| Playwright OS deps          | `npx --yes playwright@latest install-deps` post-apt | Reconciles apt list with Playwright's current requirement set.           |
-| `postgresql-client`         | apt (Ubuntu 24.04 default)                          | Provides `psql` for Epic 6 Story 6.5 forward-compat.                     |
+| Tool                        | Pin / source                                          | Notes                                                                                       |
+| --------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Ubuntu base                 | `ubuntu:24.04`                                        | LTS support through April 2029.                                                             |
+| Node.js                     | `20.x` via NodeSource `setup_20.x`                    | Exact minor recorded per bake; `engines.node` in root `package.json`.                       |
+| pnpm                        | `10.29.2`                                             | Pinned to match root `package.json@packageManager`.                                         |
+| `@anthropic-ai/claude-code` | `2.1.116` (iter-128 CR-pinned; iter-123 bake capture) | `npm install -g @anthropic-ai/claude-code@2.1.116`; Renovate `npm` manager tracks bump PRs. |
+| GitHub CLI (`gh`)           | apt via `cli.github.com/packages`                     | Renovate `apt` manager tracks.                                                              |
+| `uv` (Astral)               | _recorded-at-bake_                                    | Official installer; captures latest stable at bake.                                         |
+| AWS CLI                     | v2 (arch-aware installer)                             | Refresh on every bake.                                                                      |
+| Supabase CLI                | latest release `.deb` (arch-aware)                    | Arch-aware fallback; skipped if asset missing for host.                                     |
+| git-delta                   | latest release `.deb` (arch-aware)                    | Fail-closed if asset missing (diff pager is mandatory for I8 workflows).                    |
+| Playwright OS deps          | `npx --yes playwright@latest install-deps` post-apt   | Reconciles apt list with Playwright's current requirement set.                              |
+| `postgresql-client`         | apt (Ubuntu 24.04 default)                            | Provides `psql` for Epic 6 Story 6.5 forward-compat.                                        |
 
 ## Epic 6 forward-compatibility roster (Story 2.1 AC 3 Dev Note)
 
@@ -41,6 +41,22 @@ so the Epic 6 landing requires **no image rebuild**:
   `/workspace` and needs no image changes.
 
 ## Bake log
+
+- **2026-04-21 (iter-129)** — **Dockerfile pin hardening (CR fix AI-1).** Not a
+  bake; captures a Dockerfile edit landing in Story 2.1 review cycle.
+  - `packages/devbox/Dockerfile:104-105` (pre-edit line range) — replaced the
+    unpinned `npm install -g @anthropic-ai/claude-code` with the pinned
+    `npm install -g @anthropic-ai/claude-code@2.1.116` based on the iter-123
+    first-bake capture. Rationale: unpinned runtime tool drifts across bakes;
+    Renovate (Story 1.15) raises bump PRs so the pin advances deliberately.
+  - Same line pair — replaced the ambiguous `&& claude --version || true`
+    (which masked a failed `npm install` because `|| true` applied to the whole
+    `&& …` chain in shell-form) with the parenthesised
+    `&& (claude --version || echo "claude version probe failed (install succeeded)" >&2)`
+    so install failures surface as RUN exit-1 while probe flakiness stays a
+    diagnostic. Rationale: CR AI-1 High verdict at iter-128.
+  - Next bake re-verifies the pin resolves. Version-matrix table above already
+    reflects the pinned value.
 
 - **2026-04-21 (iter-123)** — **First successful image bake.** Safe-subset path
   (`docker compose build` only — no broad prune) on backend B
