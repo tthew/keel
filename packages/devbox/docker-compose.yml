@@ -7,7 +7,12 @@
 #   - Story 2.2 : parameterise resource knobs (cpus / mem_limit / shm_size /
 #                 ulimits / ports / platform) via `.envrc`-sourced env vars;
 #                 wire `.envrc.example`. LANDED iter-148.
-#   - Story 2.3 : add nftables / dnsmasq sidecar services for egress policy.
+#   - Story 2.3 : in-container dnsmasq + nftables egress policy via
+#                 entrypoint-invoked scripts/start-egress.sh; cap_add
+#                 NET_ADMIN / NET_RAW; templates under dnsmasq/ + nftables/
+#                 and scripts under scripts/{start,reload,monitor,egress-log-tailer}.sh.
+#                 No sidecar service — dnsmasq is the in-container DNS authority
+#                 per AC 1 verbatim. LANDED iter-<this>.
 #   - Story 2.5 : harden (non-root user, cap_drop, no-new-privileges, tmpfs
 #                 noexec/nosuid).
 #   - Story 2.8 / 2.9 : OAuth named-volume mounts (/home/dev/.claude,
@@ -83,6 +88,16 @@ services:
       - '127.0.0.1:${KEEL_DEVBOX_PORT_API:-3001}:3001'
       - '127.0.0.1:${KEEL_DEVBOX_PORT_STORYBOOK:-6006}:6006'
       - '127.0.0.1:${KEEL_DEVBOX_PORT_VITE_HMR:-24679}:24679'
+    # Story 2.3: Linux capabilities required for in-container egress policy.
+    # NET_ADMIN lets nftables load rules via netlink; NET_RAW covers raw-socket
+    # probes dnsmasq may use. CAP_NET_BIND_SERVICE (port 53 bind) is implicit
+    # while the container still runs as root; once Story 2.5 adds `cap_drop:
+    # [ALL]` + `user: dev`, this list may need NET_BIND_SERVICE added and/or
+    # dnsmasq bound before the user switch. See Story 2.3 Dev Notes §
+    # User-account timeline for the Story 2.5 handoff decision.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     # TODO(Story 2.5): tmpfs mount stanzas consuming KEEL_DEVBOX_TMPFS_{TMP,VARTMP,LOGS}_MB with noexec,nosuid.
     # TODO(Story 2.5): non-root hardening stanza: user: "dev", cap_drop: [ALL], security_opt: [no-new-privileges:true].
     # TODO(Story 2.11): shared-workspace mode flip via KEEL_DEVBOX_SHARED=true.

@@ -1,0 +1,9 @@
+# packages/devbox/whitelist/anthropic.txt — Story 2.3 (Task 2.2)
+#
+# Anthropic API allow-list fragment. Required for `claude -p` subprocess
+# (Ralph loop per Epic 3) + Claude Code CLI (@anthropic-ai/claude-code) +
+# Statsig feature-flag eval baked into Claude Code.
+
+api.anthropic.com
+console.anthropic.com
+statsig.anthropic.com

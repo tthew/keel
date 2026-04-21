@@ -16,13 +16,13 @@ hardening, OAuth, lifecycle CLI, and healthchecks.
 
 ## M0.5 deliverables status
 
-| #   | Deliverable                                        | Landed in       | Status   |
-| --- | -------------------------------------------------- | --------------- | -------- |
-| a   | Devbox image (Ubuntu 24.04 LTS, baked toolchain)   | Story 2.1       | landing  |
-| b   | Compose file + workspace mount                     | Story 2.1       | landing  |
-| c   | Entrypoint narrowed, zero runtime network installs | Story 2.1       | landing  |
-| d   | Egress policy fix (dnsmasq + nftables + whitelist) | Story 2.3 / 2.4 | deferred |
-| e   | `pnpm devbox:*` lifecycle bridge                   | Story 2.6       | deferred |
+| #   | Deliverable                                        | Landed in       | Status                                                                            |
+| --- | -------------------------------------------------- | --------------- | --------------------------------------------------------------------------------- |
+| a   | Devbox image (Ubuntu 24.04 LTS, baked toolchain)   | Story 2.1       | landing                                                                           |
+| b   | Compose file + workspace mount                     | Story 2.1       | landing                                                                           |
+| c   | Entrypoint narrowed, zero runtime network installs | Story 2.1       | landing                                                                           |
+| d   | Egress policy fix (dnsmasq + nftables + whitelist) | Story 2.3 / 2.4 | ~~deferred~~ _(Story 2.3 landed iter-158; Story 2.4 whitelist CLI still pending)_ |
+| e   | `pnpm devbox:*` lifecycle bridge                   | Story 2.6       | deferred                                                                          |
 
 ## Ubuntu 24.04 LTS pin rationale
 
@@ -196,6 +196,71 @@ source is GitHub repo → Settings → Secrets and variables → Actions;
 `.secrets` mirrors that set locally. Pre-merge-fast CI runs with ZERO
 external secrets — the `.secrets` file is consumed only in the
 pre-merge-slow / nightly / release-gated tiers (Epic 13).
+
+## Egress policy (Story 2.3)
+
+### Overview
+
+The devbox enforces a fail-closed egress posture via two cooperating in-container layers (belt-and-braces per `architecture.md § S5` and `docs/invariants/devbox-egress.md`):
+
+- **dnsmasq** — DNS authority bound to `127.0.0.1:53`; default `address=/#/` returns `0.0.0.0`/`::` for every domain; explicit `server=/<domain>/${KEEL_DEVBOX_DNS_UPSTREAM}` entries forward whitelisted domains to the operator-chosen upstream (default `1.1.1.1`).
+- **nftables** — `inet keel_egress` table with `output_v4` + `output_v6` chains both `policy drop`. Layer-3 default-deny in both families closes upstream cc-devbox's IPv6 bypass.
+
+If dnsmasq fails to start, `entrypoint.sh` fails the container — there is no silent-allow path (NFR6).
+
+### Files
+
+| Path                                                   | Role                                                                |
+| ------------------------------------------------------ | ------------------------------------------------------------------- |
+| `packages/devbox/whitelist.default.txt`                | Substrate-baseline domain list (empty at 1.0; comment header only). |
+| `packages/devbox/whitelist/{npm,anthropic,github}.txt` | Category fragments covering the required substrate egress surface.  |
+| `packages/devbox/nftables/egress.nft`                  | nftables ruleset template; marker block replaced at reload time.    |
+| `packages/devbox/dnsmasq/dnsmasq.conf`                 | dnsmasq config template; marker block replaced at reload time.      |
+| `packages/devbox/scripts/start-egress.sh`              | Entrypoint helper — one-shot bootstrap + first reload + tailer.     |
+| `packages/devbox/scripts/reload-egress.sh`             | Atomic reload primitive (flock + `nft -f` + `kill -HUP`).           |
+| `packages/devbox/scripts/egress-log-tailer.sh`         | Background JSONL emitter + 50 MB rotation (5 gzip generations).     |
+| `packages/devbox/scripts/monitor.sh`                   | Operator-facing live `tail -F` via `jq -c`.                         |
+
+### Verification
+
+The following checks run on an operator workstation (backend-A native or M4-Pro) against a baked + started container. Backend-B iteration environments cannot exercise `nft` / full DNS round-trip — the `docker exec …` invocations below are the canonical smokes.
+
+```sh
+# IPv4/IPv6 parity (AC 2, SC-7 verbatim)
+docker exec keel-devbox nft list chain inet keel_egress output_v4 | grep -q 'policy drop'
+docker exec keel-devbox nft list chain inet keel_egress output_v6 | grep -q 'policy drop'
+
+# resolv.conf pinned (AC 1)
+docker exec keel-devbox cat /etc/resolv.conf
+# Expect nameserver 127.0.0.1 + options edns0 single-request-reopen.
+
+# Fail-closed unwhitelisted smoke (AC 5)
+docker exec keel-devbox curl -m 3 -sSf https://example-unwhitelisted.invalid
+# Expect non-zero exit; stderr "Could not resolve host" / timeout.
+
+# JSONL schema round-trip (AC 3)
+docker exec keel-devbox tail -n 1 /workspace/logs/egress-queries.jsonl | jq -e '
+  has("timestamp") and has("query") and has("type") and
+  has("result") and has("upstream") and has("client")'
+```
+
+### Reload
+
+```sh
+# Atomic reload against the composed whitelist (Story 2.4 later wraps this as `pnpm devbox:whitelist sync`):
+docker exec keel-devbox /workspace/packages/devbox/scripts/reload-egress.sh /run/keel-whitelist.composed.txt
+
+# Live-tail the JSONL query log:
+docker exec -it keel-devbox /workspace/packages/devbox/scripts/monitor.sh
+```
+
+`reload-egress.sh` serialises concurrent reloads via `flock -x /run/keel-egress.lock` (10 s timeout → exit 4); applies the nftables ruleset via a single `nft -f <tempfile>` kernel transaction (failure → exit 5, previous ruleset stays active); reloads dnsmasq via `kill -HUP <pid>` (fallback `pkill -HUP dnsmasq`; failure → exit 7 — fallible seam per SC-5 residual risk).
+
+### Known upstream bugs fixed
+
+1. **Divergent whitelist tooling** — upstream shipped two independent reload paths (`manage-whitelist.sh` + `whitelist`) with different state; Story 2.3 collapses onto a single `reload-egress.sh` primitive.
+2. **Fail-open `/etc/resolv.conf` fallback to `8.8.8.8`** — upstream leaked queries to public DNS when dnsmasq was slow; Story 2.3 pins `resolv.conf` to `nameserver 127.0.0.1` only.
+3. **IPv6 default-deny gap** — upstream only blocked IPv4; Story 2.3 adds `address=/#/::` + `chain output_v6 { policy drop }` for full parity.
 
 ## cc-devbox upstream provenance
 

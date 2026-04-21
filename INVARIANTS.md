@@ -93,6 +93,12 @@ Docker-in-Docker as a fork-time substrate requirement: every Ralph iteration env
 
 - **`INV-devbox-dind-available`** — Ralph iteration environment provides `docker` on PATH + reachable daemon (`/var/run/docker.sock` canonical; remote transport permitted) + `docker compose` subcommand. Canonical install path: `docs.docker.com/engine/install/ubuntu/` against the cc-devbox `FROM ubuntu:24.04` base. Does NOT change NFR2 authority — M4-Pro native remains authoritative; DinD entries land in README § Benchmarks flagged `modelled indicative baseline`. Source: `docs/invariants/devbox-dind.md`.
 
+### Devbox egress (Story 2.3)
+
+Fail-closed DNS (dnsmasq) + IPv4/IPv6 default-deny (nftables) + atomic reload consolidated into one substrate-authoritative invariant. Closes upstream cc-devbox's divergent-whitelist + fail-open-resolv.conf + IPv6-gap bugs. JSONL query log at `/workspace/logs/egress-queries.jsonl` with 6-field stable schema is the FR37 (Epic 4) security-evidence consumer contract.
+
+- **`INV-devbox-egress-contract`** — Fail-closed DNS + IPv4/IPv6 parity + atomic reload; JSONL query log schema is append-only stable. Source: `docs/invariants/devbox-egress.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

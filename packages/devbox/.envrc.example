@@ -40,6 +40,9 @@ KEEL_DEVBOX_PORT_VITE_HMR=24679      # Vite HMR websocket (Storybook + local dev
 KEEL_DEVBOX_SSH=false                # Opt-in sshd + port 2222 publication. Active Story 2.12; Story 2.2 publishes the knob only.
 KEEL_DEVBOX_SHARED=false             # false = per-fork mount (default); true = shared-workspace mount. Active Story 2.11; Story 2.2 publishes the knob only.
 
+# --- Egress policy (Story 2.3) ---
+KEEL_DEVBOX_DNS_UPSTREAM=1.1.1.1     # Upstream resolver for whitelisted domains. Cloudflare default; operator may retune to corporate resolver. Consumed by packages/devbox/scripts/reload-egress.sh.
+
 # --- Substrate knobs (Story 2.1 pre-existing; override per-worktree / per-fork) ---
 # KEEL_DEVBOX_CONTAINER_NAME=keel-devbox          # Container name. Override when running parallel worktrees / forks against a shared host daemon (backend B per INV-devbox-dind-available).
 # KEEL_DEVBOX_WORKSPACE=../..                     # Workspace mount source path (relative to packages/devbox/docker-compose.yml). Story 2.11 flips this to the shared-workspace path when KEEL_DEVBOX_SHARED=true.

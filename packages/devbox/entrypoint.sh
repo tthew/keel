@@ -98,6 +98,18 @@ for dir in /home/dev/.claude /home/dev/.config/gh; do
   rm -f "${chown_err}"
 done
 
+# Story 2.3: fail-closed egress policy (dnsmasq + nftables). Hard-fail if init
+# fails so the container cannot run without an active policy (NFR6; see
+# docs/invariants/devbox-egress.md § Intent). The script is bind-mounted via
+# /workspace so edits propagate without a rebuild; the absolute path is
+# stable because the compose bind-mount target is pinned at /workspace.
+if [ -x /workspace/packages/devbox/scripts/start-egress.sh ]; then
+  /workspace/packages/devbox/scripts/start-egress.sh
+else
+  echo "entrypoint: FATAL: start-egress.sh not executable; fail-closed posture requires egress init" >&2
+  exit 1
+fi
+
 # Hand off to the compose CMD (defaults to `sleep infinity`). Using `exec`
 # preserves PID 1 for the supplied process so docker-compose signals
 # (SIGTERM / SIGINT) land on the service, not on bash.

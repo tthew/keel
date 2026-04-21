@@ -1,0 +1,83 @@
+# packages/devbox/nftables/egress.nft — Story 2.3 (AC 2, SC-7)
+#
+# Single-file atomic-reload source for the container's egress policy.
+# Rendered at reload time by scripts/reload-egress.sh into a tempfile with the
+# `KEEL_EGRESS_ALLOWLIST_MARKER_{START,END}` region replaced by resolved
+# `ip daddr <ipv4> accept` / `ip6 daddr <ipv6> accept` rules derived from the
+# composed whitelist, then applied via `nft -f <tempfile>` — a single kernel
+# atomic transaction (SC-5). DO NOT split into multiple `.nft` files.
+#
+# Family: inet (covers both ipv4 + ipv6 via `meta nfproto` match). Upstream
+# cc-devbox split by-family rulesets and left IPv6 at the kernel default
+# (accept) — Story 2.3 closes that with explicit IPv6 policy drop + AAAA
+# whitelist rules in output_v6.
+#
+# Verification (SC-7 verbatim, backend-B operator-workstation deferred):
+#   nft list chain inet keel_egress output_v4 | grep -q 'policy drop'
+#   nft list chain inet keel_egress output_v6 | grep -q 'policy drop'
+
+flush table inet keel_egress
+
+table inet keel_egress {
+	# ----------------------------------------------------------------------
+	# IPv4 egress filter — default drop, explicit allow-list.
+	#
+	# Chain scope: in an `inet`-family table with `hook output`, a packet
+	# from either family traverses EVERY hooked chain at this priority. The
+	# first rule short-circuits non-IPv4 traffic with `accept` so the
+	# per-chain `policy drop` only fires against IPv4 packets that match no
+	# subsequent rule — IPv6 traffic is the `output_v6` chain's responsibility.
+	# ----------------------------------------------------------------------
+	chain output_v4 {
+		type filter hook output priority 0; policy drop;
+
+		# Scope: only IPv4 is evaluated here. Non-IPv4 packets pass through
+		# to the next chain unchanged.
+		meta nfproto != ipv4 accept
+
+		# Loopback traffic (to 127.0.0.0/8 — includes dnsmasq on 127.0.0.1:53).
+		oif lo accept
+		ip daddr 127.0.0.0/8 accept
+
+		# Established/related: in-flight connections survive the atomic reload
+		# because the new ruleset's conntrack accept rule continues matching
+		# packets already associated with a flow (kernel conntrack state is
+		# preserved across `nft -f` transactions).
+		ct state established,related accept
+
+		# DNS replies from our own dnsmasq back to clients inside the container.
+		udp sport 53 ip saddr 127.0.0.1 accept
+
+		# KEEL_EGRESS_ALLOWLIST_MARKER_START
+		# (reload-egress.sh injects `ip daddr <resolved-ipv4> accept` rules here)
+		# KEEL_EGRESS_ALLOWLIST_MARKER_END
+	}
+
+	# ----------------------------------------------------------------------
+	# IPv6 egress filter — default drop (closes upstream's IPv6 bypass gap),
+	# explicit allow-list. Parity with output_v4 per AC 2.
+	# ----------------------------------------------------------------------
+	chain output_v6 {
+		type filter hook output priority 0; policy drop;
+
+		# Scope: only IPv6 is evaluated here. Non-IPv6 packets short-circuit
+		# to accept (they're output_v4's responsibility).
+		meta nfproto != ipv6 accept
+
+		oif lo accept
+		ip6 daddr ::1 accept
+
+		ct state established,related accept
+
+		# DNS replies from ::1 (dnsmasq is also bound on ::1:53).
+		udp sport 53 ip6 saddr ::1 accept
+
+		# IPv6 Neighbour Discovery — required for ICMPv6 RS/RA/NS/NA so the
+		# kernel's IPv6 stack remains functional under a default-drop policy.
+		icmpv6 type { nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# KEEL_EGRESS_ALLOWLIST_MARKER_START
+		# (reload-egress.sh injects `ip6 daddr <resolved-ipv6> accept` rules here)
+		# KEEL_EGRESS_ALLOWLIST_MARKER_END
+	}
+}

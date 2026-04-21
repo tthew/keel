@@ -53,6 +53,8 @@ RUN apt-get update \
       procps \
       iproute2 \
       dnsutils \
+      dnsmasq \
+      nftables \
       netcat-openbsd \
       openssh-client \
       vim \

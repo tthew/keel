@@ -254,6 +254,14 @@ const raw: Invariant[] = [
     anchors: ['INV-devbox-dind-available'],
   },
   {
+    id: 'INV-devbox-egress-contract',
+    description:
+      'Fail-closed DNS (dnsmasq, default address=/#/ returns 0.0.0.0/::) + IPv4/IPv6 default-deny (nftables inet keel_egress table with output_v4 + output_v6 chains both `policy drop`) + atomic reload (flock + nft -f kernel transaction + dnsmasq SIGHUP). Closes upstream cc-devbox bugs: divergent whitelist tooling (single reload-egress.sh primitive), fail-open resolv.conf fallback to 8.8.8.8 (pinned to 127.0.0.1 only), IPv6 default-deny gap (both families covered). JSONL query log at /workspace/logs/egress-queries.jsonl with 6-field stable schema (timestamp/query/type/result/upstream/client) + 50 MB size-based rotation (5 gzip generations). Source consolidation: one contentHash-bound doc gates the three sub-contracts together so drift surfaces at a single sync-gate target (rationale: Story 2.2 iter-151 AR-2 allow-list asymmetry lesson — splitting contracts across manifest entries grew asymmetry risk).',
+    sourcePath: 'docs/invariants/devbox-egress.md',
+    contentHash: 'aad16a51aa1dc7527c0312e6b99217966d7f3f3478fb677dd347792e9cb6889b',
+    anchors: ['INV-devbox-egress-contract'],
+  },
+  {
     id: 'INV-gitignored-secret-commit-deny',
     description:
       'Pre-commit hook refuses additions of .envrc, .envrc.local, and .secrets at any path. ' +

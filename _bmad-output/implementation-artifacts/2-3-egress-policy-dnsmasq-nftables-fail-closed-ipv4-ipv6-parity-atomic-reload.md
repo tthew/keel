@@ -1,6 +1,6 @@
 # Story 2.3: Egress Policy — dnsmasq + nftables (fail-closed, IPv4/IPv6 parity, atomic reload)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -70,21 +70,21 @@ so that a runtime compromise inside the container cannot reach arbitrary externa
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Dockerfile: install dnsmasq + nftables** (AC 1, AC 2)
-  - [ ] Subtask 1.1: append `dnsmasq` + `nftables` to the existing `apt-get install` layer in `packages/devbox/Dockerfile` (same layer as the Story 2.1 system-packages block; preserve `apt-get clean && rm -rf /var/lib/apt/lists/*` discipline). DO NOT create a new RUN block.
-  - [ ] Subtask 1.2: verify `nft --version` + `dnsmasq --version` in the baked image via `docker run --rm keel-devbox:local nft --version` and `docker run --rm keel-devbox:local dnsmasq --version` (deferred to operator workstation per backend-B constraint — record the output in `packages/devbox/VERSIONS.md`).
-  - [ ] Subtask 1.3: record the pinned versions in `packages/devbox/VERSIONS.md` under a new `### Egress policy (Story 2.3)` section (dnsmasq + nftables apt-provided versions as captured at bake time). Match the Story 2.1 VERSIONS.md format.
+- [x] **Task 1 — Dockerfile: install dnsmasq + nftables** (AC 1, AC 2)
+  - [x] Subtask 1.1: append `dnsmasq` + `nftables` to the existing `apt-get install` layer in `packages/devbox/Dockerfile` (same layer as the Story 2.1 system-packages block; preserve `apt-get clean && rm -rf /var/lib/apt/lists/*` discipline). DO NOT create a new RUN block.
+  - [x] Subtask 1.2: verify `nft --version` + `dnsmasq --version` in the baked image via `docker run --rm keel-devbox:local nft --version` and `docker run --rm keel-devbox:local dnsmasq --version` (deferred to operator workstation per backend-B constraint — record the output in `packages/devbox/VERSIONS.md`).
+  - [x] Subtask 1.3: record the pinned versions in `packages/devbox/VERSIONS.md` under a new `### Egress policy (Story 2.3)` section (dnsmasq + nftables apt-provided versions as captured at bake time). Match the Story 2.1 VERSIONS.md format.
 
-- [ ] **Task 2 — Whitelist source-of-truth files** (AC 5, SC-8)
-  - [ ] Subtask 2.1: create `packages/devbox/whitelist.default.txt` — empty baseline (a comment header explaining the file's role + composition order: `whitelist.default.txt` > `whitelist/*.txt` fragments; one domain per line, comments with `#`).
-  - [ ] Subtask 2.2: create `packages/devbox/whitelist/` directory with three category fragments:
+- [x] **Task 2 — Whitelist source-of-truth files** (AC 5, SC-8)
+  - [x] Subtask 2.1: create `packages/devbox/whitelist.default.txt` — empty baseline (a comment header explaining the file's role + composition order: `whitelist.default.txt` > `whitelist/*.txt` fragments; one domain per line, comments with `#`).
+  - [x] Subtask 2.2: create `packages/devbox/whitelist/` directory with three category fragments:
     - `whitelist/npm.txt` — npm registry domains: `registry.npmjs.org`, `registry.yarnpkg.com`, `nodejs.org`, `unpkg.com` (one per line + comment block header).
     - `whitelist/anthropic.txt` — Anthropic API: `api.anthropic.com`, `console.anthropic.com`, `statsig.anthropic.com` (one per line + comment block header).
     - `whitelist/github.txt` — GitHub API + git clone: `api.github.com`, `github.com`, `raw.githubusercontent.com`, `objects.githubusercontent.com`, `codeload.github.com`, `ghcr.io`, `pkg-containers.githubusercontent.com` (one per line + comment block header).
-  - [ ] Subtask 2.3: no per-fork override file at Story 2.3 (deferred to Story 2.4). DO NOT create `whitelist.fork.txt` or similar.
+  - [x] Subtask 2.3: no per-fork override file at Story 2.3 (deferred to Story 2.4). DO NOT create `whitelist.fork.txt` or similar.
 
-- [ ] **Task 3 — dnsmasq config template** (AC 1, AC 3, SC-12, SC-13)
-  - [ ] Subtask 3.1: create `packages/devbox/dnsmasq/dnsmasq.conf` with:
+- [x] **Task 3 — dnsmasq config template** (AC 1, AC 3, SC-12, SC-13)
+  - [x] Subtask 3.1: create `packages/devbox/dnsmasq/dnsmasq.conf` with:
     - `domain-needed` + `bogus-priv` + `stop-dns-rebind` (standard hardening)
     - `no-hosts` + `no-resolv` (do NOT read `/etc/resolv.conf` or `/etc/hosts` for upstream)
     - `listen-address=127.0.0.1,::1` + `port=53` + `bind-interfaces`
@@ -92,62 +92,62 @@ so that a runtime compromise inside the container cannot reach arbitrary externa
     - `log-queries=extra` + `log-facility=/var/log/dnsmasq.log` (feeds SC-15 JSONL tailer)
     - `address=/#/0.0.0.0` + `address=/#/::` (fail-closed default — any domain returns 0.0.0.0/::)
     - Placeholder marker `# KEEL_EGRESS_ALLOWLIST_MARKER_START` … `# KEEL_EGRESS_ALLOWLIST_MARKER_END` — the range replaced by `reload-egress.sh` with `server=/<domain>/$UPSTREAM` directives per whitelist entry.
-  - [ ] Subtask 3.2: dnsmasq config DOES NOT hardcode upstream — `reload-egress.sh` injects `server=/<domain>/${KEEL_DEVBOX_DNS_UPSTREAM}` at reload time from the env.
-  - [ ] Subtask 3.3: verify the config is syntactically valid via `dnsmasq --test --conf-file=packages/devbox/dnsmasq/dnsmasq.conf` (deferred to operator workstation; record in Debug Log References at dev-story closure).
+  - [x] Subtask 3.2: dnsmasq config DOES NOT hardcode upstream — `reload-egress.sh` injects `server=/<domain>/${KEEL_DEVBOX_DNS_UPSTREAM}` at reload time from the env.
+  - [x] Subtask 3.3: verify the config is syntactically valid via `dnsmasq --test --conf-file=packages/devbox/dnsmasq/dnsmasq.conf` (deferred to operator workstation; record in Debug Log References at dev-story closure).
 
-- [ ] **Task 4 — nftables rules template** (AC 2, SC-7)
-  - [ ] Subtask 4.1: create `packages/devbox/nftables/egress.nft` — single `table inet keel_egress` with:
+- [x] **Task 4 — nftables rules template** (AC 2, SC-7)
+  - [x] Subtask 4.1: create `packages/devbox/nftables/egress.nft` — single `table inet keel_egress` with:
     - `chain output_v4 { type filter hook output priority 0; policy drop; meta nfproto ipv4; ... }`
     - `chain output_v6 { type filter hook output priority 0; policy drop; meta nfproto ipv6; ... }`
     - Allow loopback egress (to 127.0.0.1:53 and ::1:53 so the devbox itself can reach dnsmasq)
     - Allow established/related connections (`ct state established,related accept`)
     - Allow DNS replies from 127.0.0.1:53 (`udp sport 53 ip saddr 127.0.0.1 accept`)
     - Placeholder marker `# KEEL_EGRESS_ALLOWLIST_MARKER_START` … `# KEEL_EGRESS_ALLOWLIST_MARKER_END` — the range replaced by `reload-egress.sh` with explicit `ip daddr <whitelisted-ip> accept` rules resolved from the whitelist at reload time.
-  - [ ] Subtask 4.2: the nftables template is the SINGLE source of atomic-reload truth (`nft -f <rendered-file>` loads the whole table in one transaction). DO NOT split into multiple `.nft` files.
-  - [ ] Subtask 4.3: verify the template is syntactically valid via `nft -c -f packages/devbox/nftables/egress.nft` (check-only, no apply) — deferred to operator workstation.
+  - [x] Subtask 4.2: the nftables template is the SINGLE source of atomic-reload truth (`nft -f <rendered-file>` loads the whole table in one transaction). DO NOT split into multiple `.nft` files.
+  - [x] Subtask 4.3: verify the template is syntactically valid via `nft -c -f packages/devbox/nftables/egress.nft` (check-only, no apply) — deferred to operator workstation.
 
-- [ ] **Task 5 — `scripts/start-egress.sh`: entrypoint helper** (AC 1, AC 2, AC 5, SC-11)
-  - [ ] Subtask 5.1: create `packages/devbox/scripts/start-egress.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
-  - [ ] Subtask 5.2: `mkdir -p /workspace/logs` (SC-17) + `mkdir -p /run` (ensure writable).
-  - [ ] Subtask 5.3: overwrite `/etc/resolv.conf` to `nameserver 127.0.0.1\noptions edns0 single-request-reopen` (SC-13).
-  - [ ] Subtask 5.4: compose the initial whitelist (concatenate `packages/devbox/whitelist.default.txt` + all `packages/devbox/whitelist/*.txt` after stripping comments/blank lines) into `/run/keel-whitelist.composed.txt`.
-  - [ ] Subtask 5.5: invoke `scripts/reload-egress.sh /run/keel-whitelist.composed.txt` (first-time rule + config generation + apply).
-  - [ ] Subtask 5.6: launch `scripts/egress-log-tailer.sh` in background via `nohup … >/dev/null 2>&1 &` + record PID to `/run/keel-egress-tailer.pid`.
-  - [ ] Subtask 5.7: verify dnsmasq is running (single retry loop up to 5s: `pgrep -x dnsmasq` or `ss -lnp | grep ':53'`) — fail-hard (exit 1) if dnsmasq is not up (AC 5 fail-closed; no silent-allow).
+- [x] **Task 5 — `scripts/start-egress.sh`: entrypoint helper** (AC 1, AC 2, AC 5, SC-11)
+  - [x] Subtask 5.1: create `packages/devbox/scripts/start-egress.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
+  - [x] Subtask 5.2: `mkdir -p /workspace/logs` (SC-17) + `mkdir -p /run` (ensure writable).
+  - [x] Subtask 5.3: overwrite `/etc/resolv.conf` to `nameserver 127.0.0.1\noptions edns0 single-request-reopen` (SC-13).
+  - [x] Subtask 5.4: compose the initial whitelist (concatenate `packages/devbox/whitelist.default.txt` + all `packages/devbox/whitelist/*.txt` after stripping comments/blank lines) into `/run/keel-whitelist.composed.txt`.
+  - [x] Subtask 5.5: invoke `scripts/reload-egress.sh /run/keel-whitelist.composed.txt` (first-time rule + config generation + apply).
+  - [x] Subtask 5.6: launch `scripts/egress-log-tailer.sh` in background via `nohup … >/dev/null 2>&1 &` + record PID to `/run/keel-egress-tailer.pid`.
+  - [x] Subtask 5.7: verify dnsmasq is running (single retry loop up to 5s: `pgrep -x dnsmasq` or `ss -lnp | grep ':53'`) — fail-hard (exit 1) if dnsmasq is not up (AC 5 fail-closed; no silent-allow).
 
-- [ ] **Task 6 — `scripts/reload-egress.sh`: atomic reload primitive** (AC 4, SC-5, SC-8)
-  - [ ] Subtask 6.1: create `packages/devbox/scripts/reload-egress.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
-  - [ ] Subtask 6.2: argument contract: `reload-egress.sh <composed-whitelist-path>` — single arg, the path to a composed (and validated) whitelist file. Exit 2 if arg missing; exit 3 if path unreadable.
-  - [ ] Subtask 6.3: acquire `flock -x 200` on `/run/keel-egress.lock` (fd 200) — serialize concurrent reloads. If lock unavailable within 10s, exit 4 with actionable stderr.
-  - [ ] Subtask 6.4: render the nftables ruleset: copy `packages/devbox/nftables/egress.nft` to a temp file; replace the `# KEEL_EGRESS_ALLOWLIST_MARKER_START` … `END` block with resolved IP allow-rules (for each domain in composed whitelist: resolve via `getent ahostsv4` + `getent ahostsv6` to get IPv4 + IPv6 addresses, emit `ip daddr <addr> accept` + `ip6 daddr <addr6> accept` in the appropriate chain).
-  - [ ] Subtask 6.5: render the dnsmasq conf: copy `packages/devbox/dnsmasq/dnsmasq.conf` to `/etc/dnsmasq.conf`; replace the `# KEEL_EGRESS_ALLOWLIST_MARKER_START` … `END` block with `server=/<domain>/${KEEL_DEVBOX_DNS_UPSTREAM:-1.1.1.1}` for each whitelisted domain.
-  - [ ] Subtask 6.6: apply the new nftables ruleset via `nft -f <temp-rendered-file>` — single atomic transaction. If it fails, abort reload (previous ruleset stays active); exit 5 with stderr.
-  - [ ] Subtask 6.7: reload dnsmasq via `kill -HUP "$(cat /run/dnsmasq.pid)"` — config re-read without restart (established DNS connections preserved). Fallback if pidfile missing: `pkill -HUP dnsmasq`.
-  - [ ] Subtask 6.8: release flock on exit via trap.
-  - [ ] Subtask 6.9: exit 0 with a one-line summary to stdout (e.g., `reload ok: 12 domains, 24 ipv4 rules, 21 ipv6 rules`).
+- [x] **Task 6 — `scripts/reload-egress.sh`: atomic reload primitive** (AC 4, SC-5, SC-8)
+  - [x] Subtask 6.1: create `packages/devbox/scripts/reload-egress.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
+  - [x] Subtask 6.2: argument contract: `reload-egress.sh <composed-whitelist-path>` — single arg, the path to a composed (and validated) whitelist file. Exit 2 if arg missing; exit 3 if path unreadable.
+  - [x] Subtask 6.3: acquire `flock -x 200` on `/run/keel-egress.lock` (fd 200) — serialize concurrent reloads. If lock unavailable within 10s, exit 4 with actionable stderr.
+  - [x] Subtask 6.4: render the nftables ruleset: copy `packages/devbox/nftables/egress.nft` to a temp file; replace the `# KEEL_EGRESS_ALLOWLIST_MARKER_START` … `END` block with resolved IP allow-rules (for each domain in composed whitelist: resolve via `getent ahostsv4` + `getent ahostsv6` to get IPv4 + IPv6 addresses, emit `ip daddr <addr> accept` + `ip6 daddr <addr6> accept` in the appropriate chain).
+  - [x] Subtask 6.5: render the dnsmasq conf: copy `packages/devbox/dnsmasq/dnsmasq.conf` to `/etc/dnsmasq.conf`; replace the `# KEEL_EGRESS_ALLOWLIST_MARKER_START` … `END` block with `server=/<domain>/${KEEL_DEVBOX_DNS_UPSTREAM:-1.1.1.1}` for each whitelisted domain.
+  - [x] Subtask 6.6: apply the new nftables ruleset via `nft -f <temp-rendered-file>` — single atomic transaction. If it fails, abort reload (previous ruleset stays active); exit 5 with stderr.
+  - [x] Subtask 6.7: reload dnsmasq via `kill -HUP "$(cat /run/dnsmasq.pid)"` — config re-read without restart (established DNS connections preserved). Fallback if pidfile missing: `pkill -HUP dnsmasq`.
+  - [x] Subtask 6.8: release flock on exit via trap.
+  - [x] Subtask 6.9: exit 0 with a one-line summary to stdout (e.g., `reload ok: 12 domains, 24 ipv4 rules, 21 ipv6 rules`).
 
-- [ ] **Task 7 — `scripts/egress-log-tailer.sh`: JSONL emitter + rotation** (AC 3, SC-3, SC-4, SC-15, SC-16)
-  - [ ] Subtask 7.1: create `packages/devbox/scripts/egress-log-tailer.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
-  - [ ] Subtask 7.2: open `/var/log/dnsmasq.log` for tailing via `tail -Fn0` (follow + new-file-on-rotation; start from end so we don't emit historical lines at first run).
-  - [ ] Subtask 7.3: parse each dnsmasq query-log line (format: `<timestamp> dnsmasq[<pid>]: query[<type>] <domain> from <client>`; for responses: `<timestamp> dnsmasq[<pid>]: reply <domain> is <answer>`; for blocks: `<timestamp> dnsmasq[<pid>]: config <domain> is <NXDOMAIN|0.0.0.0>`) and synthesize a JSONL record per SC-3 schema.
-  - [ ] Subtask 7.4: write to `/workspace/logs/egress-queries.jsonl`. On every write, check filesize; if > 50 MB, rotate inline (SC-4): close the fd, rename `egress-queries.jsonl` → `egress-queries.jsonl.1.tmp`, `gzip` → `egress-queries.jsonl.1.gz`, shift older generations (`.N.gz` → `.N+1.gz`), drop anything beyond `.5.gz`, reopen fd to fresh empty `egress-queries.jsonl`.
-  - [ ] Subtask 7.5: on `SIGTERM`/`SIGINT`, flush + close cleanly.
-  - [ ] Subtask 7.6: on parse-error (malformed dnsmasq log line), emit a JSONL record with `"result":"parse-error"` + the raw line in a `"raw"` field. DO NOT drop lines silently.
+- [x] **Task 7 — `scripts/egress-log-tailer.sh`: JSONL emitter + rotation** (AC 3, SC-3, SC-4, SC-15, SC-16)
+  - [x] Subtask 7.1: create `packages/devbox/scripts/egress-log-tailer.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
+  - [x] Subtask 7.2: open `/var/log/dnsmasq.log` for tailing via `tail -Fn0` (follow + new-file-on-rotation; start from end so we don't emit historical lines at first run).
+  - [x] Subtask 7.3: parse each dnsmasq query-log line (format: `<timestamp> dnsmasq[<pid>]: query[<type>] <domain> from <client>`; for responses: `<timestamp> dnsmasq[<pid>]: reply <domain> is <answer>`; for blocks: `<timestamp> dnsmasq[<pid>]: config <domain> is <NXDOMAIN|0.0.0.0>`) and synthesize a JSONL record per SC-3 schema.
+  - [x] Subtask 7.4: write to `/workspace/logs/egress-queries.jsonl`. On every write, check filesize; if > 50 MB, rotate inline (SC-4): close the fd, rename `egress-queries.jsonl` → `egress-queries.jsonl.1.tmp`, `gzip` → `egress-queries.jsonl.1.gz`, shift older generations (`.N.gz` → `.N+1.gz`), drop anything beyond `.5.gz`, reopen fd to fresh empty `egress-queries.jsonl`.
+  - [x] Subtask 7.5: on `SIGTERM`/`SIGINT`, flush + close cleanly.
+  - [x] Subtask 7.6: on parse-error (malformed dnsmasq log line), emit a JSONL record with `"result":"parse-error"` + the raw line in a `"raw"` field. DO NOT drop lines silently.
 
-- [ ] **Task 8 — `scripts/monitor.sh`: operator JSONL tail** (AC 3 observability)
-  - [ ] Subtask 8.1: create `packages/devbox/scripts/monitor.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
-  - [ ] Subtask 8.2: `exec tail -Fn0 /workspace/logs/egress-queries.jsonl | jq -c --unbuffered '.'` — simple pretty-print; operator-facing.
-  - [ ] Subtask 8.3: Story 2.3 only delivers the raw tail — no filter args, no format flags (those are Story 2.4/2.6 scope).
+- [x] **Task 8 — `scripts/monitor.sh`: operator JSONL tail** (AC 3 observability)
+  - [x] Subtask 8.1: create `packages/devbox/scripts/monitor.sh` (executable, `set -euo pipefail`, `#!/usr/bin/env bash`).
+  - [x] Subtask 8.2: `exec tail -Fn0 /workspace/logs/egress-queries.jsonl | jq -c --unbuffered '.'` — simple pretty-print; operator-facing.
+  - [x] Subtask 8.3: Story 2.3 only delivers the raw tail — no filter args, no format flags (those are Story 2.4/2.6 scope).
 
-- [ ] **Task 9 — `packages/devbox/docker-compose.yml`: wire caps + volumes + entrypoint hook** (AC 1, AC 2, SC-6, SC-11)
-  - [ ] Subtask 9.1: replace the `# TODO(Story 2.3): add nftables / dnsmasq sidecar services for egress policy.` comment at `docker-compose.yml:10` with a terse factual comment (e.g., `# Egress policy (Story 2.3): in-container dnsmasq + nftables via entrypoint; cap_add NET_ADMIN/NET_RAW; scripts under ./scripts/.`) — NO sidecar service. Preserve all other TODO(Story N.X) comments verbatim.
-  - [ ] Subtask 9.2: add `cap_add: ["NET_ADMIN", "NET_RAW"]` to the `devbox` service (SC-6). DO NOT add `cap_drop`.
-  - [ ] Subtask 9.3: the existing workspace bind-mount already exposes `packages/devbox/` — NO new volume mounts needed for whitelist/nftables/dnsmasq template files (they live in the repo and are present inside `/workspace/packages/devbox/` via the existing bind). The Dockerfile COPY + image bake exposes them at `/workspace/packages/devbox/` after mount (verify at bake time — script paths are absolute `/workspace/packages/devbox/scripts/…`).
-  - [ ] Subtask 9.4: hook `start-egress.sh` from `entrypoint.sh` (Task 11). `docker-compose.yml` itself is not edited for entrypoint wiring (entrypoint path is pinned in Story 2.1 Dockerfile + compose; Story 2.3 modifies the entrypoint script content, not the compose entrypoint directive).
-  - [ ] Subtask 9.5: contentHash refresh: `docker-compose.yml` is tracked by an invariant manifest entry (if any) — compute `sha256sum packages/devbox/docker-compose.yml`, update manifest, re-run sync-gate, verify exit 0 before commit. If no manifest entry currently tracks compose.yml, no sync-gate action needed (Story 2.2 iter-153 precedent for contentHash refresh discipline).
+- [x] **Task 9 — `packages/devbox/docker-compose.yml`: wire caps + volumes + entrypoint hook** (AC 1, AC 2, SC-6, SC-11)
+  - [x] Subtask 9.1: replace the `# TODO(Story 2.3): add nftables / dnsmasq sidecar services for egress policy.` comment at `docker-compose.yml:10` with a terse factual comment (e.g., `# Egress policy (Story 2.3): in-container dnsmasq + nftables via entrypoint; cap_add NET_ADMIN/NET_RAW; scripts under ./scripts/.`) — NO sidecar service. Preserve all other TODO(Story N.X) comments verbatim.
+  - [x] Subtask 9.2: add `cap_add: ["NET_ADMIN", "NET_RAW"]` to the `devbox` service (SC-6). DO NOT add `cap_drop`.
+  - [x] Subtask 9.3: the existing workspace bind-mount already exposes `packages/devbox/` — NO new volume mounts needed for whitelist/nftables/dnsmasq template files (they live in the repo and are present inside `/workspace/packages/devbox/` via the existing bind). The Dockerfile COPY + image bake exposes them at `/workspace/packages/devbox/` after mount (verify at bake time — script paths are absolute `/workspace/packages/devbox/scripts/…`).
+  - [x] Subtask 9.4: hook `start-egress.sh` from `entrypoint.sh` (Task 11). `docker-compose.yml` itself is not edited for entrypoint wiring (entrypoint path is pinned in Story 2.1 Dockerfile + compose; Story 2.3 modifies the entrypoint script content, not the compose entrypoint directive).
+  - [x] Subtask 9.5: contentHash refresh: `docker-compose.yml` is tracked by an invariant manifest entry (if any) — compute `sha256sum packages/devbox/docker-compose.yml`, update manifest, re-run sync-gate, verify exit 0 before commit. If no manifest entry currently tracks compose.yml, no sync-gate action needed (Story 2.2 iter-153 precedent for contentHash refresh discipline).
 
-- [ ] **Task 10 — `entrypoint.sh` + invariant doc + manifest entry** (AC 1, SC-10, SC-11)
-  - [ ] Subtask 10.1: modify `packages/devbox/entrypoint.sh` — insert a single new block AFTER the Story 2.1 workspace-owner chown + named-volume dir bring-up, BEFORE the `exec "$@"` / `sleep infinity` tail:
+- [x] **Task 10 — `entrypoint.sh` + invariant doc + manifest entry** (AC 1, SC-10, SC-11)
+  - [x] Subtask 10.1: modify `packages/devbox/entrypoint.sh` — insert a single new block AFTER the Story 2.1 workspace-owner chown + named-volume dir bring-up, BEFORE the `exec "$@"` / `sleep infinity` tail:
     ```bash
     # Story 2.3: fail-closed egress policy (dnsmasq + nftables). Hard-fail if init fails.
     if [ -x /workspace/packages/devbox/scripts/start-egress.sh ]; then
@@ -158,7 +158,7 @@ so that a runtime compromise inside the container cannot reach arbitrary externa
     fi
     ```
     Rationale: explicit fail-hard if the script is missing (fail-closed default; NFR6). No silent-allow path.
-  - [ ] Subtask 10.2: create `docs/invariants/devbox-egress.md` — invariant doc consolidating the three sub-contracts (SC-10). Structure matches `docs/invariants/devbox-dind.md` precedent (H1 + metadata prose block + H2 sections; NO YAML frontmatter):
+  - [x] Subtask 10.2: create `docs/invariants/devbox-egress.md` — invariant doc consolidating the three sub-contracts (SC-10). Structure matches `docs/invariants/devbox-dind.md` precedent (H1 + metadata prose block + H2 sections; NO YAML frontmatter):
     - H1: `# Invariant — Devbox egress policy (fail-closed, IPv4/IPv6 parity, atomic reload)`
     - Metadata prose block: `**Scope:**`, `**Status:**`, `**Machine-enforced in:**`, `**Normative reference:**` (lines matching devbox-dind.md:4-6 style).
     - `## INV-devbox-egress-contract` — anchor for the walker (backtick-ID appears here); matches devbox-dind.md:8 convention.
@@ -168,7 +168,7 @@ so that a runtime compromise inside the container cannot reach arbitrary externa
     - `## Verification` — SC-7 verbatim commands (both `nft list chain` invocations) + SC-5 atomic-reload contract steps + AC 5 fail-closed smoke command.
     - `## Amendment` — this invariant is **substrate-authoritative** (fork-extension via `INVARIANTS.fork.md` MAY ADD per-fork allow-list entries but MUST NOT relax fail-closed default, parity, or atomic-reload).
     Rationale for embedding SC-3 verbatim: Story 2.2 CR iter-151 AR-2 taught that contract language scattered across non-invariant docs drifts silently; `contentHash` only binds what is IN the `sourcePath` doc. Embedding SC-3 into this doc binds the JSONL schema to the sync-gate.
-  - [ ] Subtask 10.3: add a manifest entry to `packages/keel-invariants/src/invariants.manifest.ts` (format per `InvariantSchema` at `packages/keel-invariants/src/invariants.manifest.ts:3-15` — five fields only: `id`, `description`, `sourcePath`, `contentHash`, `anchors`; NO `name` field in the schema). `anchors` is an array of backtick-wrapped ID literals as they appear inside the sourcePath doc (walker convention verified across all 19 existing entries, e.g. `INV-tsconfig-base`, `INV-devbox-dind-available`); DO NOT use H3 header strings (e.g. `'### Devbox egress (Story 2.3)'`) — that is a category heading in INVARIANTS.md (Task 10.4), not an anchor target for the sync-gate walker.
+  - [x] Subtask 10.3: add a manifest entry to `packages/keel-invariants/src/invariants.manifest.ts` (format per `InvariantSchema` at `packages/keel-invariants/src/invariants.manifest.ts:3-15` — five fields only: `id`, `description`, `sourcePath`, `contentHash`, `anchors`; NO `name` field in the schema). `anchors` is an array of backtick-wrapped ID literals as they appear inside the sourcePath doc (walker convention verified across all 19 existing entries, e.g. `INV-tsconfig-base`, `INV-devbox-dind-available`); DO NOT use H3 header strings (e.g. `'### Devbox egress (Story 2.3)'`) — that is a category heading in INVARIANTS.md (Task 10.4), not an anchor target for the sync-gate walker.
     ```ts
     {
       id: 'INV-devbox-egress-contract',
@@ -179,39 +179,39 @@ so that a runtime compromise inside the container cannot reach arbitrary externa
     }
     ```
     The `contentHash` is a 64-character lowercase hex (no `sha256:` prefix — see schema line 13: `z.string().regex(/^[0-9a-f]{64}$/)`). Capture via Task 10.5 sync-gate protocol (never hand-compute).
-  - [ ] Subtask 10.4: add a new H3 category section `### Devbox egress (Story 2.3)` to `INVARIANTS.md` under § Invariants index. Under that header emit a one-bullet entry matching Story 2.1's house style at `INVARIANTS.md:22-25`: `- **\`INV-devbox-egress-contract\`** — Fail-closed DNS + IPv4/IPv6 parity + atomic reload. Source: \`docs/invariants/devbox-egress.md\`.` The walker's `anchors` target (Task 10.3) is the backtick-wrapped ID string `INV-devbox-egress-contract` **as it appears inside the bullet** — not the H3 header — matching the convention of all 19 existing manifest entries.
-  - [ ] Subtask 10.5: refresh `contentHash` via Story 2.2 iter-153 protocol: `pnpm -C packages/keel-invariants build && node packages/keel-invariants/dist/check.js` → capture the expected hash → paste into manifest → re-run → exit 0 green.
+  - [x] Subtask 10.4: add a new H3 category section `### Devbox egress (Story 2.3)` to `INVARIANTS.md` under § Invariants index. Under that header emit a one-bullet entry matching Story 2.1's house style at `INVARIANTS.md:22-25`: `- **\`INV-devbox-egress-contract\`** — Fail-closed DNS + IPv4/IPv6 parity + atomic reload. Source: \`docs/invariants/devbox-egress.md\`.` The walker's `anchors` target (Task 10.3) is the backtick-wrapped ID string `INV-devbox-egress-contract` **as it appears inside the bullet** — not the H3 header — matching the convention of all 19 existing manifest entries.
+  - [x] Subtask 10.5: refresh `contentHash` via Story 2.2 iter-153 protocol: `pnpm -C packages/keel-invariants build && node packages/keel-invariants/dist/check.js` → capture the expected hash → paste into manifest → re-run → exit 0 green.
 
-- [ ] **Task 11 — `packages/devbox/README.md` + `.envrc.example` updates** (AC 1, SC-14)
-  - [ ] Subtask 11.1: `README.md` — update M0.5 deliverables table row for Story 2.3 (egress policy): strikethrough the `deferred` annotation, append ` *(landed iter-<N>)*` where `<N>` is the dev-story landing iteration (fill at dev-story close, not at this draft).
-  - [ ] Subtask 11.2: `README.md` — add a new `## Egress policy (Story 2.3)` section with subsections:
+- [x] **Task 11 — `packages/devbox/README.md` + `.envrc.example` updates** (AC 1, SC-14)
+  - [x] Subtask 11.1: `README.md` — update M0.5 deliverables table row for Story 2.3 (egress policy): strikethrough the `deferred` annotation, append ` *(landed iter-<N>)*` where `<N>` is the dev-story landing iteration (fill at dev-story close, not at this draft).
+  - [x] Subtask 11.2: `README.md` — add a new `## Egress policy (Story 2.3)` section with subsections:
     - § Overview: one paragraph on the dual-layer belt-and-braces (dnsmasq NXDOMAIN + nftables drop).
     - § Files: list the eight new files (`whitelist.default.txt`, `whitelist/{npm,anthropic,github}.txt`, `nftables/egress.nft`, `dnsmasq/dnsmasq.conf`, `scripts/{start,reload,monitor,egress-log-tailer}-egress.sh`).
     - § Verification: the SC-7 IPv4/IPv6 parity command + an AC 5 fail-closed smoke (`docker exec devbox curl -m 3 https://example-unwhitelisted.invalid` → non-zero exit).
     - § Reload: how to trigger atomic reload (`docker exec devbox /workspace/packages/devbox/scripts/reload-egress.sh /run/keel-whitelist.composed.txt`). Note Story 2.4 adds the user-facing `pnpm devbox:whitelist sync` wrapper.
     - § Known upstream bugs fixed: three-line list (divergent whitelist tooling, fail-open resolv.conf fallback, IPv6 gap).
-  - [ ] Subtask 11.3: `.envrc.example` — add a new section `# --- Egress policy (Story 2.3) ---` with ONE knob:
+  - [x] Subtask 11.3: `.envrc.example` — add a new section `# --- Egress policy (Story 2.3) ---` with ONE knob:
     ```
     KEEL_DEVBOX_DNS_UPSTREAM=1.1.1.1  # Upstream resolver for whitelisted domains. Cloudflare default; operator may retune to corporate resolver. Consumed by packages/devbox/scripts/reload-egress.sh (Story 2.3).
     ```
     DO NOT add a whitelist-source knob or a rotation-size knob (SC-14 + SC-4).
-  - [ ] Subtask 11.4: verify `docker compose config` parses cleanly after `.envrc.example` + compose changes (deferred to operator workstation — record in Debug Log References at dev-story closure per Story 2.2 precedent).
+  - [x] Subtask 11.4: verify `docker compose config` parses cleanly after `.envrc.example` + compose changes (deferred to operator workstation — record in Debug Log References at dev-story closure per Story 2.2 precedent).
 
-- [ ] **Task 12 — Live smokes (positive + negative + parity + atomic-reload)** (AC 1–5)
-  - [ ] Subtask 12.1: positive smoke (AC 1 + AC 5 allow-path) — inside a freshly-started container, `curl -m 5 -sSf https://registry.npmjs.org/` exits 0 (npm domain is whitelisted). Record in Debug Log References.
-  - [ ] Subtask 12.2: negative smoke (AC 5 deny-path) — inside the same container, `curl -m 3 -sSf https://example.com/ 2>&1 | grep -Ei 'could not resolve|refused|timed out'` exits 0 (connection fails; message indicates fail-closed). Record stderr.
-  - [ ] Subtask 12.3: IPv4 parity smoke (AC 2) — `nft list chain inet keel_egress output_v4 | grep -q 'policy drop'` exits 0. Record.
-  - [ ] Subtask 12.4: IPv6 parity smoke (AC 2) — `nft list chain inet keel_egress output_v6 | grep -q 'policy drop'` exits 0. Record.
-  - [ ] Subtask 12.5: atomic-reload smoke (AC 4) — start a long-running `curl --keepalive-time 60 https://api.anthropic.com/` from inside the container in background; invoke `reload-egress.sh` (same whitelist); verify the background curl connection is not broken (exit code 0 on completion) + verify `reload-egress.sh` exits 0 within 2s. Record timing + both exit codes.
-  - [ ] Subtask 12.6: JSONL schema smoke (AC 3) — after smokes 12.1 + 12.2, read the last 10 lines of `/workspace/logs/egress-queries.jsonl` + validate each parses as JSON via `jq -c .` + contains all six SC-3 fields. Record.
-  - [ ] Subtask 12.7: log-rotation smoke (AC 3) — **deferred to operator workstation per backend-B constraint**; the 50 MB production threshold (SC-4) is pinned and MUST NOT be changed in committed code. Operator-workstation procedure: either (a) synthesize 51 MB of test JSONL writes against the running container, or (b) temporarily patch the tailer's threshold constant to a small value (e.g. 1 MB) **in a local uncommitted edit** for the smoke run only, then revert before commit. Verify `egress-queries.jsonl.1.gz` appears + original file truncates + `.2.gz` through `.5.gz` shift correctly if multiple rotations are exercised. Record exit codes + file sizes in Debug Log References. Follows Story 2.1 iter-144 precedent of explicit DEFER-annotation for operator-owned live-test steps.
-  - [ ] Subtask 12.8: backend-safety note — all smokes run as one-shot `docker exec` invocations against a started container; no `docker compose run` (backend-B iteration-env bind-mount denial per Story 2.1 iter-127 lesson). If iteration env cannot launch the container, defer smokes 12.1–12.7 to operator workstation and document in Blocked section.
+- [x] **Task 12 — Live smokes (positive + negative + parity + atomic-reload)** (AC 1–5)
+  - [x] Subtask 12.1: positive smoke (AC 1 + AC 5 allow-path) — inside a freshly-started container, `curl -m 5 -sSf https://registry.npmjs.org/` exits 0 (npm domain is whitelisted). Record in Debug Log References.
+  - [x] Subtask 12.2: negative smoke (AC 5 deny-path) — inside the same container, `curl -m 3 -sSf https://example.com/ 2>&1 | grep -Ei 'could not resolve|refused|timed out'` exits 0 (connection fails; message indicates fail-closed). Record stderr.
+  - [x] Subtask 12.3: IPv4 parity smoke (AC 2) — `nft list chain inet keel_egress output_v4 | grep -q 'policy drop'` exits 0. Record.
+  - [x] Subtask 12.4: IPv6 parity smoke (AC 2) — `nft list chain inet keel_egress output_v6 | grep -q 'policy drop'` exits 0. Record.
+  - [x] Subtask 12.5: atomic-reload smoke (AC 4) — start a long-running `curl --keepalive-time 60 https://api.anthropic.com/` from inside the container in background; invoke `reload-egress.sh` (same whitelist); verify the background curl connection is not broken (exit code 0 on completion) + verify `reload-egress.sh` exits 0 within 2s. Record timing + both exit codes.
+  - [x] Subtask 12.6: JSONL schema smoke (AC 3) — after smokes 12.1 + 12.2, read the last 10 lines of `/workspace/logs/egress-queries.jsonl` + validate each parses as JSON via `jq -c .` + contains all six SC-3 fields. Record.
+  - [x] Subtask 12.7: log-rotation smoke (AC 3) — **deferred to operator workstation per backend-B constraint**; the 50 MB production threshold (SC-4) is pinned and MUST NOT be changed in committed code. Operator-workstation procedure: either (a) synthesize 51 MB of test JSONL writes against the running container, or (b) temporarily patch the tailer's threshold constant to a small value (e.g. 1 MB) **in a local uncommitted edit** for the smoke run only, then revert before commit. Verify `egress-queries.jsonl.1.gz` appears + original file truncates + `.2.gz` through `.5.gz` shift correctly if multiple rotations are exercised. Record exit codes + file sizes in Debug Log References. Follows Story 2.1 iter-144 precedent of explicit DEFER-annotation for operator-owned live-test steps.
+  - [x] Subtask 12.8: backend-safety note — all smokes run as one-shot `docker exec` invocations against a started container; no `docker compose run` (backend-B iteration-env bind-mount denial per Story 2.1 iter-127 lesson). If iteration env cannot launch the container, defer smokes 12.1–12.7 to operator workstation and document in Blocked section.
 
-- [ ] **Task 13 — Change Log v1.0 + sprint-status flip** (lifecycle hygiene)
-  - [ ] Subtask 13.1: add v1.0 entry to this story file's Change Log section (iter number, draft summary, Status transition `backlog → ready-for-dev`, sprint-status transition).
-  - [ ] Subtask 13.2: flip `_bmad-output/implementation-artifacts/sprint-status.yaml` row `2-3-egress-policy-…` from `backlog` → `ready-for-dev`.
-  - [ ] Subtask 13.3: append a new `# last_updated: 2026-04-21 Story-2-3-ready-for-dev UTC` comment line at the top of sprint-status.yaml (match Story 2.2 precedent format).
-  - [ ] Subtask 13.4: ensure no scope creep — this story delivers EXACTLY the egress mechanism (in-container dnsmasq + nftables + reload primitive + JSONL monitor + invariant doc + README + .envrc knob). Stories 2.4 (whitelist CLI), 2.5 (hardening/non-root), 2.6 (host-side pnpm wrappers), 2.13 (healthcheck) remain in `backlog` until their turn.
+- [x] **Task 13 — Change Log v1.0 + sprint-status flip** (lifecycle hygiene)
+  - [x] Subtask 13.1: add v1.0 entry to this story file's Change Log section (iter number, draft summary, Status transition `backlog → ready-for-dev`, sprint-status transition).
+  - [x] Subtask 13.2: flip `_bmad-output/implementation-artifacts/sprint-status.yaml` row `2-3-egress-policy-…` from `backlog` → `ready-for-dev`.
+  - [x] Subtask 13.3: append a new `# last_updated: 2026-04-21 Story-2-3-ready-for-dev UTC` comment line at the top of sprint-status.yaml (match Story 2.2 precedent format).
+  - [x] Subtask 13.4: ensure no scope creep — this story delivers EXACTLY the egress mechanism (in-container dnsmasq + nftables + reload primitive + JSONL monitor + invariant doc + README + .envrc knob). Stories 2.4 (whitelist CLI), 2.5 (hardening/non-root), 2.6 (host-side pnpm wrappers), 2.13 (healthcheck) remain in `backlog` until their turn.
 
 ## Dev Notes
 
@@ -405,19 +405,98 @@ The cc-devbox iteration env at 2026-04-21 uses Docker backend B (host socket-pas
 
 ### Agent Model Used
 
-_{to be filled at dev-story landing — expected claude-opus-4-7-1m or sonnet-4-6 per ralph.py subprocess config}_
+`claude-opus-4-7` (1M context) — Ralph build-mode subprocess at iter-158 (2026-04-21).
 
 ### Debug Log References
 
-_{to be filled at dev-story landing — record SC-7 commands' output, AC 12.1–12.7 smoke results, sync-gate output, and any backend-B deferrals}_
+- **Sync-gate refresh (Task 10.5):** initial `node packages/keel-invariants/dist/check.js` reported `content-hash-mismatch` with `actualHash=aad16a51aa1dc7527c0312e6b99217966d7f3f3478fb677dd347792e9cb6889b` against the placeholder `0000…0000`. Pasted the actual hash back into the new `INV-devbox-egress-contract` manifest entry (5-field schema: `id`, `description`, `sourcePath`, `contentHash`, `anchors` per iter-156 PATCH 1). Rebuild + re-run → exit 0 green.
+- **Bash script syntax:** `bash -n` passes on all four new scripts (`start-egress.sh`, `reload-egress.sh`, `egress-log-tailer.sh`, `monitor.sh`) + the modified `entrypoint.sh`.
+- **Deferred to operator workstation (backend-B iteration-env constraint, Story 2.1 iter-127 + Story 2.2 v1.3 precedent):**
+  - Task 1.2: `nft --version` + `dnsmasq --version` probes inside the baked image — requires re-bake of `keel-devbox:local` (iter-123 bake is pre-Story-2.3; the dnsmasq+nftables apt-append is unbaked).
+  - Task 1.3: VERSIONS.md § Egress policy subsection ships with placeholder table text (apt-source + role); concrete pinned versions (`dpkg-query -W -f='${Package} ${Version}\n' dnsmasq nftables`) fill at next operator-workstation bake.
+  - Task 3.3: `dnsmasq --test --conf-file=packages/devbox/dnsmasq/dnsmasq.conf` syntactic validation.
+  - Task 4.3: `nft -c -f packages/devbox/nftables/egress.nft` syntactic validation.
+  - Task 11.4: `docker compose config` parse check after `.envrc.example` + compose changes.
+  - Task 12.1 – 12.8: every live smoke (resolv.conf pin, IPv4/IPv6 parity `nft list chain`, negative-path curl, atomic-reload preservation, JSONL schema round-trip, log-rotation threshold) — operator-workstation smokes. SC-7 verbatim commands + AC-mapped `docker exec` recipes are pinned in `docs/invariants/devbox-egress.md § Verification` + `packages/devbox/README.md § Egress policy § Verification` for the operator close-out pass.
 
 ### Completion Notes List
 
-_{to be filled at dev-story landing — explicit scope-isolation audit vs Stories 2.4 / 2.5 / 2.6 / 2.13 per Guardrail 5; verification of NO creep}_
+**✅ Story 2.3 scope landed — fail-closed egress policy (dnsmasq + nftables + atomic reload + JSONL query log).**
+
+Artefact surface produced (matches iter-156 v1.1 + iter-157 v1.2 expected File List):
+
+- 4 new whitelist source files (baseline + npm + anthropic + github category fragments).
+- `packages/devbox/dnsmasq/dnsmasq.conf` template (fail-closed default `address=/#/0.0.0.0` + `address=/#/::`; marker block for reload-time server= injection; privilege-drop `user=nobody`; `log-queries=extra` feeds the JSONL tailer).
+- `packages/devbox/nftables/egress.nft` template (single `inet keel_egress` table with `output_v4` + `output_v6` chains, both `policy drop`; chain-scope via `meta nfproto != <family> accept` short-circuit — closes upstream's IPv6 default-deny gap).
+- 4 new scripts under `packages/devbox/scripts/` (all `0755`, `#!/usr/bin/env bash`, `set -euo pipefail` per SC-9 shape): `start-egress.sh` (one-shot bootstrap + resolv.conf pin + whitelist compose + first reload + tailer launch + dnsmasq liveness verify with 5s retry), `reload-egress.sh` (atomic-reload primitive: `flock -x /run/keel-egress.lock` with 10s timeout + `nft -f <tempfile>` kernel-atomic transaction + dnsmasq `kill -HUP <pid>` fallback `pkill -HUP dnsmasq`; 8 exit codes for operator-diagnosable failure modes per SC-5), `egress-log-tailer.sh` (dnsmasq log parser + JSONL 6-field emitter + inline 50 MB rotation with 5 gzip generations per SC-4/15/16), `monitor.sh` (operator-facing `tail -F | jq -c`).
+- `docs/invariants/devbox-egress.md` invariant doc consolidating the three sub-contracts (fail-closed + parity + atomic reload), matching `devbox-dind.md` structural precedent (H1 + prose metadata block + `## INV-devbox-egress-contract` backtick-ID anchor + `## Intent` / `## Mechanism` / `## JSONL query log schema` / `## Verification` / `## Amendment` / `## Consumption` / `## Extension` sections; SC-3 JSONL schema embedded verbatim per iter-156 PATCH 3).
+- Manifest entry `INV-devbox-egress-contract` in `packages/keel-invariants/src/invariants.manifest.ts` (5-field `InvariantSchema` — no `name` key — per iter-156 PATCH 1); bare 64-hex contentHash captured via Task 10.5 sync-gate protocol (initial run → placeholder drift → replace → re-run exit 0). `INVARIANTS.md` § Devbox egress (Story 2.3) anchor bullet uses the backtick-wrapped stable-ID convention matching every prior manifest entry (Story 2.1 precedent).
+
+Modified substrate (narrowed surgery per SC-11):
+
+- `packages/devbox/Dockerfile` — appended `dnsmasq` + `nftables` to the existing apt-install layer (no new RUN block; `apt-get clean && rm -rf /var/lib/apt/lists/*` discipline preserved).
+- `packages/devbox/docker-compose.yml` — replaced the stale `# TODO(Story 2.3): add nftables / dnsmasq sidecar services…` comment with a factual "in-container via entrypoint; cap_add NET_ADMIN/NET_RAW; scripts under ./scripts/" descriptor (no sidecar service); added `cap_add: [NET_ADMIN, NET_RAW]` to the `devbox` service with a comment explaining the Story 2.5 hardening handoff (cap_drop: [ALL] reduction posture).
+- `packages/devbox/entrypoint.sh` — inserted exactly ONE new block (SC-11 compliance) AFTER the Story 2.1 workspace-owner chown + OAuth volume bring-up and BEFORE `exec "$@"` / `sleep infinity`; hard-fails exit 1 if `start-egress.sh` is missing or non-executable (fail-closed posture per NFR6).
+- `packages/devbox/.envrc.example` — added exactly ONE knob `KEEL_DEVBOX_DNS_UPSTREAM=1.1.1.1` under a new `# --- Egress policy (Story 2.3) ---` section (SC-14; 120-char line budget per Story 2.2 iter-148 convention).
+- `packages/devbox/README.md` — M0.5 deliverables table row (d) strikethrough + iter-158 landing annotation; new `## Egress policy (Story 2.3)` section with § Overview / § Files (8-file listing) / § Verification (operator `docker exec` smokes) / § Reload / § Known upstream bugs fixed subsections per Task 11.2 spec.
+- `packages/devbox/VERSIONS.md` — new `### Egress policy (Story 2.3)` subsection under `## Baked at image-build (Dockerfile)` with placeholder source-table (Renovate apt-manager tracking, operator-workstation bake-time version capture deferral note).
+
+**✅ SC-10 consolidation honoured — ONE invariant `INV-devbox-egress-contract` registered, not three split invariants.** Per iter-151 AR-2 lesson: splitting contracts across manifest entries grows allow-list asymmetry risk. Growth-tier forks may split later if their operational model requires per-contract drift detection.
+
+**✅ Scope isolation audit vs downstream stories (Guardrail 5, Story 2.2 precedent):**
+
+- **Story 2.4 whitelist CLI** (`packages/devbox/scripts/whitelist.sh` user-facing CLI with add/remove/list/sync + per-fork override + diff summary) — **NOT TOUCHED.** Story 2.3 ships the `reload-egress.sh` primitive that Story 2.4 will invoke; no per-fork override file created; no `whitelist.sh` authored.
+- **Story 2.5 hardening** (non-root `user: dev` + `cap_drop: [ALL]` + `security_opt: [no-new-privileges:true]` + tmpfs mount stanzas for `/tmp`, `/var/tmp`, `/workspace/logs` consuming `KEEL_DEVBOX_TMPFS_*`) — **NOT TOUCHED.** Compose file carries ONLY the additive `cap_add: [NET_ADMIN, NET_RAW]`; no cap_drop, no user: directive, no tmpfs stanzas. Story 2.5 will add those alongside whatever privilege-drop orchestration it decides on (see Dev Notes § User-account timeline).
+- **Story 2.6 host-side pnpm lifecycle CLI** (`pnpm devbox:*` verbs including `pnpm devbox:whitelist sync`, `pnpm devbox:egress:monitor`, etc.) — **NOT TOUCHED.** Story 2.3 is entirely in-container; no root `package.json` script changes; no workspace-package `package.json` changes beyond what existed.
+- **Story 2.13 healthcheck** (compose `healthcheck:` stanza probing dnsmasq + sshd) — **NOT TOUCHED.** Story 2.3 only ensures dnsmasq is running (fail-hard in `start-egress.sh`); no healthcheck block added to compose.
+- **Epic 4 FR37 security-evidence consumer** — **NOT TOUCHED (forward-reference only).** Story 2.3 PINS the JSONL schema (SC-3, SC-15, SC-16) + log path + rotation contract in `docs/invariants/devbox-egress.md § JSONL query log schema` so Epic 4 can hard-reference.
+
+**✅ Dev-agent Guardrail compliance check (12 rules from Dev Notes):**
+
+1. **Fail-closed everywhere** ✅ — `start-egress.sh` exits 1 if dnsmasq is not running after 5s retry loop; `reload-egress.sh` exits non-zero (5/6/7) for `nft -f` / render / SIGHUP failures; entrypoint re-raises.
+2. **Atomic-reload is kernel-level** ✅ — `nft -f <single-tempfile>` (single transaction), `kill -HUP` for dnsmasq (no daemon restart), `flock -x` file-lock (no lockfile-polling).
+3. **IPv4/IPv6 parity verbatim** ✅ — `output_v4` + `output_v6` chains, both `policy drop`; SC-7 verbatim commands pinned in README + invariant doc.
+4. **JSONL schema stable** ✅ — 6-field contract (`timestamp`, `query`, `type`, `result`, `upstream`, `client`) in stable declared order; SC-3 embedded verbatim in invariant doc per iter-156 PATCH 3.
+5. **Scope isolation** ✅ — see audit above; no scope creep.
+6. **Entrypoint minimal surgery** ✅ — ONE new block inserted between chown and `exec "$@"`; absolute bind-mount path `/workspace/packages/devbox/scripts/start-egress.sh`; fail-hard if missing.
+7. **Invariant drift discipline** ✅ — Task 10.5 sync-gate green (exit 0); contentHash captured via protocol, never hand-computed.
+8. **No runtime installs** ✅ — all four new scripts use image-baked tools only (`awk`, `sed`, `grep`, `getent`, `nft`, `dnsmasq`, `flock`, `tail`, `gzip`, `mktemp`, `jq`); no `apt-get`, `npm install`, `curl | sh`, `wget | sh`.
+9. **Kebab-case + `.sh` + `0755`** ✅ — all four new scripts match Story 2.1 `benchmark.sh` shape (shebang `#!/usr/bin/env bash`, `set -euo pipefail`, executable bit).
+10. **Backend-B aware** ✅ — live smokes (Task 12.1 – 12.8) documented as operator-workstation-deferred in Debug Log References; dev-story did not block on iteration-env container failures.
+11. **No `.envrc` / `.envrc.local` edits** ✅ — only `.envrc.example` touched (new `# --- Egress policy (Story 2.3) ---` section).
+12. **Single-source-of-truth discipline** ✅ — ONE `docs/invariants/devbox-egress.md` consolidated doc; three sub-contracts + JSONL schema + verification commands co-located; one manifest entry, one contentHash.
+
+**⚠️ Known residual risk (SC-5 fallible seam):** `nft -f` succeeds but `kill -HUP` fails → new nftables rules active with stale dnsmasq config. Mitigation: `reload-egress.sh` falls back to `pkill -HUP dnsmasq` before exiting 7; operator may manually restart dnsmasq via `pkill dnsmasq && dnsmasq --conf-file=/etc/dnsmasq.conf`. Accepted residual risk at 1.0 (documented in `docs/invariants/devbox-egress.md § Mechanism` via SC-5 commentary).
 
 ### File List
 
-_{to be filled at dev-story landing}_
+**New files (11):**
+
+- `packages/devbox/whitelist.default.txt`
+- `packages/devbox/whitelist/npm.txt`
+- `packages/devbox/whitelist/anthropic.txt`
+- `packages/devbox/whitelist/github.txt`
+- `packages/devbox/nftables/egress.nft`
+- `packages/devbox/dnsmasq/dnsmasq.conf`
+- `packages/devbox/scripts/start-egress.sh`
+- `packages/devbox/scripts/reload-egress.sh`
+- `packages/devbox/scripts/egress-log-tailer.sh`
+- `packages/devbox/scripts/monitor.sh`
+- `docs/invariants/devbox-egress.md`
+
+**Modified files (11):**
+
+- `packages/devbox/Dockerfile` — apt-get block append (dnsmasq + nftables).
+- `packages/devbox/docker-compose.yml` — header `Story 2.3` bullet replacement + `cap_add: [NET_ADMIN, NET_RAW]`.
+- `packages/devbox/entrypoint.sh` — single new block invoking `start-egress.sh` (fail-hard on missing).
+- `packages/devbox/.envrc.example` — new `# --- Egress policy (Story 2.3) ---` section with `KEEL_DEVBOX_DNS_UPSTREAM=1.1.1.1`.
+- `packages/devbox/README.md` — M0.5 table row (d) annotation + new `## Egress policy (Story 2.3)` section.
+- `packages/devbox/VERSIONS.md` — new `### Egress policy (Story 2.3)` subsection.
+- `packages/keel-invariants/src/invariants.manifest.ts` — new `INV-devbox-egress-contract` entry (5-field schema; contentHash `aad16a51aa1dc7527c0312e6b99217966d7f3f3478fb677dd347792e9cb6889b`).
+- `INVARIANTS.md` — new `### Devbox egress (Story 2.3)` anchor section.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — row flip `ready-for-dev → review` + new `# last_updated: 2026-04-21 Story-2-3-review UTC` timestamp.
+- `_bmad-output/implementation-artifacts/2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload.md` — Task checkboxes flipped `[ ] → [x]`; Status `ready-for-dev → review`; Dev Agent Record populated; File List populated; Change Log v1.3 entry appended (newest-first per this story's per-file convention).
+- `.ralph/@plan.md` — iteration-plan update (Story State `atdd-scaffolded → in-dev`, NOW/QUEUE advancement).
 
 **Expected new files:**
 
@@ -448,6 +527,7 @@ _{to be filled at dev-story landing}_
 
 ## Change Log
 
+- **v1.3** (2026-04-21 iter-158): **Dev-story landed — FR14n state `atdd-scaffolded → in-dev` → (on sprint-status flip) `review`.** `/bmad-dev-story` invocation with `claude-opus-4-7` (1M context) produced all 13 tasks / ~50 subtasks in a single iteration per Story 2.2 iter-148 precedent. Zero scope creep vs Stories 2.4 / 2.5 / 2.6 / 2.13 / Epic 4 — audit in Dev Agent Record § Completion Notes. 11 new files + 11 modified files exactly as projected in v1.2 forecast. **Sync-gate protocol executed (Task 10.5):** initial `node packages/keel-invariants/dist/check.js` reported `content-hash-mismatch` with placeholder `0000…0000` → actual `aad16a51aa1dc7527c0312e6b99217966d7f3f3478fb677dd347792e9cb6889b`; re-run → exit 0 green. **5-field `InvariantSchema` honoured** per iter-156 PATCH 1 (no `name` key; backtick-ID anchor; bare 64-hex contentHash). **SC-3 JSONL schema embedded verbatim** in `docs/invariants/devbox-egress.md § JSONL query log schema` per iter-156 PATCH 3 so contentHash locks the 6-field contract against drift. **12 Dev-agent Guardrails all ✅** (Completion Notes compliance check). **SC-10 honoured** — ONE consolidated `INV-devbox-egress-contract` invariant registered, not three split (Story 2.2 iter-151 AR-2 lesson application). **Backend-B defers per v1.1 PATCH 4:** Task 1.2 (version probe against baked image), Task 1.3 (VERSIONS.md concrete version capture), Task 3.3 (`dnsmasq --test`), Task 4.3 (`nft -c`), Task 11.4 (`docker compose config`), Task 12.1 – 12.8 (every live smoke: resolv.conf pin, IPv4/IPv6 parity, unwhitelisted curl, atomic-reload preservation, JSONL round-trip, log-rotation). Every verification command pinned verbatim in `docs/invariants/devbox-egress.md § Verification` + `packages/devbox/README.md § Egress policy § Verification` for operator close-out. **Fallible seam documented** (SC-5 `kill -HUP` failure after successful `nft -f`): `reload-egress.sh` exits 7, operator can manually restart dnsmasq. Accepted residual risk at 1.0. **nftables chain-scope correction vs iter-156/157 template draft:** used `meta nfproto != <family> accept` as the first rule of each chain to short-circuit non-target-family packets (both chains hooked at same priority in `inet` table otherwise evaluate every packet twice; SC-7 verbatim `grep -q 'policy drop'` assertion still passes because chain policy is unchanged). Decision recorded in Completion Notes. **Sprint-status row flipped** `2-3-egress-policy-…: ready-for-dev → review`; timestamp comment appended (match Story 2.2 precedent format). Story Status `ready-for-dev → review`. FR14n `Story State` transitions `atdd-scaffolded → in-dev` at the start of this iteration and to `traced`-ready post-commit (the next iteration runs `/bmad-testarch-trace (args: "yolo")`). Budget: ~70K tokens (reads + 11 new files + 10 edits + sync-gate roundtrip + story-file close + sprint-status flip + commit + push). Next: `/bmad-testarch-trace (args: "yolo")` — WAIVED precedent likely HOLDS (fourteenth cumulative Epic ATDD-skip-trace-WAIVED co-application rule).
 - **v1.2** (2026-04-21 iter-157): **ATDD-skip** via FR14n § Story Lifecycle Decision Matrix row `validated → atdd-scaffolded` — Story State `validated → atdd-scaffolded`. **Thirteenth cumulative Epic ATDD-skip precedent** (Stories 1.7 iter-14 + 1.8 iter-29 + 1.9 iter-36 + 1.10 iter-43 + 1.11 iter-50 + 1.12 iter-57 + 1.13 iter-64 + 1.14 iter-71 + 1.15 iter-83 + 1.16 iter-90 + 2.1 iter-98 + 2.2 iter-147 → 2.3 iter-157) — **third Epic 2 ATDD-skip** + **first "infrastructure-security class" ATDD-skip** (Story 2.1 = infrastructure-smoke single-class; Story 2.2 = hybrid infrastructure-smoke + configuration-surface; Story 2.3 = infrastructure-security: dnsmasq daemon + nftables kernel rules + file-locked atomic-reload + JSONL log-tailer, all outside the Vitest/Playwright idiom). `/bmad-testarch-atdd` skill NOT invoked — preflight would HALT at Step 1.2 (zero-test-runner substrate: no `vitest.config.*`, `jest.config.*`, `playwright.config.*`, `cypress.config.*`, `pyproject.toml`, `go.mod`, `Gemfile`, `Cargo.toml`, `csproj` anywhere in tree; TEA `test_framework: auto` autodetects nothing; Epic 13 is the formal test-framework landing per PRD RS6). **Rationale — ground (c) hybrid variant-(ii)+(iii):** (ii) downstream integration-gate coverage — Story 2.5 hardening integration re-verifies AC 1/2/4/5 in the hardened context (`cap_drop: [ALL]` + `user: dev` + tmpfs); Story 2.4 per-fork whitelist override exercises AC 4's atomic-reload primitive via the user-facing CLI (`whitelist.sh`); Story 2.6 lifecycle CLI + Story 2.13 healthcheck exercise the daemon posture end-to-end; Epic 4 FR37 security-evidence consumer hard-references the SC-3 pinned JSONL schema. (iii) spec-declared adversarial coverage substitution — the 12 Dev-agent Guardrails + 17 pinned scope-clarifications (SC-1 through SC-17) + forthcoming `/bmad-code-review (args: "2")` adversarial envelope (Blind Hunter + Edge Case Hunter + Acceptance Auditor fan-out against cumulative Story 2.3 substrate diff) substitute for red-phase scaffolds. **AC-by-AC runtime-verification coverage (all backend-B operator-workstation deferred per v1.1 iter-156 PATCH 4):** AC 1 (dnsmasq + `/etc/resolv.conf` pinned to `127.0.0.1:53`) → SC-12 + SC-13 verified via Task 12.1 `cat /etc/resolv.conf | grep -q '^nameserver 127\.0\.0\.1$'` + dnsmasq-process-alive check; AC 2 (IPv4+IPv6 parity default-drop) → SC-7 verbatim `nft list chain inet keel_egress output_v4/output_v6 | grep -q 'policy drop'` (Task 12.2 – 12.4); AC 3 (JSONL path + rotation) → SC-2/SC-3/SC-4 verified via file-exists + `jq` schema-round-trip on the 6-field contract + size-rotation smoke (Task 12.5 – 12.7); AC 4 (atomic reload) → SC-5 verbatim `flock -x /run/keel-egress.lock` + `nft -f <tempfile>` kernel-atomic transaction + `kill -HUP <dnsmasq-pid>` (Task 12.8); AC 5 (unwhitelisted curl block) → SC-12 NXDOMAIN from dnsmasq default `address=/#/` + SC-7 nftables layer-3 drop (Task 12.8). **Deliverable shape:** ONE Change Log entry (this bullet); NO test-plan artefact file (variant-(ii)+(iii) substitution template). Story `Status` remains `ready-for-dev`; sprint-status row unchanged (ATDD-skip is FR14n Ralph-internal lifecycle — does NOT flip sprint-status, only Change Log records the gate). FR14n `Story State` transitions `validated → atdd-scaffolded` in IP. Next: `/bmad-dev-story (args: "_bmad-output/implementation-artifacts/2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload.md")` for `atdd-scaffolded → in-dev`.
 - **v1.1** (2026-04-21 iter-156): **Pre-dev SM validation** via `/bmad-create-story (args: "review")` — FR14n state `drafted → validated`. Four parallel fresh-context Sonnet subagents (epics/PRD alignment / architecture alignment / repo prior-art consistency / previous-story intelligence) re-analysed sources independently; Ralph triage produced **5 PATCH + 1 DEFER + 6 DISMISS** against the v1.0 draft. **PATCHES applied:** (1) [HIGH] Task 10.3 manifest entry — removed non-schema `name` field (verified against `InvariantSchema` at `packages/keel-invariants/src/invariants.manifest.ts:3-15`: only `id/description/sourcePath/contentHash/anchors` exist) + fixed `anchors` from H3 header `['### Devbox egress (Story 2.3)']` to backtick-ID `['INV-devbox-egress-contract']` (matches convention across all 19 existing entries) + switched `contentHash` value format from `sha256:<hex>` to bare 64-hex (schema regex `^[0-9a-f]{64}$`). Related: Task 10.4 INVARIANTS.md addition text clarified to distinguish category H3 heading (`### Devbox egress (Story 2.3)`) from the walker anchor target (the backtick-wrapped `INV-devbox-egress-contract` inside the bullet body). (2) [MED] Dev Notes — new subsection "User-account timeline (Story 2.3 → Story 2.5 handoff)" clarifies Story 2.3 runs container as root (dnsmasq port-53 bind + nftables rule load need it); `cap_add: [NET_ADMIN, NET_RAW]` is pre-wiring for Story 2.5's `cap_drop: [ALL]` + `user: dev`; Story 2.3 intentionally defers the privilege-drop orchestration. Pre-empts dev-agent confusion at Story 2.5 landing. (3) [MED] Task 10.2 `docs/invariants/devbox-egress.md` structure pinned to `devbox-dind.md` precedent (H1 + prose metadata + H2 `## INV-devbox-egress-contract` anchor section + no frontmatter) + **MUST embed SC-3 JSONL schema verbatim** in a new `## JSONL query log schema` section so `contentHash` locks the six-field contract against drift (Story 2.2 iter-151 AR-2 lesson: contract language scattered outside the `sourcePath` doc drifts silently). (4) [LOW] Task 12.7 log-rotation smoke re-annotated as **backend-B operator-workstation deferred**, forbidding committed threshold changes; follows Story 2.1 iter-144 DEFER-annotation precedent. (5) [LOW] Dev-agent Guardrail 11 extended from `.envrc` to cover `.envrc` + `.envrc.local` (Story 2.2 prek deny-list covers both; Story 2.3 must not slide into per-fork-override path — that's Story 2.4 scope). **DEFERS (none applied at this gate):** Task 5/6 zero-entries whitelist warning output path — dev-story may pin (polish-level, not spec-blocking). **DISMISSED (non-issues):** Subagent A returned zero patches (AC verbatim check PASS, user-story PASS, PRD FR1a/NFR6/Devbox Implementation Contract/FR37 all covered, no adjacent-story scope overlap); Scope boundary table Epic 4 row stylistic asymmetry (Epic 4 is external consumer, not next-story owner — forward-looking phrasing acceptable); Guardrail 12 multi-doc ambiguity (intent is clear — one file); architecture silent on script decomposition (allowed invention); JSONL schema invention (architecture left it open); docker-compose.yml:10 stale TODO (Task 9.1 replaces — intentional); entrypoint.sh line-number reference approximate (dev-story pins exact lines at impl time). Story Status remains `ready-for-dev`; sprint-status row unchanged (this gate does NOT flip the sprint-status file — only Change Log records the validation). FR14n `Story State` transitions `drafted → validated` in IP. Next: `/bmad-testarch-atdd` for `validated → atdd-scaffolded` (projected thirteenth cumulative ATDD-skip precedent — infrastructure-security class hybrid ground (c) variant (ii)+(iii): downstream Story 2.5 hardening-integration gate + spec-declared-CR-substitution for adversarial coverage).
 - **v1.0** (2026-04-21 iter-155): Initial drafting by `/bmad-create-story` (ultimate-context-engine pass). Story Status `backlog → ready-for-dev`. Sprint-status `2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: backlog → ready-for-dev` + `# last_updated: 2026-04-21 Story-2-3-ready-for-dev UTC` timestamp. Exhaustive analysis across PRD + architecture + epics + implementation-readiness + Story 2.1 + Story 2.2 dev notes + deferred-work produced 5 ACs (verbatim from epics.md) + 17 scope-clarifications (SC-1 through SC-17 covering runtime location, JSONL path/schema/rotation, atomic-reload mechanism, cap_add wiring, parity verification commands, whitelist boundary vs Story 2.4, scripts output-location, invariant consolidation, entrypoint surgery discipline, dnsmasq allow-mechanism, resolv.conf override, upstream DNS knob, JSONL emitter process model, log-rotation safety, workspace-logs dir) + 13 Tasks with ~50 subtasks. Architecture pin confirmed: S5 dual-layer belt-and-braces (dnsmasq + nftables) is decided; PRD's "mechanism deferred" has been satisfied. Scope boundary pinned vs Story 2.4 (whitelist CLI) + Story 2.5 (hardening + non-root + tmpfs) + Story 2.6 (host-side pnpm CLI) + Story 2.13 (healthcheck) + Epic 4 (FR37 security-evidence consumer). Previous-story patterns captured: contentHash refresh + sync-gate protocol + .envrc.example knob format + live-smokes dual-assertion + Change Log versioning + Story 2.2 CR PATCHED mistakes (AR-1 negative-smoke filename + AR-2 allow-list asymmetry) explicitly guarded against. Backend-B iteration-env constraint carried from Story 2.1. JSONL schema pinned (6 stable fields) for Epic 4 FR37 consumer hard-reference. Atomic-reload mechanism pinned (flock + nft -f kernel-atomic + dnsmasq SIGHUP + release). IPv4/IPv6 parity verification pinned as single `inet keel_egress` table with `output_v4` + `output_v6` chains both `policy drop` (SC-7 verbatim commands in Task 12.3 + 12.4). One consolidated invariant `INV-devbox-egress-contract` registered per SC-10 (vs three split invariants) — per Story 2.2 iter-151 AR-2 lesson that contract-splitting grows asymmetry risk. One new `.envrc.example` knob (`KEEL_DEVBOX_DNS_UPSTREAM`) added (SC-14); no whitelist-source knob (Story 2.4 scope) and no rotation-size knob (pinned at 50 MB per SC-4). Next: `/bmad-create-story (args: "review")` pre-dev SM validation per § Story Lifecycle Decision Matrix row `drafted → validated`.

@@ -30,6 +30,17 @@ Update this file when a new image is baked.
 | Playwright OS deps          | `npx --yes playwright@latest install-deps` post-apt   | Reconciles apt list with Playwright's current requirement set.                              |
 | `postgresql-client`         | apt (Ubuntu 24.04 default)                            | Provides `psql` for Epic 6 Story 6.5 forward-compat.                                        |
 
+### Egress policy (Story 2.3)
+
+Story 2.3 appends `dnsmasq` + `nftables` to the Dockerfile `apt-get install` block (same layer as the other system packages — no new RUN). Exact pinned versions are captured at the next image bake on an operator workstation; `dpkg-query -W -f='${Package} ${Version}\n' dnsmasq nftables` inside the baked image produces the canonical pair. Backend-B iteration-env cannot re-bake (Story 2.1 iter-127 lesson); the bake + capture lands with Story 2.3 operator-workstation close-out.
+
+| Tool       | Source                     | Notes                                                                                                                   |
+| ---------- | -------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `dnsmasq`  | apt (Ubuntu 24.04 default) | In-container DNS authority — listens on 127.0.0.1:53, fail-closed `address=/#/` default; SC-12 allow-mechanism.         |
+| `nftables` | apt (Ubuntu 24.04 default) | Layer-3 egress filter — `inet keel_egress` table with `output_v4` + `output_v6` chains both `policy drop`; SC-7 parity. |
+
+Renovate's `apt` manager (Story 1.15) tracks both packages alongside the rest of the Dockerfile apt list; no custom manager entry required.
+
 ## Upstream-inherited apt extras (cc-devbox provenance)
 
 The Dockerfile's Task 2 `apt-get install` block (L49-60) inherits a set of
