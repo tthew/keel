@@ -42,7 +42,41 @@ so the Epic 6 landing requires **no image rebuild**:
 
 ## Bake log
 
-- **2026-04-21** — Story 2.1 iter-99 landing: image not baked in the Ralph
-  container environment (Docker unavailable). First bake will run on an
-  operator workstation per NFR2 baseline; versions above become concrete at
-  that point.
+- **2026-04-21 (iter-123)** — **First successful image bake.** Safe-subset path
+  (`docker compose build` only — no broad prune) on backend B
+  (`INV-devbox-dind-available` § Backend contract; host socket-passthrough to
+  Docker Desktop on the M4-Pro operator workstation). Closes the iter-100..120
+  detection-gated wait pattern.
+  - Image: `keel-devbox:local` — 848 MB, image ID `e7e91f1537f1`, platform
+    `linux/arm64`.
+  - Build time: ~4.5 min aggregate stage time (272.7 s across 22 build stages;
+    Ubuntu base pulled locally before the run, so registry metadata latency is
+    not included in this number).
+  - Pinned tool versions captured from the baked image:
+
+    | Tool                         | Version at 2026-04-21                   |
+    | ---------------------------- | --------------------------------------- |
+    | Ubuntu base                  | 24.04.4 LTS (Noble Numbat)              |
+    | Node.js                      | 20.20.2                                 |
+    | pnpm                         | 10.29.2                                 |
+    | `@anthropic-ai/claude-code`  | 2.1.116                                 |
+    | GitHub CLI (`gh`)            | 2.90.0 (2026-04-16)                     |
+    | `uv` (Astral)                | 0.11.7                                  |
+    | AWS CLI v2                   | 2.34.33 (Python 3.14.4)                 |
+    | Supabase CLI                 | 2.90.0                                  |
+    | git-delta                    | 0.19.2                                  |
+    | `postgresql-client` (`psql`) | 16.13 (Ubuntu `16.13-0ubuntu0.24.04.1`) |
+
+  - Scope: bake + version capture only. `pnpm test` + `pnpm lint` + NFR2
+    `benchmark.sh --skip-cold` run in the next iteration (decomposed from the
+    iter-123 NOW task per `.ralph/@plan.md` § Notes guardrail-9 ceiling).
+  - NFR2 authority unchanged: cold-start measurement remains the M4-Pro native
+    path per AC 4 scope clarification. Backend-B warm-only numbers (landing
+    next iter) are modelled-indicative baselines flagged accordingly by
+    `scripts/benchmark.sh` at iter-122.
+
+- **2026-04-21 (iter-99 — superseded by iter-123)** — Story 2.1 source-level
+  landing recorded that the image was not baked in the Ralph container
+  environment (Docker unavailable at that point). Docker landed iter-121, the
+  backend-B safety gate landed iter-122, the safe-subset bake landed above at
+  iter-123. Kept as history for the timeline.
