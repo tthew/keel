@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-21T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "1.16",
+    "label": "Fork extension-config pattern + Growth-tier INVARIANTS.fork.md scaffold (FR44 + FR45)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 4, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 4,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — four P2 ACs cover a documentation-surface substrate story with no live test runner. AC 1 + AC 2 + AC 3 + AC 4 all have STRONG substrate evidence: Task 7 six-smoke bundle covers scaffold-template shape (smoke 1 — 5 sections + FORK-naming example), rationale-doc shape (smoke 2 — 10 sections + anchor bullet), AGENTS.md update (smoke 3 — § Fork extension H2 + subpath-export + decision-tree), CLAUDE.md update (smoke 4 — INVARIANTS.fork.md reference + precedence keyword), 24-invariant manifest-load (smoke 5), and sync-gate clean (smoke 6). All six smokes re-verified LIVE at iter-92 trace-time byte-identical to iter-91 dev-story record (sha256 `167ba6b2…6218` for scaffold template + `be6f3d89…92f2` for rationale doc unchanged; manifest exports 24 invariants; sync-gate exits 0 clean). AC 4's Epic 15a `--include-fork-invariants` runtime enforcement is downstream scope explicitly carved out; Story 1.16's substrate deliverable = the TEMPLATE + DOCS + manifest entries pinning drift detection. Per-AC runner-hosted coverage deferred to Story 1.16-test-runner-landing + Epic 13 CI gate + Epic 15a CLI tests.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.16 authors the FR44 fork-extension pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold substrate as a drift-detected contract (Story 1.9 sync-gate via 2 new manifest entries `INV-fork-extension-rationale` + `INV-fork-invariants-scaffold` at content-hash level). Any silent edit to `docs/invariants/fork.md` or `packages/keel-invariants/templates/INVARIANTS.fork.md` triggers sync-gate FAIL at pre-commit. Downstream fork operators consume the pattern by authoring `eslint.config.fork.js` + (optionally) copying the INVARIANTS.fork.md template to their fork root; Epic 15a's `--include-fork-invariants` flag (default `false` at 1.0) automates the copy when landed. AGENTS.md + CLAUDE.md knowledge-file edits are consumption-layer pointers (not manifest sourcePaths) — they evolve freely without triggering sync-gate cascade.",
+      "requirements": ["AC-1", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.16 test-runner landing (Epic 13 scope) will unlock optional per-AC probes: AC 1 code-review-driven documentation-fidelity probe (CR Blind Hunter + Edge Case Hunter); AC 2 amendment-vs-fork decision-tree exhaustiveness check + flat-config precedence accuracy check; AC 3 scaffold-template shape unit test via fixture-fork that copies the template + asserts all 5 sections exist; AC 4 Epic 15a CLI test (when authored) asserting `--include-fork-invariants=false` is the 1.0 default + scaffold NOT copied unless flag explicitly set. None of these block Story 1.16 `review → done` transition.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}
