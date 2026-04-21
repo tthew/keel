@@ -1,0 +1,61 @@
+# ---------------------------------------------------------------------------
+# packages/devbox/docker-compose.yml — Story 2.1 scope
+#
+# Minimal one-service compose that lands the M0.5(a-c) image + compose +
+# entrypoint foundation. Follow-up Epic 2 stories extend this file:
+#
+#   - Story 2.2 : parameterise resource knobs (cpus / mem_limit / shm_size /
+#                 tmpfs) via `.envrc`-sourced env vars; wire `.envrc.example`.
+#   - Story 2.3 : add nftables / dnsmasq sidecar services for egress policy.
+#   - Story 2.5 : harden (non-root user, cap_drop, no-new-privileges, tmpfs
+#                 noexec/nosuid).
+#   - Story 2.8 / 2.9 : OAuth named-volume mounts (/home/dev/.claude,
+#                        /home/dev/.config/gh) via `volumes:` top-level.
+#   - Story 2.11 : shared-workspace mode (`KEEL_DEVBOX_SHARED=true`).
+#   - Story 2.13 : healthcheck (dnsmasq + sshd liveness).
+#
+# Story 2.1 only needs the file to parse and bring a container up so that the
+# AC 3 / AC 4 raw-compose verifications are runnable.
+# ---------------------------------------------------------------------------
+
+services:
+  devbox:
+    container_name: keel-devbox
+    image: keel-devbox:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # env_file path resolves relative to this compose file, so ../../.envrc
+    # points at the monorepo root's direnv config (I6). The file is
+    # gitignored; forks copy `.envrc.example` (lands in Story 2.2) to
+    # seed it. The block is wrapped in a default via `file:` + `required:
+    # false` so Story 2.1's compose parses even before Story 2.2 ships
+    # `.envrc.example`.
+    env_file:
+      - path: ../../.envrc
+        required: false
+    working_dir: /workspace
+    # Per-fork workspace mount (default; Story 2.11 adds shared mode).
+    # Parameterised via `KEEL_DEVBOX_WORKSPACE` so Story 2.11 flips the
+    # path without rewriting the compose file — see Story 2.1 AC 3 scope
+    # clarification "workspace mount contract".
+    volumes:
+      - type: bind
+        source: ${KEEL_DEVBOX_WORKSPACE:-../..}
+        target: /workspace
+    # TODO(Story 2.2): parameterise the following knobs via `.envrc`.
+    # Story 2.1 keeps literal placeholders so the compose file parses.
+    # cpus: "${KEEL_DEVBOX_CPUS:-4}"
+    # mem_limit: "${KEEL_DEVBOX_MEM:-8g}"
+    # shm_size: "${KEEL_DEVBOX_SHM:-512m}"
+    # TODO(Story 2.5): add the full hardening stanza:
+    # user: "dev"
+    # cap_drop: [ALL]
+    # security_opt: [no-new-privileges:true]
+    # tmpfs:
+    #   - /tmp:noexec,nosuid
+    # TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.
+    # TODO(Story 2.8 / 2.9): named-volume mounts for OAuth tokens.
+    restart: 'no'
+    tty: true
+    stdin_open: true
