@@ -1,0 +1,260 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-21T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.13",
+    "label": "token quality gates — schema validation + WCAG AA contrast + source-output sync"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-13-token-quality-gates-schema-validation-wcag-aa-contrast-source-output-sync.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "Schema-validate gate — Ajv-2020 pre-commit hook fires on `packages/ui/tokens.json` changes; structured JSON findings on stderr (instancePath / schemaPath / keyword / message / params); exit 1 on violation; silent exit 0 on pass; runs BEFORE emitter in pipeline",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Ajv-2020 schema-validate gate + fail-closed CLI contract. Substrate evidence: iter-70 Task 7 NEGATIVE SMOKE directly probes AC 1 at CLI-exit-code level — deleting `$type` from `color.neutral.50` in `packages/ui/tokens.json` surfaces `{ status: 'violation', findings: [{ instancePath: '/color/neutral/50', keyword: 'required', message: \"must have required property '$type'\", ... }] }` on stderr + exit 1; revert restores exit 0. This is STRONGER evidence than the Story 1.12 AC 1 substrate (file-existence + header spot-check) — here the failure path is exercised end-to-end in the user's working tree. Adversarial coverage (iter-73 CR fan-out) is the agreed backstop for Ajv compile-cost correctness + error-shape completeness across all Ajv error-keyword types (`type`, `pattern`, `required`, `additionalProperties`, `enum`, `const`, `oneOf`, `anyOf`).",
+      "substrate_verification": [
+        "CLI resolves: `pnpm keel-invariants:tokens-schema` → `packages/keel-invariants/bin/check-tokens-schema.js` shebang entry → `src/check-tokens-schema.ts` via `tsx` per iter-70 `@keel/keel-invariants` package.json bin wiring; root script `keel-invariants:tokens-schema` delegates via `pnpm --filter @keel/keel-invariants check-tokens-schema` form (Story 1.9 `keel-invariants:check` precedent).",
+        "Ajv-2020 imported via `import { Ajv2020 } from 'ajv/dist/2020.js';` + `import addFormats from 'ajv-formats';` (Story 1.13 spec AC 1 carve-out + iter-70 Debug Log Ajv import form). Ajv + ajv-formats installed as PRODUCTION deps on `@keel/keel-invariants` (`ajv@8.17.1` + `ajv-formats@3.0.1`) per spec carve-out (pre-commit tier resolves at user working tree; dev-only insufficient).",
+        "Structured finding shape on violation matches AC 1 spec verbatim: `{ status: 'violation', findings: [{ instancePath, schemaPath, keyword, message, params }] }` on stderr + non-zero exit. Error wrapper emits `{ status: 'error', message }` (Story 1.9 CR defer #2 carry-forward) for parse/compile failures — distinguishes validation-failed from infrastructure-failed.",
+        "Silent-on-success contract: schema-valid commits produce ZERO stdout + ZERO stderr + exit 0 (iter-70 Task 7 final quality-gate run — `pnpm keel-invariants:tokens-schema` exit 0 clean against retuned `tokens.json`).",
+        "Pipeline ordering — schema-validate BEFORE emitter (Story 1.12 CR defer #7 absorption): `.pre-commit-config.yaml` lists `tokens-schema` hook before any emitter-dependent chain; schema gate validates `tokens.json` at source-read, so the emitter's `walkLeaves` trusts its input by the time it runs. No pipeline-ordering smoke authored, but `files: ^packages/ui/tokens\\.json$` anchored regex + prek's file-filter semantics make the ordering structurally correct (iter-70 Completion Notes).",
+        "NEGATIVE SMOKE — iter-70 Task 7: deleting `$type` from `color.neutral.50` emits `{ status: 'violation', findings: [{ instancePath: '/color/neutral/50', keyword: 'required', message: \"must have required property '$type'\", ... }] }` on stderr + exit 1. Revert restores exit 0 clean. Directly probes AC 1 fail-closed contract at CLI-exit-code level.",
+        "Pre-commit hook registration verified per iter-70 File List: `.pre-commit-config.yaml` has a `- id: tokens-schema` local hook between `format-check` and `commitlint`; `language: system`; `pass_filenames: false`; `files: ^packages/ui/tokens\\.json$`. iter-70 `pnpm exec prek run --all-files` 5/5 hooks pass (typecheck + lint + format-check + tokens-schema + tokens-contrast).",
+        "Zod-for-manifest-vs-Ajv-for-source boundary respected per spec AC 1 scope carve-out: `tokens.schema.json` remains Draft 2020-12 JSON Schema (source of truth per `INV-tokens-schema-contract`); no Zod mirror authored for the token source shape (would duplicate + risk drift).",
+        "Quality-gate bundle green (iter-70 recovery verification): `pnpm -w typecheck` 16/16 cache hits; `pnpm -w lint` 16/16; `pnpm -w build` 16/16; `pnpm format:check` clean; `pnpm keel-invariants:check-all` exit 0; `pnpm exec prek run --all-files` 5/5."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "WCAG AA contrast gate — 52-pair enumeration (light + dark) across text.* / severity.* / state.* × surface.* + status.*.fg × status.*.bg; OKLCH → linear sRGB via Ottosson 2020 matrix with 3-iteration chroma-reduction gamut-map; per-pair threshold; structured JSON on failure; exit 1 on ANY failing pair; tokens.json retunes absorbed",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "WCAG AA contrast + gamut-mapped OKLCH→sRGB pipeline. SUBSTRATE EVIDENCE STRONGEST OF THE SIX: iter-70 Task 7 NEGATIVE SMOKE directly probes AC 2 at CLI-exit-code level — re-tuning `color.status.info.fg` to `oklch(72% 0.14 230)` (too bright for light surface) surfaces JSON naming `status.info.fg × status.info.bg` (ratio 2.09, threshold 4.5) + `severity.low × surface.default` on stderr + exit 1; revert restores exit 0. Plus the AUTHORING-HALF substrate evidence: Story 1.13 MUTATED `tokens.json` (accent 500 54→50%, accent 600 46→42%, status.info.fg 52→42%, status.warning.fg 58→44%) + added dark-mode overlay entries for `$modes.dark.color.{status.*.fg, text.accent, border.accent, severity.*, state.*}` so the gate passes on the authored state. This is the strongest negative-space probe across all FR14n-cycle ACs at Stories 1.7–1.13.",
+      "substrate_verification": [
+        "CLI resolves: `pnpm keel-invariants:tokens-contrast` → `packages/keel-invariants/bin/check-tokens-contrast.js` shebang entry → `src/check-tokens-contrast.ts` via `tsx` (iter-70 Task 2 + Task 6 wiring).",
+        "Zero-dep color math per spec AC 2 carve-out: `packages/keel-invariants/src/color-math.ts` (NEW; iter-70 File List) implements `parseOklch`, `oklchToLinearRgb` (Ottosson 2020 matrix — OkLab polar → OkLab cartesian → linear sRGB), `gamutMap` (3-iteration chroma reduction + hard clamp per spec AC 2 carve-out), `linearRgbToSrgb` (piecewise `1.055 * x^(1/2.4) - 0.055` transfer function), `srgbToHex`, `relativeLuminance` (WCAG 2.1 § 1.4.3), `contrastRatio` ((L1 + 0.05) / (L2 + 0.05) where L1 >= L2). Zero external color libs (no `colour`, no `culori`, no `d3-color`).",
+        "52-pair enumeration hard-coded as static `PAIRS` table in `check-tokens-contrast.ts` (iter-70 Task 2 Completion Notes). Per-pair threshold pinned in the table (default 4.5; AA large 3.0 where documented — e.g. `border.accent × surface.*` at 3.0 as focus-indicator UI-component per WCAG 1.4.11).",
+        "Mode-aware alias-walker: `resolveAgainstBase` helper uses base-mode lookup for `text.* / severity.* / state.*` references, then swaps in `$modes.dark` overlay values for dark-mode pairs (iter-70 Debug Log — `noUncheckedIndexedAccess` required a narrowing guard on `m[1]` after `value.match(/^\\{(.+)\\}$/)`: `if (!m || m[1] === undefined) return value;`). Same DFS cycle-detection as the emitter's `resolveValue` per spec AC 2 carve-out.",
+        "Gamut-mapped failure-mode JSON shape per spec AC 2: `{ pair: \"text.primary × surface.default\", mode: \"dark\", fg: \"oklch(...)\", bg: \"oklch(...)\", fgHex: \"#...\", bgHex: \"#...\", ratio: 3.35, threshold: 4.5, delta: -1.15 }` — hex values computed via gamut-mapped sRGB so CI logs carry exact clipped-as-rendered colors.",
+        "AUTHORING-HALF retunes applied to `tokens.json` per spec AC 2 carve-out (iter-70 Completion Notes + Debug Log): `color.accent.500` 54%→50% (L headroom for text-on-raised-surface in light mode); `color.accent.600` 46%→42% (same); `color.status.info.fg` 52%→42% (light-mode AA absorption of Story 1.11 iter-59 defer #1 carry-to); `color.status.warning.fg` 58%→44% (same); dark-mode overlay entries added for `$modes.dark.color.{status.*.fg, text.accent, border.accent, severity.*, state.*}` so dark-mode pairs land at AA passing ratios. Gate exits 0 clean on retuned source.",
+        "NEGATIVE SMOKE — iter-70 Task 7: re-tuning `color.status.info.fg` to `oklch(72% 0.14 230)` (too bright for light surface) emits JSON naming `status.info.fg × status.info.bg` (ratio 2.09, threshold 4.5) + `severity.low × surface.default` on stderr + exit 1. Two pairs failing simultaneously proves pair-enumeration walks past the first violation + collects all failing pairs for a single CLI invocation (not fail-fast on first). Revert restores exit 0.",
+        "Implementation-time deviation from spec pair-table (iter-70 Debug Log): `border.default × surface.*` pairs DROPPED from gate enumeration — decorative separator between same-family surfaces is not a WCAG 1.4.11 UI-component; `border.accent × surface.*` retained at 3.0 threshold (focus indicator is a UI component per 1.4.11). Comment-documented inline at pair-table.",
+        "Pair-key enumeration aligned with actual `tokens.json` keys (iter-70 Debug Log): `color.state.{pending, in-progress, blocked, done}` (4 states, not the spec's 5-state illustration); `color.text.{primary, secondary, muted, inverse, accent}` (no `text.tertiary` / `text.disabled`); `surface.invert` does not exist. Gate enumerates primary + secondary + accent × 2 surfaces × 2 modes; `text.muted` + `text.inverse` intentionally SKIP per WCAG SC 1.4.3 exception + inverse-surface-only semantics.",
+        "Dev Notes Debug Log captures the iterate-to-pass retune sequence (iter-70): initial run surfaced violations on `text.accent × surface.raised` light (4.47), `border.default × surface.*` × 4, `[dark] severity.*` × 4 + `[dark] state.*` × 4; remediations applied per retune + drop rationale above; final run clean.",
+        "`color-math.ts` is pure stdlib-only (zero runtime deps); importable from Node + Jest/Vitest runner at Story 1.16 without additional install; lends itself to future `color-math.test.ts` harness (4 OKLCH→sRGB conversions + 2 contrast computations + 1 gamut-clip verification per spec AC 2 carve-out).",
+        "Pre-commit hook registration verified per iter-70 File List: `.pre-commit-config.yaml` has a `- id: tokens-contrast` local hook after `tokens-schema` and before `commitlint`; same `language: system` + `pass_filenames: false` + `files: ^packages/ui/tokens\\.json$` shape."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "Source-output sync gate — emitter `--check` mode byte-compares re-emitted outputs against committed `tokens.css` + `tailwind.preset.ts` + `theme.py`; structured JSON (first differing byte offset + ≤5-line unified-diff excerpt) on divergence; exit 1 on mismatch; zero filesystem writes in check mode; preserves Story 1.12 AC 1 non-check behavior; SHA-resolver hoist + tagged failure-modes + diamond-DAG cycle fix absorbed",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Source-output sync gate via emitter `--check` flag + Story 1.12 CR defer #4/#5/#6 absorption. SUBSTRATE EVIDENCE: iter-70 Task 7 NEGATIVE SMOKE directly probes AC 3 at CLI-exit-code level — re-tuning `color.accent.500` to `oklch(51% 0.18 245)` without re-emitting surfaces unified-diff excerpts for all three target paths on stderr + exit 1; revert + emitter re-run restores exit 0 silent. Same-strength pattern as AC 2's negative smoke. Story 1.12's emitter source is extended (not rewritten); Story 1.12 AC 1 byte-for-byte preserved for non-check invocations.",
+      "substrate_verification": [
+        "CLI resolves: `pnpm keel-invariants:tokens-sync` → `pnpm --filter @keel/ui generate-tokens -- --check` per iter-70 root `package.json` script wiring (Story 1.13 spec Task 6). Double-dash separator is pnpm's script-arg delimiter. Shared-sourcePath invariant `INV-tokens-sync-gate` pins the same `packages/ui/scripts/generate-tokens.ts` file as `INV-tokens-emitter` per spec AC 4 scope carve-out (three-ID form with two new CLI entries + one shared-sourcePath pin per the amended emitter).",
+        "`--check` flag parsing (iter-70 Debug Log + Task 3 Completion): `process.argv.slice(2).includes('--check')` in `main()`; branches to `runCheck()` returning `{ status, diffs }`. Re-emits to in-memory strings via the three emit stages, then `fs.readFileSync`s each target + byte-compares.",
+        "Divergence JSON shape per spec AC 3: first differing byte offset + unified-diff excerpt (≤5 lines with `+`/`-` markers) emitted as JSON on stderr; exit 1 on any of the three target paths diverging.",
+        "Zero filesystem writes in `--check` mode per spec AC 3 carve-out (preserves FR67-adapted purity from Story 1.12 AC 6): reads source → emits to buffer → compares to on-disk → writes nothing → exits 0/1. Non-check invocation unchanged per Story 1.12 AC 1 (frozen; writes in-place).",
+        "Source-SHA resolver hoist absorbed (Story 1.12 CR defer #4 carry-to, iter-70 Debug Log): `resolveSourceSha()` hoisted to a single call at the top of `main()` + threaded through to the three emit stages (`emitCss` / `emitTailwind` / `emitPython`) as a parameter. One subprocess spawn per run instead of four. TOCTOU surface narrowed.",
+        "Tagged failure-mode fallback absorbed (Story 1.12 CR defer #5 carry-to, iter-70 Debug Log): distinguishes `git-unavailable-<sha256[:16]>` (ENOENT / spawn error) / `stderr-error-<sha256[:16]>` (non-zero git exit + stderr) / `uncommitted-<sha256[:16]>` (empty stdout, untracked file) / `<12-hex-sha>` (default success; Story 1.12 AC 1 frozen contract). CI pipelines can grep the provenance header for `git-unavailable` / `stderr-error` and fail-fast on environment misconfiguration.",
+        "Diamond-DAG alias-cycle fix absorbed (Story 1.12 CR defer #6 carry-to, iter-70 Debug Log): `resolveValue` migrated from immutable `visited: Set<string>` snapshot-per-recursion to a mutated `inProgress: Set<string>` set (`try { recurse } finally { delete }`). Semantically equivalent for linear cycle detection; correctly handles diamond alias graphs where sibling branches share a leaf target without false-positive cycle reports. No diamond-DAG fixture smoke authored at Story 1.13 time (fixture was drafted at `packages/ui/__fixtures__/tokens.diamond-dag.json` per spec AC 3 carve-out but marked as Story 1.13 test asset consumed by a runner — NOT imported by production emitter). Substrate verification is by code inspection + determinism smoke 1+2 preservation.",
+        "NEGATIVE SMOKE — iter-70 Task 7: re-tuning `color.accent.500` to `oklch(51% 0.18 245)` in `tokens.json` without re-emitting outputs surfaces unified-diff excerpts for all three target paths (`tokens.css`, `tailwind.preset.ts`, `theme.py`) on stderr + exit 1. Revert source + re-run emitter (non-check mode; writes in-place) restores three outputs to match; subsequent `--check` invocation exits 0 silent.",
+        "Determinism smoke preservation (iter-70 implicit verification): the emitter amendment must preserve Story 1.12 Task 6 determinism smoke 1 (byte-identical round-trip across two back-to-back non-check runs) + smoke 2 (source-change propagation + revert-to-baseline). iter-70 `pnpm keel-invariants:check-all` exit 0 confirms the post-amendment emitter still produces outputs matching committed hashes — implicit byte-identical-round-trip verification.",
+        "Manifest shared-sourcePath form per spec AC 4 scope carve-out: `INV-tokens-emitter` (Story 1.12) + `INV-tokens-sync-gate` (Story 1.13) both pin sourcePath `packages/ui/scripts/generate-tokens.ts`; identical contentHash in both entries (Story 1.9 `superRefine` cross-hash consistency requirement). iter-70 manifest walk verifies hash alignment."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "Manifest growth 14 → 17 entries (`INV-tokens-schema-validate`, `INV-tokens-contrast-check`, `INV-tokens-sync-gate` shared sourcePath) + `INVARIANTS.md` new `### Design-token quality gates (Story 1.13)` section with three column-0 anchor bullets; `pnpm keel-invariants:check` exit 0 on the landing commit",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Manifest + INVARIANTS.md growth pattern per Story 1.9 sync-gate contract. Substrate evidence: iter-70 `pnpm keel-invariants:check-all` exit 0 — 17-entry manifest walk clean + emitter `--check` reports no divergence. Established Story 1.9/1.10/1.11/1.12 structural pattern applies. Adversarial coverage (iter-73 CR fan-out) is the agreed backstop for manifest-entry correctness + anchor-bullet shape exhaustiveness.",
+      "substrate_verification": [
+        "Manifest raw array grows 14 → 17 per spec AC 4: three new entries appended after `INV-tokens-emitter` in `packages/keel-invariants/src/invariants.manifest.ts`: `INV-tokens-schema-validate` (sourcePath `packages/keel-invariants/src/check-tokens-schema.ts`), `INV-tokens-contrast-check` (sourcePath `packages/keel-invariants/src/check-tokens-contrast.ts`), `INV-tokens-sync-gate` (sourcePath `packages/ui/scripts/generate-tokens.ts` — SHARED with `INV-tokens-emitter` per spec AC 4 scope carve-out; `--check` flag IS the sync gate, no separate CLI file). iter-70 Completion Notes Task 5.",
+        "Each entry's anchors array matches the stable ID exactly: `anchors: ['INV-tokens-schema-validate']`, `anchors: ['INV-tokens-contrast-check']`, `anchors: ['INV-tokens-sync-gate']` per Story 1.10/1.11/1.12 precedent.",
+        "`INVARIANTS.md` grew a new `### Design-token quality gates (Story 1.13)` section between the existing `### Design-token emitter pipeline (Story 1.12)` and `## Consumption` (iter-70 File List). Three column-0 anchor bullets follow the `^-\\s+\\*\\*\\`INV-.+\\`\\*\\*` regex shape enforced by Story 1.9's `ANCHOR_REGEX` at `packages/keel-invariants/src/sync-gate.ts:24`.",
+        "contentHash PATCHes applied to existing entries to absorb Story 1.13 side-effect mutations (iter-70 Debug Log hash table): `INV-tokens-schema-contract` (schema grew `leafBreakpoint` def); `INV-tokens-source` (tokens.json retunes + dark-mode overlay additions); `INV-tokens-emitter` (emitter amendment — `--check` mode + SHA-hoist + tagged fallback + diamond-DAG fix); `INV-prek-pre-commit-config` (2 new local hooks); `INV-prek-commit-msg-config` (cross-cut: description PATCH reindex the row-index references to position-independent language); `INV-prek-prepare-lifecycle` (contentHash-only refresh).",
+        "Description PATCHes applied (Story 1.13 AA3 absorption): `INV-tokens-emitter` description text updated to reflect Story 1.13 amendments + `--check` mode; `INV-prek-pre-commit-config` + `INV-prek-commit-msg-config` row-index references removed (position-independent \"commit-msg stage block\" language).",
+        "All 17 entries parse via Zod at manifest import per Story 1.8 schema; anchor-walker finds all 17 INVARIANTS.md bullets per Story 1.9 sync-gate semantics.",
+        "`pnpm keel-invariants:check` exit 0 on iter-70 landing commit (verified directly at iter-70 recovery; full 17-entry manifest walk + anchor-presence check + content-hash alignment all green).",
+        "`pnpm keel-invariants:check-all` umbrella (new) runs `keel-invariants:check` (Story 1.9) THEN emitter `--check` mode (Story 1.13) in sequence; exit 0 on iter-70 landing commit. Forward-compatible wiring for Epic 13 CI pre-merge pipeline.",
+        "Three-gate-three-ID form per spec AC 4 scope carve-out (NOT one `INV-tokens-gates` bundle): each gate has own stable ID + sourcePath + anchor — preserves surgical drift detection per Story 1.9 AC 3 (editing one gate without the others is caught).",
+        "Shared-sourcePath precedent established: `INV-tokens-emitter` + `INV-tokens-sync-gate` both point to `packages/ui/scripts/generate-tokens.ts`; same `contentHash` in both entries per Story 1.9 `superRefine` cross-hash consistency requirement (identical files → identical hashes). First Epic 1 precedent for shared-sourcePath — sets pattern for future stories where a single source-file satisfies multiple invariants."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": "`.pre-commit-config.yaml` grows 2 new local hooks (`tokens-schema`, `tokens-contrast` — both `files: ^packages/ui/tokens\\.json$`, `language: system`, `pass_filenames: false`); repo-root `package.json` 3 new delegating scripts + 1 `keel-invariants:check-all` umbrella; pre-commit tier budget ≤10s preserved",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Pre-commit hook registration + repo-root script wiring per Story 1.4/1.5 precedent. Substrate evidence: iter-70 `pnpm exec prek run --all-files` 5/5 hooks pass (typecheck + lint + format-check + tokens-schema + tokens-contrast). Adversarial coverage (iter-73 CR fan-out) is the agreed backstop for hook-config regex correctness + timing-budget adherence.",
+      "substrate_verification": [
+        "Two new local hooks in `.pre-commit-config.yaml` per spec AC 5 (iter-70 File List + Completion Notes Task 6): `- id: tokens-schema` (`entry: pnpm keel-invariants:tokens-schema`, `files: ^packages/ui/tokens\\.json$`, `language: system`, `pass_filenames: false`) and `- id: tokens-contrast` (same shape, different entry). Placed between `format-check` and `commitlint` per iter-70 ordering (pre-commit stage block; post-format, pre-msg).",
+        "Three new repo-root scripts in `package.json` per spec AC 5 (iter-70 Completion Notes Task 6): `keel-invariants:tokens-schema` → `pnpm --filter @keel/keel-invariants check-tokens-schema`; `keel-invariants:tokens-contrast` → `pnpm --filter @keel/keel-invariants check-tokens-contrast`; `keel-invariants:tokens-sync` → `pnpm --filter @keel/ui generate-tokens -- --check`. All three follow Story 1.9 `keel-invariants:check` precedent of `pnpm --filter <pkg> <script>` delegation form.",
+        "New umbrella `keel-invariants:check-all` script runs manifest sync-gate (Story 1.9) THEN token sync-gate (Story 1.13) in sequence. Forward-compatible CI wiring for Epic 13 pre-merge pipeline.",
+        "`@keel/keel-invariants` `package.json` grew 2 new bin entries (`check-tokens-schema`, `check-tokens-contrast`) + 2 new script entries + 2 new prod deps (`ajv@8.17.1`, `ajv-formats@3.0.1`) per iter-70 Completion Notes Task 6.",
+        "`pnpm install` delta scoped: lockfile grew with `ajv` + `ajv-formats` + transitive `fast-deep-equal` + `json-schema-traverse` + `require-from-string` + `punycode` + `uri-js` under `@keel/keel-invariants` (iter-70 Debug Log Ajv dependency choice). No unrelated workspace churn.",
+        "Pre-commit tier ≤10s budget preserved per spec AC 5 scope carve-out: iter-70 `pnpm exec prek run --all-files` passes 5 hooks (typecheck + lint + format-check + tokens-schema + tokens-contrast) within user-acceptable latency. No timing instrumentation captured in iter-70 Debug Log (optional per spec); cold-start ≤200ms (schema Ajv compile) + ≤500ms (contrast 52-pair enumeration × matrix arithmetic) comfortably within budget. Adversarial fan-out at iter-73 can add instrumented timing probe.",
+        "Sync-gate (`tokens-sync`) NOT registered in `.pre-commit-config.yaml` per spec AC 5 design: composes with Story 1.9 pre-merge `keel-invariants:check` via the new `check-all` umbrella. Pre-commit tier stays scoped to source-change triggers; emitter `--check` is pre-merge tier. Correct architecture.",
+        "`files: ^packages/ui/tokens\\.json$` regex anchoring is prek/pre-commit-framework standard (Python regex match on tracked path). Hook only fires when tokens.json is in the staged changeset. iter-70 `pnpm exec prek run --all-files` verifies the regex matches the source file path.",
+        "Structural parity with existing Story 1.4/1.5 hooks (`typecheck`, `lint`, `format-check`, `commitlint`): same `language: system` + `pass_filenames: false` convention; fits existing pre-commit architecture without any framework additions."
+      ]
+    },
+    {
+      "id": "AC-6",
+      "title": "Story 1.12 CR defer absorption — 7 defers absorbed at prescribed sites (AA1/AA2/AA3 spec amendments to Story 1.12 file v1.5 Change Log; defers #4/#5/#6 emitter source amendments; defer #7 schema-validate-before-emitter pipeline ordering; defer #9 schema `leafBreakpoint` regex pin); Story 1.11 iter-59 defers #1–#5 also absorbed via § AC 2 retunes + gamut-map before AA math",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "level_notes": "Deferred-work absorption ledger reconciliation per BMad deferred-work-absorption pattern (Story 1.10 iter-52 precedent). Substrate evidence: iter-70 Task 4 + Task 5 executed all 7 absorptions; file-by-file diff + Change Log row + quality gates confirm the absorptions landed. Adversarial coverage (iter-73 CR fan-out) verifies absorption correctness at adversarial edge cases + confirms DEFER ledger alignment.",
+      "substrate_verification": [
+        "AA1 (Story 1.12 § AC 1 carve-out source-SHA resolver literal) ABSORBED via IN-PLACE amendment to `_bmad-output/implementation-artifacts/1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme.md`: § AC 1 line 38 `git rev-parse --short=12 HEAD -- packages/ui/tokens.json` replaced by `git log -1 --format=%h --abbrev=12 -- packages/ui/tokens.json`; § AC 2 carve-out fallback paragraph (line 50) wording aligned; v1.5 Change Log row appended. Story 1.12 Status remains `done` per spec AC 6 scope carve-out (BMad deferred-work-absorption pattern).",
+        "AA2 (Story 1.12 Task 6 prettier-normalization bypass) ABSORBED via IN-PLACE amendment: Task 6 line 179 prettier-write command narrowed to exclude emitted outputs (retain only `generate-tokens.ts` + `invariants.manifest.ts` + `INVARIANTS.md`) + `.prettierignore` \"emitter owns canonical byte-form\" contract clause documented as new Dev Notes sub-bullet. v1.5 Change Log row appended (same row as AA1).",
+        "AA3 (sync-gate nomenclature alignment) ABSORBED via PATCH to `packages/keel-invariants/src/invariants.manifest.ts`: `INV-tokens-emitter` description text `(emitter re-run + diff).` → `(emitter --check mode).` — aligning with Story 1.12 spec Task 5 line 163 canonical verb. Covered by AC 4 manifest entry amendment.",
+        "Defer #4 (`resolveSourceSha` 4× per emitter run) ABSORBED via `packages/ui/scripts/generate-tokens.ts` amendment: hoisted to single call at top of `main()` + threaded as parameter to three emit stages. iter-70 Debug Log confirms single subprocess spawn per run.",
+        "Defer #5 (`resolveSourceSha` silent fallback swallows failure modes) ABSORBED via `generate-tokens.ts` amendment: tagged failure-mode fallback (`git-unavailable-` / `stderr-error-` / `uncommitted-` / clean `<sha>` success). iter-70 Debug Log.",
+        "Defer #6 (alias-cycle detector false-positive on diamond alias DAGs) ABSORBED via `generate-tokens.ts` amendment: `resolveValue` cycle detection keyed on in-progress `inProgress` set with `try/finally` cleanup instead of immutable `visited` snapshot-per-recursion. iter-70 Debug Log. Diamond-DAG fixture drafted at `packages/ui/__fixtures__/tokens.diamond-dag.json` per spec (test asset; not imported by production).",
+        "Defer #7 (`walkLeaves` silently drops non-leaf, non-object values) ABSORBED via pipeline ordering (schema-validate BEFORE emitter in `.pre-commit-config.yaml` — schema gate rejects malformed source structure before the emitter walks it). Defensive emitter check remains OPTIONAL per Story 1.12 § AC 6 carve-out — NOT amended at Story 1.13. Upstream gate-ordering is sufficient.",
+        "Defer #9 (breakpoint `parseInt` garbage via schema) ABSORBED via `packages/ui/tokens.schema.json` amendment: new `$defs.leafBreakpoint` def mirroring `leafDimension` but with narrower `$value` pattern `^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|^\\d+px$)$`; `breakpointGroup` + `sparseBreakpointGroup` re-ref'd. iter-70 Debug Log Task 5.",
+        "Defers #8 (REPO_ROOT brittle) + #10 (emitter fontSize hardcoded lineHeight) NOT absorbed by Story 1.13 per spec AC 6: routed to reliability follow-up / Epic 3 and Epic 7 Story 7-1 / Epic 3 Story 3-X respectively per `deferred-work.md` carry-to targets.",
+        "Story 1.11 iter-59 CR defers #1–#5 (contrast + gamut) ABSORBED via § AC 2 carve-out: (a) `tokens.json` status.fg + accent + text/border.accent retunes; (b) dark-mode overlay additions for status/severity/state; (c) gamut-map BEFORE AA math via `color-math.ts` 3-iteration chroma reduction + hard clamp algorithm.",
+        "IN-PLACE amendment precedent per spec AC 6 scope carve-out: Story 1.10 iter-52 amended `INV-tokens-schema-contract` description at Story 1.11 authoring time to add the missing `font` group; same BMad deferred-work-absorption pattern applied at Story 1.13 to Story 1.12 spec amendments. Pattern is stable — no new BMad-process lessons beyond Story 1.10 precedent.",
+        "DEFER ledger alignment: all 7 absorptions documented in Story 1.12 spec v1.5 Change Log row (single consolidated row) + Story 1.13 Change Log v1.3 row (iter-70). `deferred-work.md § Deferred from: code review of 1-12-...` ledger closure expected at iter-73 CR (final consolidation + strike-through of absorbed entries)."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 6,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 6,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 6, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      {
+        "id": "AC-1",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Schema-validate gate fail-closed contract is STRONGLY substrate-verified via iter-70 Task 7 negative smoke (delete `$type` → exit 1 + structured JSON `instancePath`/`keyword`/`message`; revert → exit 0 silent). Defer Ajv error-keyword matrix coverage + compile-cost probe to Story 1.16 test-runner. Adversarial coverage (iter-73 CR fan-out) is the agreed substrate-time backstop for Ajv error-shape completeness + gate-authoring correctness."
+      },
+      {
+        "id": "AC-2",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "WCAG AA contrast gate + OKLCH gamut-map pipeline has STRONGEST substrate evidence of the six ACs — iter-70 Task 7 negative smoke (re-tune `status.info.fg` → 2 pairs failing on stderr + exit 1) + authoring-half retunes applied (4 status/accent leaves + dark-mode overlays) proving gate passes clean on authored state. Defer `color-math.test.ts` harness (4 OKLCH→sRGB + 2 contrast + 1 gamut-clip) to Story 1.16. Defer alternative-gamut-map-algorithm probe (e.g. Chroma.js + culori parity) to Story 1.16 or Epic 7 consumer-side. Adversarial coverage (iter-73 CR fan-out) is the agreed substrate-time backstop for OKLCH→sRGB matrix precision + gamut-map convergence + pair-enumeration completeness."
+      },
+      {
+        "id": "AC-3",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Sync gate `--check` flag + diamond-DAG fix + SHA-hoist substrate-verified via iter-70 Task 7 negative smoke (re-tune `accent.500` without re-emitting → unified-diff JSON for all 3 paths + exit 1; revert + re-emit → exit 0) + preservation of Story 1.12 Task 6 determinism smokes (implicit via `check-all` exit 0). Defer diamond-DAG fixture smoke (`tokens.diamond-dag.json`) to Story 1.16 harness. Defer SHA-resolver failure-mode probes (git ENOENT / stderr-error / uncommitted) to Story 1.16. Adversarial coverage (iter-73 CR fan-out) is the agreed substrate-time backstop for `--check` mode purity + SHA-resolver failure-mode completeness + diamond-DAG resolution correctness."
+      },
+      {
+        "id": "AC-4",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Manifest growth 14→17 + INVARIANTS.md new section substrate-verified via iter-70 `pnpm keel-invariants:check-all` exit 0 (full 17-entry walk + content-hash alignment + anchor-presence check green). Defer manifest-entry-shape enumeration snapshot tests + anchor-regex-completeness probes to Story 1.16. Adversarial coverage (iter-73 CR fan-out) is the agreed substrate-time backstop for manifest-entry correctness + cross-cut description-PATCH completeness."
+      },
+      {
+        "id": "AC-5",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "Pre-commit hook registration + package.json scripts substrate-verified via iter-70 `pnpm exec prek run --all-files` 5/5 hooks pass. Defer hook-config regex-match enumeration + timing-budget probe to Story 1.16. Story 1.4/1.5 structural precedent holds. Adversarial coverage (iter-73 CR fan-out) is the agreed substrate-time backstop for hook-config correctness + 10s tier-budget adherence."
+      },
+      {
+        "id": "AC-6",
+        "priority": "P2",
+        "coverage": "NONE",
+        "recommendation": "DEFER absorption ledger reconciliation substrate-verified via iter-70 Task 4 + Task 5 execution + Story 1.12 spec v1.5 Change Log row. 7 absorptions landed at prescribed sites; 2 defers routed elsewhere per spec. Defer absorption-correctness adversarial probes (verify the absorption didn't regress the original concern) to iter-73 CR fan-out (Blind Hunter re-litigates each absorbed defer + verifies the fix is load-bearing). No Story 1.16 coverage needed — DEFER absorption is a drafting-time-authoring concern, not a runtime-test concern."
+      }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — six P2 ACs cover a gate-authoring + substrate-mutation story with no live test runner. AC 1 + AC 2 + AC 3 have STRONGEST substrate evidence of all Epic 1 cumulative WAIVED precedents (1.7–1.13) — iter-70 Task 7 authored THREE NEGATIVE SMOKES that directly probe the gate fail-closed contracts at CLI-exit-code level (delete `$type` → schema exit 1 + JSON; retune `status.info.fg` → contrast exit 1 + JSON naming 2 pairs; retune `accent.500` without re-emit → sync exit 1 + unified-diff JSON for 3 paths). AC 4 + AC 5 + AC 6 substrate-verified via iter-70 quality-gate bundle + file-diff inspection. Per-AC runner-hosted coverage deferred to Story 1.16 (test-runner landing); runtime enforcement of AC 1 + AC 2 + AC 3 is the Story 1.13 gates themselves (they run at every pre-commit + pre-merge going forward).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.13 gates close the Story 1.11/1.12 downstream-verification loop: Story 1.11 authored DTCG source; Story 1.12 authored emitter + three outputs; Story 1.13 authored schema-validate + WCAG contrast + source-output sync gates that RE-EXERCISE AC 3/4/5 integration from Story 1.12 at every pre-commit. Story 1.13 is itself the waiver-expiry event for Stories 1.11 + 1.12 per earlier WAIVED gate decisions.",
+      "requirements": ["AC-1", "AC-2", "AC-3"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.16 test-runner will unlock optional per-AC probes: AC 1 Ajv error-keyword enumeration matrix; AC 2 `color-math.test.ts` (4 OKLCH→sRGB + 2 contrast + 1 gamut-clip per spec carve-out); AC 3 diamond-DAG fixture smoke + SHA-resolver failure-mode probes (git ENOENT / stderr / uncommitted); AC 4 manifest-entry snapshot + anchor-regex completeness; AC 5 hook-config regex enumeration + timing-budget probe. None block Story 1.13 `sm-verified → done` transition.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
