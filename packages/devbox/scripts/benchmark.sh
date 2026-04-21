@@ -137,13 +137,44 @@ host_uname="$(uname -a)"
 docker_version="$(docker --version)"
 compose_version="$(docker compose version --short 2>/dev/null || echo unknown)"
 
-# SIGINT/SIGTERM during the cold/warm phase → tear compose down before
-# exit 130 (POSIX SIGINT convention) so a ^C doesn't leave stray containers
-# or networks behind. The `|| true` guards the case where compose never
-# reached `up` (e.g. daemon went away mid-run or `up` aborted at
-# container-create as it did under the iter-124 backend-B bind-mount
-# denial). Trap runs in every BACKEND branch below — warm-only included.
-trap 'docker compose -f "${COMPOSE_FILE}" down >/dev/null 2>&1 || true; exit 130' INT TERM
+# Trap-completeness bundle (iter-139 CR AR-1 = iter-138 findings F1 +
+# F27 + F28). Three defects the iter-132 AI-4 trap did not cover:
+#   (a) INT + TERM shared exit 130 — conflated SIGINT (operator ^C,
+#       signum 2 → POSIX 128+2 = 130) with SIGTERM (supervisor /
+#       orchestrator stop, signum 15 → POSIX 128+15 = 143), so any
+#       caller reading `$?` to distinguish the two got a false match;
+#   (b) HUP + QUIT unhandled — a closed terminal (SIGHUP, 128+1 = 129)
+#       or Ctrl-\\ (SIGQUIT, 128+3 = 131) mid-run bypassed the
+#       `docker compose down` cleanup and left stray compose stack /
+#       containers / networks behind;
+#   (c) ERR path uncovered — `set -e` on a failed `docker compose
+#       build` or `up` (e.g. the iter-124 backend-B bind-mount denial)
+#       exited without firing the trap, leaking half-created image +
+#       container + network state to the host until the next
+#       `docker system prune`.
+# Fix: move cleanup to an EXIT trap that fires on ANY exit path —
+# signal-triggered, `set -e`-triggered, or normal end-of-script — and
+# keep the per-signal traps as thin wrappers that call `exit N` with
+# the signal-specific POSIX code. When the per-signal trap calls
+# `exit N`, the EXIT trap fires next with `$? == N`, so the script's
+# final exit status matches the signal (bash does not re-enter the
+# EXIT trap during its own execution). `cleanup_on_exit` captures
+# `$?` into a local BEFORE running `docker compose down` so a
+# post-teardown failure (guarded by `|| true`) cannot clobber the
+# original exit code the trap was summoned to propagate, and the
+# explicit `exit "$exit_code"` at the tail ensures the status
+# survives in bash variants where the EXIT trap's last-command
+# status would otherwise leak through.
+cleanup_on_exit() {
+  local exit_code=$?
+  docker compose -f "${COMPOSE_FILE}" down >/dev/null 2>&1 || true
+  exit "$exit_code"
+}
+trap cleanup_on_exit EXIT
+trap 'exit 130' INT   # SIGINT  (signum 2  → 128+2)
+trap 'exit 143' TERM  # SIGTERM (signum 15 → 128+15)
+trap 'exit 129' HUP   # SIGHUP  (signum 1  → 128+1)
+trap 'exit 131' QUIT  # SIGQUIT (signum 3  → 128+3)
 
 if [[ $SKIP_COLD -eq 0 ]]; then
   echo "→ cold start: docker system prune -af --volumes (backend=$BACKEND)"
