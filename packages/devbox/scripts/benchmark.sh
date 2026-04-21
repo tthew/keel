@@ -8,7 +8,7 @@
 # values are labelled as modelled, not a reproducible envelope.
 #
 # Usage:
-#   packages/devbox/scripts/benchmark.sh [--skip-cold] [--allow-broad-prune]
+#   packages/devbox/scripts/benchmark.sh [--skip-cold] [--allow-broad-prune] [--help|-h]
 #
 # Flags:
 #   --skip-cold           Skip the destructive cold pass; run warm-only.
@@ -19,6 +19,9 @@
 #                         destroys host-level Docker state including unrelated
 #                         projects). Ignored under backend A — full prune is
 #                         already self-contained there.
+#   --help, -h            Print a scripted Usage block to stdout and exit 0.
+#                         Runs before the docker / daemon reachability probes
+#                         so operators can read Usage on a host without Docker.
 #
 # Invocation discipline:
 #   - Run from the repo root so the compose file's `env_file: ../../.envrc`
@@ -47,12 +50,50 @@ DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 README_FILE="${DEVBOX_DIR}/README.md"
 
+# --help|-h handling (iter-143 CR-re-run AR-5 = iter-138 findings F30 / E19).
+# Operators asking for usage previously fell through to the unknown-arg
+# `exit 2` branch; that contradicted the AI-4 UX-bundle posture (clear
+# operator guidance before a destructive-prune refusal can fire). The
+# function prints a scripted subset of the Usage + Flags block at the top
+# of this file; duplicating the content here (rather than sed-slicing the
+# comment block at runtime) keeps the header block the single source of
+# truth for human readers while letting the runtime output stay
+# independent of comment parsing. Runs BEFORE the `command -v docker` and
+# `docker info` probes below so `--help` works on a host with no Docker
+# installed (the only flag path that does not require a reachable daemon).
+print_usage() {
+  cat <<EOF
+Usage:
+  $(basename "$0") [--skip-cold] [--allow-broad-prune] [--help|-h]
+
+Flags:
+  --skip-cold           Skip the destructive cold pass; run warm-only.
+                        Safe under both backends.
+  --allow-broad-prune   Override the backend-B safety guard (caller
+                        accepts the host-level blast radius of
+                        'docker system prune -af --volumes'). Ignored
+                        under backend A — the full prune is already
+                        self-contained there.
+  --help, -h            Print this Usage block to stdout and exit 0.
+
+Backend contract (docs/invariants/devbox-dind.md § Backend contract):
+  A. True Docker-in-Docker (isolated daemon). Broad prune is self-contained.
+  B. Host socket-passthrough. Broad prune destroys host state — refused
+     by default; --allow-broad-prune opts in.
+
+NFR2 budgets (Apple-Silicon M4-Pro baseline):
+  Cold start : <= 300 s (5 min).
+  Warm start : <=  30 s.
+EOF
+}
+
 SKIP_COLD=0
 ALLOW_BROAD_PRUNE=0
 for arg in "$@"; do
   case "$arg" in
     --skip-cold) SKIP_COLD=1 ;;
     --allow-broad-prune) ALLOW_BROAD_PRUNE=1 ;;
+    --help|-h) print_usage; exit 0 ;;
     *) echo "unknown arg: $arg" >&2; exit 2 ;;
   esac
 done
