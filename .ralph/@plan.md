@@ -31,7 +31,7 @@ _(none)_
 - **Story File:** `_bmad-output/implementation-artifacts/2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access.md`
 - **Story State:** drafted
 - **GitHub Issue:** _(not yet queried — Epic 2 issue + Story 2.1 issue tracking env vars will surface on next iter if ralph.py GH project injection is wired for Epic 2; absence not a blocker per PROMPT_build.md § Issue Tracking)._
-- **PR:** _n/a — draft PR to be created at push time this iter._
+- **PR:** #230 **Draft** — https://github.com/tthew/ralph-bmad/pull/230 (opened this iter via `gh pr create --base main --draft` per PROMPT_build.md step 5a; no CI runners pre-Epic-13 so `gh pr checks` returns "no checks reported"; Draft→Open transition queued at end of Epic 2).
 
 ## Notes
 
