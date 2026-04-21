@@ -288,8 +288,18 @@ awk -v server_block="${dnsmasq_server_block}" '
 # can't leave /etc/dnsmasq.conf half-written.
 mv "${dnsmasq_rendered}" "${DNSMASQ_CONF}"
 chmod 0644 "${DNSMASQ_CONF}"
-# Tempfile has been consumed; remove from cleanup list.
-cleanup_files=("${cleanup_files[@]/${dnsmasq_rendered}}")
+# Tempfile has been consumed; remove from cleanup list via explicit-loop
+# rebuild. `${cleanup_files[@]/${dnsmasq_rendered}}` blanks the matched
+# element to "" rather than removing it — leaves an empty-string entry that
+# the EXIT trap then `rm -f ""`'s. Harmless in practice (the `-n "${f}"`
+# guard in cleanup() short-circuits the empty), but obscures the invariant
+# that cleanup_files holds only live tempfiles. Explicit rebuild removes
+# the element outright so the array content matches its semantic meaning.
+new_cleanup=()
+for f in "${cleanup_files[@]}"; do
+	[[ "$f" != "${dnsmasq_rendered}" ]] && new_cleanup+=("$f")
+done
+cleanup_files=("${new_cleanup[@]}")
 
 # Ensure dnsmasq's runtime dir exists before first-start / HUP.
 mkdir -p "${DNSMASQ_RUNDIR}"
