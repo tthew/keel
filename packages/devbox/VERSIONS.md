@@ -30,6 +30,36 @@ Update this file when a new image is baked.
 | Playwright OS deps          | `npx --yes playwright@latest install-deps` post-apt   | Reconciles apt list with Playwright's current requirement set.                              |
 | `postgresql-client`         | apt (Ubuntu 24.04 default)                            | Provides `psql` for Epic 6 Story 6.5 forward-compat.                                        |
 
+## Upstream-inherited apt extras (cc-devbox provenance)
+
+The Dockerfile's Task 2 `apt-get install` block (L49-60) inherits a set of
+general-purpose system packages verbatim from upstream
+[cc-devbox](https://github.com/tthew/cc-devbox) rather than subtracting them:
+`software-properties-common`, `sudo`, `tini`, `procps`, `iproute2`,
+`dnsutils`, `netcat-openbsd`, `openssh-client`, `vim`, `less`, `locales`.
+Their inclusion is deliberate upstream provenance, not Story 2.1 scope creep.
+Each serves one of three roles: (a) it supports the baked toolchain itself
+— `software-properties-common` manages the NodeSource and `cli.github.com`
+apt repositories the Dockerfile wires up further down the build, and
+`locales` underpins the `LANG=C.UTF-8` / `LC_ALL=C.UTF-8` normalisation so
+every shell the operator drops into produces stable UTF-8 output; (b) it
+is a load-bearing dependency of a named downstream Epic 2 story —
+`tini` is the PID-1 signal forwarder the Story 2.5 hardening pass (non-root
+`dev` user + `no-new-privileges` + `cap_drop`) relies on for clean ^C/stop
+handling, `iproute2` + `dnsutils` + `netcat-openbsd` are the debugging surface
+for Stories 2.3 + 2.4's egress whitelist + DNS policy work, and
+`openssh-client` supports Story 2.13's sshd liveness + remote-agent flows;
+or (c) it is in-container operator ergonomics at M0.5 — `sudo` for the
+bind-mount ownership workaround, `vim` + `less` for on-demand edit + pager
+surface, `procps` for `ps` / `top` visibility when diagnosing build hangs.
+Removing any would either break a planned downstream story or silently
+degrade the operator-ergonomics surface the M0.5 deliverable advertises.
+Renovate tracks upstream apt bumps for this set alongside the main baked
+tooling via `.github/renovate.json`'s `apt` custom manager (Story 1.15);
+no additional Dockerfile structure is needed to keep the pins in review.
+Scope-clarification source: Story 2.1 review cycle CR AI-9 (iter-128
+Acceptance Auditor Finding 4; closed iter-137).
+
 ## Host Compose floor
 
 `packages/devbox/docker-compose.yml` uses one feature that has a hard lower
