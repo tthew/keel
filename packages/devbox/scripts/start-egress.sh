@@ -69,15 +69,27 @@ compose_whitelist() {
 			cat "${WHITELIST_DEFAULT}"
 		fi
 		if [[ -d "${WHITELIST_FRAGMENTS_DIR}" ]]; then
-			# LC_ALL=C sort for stable cross-locale ordering; nullglob so an empty
-			# directory does not leak the literal pattern as a file name.
+			# Enumerate fragments via find(1) + mapfile, NOT an unquoted
+			# `$(printf | sort)` over shell-glob output. The old form
+			# word-split on IFS ($' \t\n'), so a fragment filename containing
+			# whitespace (e.g. `team A.txt`) would split into two tokens
+			# (`team` + `A.txt`) and each mis-named token would fall through
+			# the `[[ -r ]]` guard silently — fragment data missing from the
+			# composed whitelist with no diagnostic. find -print emits one
+			# literal line per file; mapfile -t assigns one line per array
+			# element; "${fragments[@]}" re-expands each name as a single
+			# argument with embedded whitespace intact. -maxdepth 1 -type f
+			# scopes to regular files in this directory (no recursion; skips
+			# subdirs and any dir-typed symlinks). LC_ALL=C on sort keeps
+			# stable cross-locale ordering. Empty directory yields an empty
+			# array; the for-loop is a safe no-op under bash 4.4+.
 			local fragment
-			shopt -s nullglob
-			for fragment in $(printf '%s\n' "${WHITELIST_FRAGMENTS_DIR}"/*.txt | LC_ALL=C sort); do
+			local -a fragments=()
+			mapfile -t fragments < <(LC_ALL=C find "${WHITELIST_FRAGMENTS_DIR}" -maxdepth 1 -type f -name '*.txt' -print | sort)
+			for fragment in "${fragments[@]}"; do
 				[[ -r "${fragment}" ]] || continue
 				cat "${fragment}"
 			done
-			shopt -u nullglob
 		fi
 	} \
 		| sed -E 's/#.*$//' \
