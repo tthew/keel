@@ -65,20 +65,28 @@ command -v docker >/dev/null 2>&1 || {
 detect_backend() {
   local daemon_name
   daemon_name="$(docker info --format '{{.Name}}' 2>/dev/null || true)"
+  # Well-known host-level identifiers → backend B (Docker Desktop, Moby VM, LinuxKit).
   case "$daemon_name" in
     docker-desktop|*-docker-desktop|moby|linuxkit-*)
       echo B
       return
       ;;
   esac
+  # Fail-safe inside a container: default B. We cannot reliably prove an
+  # isolated daemon from within /.dockerenv — empty daemon_name (probe failed)
+  # and daemon_name == $(hostname) are BOTH ambiguous signals (the daemon could
+  # be a nested isolated dockerd OR a socket-passthrough whose .Name happens to
+  # coincide). The prior fall-through to `echo A` on those cases made a
+  # destructive-prune misdetection the DEFAULT — directly contrary to the
+  # § Safety rule "when in doubt, refuse destructive" at
+  # docs/invariants/devbox-dind.md. Callers who KNOW they are on an isolated
+  # nested daemon use --allow-broad-prune.
   if [[ -f /.dockerenv ]]; then
-    local host
-    host="$(hostname 2>/dev/null || echo unknown)"
-    if [[ "$daemon_name" != "$host" && -n "$daemon_name" ]]; then
-      echo B
-      return
-    fi
+    echo B
+    return
   fi
+  # No /.dockerenv — native-host execution; no container boundary for a broad
+  # prune to escape. Backend A is the correct default here.
   echo A
 }
 
