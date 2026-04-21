@@ -93,6 +93,12 @@ Docker-in-Docker as a fork-time substrate requirement: every Ralph iteration env
 
 - **`INV-devbox-dind-available`** — Ralph iteration environment provides `docker` on PATH + reachable daemon (`/var/run/docker.sock` canonical; remote transport permitted) + `docker compose` subcommand. Canonical install path: `docs.docker.com/engine/install/ubuntu/` against the cc-devbox `FROM ubuntu:24.04` base. Does NOT change NFR2 authority — M4-Pro native remains authoritative; DinD entries land in README § Benchmarks flagged `modelled indicative baseline`. Source: `docs/invariants/devbox-dind.md`.
 
+### Gitignored-secret commit-deny (Story 2.2)
+
+Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.
+
+- **`INV-gitignored-secret-commit-deny`** — pre-commit hook refuses `.envrc` / `.envrc.local` / `.secrets` file additions. Source: `docs/invariants/gitignored-secret-commit-deny.md`.
+
 ## Consumption
 
 - **Humans / AI agents:** read this file; cross-reference the listed source files for the machine-enforced form.

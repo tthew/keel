@@ -90,7 +90,7 @@ const raw: Invariant[] = [
     description:
       '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs.',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: 'e321cba9260dd85d985826be85b587214f62230ccc66fdfa892dbf70aaa68ad0',
+    contentHash: '4ec1758431b105347c6f632ecf35b96114d14133e8e211f9a54eac0374811b1d',
     anchors: ['INV-prek-pre-commit-config'],
   },
   {
@@ -98,7 +98,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: 'b8c4e777e8c36f002d3b886131d44839b5362ffc7e3285f1d67b10eb00fec022',
+    contentHash: '87f37b45b31fd2c3b165eafeeba68ed4ef964c25dfc20f5fa262fef7b307fbdf',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -106,7 +106,7 @@ const raw: Invariant[] = [
     description:
       'Hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional. Lives in the commit-msg stage block of .pre-commit-config.yaml (position-independent — the block is identified by stages: [commit-msg], not by row index).',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: 'e321cba9260dd85d985826be85b587214f62230ccc66fdfa892dbf70aaa68ad0',
+    contentHash: '4ec1758431b105347c6f632ecf35b96114d14133e8e211f9a54eac0374811b1d',
     anchors: ['INV-prek-commit-msg-config'],
   },
   {
@@ -252,6 +252,17 @@ const raw: Invariant[] = [
     sourcePath: 'docs/invariants/devbox-dind.md',
     contentHash: '8e382a5396b8d4d713cdc76caa3df77fb0d75fea34f1cf995ce868d14c92f723',
     anchors: ['INV-devbox-dind-available'],
+  },
+  {
+    id: 'INV-gitignored-secret-commit-deny',
+    description:
+      'Pre-commit hook refuses additions of .envrc, .envrc.local, and .secrets at any path. ' +
+      'Committed schemas (.envrc.example, .secrets.example) are exempt via anchored regex end-match. ' +
+      'Implementation: packages/keel-invariants/src/check-no-committed-dotfiles.ts; ' +
+      'wiring: .pre-commit-config.yaml → pnpm keel-invariants:no-committed-dotfiles.',
+    sourcePath: 'docs/invariants/gitignored-secret-commit-deny.md',
+    contentHash: '22448b3349f480539e809f4871ccd75e9b3623fbc92cacf49b801ed1ea241605',
+    anchors: ['INV-gitignored-secret-commit-deny'],
   },
 ];
 

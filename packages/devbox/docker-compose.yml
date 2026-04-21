@@ -5,7 +5,8 @@
 # entrypoint foundation. Follow-up Epic 2 stories extend this file:
 #
 #   - Story 2.2 : parameterise resource knobs (cpus / mem_limit / shm_size /
-#                 tmpfs) via `.envrc`-sourced env vars; wire `.envrc.example`.
+#                 ulimits / ports / platform) via `.envrc`-sourced env vars;
+#                 wire `.envrc.example`. LANDED iter-148.
 #   - Story 2.3 : add nftables / dnsmasq sidecar services for egress policy.
 #   - Story 2.5 : harden (non-root user, cap_drop, no-new-privileges, tmpfs
 #                 noexec/nosuid).
@@ -30,6 +31,9 @@ services:
     # as an explicit default for log-greppability + doc continuity.
     # Rationale: Story 2.1 CR AI-2 (iter-128 Blind + Edge Case Hunter).
     container_name: ${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}
+    # Platform parameterised for x86 fork overrides (Story 2.2 AC 1/AC 2);
+    # default linux/arm64 matches the M4-Pro baseline per architecture.md § I5.
+    platform: ${KEEL_DEVBOX_ARCH:-linux/arm64}
     image: keel-devbox:local
     build:
       context: .
@@ -58,17 +62,31 @@ services:
       - type: bind
         source: ${KEEL_DEVBOX_WORKSPACE:-../..}
         target: /workspace
-    # TODO(Story 2.2): parameterise the following knobs via `.envrc`.
-    # Story 2.1 keeps literal placeholders so the compose file parses.
-    # cpus: "${KEEL_DEVBOX_CPUS:-4}"
-    # mem_limit: "${KEEL_DEVBOX_MEM:-8g}"
-    # shm_size: "${KEEL_DEVBOX_SHM:-512m}"
-    # TODO(Story 2.5): add the full hardening stanza:
-    # user: "dev"
-    # cap_drop: [ALL]
-    # security_opt: [no-new-privileges:true]
-    # tmpfs:
-    #   - /tmp:noexec,nosuid
+    # Story 2.2: compute + shm limits parameterised via .envrc. Non-swarm
+    # canonical form (service-level `cpus:` / `mem_limit:` / `shm_size:` —
+    # NOT `deploy.resources.limits.*`, which Compose silently ignores outside
+    # swarm mode).
+    cpus: '${KEEL_DEVBOX_CPUS:-8}'
+    mem_limit: ${KEEL_DEVBOX_MEMORY_GB:-12}g
+    shm_size: ${KEEL_DEVBOX_SHM_GB:-2}g
+    # Story 2.2: file-descriptor ulimit. Soft = hard so operators never need
+    # to raise the hard cap separately.
+    ulimits:
+      nofile:
+        soft: ${KEEL_DEVBOX_NOFILE:-65536}
+        hard: ${KEEL_DEVBOX_NOFILE:-65536}
+    # Story 2.2: loopback-bound port publication (127.0.0.1:<host>:<container>)
+    # per PRD line 551 + Story 2.12 reduced-rework. Host port parameterised;
+    # container port is fixed to the in-container service binding.
+    ports:
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_WEB:-3000}:3000'
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_API:-3001}:3001'
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_STORYBOOK:-6006}:6006'
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_VITE_HMR:-24679}:24679'
+    # TODO(Story 2.5): tmpfs mount stanzas consuming KEEL_DEVBOX_TMPFS_{TMP,VARTMP,LOGS}_MB with noexec,nosuid.
+    # TODO(Story 2.5): non-root hardening stanza: user: "dev", cap_drop: [ALL], security_opt: [no-new-privileges:true].
+    # TODO(Story 2.11): shared-workspace mode flip via KEEL_DEVBOX_SHARED=true.
+    # TODO(Story 2.12): opt-in sshd + port 2222 publication via KEEL_DEVBOX_SSH=true.
     # TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.
     # TODO(Story 2.8 / 2.9): named-volume mounts for OAuth tokens.
     restart: 'no'

@@ -19,7 +19,8 @@
   "bin": {
     "keel-invariants-check": "./dist/check.js",
     "keel-invariants:tokens-schema": "./dist/check-tokens-schema.js",
-    "keel-invariants:tokens-contrast": "./dist/check-tokens-contrast.js"
+    "keel-invariants:tokens-contrast": "./dist/check-tokens-contrast.js",
+    "keel-invariants:no-committed-dotfiles": "./dist/check-no-committed-dotfiles.js"
   },
   "scripts": {
     "build": "tsc -b",
@@ -27,7 +28,8 @@
     "lint": "eslint .",
     "check": "node dist/check.js",
     "keel-invariants:tokens-schema": "node dist/check-tokens-schema.js",
-    "keel-invariants:tokens-contrast": "node dist/check-tokens-contrast.js"
+    "keel-invariants:tokens-contrast": "node dist/check-tokens-contrast.js",
+    "keel-invariants:no-committed-dotfiles": "node dist/check-no-committed-dotfiles.js"
   },
   "dependencies": {
     "ajv": "8.17.1",

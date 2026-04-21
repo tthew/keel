@@ -79,22 +79,22 @@ compose file.
 
 Story 2.1 is bounded to AC 1 – AC 4 literally. The rest of Epic 2 delivers:
 
-| Story     | Scope                                                                  |
-| --------- | ---------------------------------------------------------------------- |
-| 2.2       | `.envrc` + `.envrc.example` + compose knob parameterisation.           |
-| 2.3       | dnsmasq + nftables egress policy (fail-closed).                        |
-| 2.4       | Whitelist tooling consolidation (`whitelist.sh` unified CLI).          |
-| 2.5       | Non-root `dev` user + `cap_drop: [ALL]` + `no-new-privileges` + tmpfs. |
-| 2.6       | `pnpm devbox:*` lifecycle CLI (13-verb surface).                       |
-| 2.7       | Ralph auto-start inside the devbox on pnpm scripts.                    |
-| 2.8       | Claude OAuth named-volume hydration.                                   |
-| 2.9       | GitHub CLI OAuth named-volume hydration.                               |
-| 2.10      | Prereq check (`pnpm devbox:env:check` key-name-only validator).        |
-| 2.11      | Per-fork vs shared workspace mode (`KEEL_DEVBOX_SHARED=true`).         |
-| 2.12      | Compose port publication for in-container services.                    |
-| 2.13      | Healthcheck (dnsmasq + sshd liveness).                                 |
-| 2.14      | `legacy-devbox` branch retention policy (post-M4 EOL).                 |
-| 2.15–2.17 | Claude hook posture (in-devbox secret-access barrier, NFR5a).          |
+| Story     | Scope                                                                              |
+| --------- | ---------------------------------------------------------------------------------- |
+| ~~2.2~~   | ~~`.envrc` + `.envrc.example` + compose knob parameterisation.~~ (landed iter-148) |
+| 2.3       | dnsmasq + nftables egress policy (fail-closed).                                    |
+| 2.4       | Whitelist tooling consolidation (`whitelist.sh` unified CLI).                      |
+| 2.5       | Non-root `dev` user + `cap_drop: [ALL]` + `no-new-privileges` + tmpfs.             |
+| 2.6       | `pnpm devbox:*` lifecycle CLI (13-verb surface).                                   |
+| 2.7       | Ralph auto-start inside the devbox on pnpm scripts.                                |
+| 2.8       | Claude OAuth named-volume hydration.                                               |
+| 2.9       | GitHub CLI OAuth named-volume hydration.                                           |
+| 2.10      | Prereq check (`pnpm devbox:env:check` key-name-only validator).                    |
+| 2.11      | Per-fork vs shared workspace mode (`KEEL_DEVBOX_SHARED=true`).                     |
+| 2.12      | Compose port publication for in-container services.                                |
+| 2.13      | Healthcheck (dnsmasq + sshd liveness).                                             |
+| 2.14      | `legacy-devbox` branch retention policy (post-M4 EOL).                             |
+| 2.15–2.17 | Claude hook posture (in-devbox secret-access barrier, NFR5a).                      |
 
 ## NFR2 cold-/warm-start budget
 
@@ -149,6 +149,53 @@ its own Docker Desktop because the worktree lives on the host-shared
 iteration container owns its own daemon. Ralph iteration-context bakes
 remain valid for the static/build subset only (image build + version
 matrix capture + compose config validation).
+
+## Retuning
+
+Numeric devbox knobs — CPU / memory / shm / nofile caps, tmpfs sizes, port
+numbers, SSH/shared toggles, target arch — are retunable per fork without a
+PRD amendment per NFR8a. `packages/devbox/.envrc.example` is the committed
+schema; fork operators copy it to the repo-root `.envrc` and edit the value.
+See also the file header of `packages/devbox/.envrc.example` for I5 context
+— [`architecture.md` § I5 §Devbox-Reference-Config](../../_bmad-output/planning-artifacts/architecture.md)
+(lines 275-295) and [PRD NFR8a retunability](../../_bmad-output/planning-artifacts/prd.md)
+(lines 1079-1080).
+
+Retune flow (from repo root):
+
+```sh
+# 1. Seed root .envrc from the committed schema.
+cp packages/devbox/.envrc.example .envrc
+
+# 2. Activate (direnv-using hosts) or manual source.
+direnv allow                 # if using direnv
+# OR
+source .envrc                # manual shell export
+
+# 3. Edit .envrc to override the default(s) you want to retune.
+#    Example: KEEL_DEVBOX_MEMORY_GB=16 on an M4-Max with 48 GB unified memory.
+
+# 4. Restart the devbox so compose re-reads the new values.
+pnpm devbox:restart          # Story 2.6 lifecycle CLI; until it lands use:
+docker compose -f packages/devbox/docker-compose.yml down
+docker compose -f packages/devbox/docker-compose.yml up -d
+```
+
+`docker-compose.yml` pulls every tunable via `${KEEL_DEVBOX_*}` with a
+default-fallback (non-swarm form: service-level `cpus:` / `mem_limit:` /
+`shm_size:` / `ulimits:` / `platform:` / `ports:`), so edits to `.envrc`
+take effect on the next `down && up -d` without touching the compose file.
+
+### Secrets
+
+`packages/devbox/.secrets.example` is the committed schema for the
+`act` local GitHub-Actions runner (architecture.md:328-330). Forks copy
+it to `packages/devbox/.secrets` (gitignored per Story 2.2 AC 5) and fill
+in per-fork dev values before invoking `act`. The production secret
+source is GitHub repo → Settings → Secrets and variables → Actions;
+`.secrets` mirrors that set locally. Pre-merge-fast CI runs with ZERO
+external secrets — the `.secrets` file is consumed only in the
+pre-merge-slow / nightly / release-gated tiers (Epic 13).
 
 ## cc-devbox upstream provenance
 

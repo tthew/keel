@@ -35,6 +35,13 @@ pnpm-debug.log*
 # Environment / secrets
 .env*
 !.env.example
+.envrc
+.envrc.local
+!.envrc.example
+!packages/devbox/.envrc.example
+.secrets
+!.secrets.example
+!packages/devbox/.secrets.example
 *.pem
 *.key
 

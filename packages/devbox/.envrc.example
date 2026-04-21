@@ -1,0 +1,45 @@
+# ----------------------------------------------------------------------------
+# packages/devbox/.envrc.example — Story 2.2 (AC 1, AC 3)
+#
+# Architecture handoff: _bmad-output/planning-artifacts/architecture.md § I5
+#   §Devbox-Reference-Config (lines 275-295) defines the numeric reference
+#   defaults committed here. §I5a (line 295) pins the posture that these are
+#   architecture-owned retunables — not PRD requirements.
+# Retunability: PRD NFR8a (prd.md:1079-1080) — these knobs are retunable per
+#   fork without a PRD amendment. Apple-Silicon M4-Pro is the baseline; forks
+#   on other hardware override the values below.
+# Copy-seed flow:
+#   cp packages/devbox/.envrc.example .envrc && direnv allow   # repo root
+# The root `.envrc` is gitignored per Story 2.2 AC 5 + repo-root .gitignore;
+# compose reads it via `env_file: ../../.envrc` (I6 contract — see
+# architecture.md:299-342). See packages/devbox/README.md § Retuning for the
+# full operator flow.
+# ----------------------------------------------------------------------------
+
+# --- Platform / architecture ---
+KEEL_DEVBOX_ARCH=linux/arm64         # Target platform (M4-Pro = arm64). Consumed by docker-compose.yml § platform. Override on x86 hosts (e.g. linux/amd64).
+
+# --- Compute limits ---
+KEEL_DEVBOX_CPUS=8                   # vCPUs allocated to the devbox container (M4-Pro has 12P+E cores; 8 leaves headroom for host + Docker Desktop). Consumed by docker-compose.yml § cpus (service-level, non-swarm form per AC 2).
+KEEL_DEVBOX_MEMORY_GB=12             # RAM budget in GB (M4-Pro baseline 36 GB unified memory; 12 leaves host+browsers headroom). Consumed by docker-compose.yml § mem_limit (non-swarm form).
+KEEL_DEVBOX_SHM_GB=2                 # /dev/shm size in GB (Chromium + Postgres-heavy workloads). Consumed by docker-compose.yml § shm_size.
+KEEL_DEVBOX_NOFILE=65536             # Max open file descriptors (soft = hard). Consumed by docker-compose.yml § ulimits.nofile.
+
+# --- Tmpfs sizes (Story 2.5 consumer) ---
+KEEL_DEVBOX_TMPFS_TMP_MB=2048        # /tmp tmpfs cap in MB. Active Story 2.5 (tmpfs mount with noexec,nosuid). Story 2.2 publishes the knob only.
+KEEL_DEVBOX_TMPFS_VARTMP_MB=1024     # /var/tmp tmpfs cap in MB. Active Story 2.5.
+KEEL_DEVBOX_TMPFS_LOGS_MB=500        # /var/log tmpfs cap in MB. Active Story 2.5.
+
+# --- Ports (127.0.0.1 loopback-bound per Story 2.12; published by Story 2.2) ---
+KEEL_DEVBOX_PORT_WEB=3000            # Next.js app (apps/web). Consumed by docker-compose.yml § ports as "127.0.0.1:${KEEL_DEVBOX_PORT_WEB}:3000".
+KEEL_DEVBOX_PORT_API=3001            # API / tRPC surface. Same loopback-bound publication form.
+KEEL_DEVBOX_PORT_STORYBOOK=6006      # Storybook (Epic 7 consumer).
+KEEL_DEVBOX_PORT_VITE_HMR=24679      # Vite HMR websocket (Storybook + local dev).
+
+# --- Toggles ---
+KEEL_DEVBOX_SSH=false                # Opt-in sshd + port 2222 publication. Active Story 2.12; Story 2.2 publishes the knob only.
+KEEL_DEVBOX_SHARED=false             # false = per-fork mount (default); true = shared-workspace mount. Active Story 2.11; Story 2.2 publishes the knob only.
+
+# --- Substrate knobs (Story 2.1 pre-existing; override per-worktree / per-fork) ---
+# KEEL_DEVBOX_CONTAINER_NAME=keel-devbox          # Container name. Override when running parallel worktrees / forks against a shared host daemon (backend B per INV-devbox-dind-available).
+# KEEL_DEVBOX_WORKSPACE=../..                     # Workspace mount source path (relative to packages/devbox/docker-compose.yml). Story 2.11 flips this to the shared-workspace path when KEEL_DEVBOX_SHARED=true.

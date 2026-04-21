@@ -3,6 +3,8 @@
 # last_updated: 2026-04-21 Story-2-1-fixes-pending UTC
 # last_updated: 2026-04-21 Story-2-1-done UTC
 # last_updated: 2026-04-21 Story-2-2-ready-for-dev UTC
+# last_updated: 2026-04-21 Story-2-2-in-progress UTC
+# last_updated: 2026-04-21 Story-2-2-review UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -38,7 +40,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-21 Story-2-2-ready-for-dev UTC
+last_updated: 2026-04-21 Story-2-2-review UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -66,7 +68,7 @@ development_status:
 
   epic-2: in-progress
   2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access: done
-  2-2-envrc-parameterisation-contract: ready-for-dev
+  2-2-envrc-parameterisation-contract: review
   2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: backlog
   2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: backlog
   2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: backlog

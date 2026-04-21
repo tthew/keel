@@ -23,6 +23,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: no-committed-dotfiles
+        name: Refuse committed .envrc / .secrets (@keel/keel-invariants; Story 2.2 AC5)
+        entry: pnpm keel-invariants:no-committed-dotfiles
+        language: system
+        pass_filenames: true
+        files: '(^|/)\.(envrc|envrc\.local|secrets)$'
       - id: tokens-schema
         name: Design-token schema validation (@keel/keel-invariants)
         entry: pnpm keel-invariants:tokens-schema
