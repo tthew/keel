@@ -75,11 +75,25 @@ if ! flock -x -w 10 200; then
 fi
 
 cleanup_files=()
+resolver_bootstrap_active=0
+
+restore_resolv_pin() {
+	# SC-13 pin: /etc/resolv.conf MUST be `nameserver 127.0.0.1` + edns0 option
+	# after every reload-egress.sh exit. Only rewrite when we mutated it — keep
+	# a no-op path so non-bootstrap reloads don't touch the file.
+	if [[ "${resolver_bootstrap_active}" -eq 1 ]]; then
+		printf 'nameserver 127.0.0.1\noptions edns0 single-request-reopen\n' > /etc/resolv.conf 2>/dev/null \
+			|| log "WARN: failed to restore /etc/resolv.conf pin to 127.0.0.1 (SC-13)"
+		chmod 0644 /etc/resolv.conf 2>/dev/null || true
+	fi
+}
+
 cleanup() {
 	local f
 	for f in "${cleanup_files[@]:-}"; do
 		[[ -n "${f}" && -e "${f}" ]] && rm -f "${f}" || true
 	done
+	restore_resolv_pin
 }
 trap cleanup EXIT
 
@@ -87,6 +101,30 @@ trap cleanup EXIT
 mapfile -t domains < <(awk 'NF { print }' "${whitelist_path}")
 domain_count="${#domains[@]}"
 log "composing rules for ${domain_count} domain(s); upstream=${UPSTREAM_RESOLVER}"
+
+# --- First-boot resolver bootstrap detour ---------------------------------
+# /etc/resolv.conf is pinned to 127.0.0.1 by start-egress.sh BEFORE the first
+# reload, but dnsmasq doesn't exist yet on that first call — routing getent
+# through 127.0.0.1:53 would hit no responder and every domain would be
+# marked "resolution failed" (fail-closed default → nothing in the allow-list).
+# Detect dnsmasq-not-running via pidfile + liveness probe and temporarily
+# repoint resolv.conf at ${UPSTREAM_RESOLVER} for the resolution phase only.
+# restore_resolv_pin() (registered in cleanup EXIT trap above) re-pins to
+# 127.0.0.1 on every exit path — including errors — so SC-13 holds.
+dnsmasq_running=0
+if [[ -s "${DNSMASQ_PID_FILE}" ]]; then
+	dnsmasq_pid_probe="$(cat "${DNSMASQ_PID_FILE}" 2>/dev/null || true)"
+	if [[ -n "${dnsmasq_pid_probe}" ]] && kill -0 "${dnsmasq_pid_probe}" 2>/dev/null; then
+		dnsmasq_running=1
+	fi
+fi
+
+if [[ "${dnsmasq_running}" -eq 0 ]]; then
+	resolver_bootstrap_active=1
+	printf 'nameserver %s\noptions edns0 single-request-reopen\n' "${UPSTREAM_RESOLVER}" > /etc/resolv.conf
+	chmod 0644 /etc/resolv.conf 2>/dev/null || true
+	log "bootstrap: dnsmasq not running — resolv.conf temporarily routed via upstream ${UPSTREAM_RESOLVER} (trap re-pins to 127.0.0.1 on exit)"
+fi
 
 # --- Resolve domains → IPv4/IPv6 allow-rules ------------------------------
 # One getent call per family per domain. `getent ahostsv4 <domain>` prints
