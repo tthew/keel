@@ -1,5 +1,5 @@
 # generated: 2026-04-19 17:43 UTC
-# last_updated: 2026-04-20 Story-1-12-ready-for-dev UTC
+# last_updated: 2026-04-21 Story-1-12-done UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-20 Story-1-12-ready-for-dev UTC
+last_updated: 2026-04-21 Story-1-12-done UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -54,7 +54,7 @@ development_status:
   1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector: done
   1-10-design-token-schema-semantic-rationale-contract: done
   1-11-design-token-source-direction-a-baseline-with-motion-density-scales: done
-  1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme: ready-for-dev
+  1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme: done
   1-13-token-quality-gates-schema-validation-wcag-aa-contrast-source-output-sync: backlog
   1-14-release-please-monorepo-config-single-bundled-mode: backlog
   1-15-renovate-config-with-version-pinning-rules-i7: backlog

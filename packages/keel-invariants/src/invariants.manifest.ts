@@ -149,6 +149,14 @@ const raw: Invariant[] = [
     contentHash: '27e8cb58d338dddcd197904f8777bc5d25926bf0698cd7d993a733338f95cc90',
     anchors: ['INV-tokens-source'],
   },
+  {
+    id: 'INV-tokens-emitter',
+    description:
+      'Deterministic design-token emitter — pure TypeScript script that reads packages/ui/tokens.json (Direction A source) and emits three byte-stable outputs per FR67-adapted purity contract: packages/ui/src/tokens.css (web CSS custom properties under :root + [data-theme="dark"]), packages/ui/tailwind.preset.ts (Tailwind v4 preset exporting keelTailwindPreset under theme.extend), packages/devbox/tui/theme.py (Textual Python constants under theme.colors.* + theme.motion.* + theme.density.* + theme.dark.colors.*). Flattens DTCG aliases at emit-time; uses no network / no time / no RNG / no env vars. Consumed by Epic 7 Story 7-1 (Tailwind preset import + CSS vars), Epic 3 Story 3.33 (TUI theme.py re-theme seam), Epic 12 shape-aware templates (Tailwind class generation). Validated end-to-end by Story 1.13 pre-merge source-output sync gate (emitter re-run + diff).',
+    sourcePath: 'packages/ui/scripts/generate-tokens.ts',
+    contentHash: '6ee7731efb65d1cecd9aa35a51d377cf6a25c3543dc8433f74a761cc71442796',
+    anchors: ['INV-tokens-emitter'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));
