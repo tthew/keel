@@ -43,7 +43,7 @@ Run `gh pr checks --watch --fail-fast`. This blocks until all checks complete (e
 
 1. `gh pr ready`.
 2. `gh pr checks --watch --fail-fast`.
-   - All pass/skip → check for PR review comments (`gh pr view --json reviews,comments`). If feedback exists, queue fix tasks and re-run CI. Otherwise proceed to EPIC_DONE (mark epic done in SS, halt).
+   - All pass/skip → check for PR review comments (`gh pr view --json reviews,comments`). If feedback exists, queue fix tasks and re-run CI. Otherwise: mark epic done in sprint-status, commit + push, write `EPIC_DONE` halt. On the NEXT invocation (after the human merges), § Cross-epic transition auto-advances to the next epic — do not plan for a re-halt loop.
    - Fail → investigate, add fix tasks, re-queue "Transition PR Draft→Open — final CI gate" at END of QUEUE (idempotent). Move first fix to NOW, exit.
 
 ## PR Review Feedback (only when PR is Open)
@@ -64,7 +64,7 @@ When NOW = "Address PR review feedback":
 | Draft    | Tasks remain    | Push → monitor CI (5b)                                       |
 | Draft    | All tasks done  | Queue "Transition PR Draft→Open — final CI gate"             |
 | Open     | CI running      | `gh pr checks --watch --fail-fast` → fix failures            |
-| Open     | CI green        | Check review feedback → address or EPIC_DONE                 |
+| Open     | CI green        | Check review feedback → address or EPIC_DONE (with cross-epic re-entry per § Cross-epic transition) |
 | Open     | Review feedback | Queue fix tasks → implement → re-run CI gate                 |
 
 ⊗ NEVER mark EPIC_DONE while PR is still Draft.
@@ -87,7 +87,7 @@ Every story moves through a pinned eleven-state lifecycle (normative spec: FR14n
 | `sm-fixes-pending`    | Top QUEUE fix task (satisfy unmet AC in implementation)                                                             | stays until QUEUE empties → re-run validate → `sm-verified` |
 | `sm-verified`         | `Run /bmad-code-review (args: "2")` — pre-selects "Create action items"                                             | `done` (no findings) OR `fixes-pending`                 |
 | `fixes-pending`       | Top QUEUE fix task (one CR action item per iteration)                                                               | stays `fixes-pending` until QUEUE empties → re-run CR   |
-| `done`                | Next story (back to _no story_) OR EPIC_DONE halt if sprint-status has no open stories                              | —                                                       |
+| `done`                | Next story in the current epic (back to _(no story)_); if the current epic has no more open stories in sprint-status, route via § Cross-epic transition (below) — it may auto-advance to the next epic's first story OR halt EPIC_DONE/ALL_EPICS_DONE depending on PR + sprint-status state | —                                                       |
 
 ⊗ NEVER skip states. If `Story State` is unset, first action MUST be `/bmad-create-story`.
 ⊗ NEVER invoke `/bmad-dev-story` while `Story State ≠ atdd-scaffolded` unless IP records an explicit skip rationale.
@@ -131,7 +131,7 @@ When those are set:
 
 1. **Every commit** this iteration MUST carry a trailer referencing the story issue, e.g. `Refs #123`. Use the full trailer form so the reference is machine-readable (`Refs: #123` or `Refs #123` both work).
 2. **The PR body** — whenever you create or edit the PR (`gh pr create`, `gh pr edit`) — MUST include `Closes #<RALPH_ISSUE_NUMBER>` when the story is complete. GitHub's native automation closes the issue on PR merge, and the project's workflow transitions it to Done. Do NOT manually transition the issue.
-3. **Never** `Closes` the epic issue — ralph.py transitions epic issues to Done when it sees an `EPIC_DONE` halt.
+3. **Never** `Closes` the epic issue — ralph.py transitions epic issues to Done when it sees an `EPIC_DONE` halt. On an `ALL_EPICS_DONE` halt there is no epic to transition (terminal state).
 4. If the env vars are unset (no GH project, or no Story in IP Context), skip the references — but do not abort the iteration.
 
 The In Progress transition on the story issue happens automatically at iteration start (driven by ralph.py from the `## Context` block's `**Story:**` field). No action required from you for that.
@@ -148,15 +148,39 @@ Task estimate + 25K quality-gate/push buffer must fit in ~117K execution budget.
 **ralph.py enforces a hard timeout.** If you don't exit cleanly, the process is killed and work since last commit is lost. Always commit+push incremental progress.
 Native Tasks are your crash journal — update task status as you progress so the next iteration can recover if this one is killed.
 
+## Cross-epic transition
+
+When `Story State = done` AND QUEUE is empty AND sprint-status has no open stories left in the current epic, Ralph does NOT fall straight to halt. It first checks whether the prior epic's PR has merged and whether a next epic exists — if both, it auto-advances rather than halting. This replaces the old "halt or stay" binary and closes the re-halt loop (reference incident: Epic 1 iter-95..iter-97).
+
+Branch sequence (invoked from § Story Lifecycle Decision Matrix row `done`):
+
+1. **Extract the current epic's PR number** from IP § Context (`**PR:** #N` — the `#N` numeric token). If no PR recorded (`n/a`, empty), treat as "no PR" and skip to step 3.
+2. **Query the actual PR state** — `gh pr view <N> --json state,mergedAt`. This is the source of truth; the § Context text can be stale.
+3. **Branch**:
+   - **MERGED (or no PR recorded) AND sprint-status has a next epic with a backlog story `(N+1).1`** → NOW = `Run /bmad-create-story` (fresh context; the skill auto-marks the next epic `in-progress` and produces the story file). Update IP § Context: `Epic = N+1 - <title>`, `Story = (N+1).1`, `Story State = _(no story)_`, `PR: n/a`. Commit + push + exit. NEXT iteration picks up state `_(no story) → drafted → …` and continues the lifecycle. **No halt.**
+   - **PR state in {OPEN, DRAFT, CLOSED-unmerged}** → write `EPIC_DONE` halt (`{"reason":"EPIC_DONE","epic":N,"pr":<N>}`). On the next invocation, this branch re-evaluates from step 1 — once the human merges, it advances autonomously on that subsequent iteration.
+   - **Sprint-status has no next epic** (current epic was the final one, or every downstream epic is already `done`) → write `ALL_EPICS_DONE` halt (`{"reason":"ALL_EPICS_DONE","epic":null,"pr":null}`). Terminal.
+   - **State inconsistent** — e.g. sprint-status rows for the next epic missing entirely, `gh pr view` fails unexpectedly, or IP § Context conflicts with sprint-status — write `EPIC_DONE` with a diagnostic `note` field (`{"reason":"EPIC_DONE","epic":N,"pr":<N|null>,"note":"<what was inconsistent>"}`) and exit. This re-uses an existing bounded halt reason; do NOT invent a new halt reason or call `AskUserQuestion` (per § Halt § Autonomy guardrail).
+
+Iteration discipline: the auto-advance iteration's single task is `/bmad-create-story`. Do NOT bundle story creation and `/bmad-dev-story` in the same iteration — guardrail 5 (one task per iteration) is absolute.
+
 ## Halt
 
-Halt when `Story State = done` AND QUEUE is empty AND no remaining open story in sprint-status for the current epic. Write the halt sentinel to the canonical path:
+Write the halt sentinel as JSON to the canonical path, then exit normally. `ralph.py` reads `$RALPH_BASE_DIR/halt` and stops the loop. The closed halt-reason enum is pinned in PRD FR14k + `docs/invariants/ralph-execute.md` § Halt schema; these are Ralph's ONLY permitted halt reasons:
+
+- `EPIC_DONE` — current epic shipped, PR pending merge OR state inconsistent. On re-entry after merge, § Cross-epic transition advances autonomously; there is no "re-halt loop".
+- `ALL_EPICS_DONE` — every epic in sprint-status is done; no next epic to kick off. Terminal. `ralph.py` displays the halt and skips the GH project epic transition (no epic to close).
+- `AWAIT_MERGE` — inline marker line starting `(AWAIT_MERGE` in IP § NOW (not a halt-file reason). Loop stops until the marker is cleared.
+- `BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`, `RALPH_STAGE_REGRESSION` — bounded loop-halt conditions as already specified.
+
+Canonical halts:
 
 ```
 echo '{"reason":"EPIC_DONE","epic":N,"pr":PR}' > "$RALPH_BASE_DIR/halt"
+echo '{"reason":"ALL_EPICS_DONE","epic":null,"pr":null}' > "$RALPH_BASE_DIR/halt"
 ```
 
-then exit normally. ralph.py reads `$RALPH_BASE_DIR/halt` and stops the loop.
+**Autonomy guardrail.** Every halt reason is bounded — either self-resolving (`EPIC_DONE` clears on the next iteration once the PR merges via § Cross-epic transition; `AWAIT_MERGE` clears when the merge happens; `ALL_EPICS_DONE` is terminal) or triggered by a concrete condition (`BUDGET_EXHAUSTED`, `CI_BLOCKED`, `SECURITY_CRITICAL`, `RALPH_STAGE_REGRESSION`). Ralph NEVER halts waiting for open-ended human input. There is no `AWAITING_USER` reason, and `AskUserQuestion` is NOT invoked from the runtime loop. When the decision tree cannot produce an unambiguous action, fall back to `EPIC_DONE` with a diagnostic `note` field — do not invent new halt reasons and do not ask the human. Guardrail 3 (never wait for user input; choose autonomous path) governs. ⊗ Never introduce a halt reason that blocks on open-ended human input.
 
 **Path rule.** `$RALPH_BASE_DIR` is exported by ralph.py at startup and resolves to the worktree's `.ralph/` when `--worktree X` is set (or cwd-relative `.ralph/` otherwise). Writing to a relative `.ralph/halt` from the worktree cwd is equivalent (both resolve to the same absolute path). Writing to a hardcoded main-repo absolute path (e.g. `/workspace/<repo>/.ralph/halt`) is **wrong** — ralph.py will not detect it and the loop will re-enter. Reference incident: the 2026-04-20 Story 1.7 iter-22..28 re-entry cascade. See `docs/ralph.md` § Halt path resolution for the resolver algorithm.
 
