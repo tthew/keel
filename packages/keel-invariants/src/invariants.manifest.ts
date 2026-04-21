@@ -88,9 +88,9 @@ const raw: Invariant[] = [
   {
     id: 'INV-prek-pre-commit-config',
     description:
-      '3 local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true.',
+      '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs.',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '0e8e353f9564c6c278e44c19ba636a0e31bad5ac1e10b58e6da9e0cc36b93bb1',
+    contentHash: 'e321cba9260dd85d985826be85b587214f62230ccc66fdfa892dbf70aaa68ad0',
     anchors: ['INV-prek-pre-commit-config'],
   },
   {
@@ -98,15 +98,15 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: 'c83420f2bb52cb9e8097a4268bed952c217f83052612292200d65bc116f3d76e',
+    contentHash: 'b8c4e777e8c36f002d3b886131d44839b5362ffc7e3285f1d67b10eb00fec022',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
     id: 'INV-prek-commit-msg-config',
     description:
-      '4th hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional.',
+      'Hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional. Lives in the commit-msg stage block of .pre-commit-config.yaml (position-independent — the block is identified by stages: [commit-msg], not by row index).',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '0e8e353f9564c6c278e44c19ba636a0e31bad5ac1e10b58e6da9e0cc36b93bb1',
+    contentHash: 'e321cba9260dd85d985826be85b587214f62230ccc66fdfa892dbf70aaa68ad0',
     anchors: ['INV-prek-commit-msg-config'],
   },
   {
@@ -128,9 +128,9 @@ const raw: Invariant[] = [
   {
     id: 'INV-tokens-schema-contract',
     description:
-      'Design-token JSON Schema contract — DTCG-compatible; defines shape of every semantic + primitive token group (color / type / space / radius / motion / density / breakpoint) plus optional $modes overlays. Validated at pre-commit (Story 1.13); consumed by the Story 1.11 source + Story 1.12 emitter.',
+      'Design-token JSON Schema contract — DTCG-compatible; defines shape of every semantic + primitive token group (color / type / space / radius / motion / density / breakpoint) plus optional $modes overlays. Validated at pre-commit (Story 1.13); consumed by the Story 1.11 source + Story 1.12 emitter. Story 1.13 added a leafBreakpoint $def that narrows the breakpoint-group $value pattern to ^\\d+px$ (absorbing Story 1.12 CR defer #9).',
     sourcePath: 'packages/ui/tokens.schema.json',
-    contentHash: '15380636645d6eb1610845c7f295629b1f3a0ba3fec9f6c04262ece581b055e6',
+    contentHash: '3373b5d67c4c7dd4f1276aee053d7431dc814bb5e044be752d3cbc2c0360e261',
     anchors: ['INV-tokens-schema-contract'],
   },
   {
@@ -144,18 +144,42 @@ const raw: Invariant[] = [
   {
     id: 'INV-tokens-source',
     description:
-      'Direction A design-token source — DTCG JSON file populated with every semantic + primitive token value per ux-design-specification.md § Visual Design Foundation + § Design Direction Decision. Light + dark mode overlays; motion + density tier hierarchies; aliases into neutral ramp + accent ramp + status/severity/state families. Consumed by Story 1.12 emitter (web CSS + Tailwind preset + TUI theme); validated against INV-tokens-schema-contract by Story 1.13 pre-commit gate.',
+      'Direction A design-token source — DTCG JSON file populated with every semantic + primitive token value per ux-design-specification.md § Visual Design Foundation + § Design Direction Decision. Light + dark mode overlays; motion + density tier hierarchies; aliases into neutral ramp + accent ramp + status/severity/state families. Consumed by Story 1.12 emitter (web CSS + Tailwind preset + TUI theme); validated against INV-tokens-schema-contract by Story 1.13 pre-commit gate; WCAG AA contrast of every semantic pair enforced by Story 1.13 contrast gate. Story 1.13 retuned color.accent.500 (54% → 50%), color.accent.600 (46% → 42%), color.status.info.fg (light L=52% → 42%), color.status.warning.fg (light L=58% → 44%), and added $modes.dark overlay entries for status.*.fg, text.accent, border.accent, severity.*, and state.* to clear the AA pair-enumeration table.',
     sourcePath: 'packages/ui/tokens.json',
-    contentHash: '27e8cb58d338dddcd197904f8777bc5d25926bf0698cd7d993a733338f95cc90',
+    contentHash: '6190c595313f4760cd25301e3679cd9963a6ac61fdbc935ac9ac0b7909cc61fa',
     anchors: ['INV-tokens-source'],
   },
   {
     id: 'INV-tokens-emitter',
     description:
-      'Deterministic design-token emitter — pure TypeScript script that reads packages/ui/tokens.json (Direction A source) and emits three byte-stable outputs per FR67-adapted purity contract: packages/ui/src/tokens.css (web CSS custom properties under :root + [data-theme="dark"]), packages/ui/tailwind.preset.ts (Tailwind v4 preset exporting keelTailwindPreset under theme.extend), packages/devbox/tui/theme.py (Textual Python constants under theme.colors.* + theme.motion.* + theme.density.* + theme.dark.colors.*). Flattens DTCG aliases at emit-time; uses no network / no time / no RNG / no env vars. Consumed by Epic 7 Story 7-1 (Tailwind preset import + CSS vars), Epic 3 Story 3.33 (TUI theme.py re-theme seam), Epic 12 shape-aware templates (Tailwind class generation). Validated end-to-end by Story 1.13 pre-merge source-output sync gate (emitter re-run + diff).',
+      'Deterministic design-token emitter — pure TypeScript script that reads packages/ui/tokens.json (Direction A source) and emits three byte-stable outputs per FR67-adapted purity contract: packages/ui/src/tokens.css (web CSS custom properties under :root + [data-theme="dark"]), packages/ui/tailwind.preset.ts (Tailwind v4 preset exporting keelTailwindPreset under theme.extend), packages/devbox/tui/theme.py (Textual Python constants under theme.colors.* + theme.motion.* + theme.density.* + theme.dark.colors.*). Flattens DTCG aliases at emit-time; uses no network / no time / no RNG / no env vars. Consumed by Epic 7 Story 7-1 (Tailwind preset import + CSS vars), Epic 3 Story 3.33 (TUI theme.py re-theme seam), Epic 12 shape-aware templates (Tailwind class generation). Validated end-to-end by Story 1.13 pre-merge source-output sync gate (emitter --check mode). Story 1.13 added --check mode, hoisted resolveSourceSha to a single per-run call threaded into the three emit stages, split the resolver fallback into tagged git-unavailable / stderr-error / uncommitted branches, and migrated resolveValue cycle-detection to a mutated in-progress set so diamond-DAG alias graphs resolve without false positives.',
     sourcePath: 'packages/ui/scripts/generate-tokens.ts',
-    contentHash: '6ee7731efb65d1cecd9aa35a51d377cf6a25c3543dc8433f74a761cc71442796',
+    contentHash: '29f7b5860b7324d673696d1991eafd0452861524863dfaa794604b3a54707c54',
     anchors: ['INV-tokens-emitter'],
+  },
+  {
+    id: 'INV-tokens-schema-validate',
+    description:
+      'Pre-commit gate that validates packages/ui/tokens.json against the Story-1.10 contract (packages/ui/tokens.schema.json) via Ajv-2020 (JSON Schema Draft 2020-12). Rejects commits that introduce schema violations with a structured JSON error on stderr naming the offending instancePath + schema keyword + expected-vs-received value. Runs before the token-contrast + sync gates in the pre-commit pipeline so emitter + contrast stages can trust source shape. Invocation: pnpm keel-invariants:tokens-schema.',
+    sourcePath: 'packages/keel-invariants/src/check-tokens-schema.ts',
+    contentHash: '2fbf971015728375a047e837e9a75acc81bf8524f092fd3240ee1448da983a9a',
+    anchors: ['INV-tokens-schema-validate'],
+  },
+  {
+    id: 'INV-tokens-contrast-check',
+    description:
+      'Pre-commit gate that computes WCAG 2.1 AA contrast ratios for every semantic text × surface / status.fg × status.bg / severity × surface / state × surface / accent × surface / border.accent × surface pair in light + dark overlay modes. OKLCH values are resolved via a mode-aware walker (dark overlay wins when present, else base; aliases then flatten against base), gamut-mapped to in-gamut sRGB via a 3-iteration chroma reduction before relative-luminance math (per Story 1.11 CR defer #5 absorption), then compared to threshold 4.5 (normal text) or 3.0 (UI components per WCAG 1.4.11) per pair. Failing pairs emit structured JSON on stderr with pair label + mode + fg/bg OKLCH + gamut-mapped hex + ratio + threshold + delta. Invocation: pnpm keel-invariants:tokens-contrast.',
+    sourcePath: 'packages/keel-invariants/src/check-tokens-contrast.ts',
+    contentHash: 'f7ea371c6774547daedc817a8f2d3325f97df3dc5e96be062ac1a919bdca782a',
+    anchors: ['INV-tokens-contrast-check'],
+  },
+  {
+    id: 'INV-tokens-sync-gate',
+    description:
+      'Pre-merge gate that re-invokes the Story 1.12 emitter in --check mode (packages/ui/scripts/generate-tokens.ts --check) to byte-compare the re-emitted three outputs (packages/ui/src/tokens.css + packages/ui/tailwind.preset.ts + packages/devbox/tui/theme.py) against the committed files. Any byte-level divergence between "what would be emitted now" and "what is committed" fails the gate with unified-diff excerpts on stderr + non-zero exit. Source file is the emitter itself (--check mode is additive to the writer mode); shares sourcePath with INV-tokens-emitter (both invariants pin the same file). Invocation: pnpm keel-invariants:tokens-sync (which runs pnpm --filter @keel/ui generate-tokens -- --check); composed into pnpm keel-invariants:check-all alongside Story 1.9 manifest sync-gate.',
+    sourcePath: 'packages/ui/scripts/generate-tokens.ts',
+    contentHash: '29f7b5860b7324d673696d1991eafd0452861524863dfaa794604b3a54707c54',
+    anchors: ['INV-tokens-sync-gate'],
   },
 ];
 

@@ -1,5 +1,5 @@
 /**
- * Design-token emitter for @keel/ui (Story 1.12).
+ * Design-token emitter for @keel/ui (Story 1.12, amended by Story 1.13).
  *
  * Reads packages/ui/tokens.json (Story 1.11 Direction A source; INV-tokens-source)
  * and deterministically emits three byte-stable artefacts per the Story 1.12 AC
@@ -17,19 +17,29 @@
  * (with a content-hash fallback for uncommitted/untracked source).
  *
  * Invocation (AC 1):  pnpm --filter @keel/ui generate-tokens
+ * --check mode   (Story 1.13 AC 3): pnpm --filter @keel/ui generate-tokens -- --check
+ *   → re-emits to in-memory buffers and byte-compares against committed output
+ *     paths; exits 0 silent on match, exits 1 with structured JSON diff on
+ *     divergence; writes nothing.
  *
  * DTCG alias strategy: FLATTEN-AT-EMIT (§ AC 3 carve-out). {color.accent.500}
  * resolves at emit time to the leaf OKLCH literal; outputs carry resolved
- * values, not var() chains. Cycles are detected via DFS + visited-set and fail
- * loudly with a structured error naming the cycle edges.
+ * values, not var() chains. Cycles are detected via DFS + in-progress-set and
+ * fail loudly with a structured error naming the cycle edges. The in-progress
+ * set is mutated (add on descent, delete on return) so sibling branches of a
+ * diamond-DAG alias graph (A → {B, C}; B, C → D) resolve without false-positive
+ * cycle detection (Story 1.13 AC 3 carve-out — absorbs Story 1.12 CR defer #6).
  *
- * Source-SHA resolver: uses `git log -1 --format=%h --abbrev=12 -- <path>` (the
- * story § AC 1 carve-out proposed `git rev-parse --short=12 HEAD -- <path>`
- * literally, but that command returns HEAD's own SHA — which drifts with each
- * repo commit, violating the "NOT HEAD of the repo" constraint stated in the
- * same paragraph. The `git log` form resolves the file's latest commit SHA,
- * matching the carve-out's INTENT. If git returns empty (file untracked), fall
- * back to `uncommitted-<sha256(content).slice(0,16)>` per the carve-out.
+ * Source-SHA resolver: uses `git log -1 --format=%h --abbrev=12 -- <path>` to
+ * resolve the file's latest commit SHA. On failure, returns a TAGGED fallback
+ * so CI pipelines can grep the provenance header (Story 1.13 AC 3 carve-out —
+ * absorbs Story 1.12 CR defers #4 and #5):
+ *   - `git-unavailable-<content-sha256[:16]>` when git binary is missing (ENOENT)
+ *   - `stderr-error-<content-sha256[:16]>`    when git exits non-zero with stderr
+ *   - `uncommitted-<content-sha256[:16]>`     when the file is untracked (empty stdout)
+ *   - `<12-hex-sha>`                          on success (no prefix)
+ * The resolver runs ONCE in main() and its result is threaded through the three
+ * emit stages as a parameter (single spawn per run).
  */
 
 import { execFileSync } from 'node:child_process';
@@ -70,6 +80,8 @@ function readSource(): TokenTree {
 }
 
 function resolveSourceSha(): string {
+  const content = fs.readFileSync(SOURCE_ABS, 'utf-8');
+  const contentSha = createHash('sha256').update(content).digest('hex').slice(0, 16);
   try {
     const sha = execFileSync('git', ['log', '-1', '--format=%h', '--abbrev=12', '--', SOURCE_REL], {
       cwd: REPO_ROOT,
@@ -77,12 +89,19 @@ function resolveSourceSha(): string {
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim();
     if (sha.length > 0) return sha;
-  } catch {
-    // fall through to content-hash fallback
+    // git returned empty stdout — file is untracked
+    return `uncommitted-${contentSha}`;
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException & { stderr?: Buffer | string };
+    if (e.code === 'ENOENT') {
+      return `git-unavailable-${contentSha}`;
+    }
+    const stderr = typeof e.stderr === 'string' ? e.stderr : (e.stderr?.toString('utf-8') ?? '');
+    if (stderr.trim().length > 0) {
+      return `stderr-error-${contentSha}`;
+    }
+    return `uncommitted-${contentSha}`;
   }
-  const content = fs.readFileSync(SOURCE_ABS, 'utf-8');
-  const contentSha = createHash('sha256').update(content).digest('hex').slice(0, 16);
-  return `uncommitted-${contentSha}`;
 }
 
 function getBaseTree(source: TokenTree): TokenTree {
@@ -121,15 +140,23 @@ function walkLeaves(tree: TokenTree, pathSoFar: string[] = []): LeafEntry[] {
 /**
  * Resolve a token $value literal, flattening {alias.path} references by DFS
  * walk of the source tree. Fails loudly on cycle or missing target.
+ *
+ * Cycle detection uses a MUTATED in-progress set keyed by the canonical alias
+ * path being resolved at each recursion level: add before descent, delete after
+ * return. This correctly handles diamond-DAG alias graphs (e.g. A → B, A → C,
+ * B → D, C → D) — the sibling B and C resolutions each complete + clean up
+ * their entry before the parent re-enters the resolver for its next sibling.
+ * Per Story 1.13 § AC 3 carve-out (absorbs Story 1.12 CR defer #6).
+ *
  * Aliases are always resolved against the base tree (pre-overlay); the Story
  * 1.11 tokens.json dark overlay only references base tokens.
  */
-function resolveValue(val: string, source: TokenTree, visited: Set<string> = new Set()): string {
+function resolveValue(val: string, source: TokenTree, inProgress: Set<string> = new Set()): string {
   const m = val.match(/^\{(.+)\}$/);
   if (!m) return val;
   const aliasPath = m[1];
-  if (visited.has(aliasPath)) {
-    const cycle = [...visited, aliasPath].join(' → ');
+  if (inProgress.has(aliasPath)) {
+    const cycle = [...inProgress, aliasPath].join(' → ');
     throw new Error(`alias cycle detected: ${cycle}`);
   }
   const segments = aliasPath.split('.');
@@ -143,9 +170,12 @@ function resolveValue(val: string, source: TokenTree, visited: Set<string> = new
   if (!isLeaf(node)) {
     throw new Error(`alias target is not a leaf token: {${aliasPath}}`);
   }
-  const nextVisited = new Set(visited);
-  nextVisited.add(aliasPath);
-  return resolveValue(node.$value, source, nextVisited);
+  inProgress.add(aliasPath);
+  try {
+    return resolveValue(node.$value, source, inProgress);
+  } finally {
+    inProgress.delete(aliasPath);
+  }
 }
 
 function makeProvenanceHeader(style: 'css' | 'ts' | 'py', sha: string): string {
@@ -171,8 +201,7 @@ function writeOutput(outPath: string, content: string): void {
 
 // ─── CSS emitter (§ Task 2) ────────────────────────────────────────────────
 
-function emitCss(source: TokenTree): string {
-  const sha = resolveSourceSha();
+function emitCss(source: TokenTree, sha: string): string {
   const header = makeProvenanceHeader('css', sha);
   const base = getBaseTree(source);
   const dark = getDarkOverlay(source);
@@ -201,8 +230,7 @@ function emitCss(source: TokenTree): string {
 
 // ─── Tailwind preset emitter (§ Task 3) ────────────────────────────────────
 
-function emitTailwind(source: TokenTree): string {
-  const sha = resolveSourceSha();
+function emitTailwind(source: TokenTree, sha: string): string {
   const header = makeProvenanceHeader('ts', sha);
   const base = getBaseTree(source);
 
@@ -344,8 +372,7 @@ function collectPyGroups(tree: TokenTree, source: TokenTree): Record<string, PyE
   return groups;
 }
 
-function emitPython(source: TokenTree): string {
-  const sha = resolveSourceSha();
+function emitPython(source: TokenTree, sha: string): string {
   const header = makeProvenanceHeader('py', sha);
   const base = getBaseTree(source);
   const dark = getDarkOverlay(source);
@@ -382,15 +409,104 @@ function emitPython(source: TokenTree): string {
   return lines.join('\n') + '\n';
 }
 
+// ─── --check mode (Story 1.13 § AC 3) ──────────────────────────────────────
+
+type CheckDiff = {
+  path: string;
+  firstDiffByte: number;
+  excerpt: string;
+};
+
+function firstDiffByteOffset(a: string, b: string): number {
+  const len = Math.min(a.length, b.length);
+  for (let i = 0; i < len; i++) {
+    if (a.charCodeAt(i) !== b.charCodeAt(i)) return i;
+  }
+  return len;
+}
+
+function unifiedDiffExcerpt(
+  expected: string,
+  actual: string,
+  firstDiffByte: number,
+  maxLines: number,
+): string {
+  const lineStart = expected.lastIndexOf('\n', Math.max(0, firstDiffByte - 1)) + 1;
+  const expLines = expected.slice(lineStart).split('\n');
+  const actLines = actual.slice(lineStart).split('\n');
+  const out: string[] = [];
+  const cap = maxLines;
+  let i = 0;
+  while (i < Math.max(expLines.length, actLines.length) && out.length < cap) {
+    const e = expLines[i];
+    const a = actLines[i];
+    if (e === a) {
+      out.push(` ${e ?? ''}`);
+    } else {
+      if (e !== undefined) out.push(`-${e}`);
+      if (out.length >= cap) break;
+      if (a !== undefined) out.push(`+${a}`);
+    }
+    i++;
+  }
+  return out.slice(0, cap).join('\n');
+}
+
+function runCheck(
+  source: TokenTree,
+  sha: string,
+): { status: 'clean' | 'drift'; diffs: CheckDiff[] } {
+  const targets: Array<{ path: string; abs: string; content: string }> = [
+    { path: 'packages/ui/src/tokens.css', abs: CSS_ABS, content: emitCss(source, sha) },
+    {
+      path: 'packages/ui/tailwind.preset.ts',
+      abs: TAILWIND_ABS,
+      content: emitTailwind(source, sha),
+    },
+    { path: 'packages/devbox/tui/theme.py', abs: PY_ABS, content: emitPython(source, sha) },
+  ];
+  const diffs: CheckDiff[] = [];
+  for (const t of targets) {
+    let committed: string;
+    try {
+      committed = fs.readFileSync(t.abs, 'utf-8');
+    } catch {
+      diffs.push({ path: t.path, firstDiffByte: 0, excerpt: '<output file missing>' });
+      continue;
+    }
+    if (committed === t.content) continue;
+    const firstDiffByte = firstDiffByteOffset(committed, t.content);
+    diffs.push({
+      path: t.path,
+      firstDiffByte,
+      excerpt: unifiedDiffExcerpt(committed, t.content, firstDiffByte, 5),
+    });
+  }
+  return { status: diffs.length === 0 ? 'clean' : 'drift', diffs };
+}
+
 // ─── Main orchestrator (§ Task 1) ──────────────────────────────────────────
 
 function main(): void {
+  const args = process.argv.slice(2);
+  const checkMode = args.includes('--check');
   const source = readSource();
   const sha = resolveSourceSha();
 
-  writeOutput(CSS_ABS, emitCss(source));
-  writeOutput(TAILWIND_ABS, emitTailwind(source));
-  writeOutput(PY_ABS, emitPython(source));
+  if (checkMode) {
+    const report = runCheck(source, sha);
+    if (report.status === 'drift') {
+      process.stderr.write(
+        `${JSON.stringify({ status: 'violation', diffs: report.diffs }, null, 2)}\n`,
+      );
+      process.exit(1);
+    }
+    process.exit(0);
+  }
+
+  writeOutput(CSS_ABS, emitCss(source, sha));
+  writeOutput(TAILWIND_ABS, emitTailwind(source, sha));
+  writeOutput(PY_ABS, emitPython(source, sha));
 
   // Write sibling __init__.py so Python can treat packages/devbox/tui as a
   // package (optional per § Task 4 — emit the empty file for regularity).

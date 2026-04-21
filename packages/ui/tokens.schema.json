@@ -44,6 +44,19 @@
         "$description": { "type": "string" }
       }
     },
+    "leafBreakpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$type", "$value"],
+      "properties": {
+        "$type": { "const": "dimension" },
+        "$value": {
+          "type": "string",
+          "pattern": "^(\\{[a-z][a-z0-9]*(\\.[a-z0-9][a-z0-9-]*)+\\}|^\\d+px$)$"
+        },
+        "$description": { "type": "string" }
+      }
+    },
     "leafDuration": {
       "type": "object",
       "additionalProperties": false,
@@ -316,11 +329,11 @@
       "additionalProperties": false,
       "required": ["sm", "md", "lg", "xl", "2xl"],
       "properties": {
-        "sm": { "$ref": "#/$defs/leafDimension" },
-        "md": { "$ref": "#/$defs/leafDimension" },
-        "lg": { "$ref": "#/$defs/leafDimension" },
-        "xl": { "$ref": "#/$defs/leafDimension" },
-        "2xl": { "$ref": "#/$defs/leafDimension" }
+        "sm": { "$ref": "#/$defs/leafBreakpoint" },
+        "md": { "$ref": "#/$defs/leafBreakpoint" },
+        "lg": { "$ref": "#/$defs/leafBreakpoint" },
+        "xl": { "$ref": "#/$defs/leafBreakpoint" },
+        "2xl": { "$ref": "#/$defs/leafBreakpoint" }
       }
     },
     "modesOverlay": {
@@ -537,11 +550,11 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "sm": { "$ref": "#/$defs/leafDimension" },
-        "md": { "$ref": "#/$defs/leafDimension" },
-        "lg": { "$ref": "#/$defs/leafDimension" },
-        "xl": { "$ref": "#/$defs/leafDimension" },
-        "2xl": { "$ref": "#/$defs/leafDimension" }
+        "sm": { "$ref": "#/$defs/leafBreakpoint" },
+        "md": { "$ref": "#/$defs/leafBreakpoint" },
+        "lg": { "$ref": "#/$defs/leafBreakpoint" },
+        "xl": { "$ref": "#/$defs/leafBreakpoint" },
+        "2xl": { "$ref": "#/$defs/leafBreakpoint" }
       }
     }
   }
