@@ -45,6 +45,36 @@ UPSTREAM_RESOLVER="${KEEL_DEVBOX_DNS_UPSTREAM:-1.1.1.1}"
 
 log() { printf 'reload-egress: %s\n' "$*" >&2; }
 
+# --- Marker-validation preflight (AR-6 guardrail) -------------------------
+# Assert each template's awk-substitution marker block is present with the
+# expected count AND balanced START/END pairs BEFORE the awk substitution
+# runs. If a template loses a marker (dev-edit typo), duplicates one, or the
+# pair is unbalanced, the awk `in_marker` state machine silently produces a
+# broken rendered file — the reload exits 0 while the allow-list region is
+# either blanked (dnsmasq forwards every domain via address=/#/ fallback, or
+# nftables ships without the resolved accept rules) or stuffed with the
+# wrong block type (ipv4 rules into the ipv6 chain, server= directives into
+# the nftables ruleset). Both failure modes are invisible at reload time.
+# Preflight with an explicit per-template count catches the imbalance at
+# exit 6 (pre-apply render failure) with a diagnostic naming the template +
+# expected vs. found counts. Pattern `^[[:space:]]*# KEEL_..._MARKER_{START,END}`
+# mirrors the awk regex exactly so preflight and substitution agree on what
+# counts as a marker — a non-anchored grep would false-match the documentation
+# references in the template header comments.
+validate_markers() {
+	local template="$1" expected="$2" label="$3"
+	local start_count end_count
+	start_count="$(grep -c '^[[:space:]]*# KEEL_EGRESS_ALLOWLIST_MARKER_START' "${template}" || true)"
+	end_count="$(grep -c '^[[:space:]]*# KEEL_EGRESS_ALLOWLIST_MARKER_END' "${template}" || true)"
+	if [[ "${start_count}" -ne "${expected}" ]] || [[ "${end_count}" -ne "${expected}" ]] || [[ "${start_count}" -ne "${end_count}" ]]; then
+		log "ERROR: ${label} template marker imbalance: ${template}"
+		log "  expected: ${expected} START / ${expected} END"
+		log "  found:    ${start_count} START / ${end_count} END"
+		log "  silent awk substitution would corrupt the allow-list region — aborting reload"
+		exit 6
+	fi
+}
+
 # --- Argument validation --------------------------------------------------
 if [[ $# -ne 1 ]]; then
 	log "usage: reload-egress.sh <composed-whitelist-path>"
@@ -169,6 +199,11 @@ ipv4_rule_count="$(printf '%s' "${nft_ipv4_rules}" | grep -c '^' || true)"
 ipv6_rule_count="$(printf '%s' "${nft_ipv6_rules}" | grep -c '^' || true)"
 
 # --- Render nftables ruleset (SC-5 step 2) --------------------------------
+# Expected 2 START / 2 END (one pair per chain: output_v4 + output_v6).
+# AR-7 renames these per-chain; preflight expected count + grep pattern
+# updates move together in that change.
+validate_markers "${NFT_TEMPLATE}" 2 "nftables"
+
 nft_rendered="$(mktemp -t keel-egress.nft.XXXXXX)"
 cleanup_files+=("${nft_rendered}")
 
@@ -206,6 +241,9 @@ if ! nft -f "${nft_rendered}" 2>&1; then
 fi
 
 # --- Render dnsmasq config (SC-5 step 4) ----------------------------------
+# Expected 1 START / 1 END (single server= block inserted into dnsmasq.conf).
+validate_markers "${DNSMASQ_TEMPLATE}" 1 "dnsmasq"
+
 dnsmasq_rendered="$(mktemp -t keel-egress.dnsmasq.XXXXXX)"
 cleanup_files+=("${dnsmasq_rendered}")
 
