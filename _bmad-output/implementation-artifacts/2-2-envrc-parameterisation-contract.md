@@ -14,7 +14,7 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
 
 1. **Given** `packages/devbox/.envrc.example`,
    **When** I read the file,
-   **Then** every `KEEL_DEVBOX_*` knob is listed with a default value and inline comment: `KEEL_DEVBOX_ARCH`, `KEEL_DEVBOX_CPUS`, `KEEL_DEVBOX_MEMORY_GB`, `KEEL_DEVBOX_SHM_GB`, `KEEL_DEVBOX_NOFILE`, `KEEL_DEVBOX_TMPFS_TMP_MB`, `KEEL_DEVBOX_TMPFS_VARTMP_MB`, port knobs, `KEEL_DEVBOX_SSH`, `KEEL_DEVBOX_SHARED`
+   **Then** every `KEEL_DEVBOX_*` knob is listed with a default value and inline comment: `KEEL_DEVBOX_ARCH`, `KEEL_DEVBOX_CPUS`, `KEEL_DEVBOX_MEMORY_GB`, `KEEL_DEVBOX_SHM_GB`, `KEEL_DEVBOX_NOFILE`, `KEEL_DEVBOX_TMPFS_TMP_MB`, `KEEL_DEVBOX_TMPFS_VARTMP_MB`, `KEEL_DEVBOX_TMPFS_LOGS_MB`, port knobs (`KEEL_DEVBOX_PORT_WEB`, `KEEL_DEVBOX_PORT_API`, `KEEL_DEVBOX_PORT_STORYBOOK`, `KEEL_DEVBOX_PORT_VITE_HMR`), `KEEL_DEVBOX_SSH`, `KEEL_DEVBOX_SHARED`
    **And** the defaults match an Apple-Silicon M4-Pro baseline (documented in the file header).
 
    **Story 2.2 scope clarification — authoritative default values.** Architecture § I5 (architecture.md:275-295) is the normative source for defaults. Transcribe verbatim, preserving unit naming exactly — NOTE the unit mismatch between architecture.md (which uses `KEEL_DEVBOX_TMPFS_TMP_GB` / `KEEL_DEVBOX_TMPFS_VAR_TMP_GB`, underscore-separated + GB suffix) and epics.md AC1 / PRD § Devbox-Reference-Config (which use `KEEL_DEVBOX_TMPFS_TMP_MB` / `KEEL_DEVBOX_TMPFS_VARTMP_MB`, MB suffix). The AC text is authoritative for Story 2.2 — ship `_MB` suffixes (`KEEL_DEVBOX_TMPFS_TMP_MB=2048`, `KEEL_DEVBOX_TMPFS_VARTMP_MB=1024`) so compose's `tmpfs` sizing math is straightforward integer-MB (Docker compose accepts plain byte-count ints — `size: ${KEEL_DEVBOX_TMPFS_TMP_MB}m` renders `size: 2048m`). Record the architecture-vs-AC naming drift in the Questions section at the story tail so a future architecture amendment can align naming. **Reference-default values (from architecture.md:275-293; convert GB→MB where naming differs):**
@@ -40,7 +40,7 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
 
    **Story 2.2 scope clarification — file-header block.** The file MUST open with a 10–15-line block-comment header naming (a) the I5 §Devbox-Reference-Config handoff, (b) the NFR8a retunability posture ("retunable per NFR8a without PRD amendment"), (c) the Apple-Silicon M4-Pro baseline provenance, (d) the copy-seed flow (`cp packages/devbox/.envrc.example .envrc && direnv allow` at repo root — so root `.envrc` then sources the devbox knobs + any additional non-devbox secrets per I3 at architecture.md:271), (e) a cross-reference to `packages/devbox/README.md § Retuning` (new subsection — see Task 6 below).
 
-   **Story 2.2 scope clarification — inline-comment format.** Each knob's inline comment documents the unit, the M4-Pro-envelope rationale, and any cross-story consumer. Example: `KEEL_DEVBOX_CPUS=8  # vCPUs allocated to the devbox container (M4-Pro has 12P+E cores; 8 leaves headroom for host + Docker Desktop). Consumed by docker-compose.yml § deploy.resources.limits.cpus.` Keep lines ≤120 chars (Prettier baseline per `packages/keel-invariants/prettier.config.keel-invariants.js`).
+   **Story 2.2 scope clarification — inline-comment format.** Each knob's inline comment documents the unit, the M4-Pro-envelope rationale, and any cross-story consumer. Example: `KEEL_DEVBOX_CPUS=8  # vCPUs allocated to the devbox container (M4-Pro has 12P+E cores; 8 leaves headroom for host + Docker Desktop). Consumed by docker-compose.yml § cpus (service-level, non-swarm form per AC2).` Keep lines ≤120 chars (Prettier baseline per `packages/keel-invariants/prettier.config.keel-invariants.js`).
 
    **Story 2.2 scope clarification — existing Story 2.1 compose stubs.** `packages/devbox/docker-compose.yml:61-66` (post-iter-144) already contains TODO comments marking `cpus` / `mem_limit` / `shm_size` as Story 2.2 parameterisation targets. Task 2 of this story replaces those TODO blocks with the active parameterised forms.
 
@@ -61,13 +61,13 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
 
    **Story 2.2 scope clarification — what gets parameterised (exhaustive list).** Every Story-2.2-owned tunable must swap from literal to `${KEEL_DEVBOX_*}` with a default-fallback. Complete mapping (ADD to the existing compose service block):
 
-   | `.envrc.example` knob             | `docker-compose.yml` field                                       | Default-fallback syntax                                                                                 |
-   | --------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-   | `KEEL_DEVBOX_ARCH`                | `platform:`                                                      | `platform: ${KEEL_DEVBOX_ARCH:-linux/arm64}`                                                            |
-   | `KEEL_DEVBOX_CPUS`                | `deploy.resources.limits.cpus:`                                  | `cpus: "${KEEL_DEVBOX_CPUS:-8}"`                                                                        |
-   | `KEEL_DEVBOX_MEMORY_GB`           | `deploy.resources.limits.memory:`                                | `memory: ${KEEL_DEVBOX_MEMORY_GB:-12}g`                                                                 |
-   | `KEEL_DEVBOX_SHM_GB`              | `shm_size:`                                                      | `shm_size: ${KEEL_DEVBOX_SHM_GB:-2}g`                                                                   |
-   | `KEEL_DEVBOX_NOFILE`              | `ulimits.nofile.soft:` + `.hard:`                                | `nofile: { soft: ${KEEL_DEVBOX_NOFILE:-65536}, hard: ${KEEL_DEVBOX_NOFILE:-65536} }`                    |
+   | `.envrc.example` knob             | `docker-compose.yml` field (service-level, non-swarm)             | Default-fallback syntax                                                                                 |
+   | --------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+   | `KEEL_DEVBOX_ARCH`                | `platform:`                                                       | `platform: ${KEEL_DEVBOX_ARCH:-linux/arm64}`                                                            |
+   | `KEEL_DEVBOX_CPUS`                | `cpus:` (service-level; NOT `deploy.resources.limits.cpus`)       | `cpus: "${KEEL_DEVBOX_CPUS:-8}"`                                                                        |
+   | `KEEL_DEVBOX_MEMORY_GB`           | `mem_limit:` (service-level; NOT `deploy.resources.limits.memory`)| `mem_limit: ${KEEL_DEVBOX_MEMORY_GB:-12}g`                                                              |
+   | `KEEL_DEVBOX_SHM_GB`              | `shm_size:` (service-level)                                       | `shm_size: ${KEEL_DEVBOX_SHM_GB:-2}g`                                                                   |
+   | `KEEL_DEVBOX_NOFILE`              | `ulimits.nofile.soft:` + `.hard:` (service-level)                 | `nofile: { soft: ${KEEL_DEVBOX_NOFILE:-65536}, hard: ${KEEL_DEVBOX_NOFILE:-65536} }`                    |
    | `KEEL_DEVBOX_TMPFS_TMP_MB`        | (deferred to Story 2.5)                                          | Leave TODO comment — tmpfs mount lands with hardening in Story 2.5 per PRD § Tmpfs Policy line 548.     |
    | `KEEL_DEVBOX_TMPFS_VARTMP_MB`     | (deferred to Story 2.5)                                          | Leave TODO comment — same as above.                                                                     |
    | `KEEL_DEVBOX_TMPFS_LOGS_MB`       | (deferred to Story 2.5)                                          | Leave TODO comment — same as above.                                                                     |
@@ -92,7 +92,7 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
    shm_size: ${KEEL_DEVBOX_SHM_GB:-2}g
    ```
 
-   Keep `deploy:` blocks out of the compose file — they add swarm-only noise. Substitute `cpus:`, `mem_limit:`, `shm_size:` at the service level (sibling of `image:`, `env_file:`, `volumes:`). The AC2 mapping table above writes both forms; use the non-swarm form as canonical. **This overrides the table above for cpus/memory/shm specifically.**
+   Keep `deploy:` blocks out of the compose file — they add swarm-only noise. The AC2 mapping table above is already expressed in this canonical non-swarm shape (service-level `cpus:`, `mem_limit:`, `shm_size:` siblings of `image:`, `env_file:`, `volumes:`).
 
 3. **Given** a fork operator who wants to retune memory,
    **When** they edit `.envrc` (not compose) and run `pnpm devbox:restart` (from Story 2.6),
@@ -179,12 +179,13 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
        entry: pnpm keel-invariants:no-committed-dotfiles
        language: system
        pass_filenames: true
+       files: '(^|/)\.(envrc|envrc\.local|secrets)$'
      ```
 
-     Use `pass_filenames: true` (not `false`) so prek passes the staged filenames as argv — more performant than re-invoking `git` and matches the `check-added-large-files` prek idiom.
+     Use `pass_filenames: true` (not `false`) so prek passes the staged filenames as argv — more performant than re-invoking `git` and matches the `check-added-large-files` prek idiom. The `files:` regex matches the existing keel-invariants hook pattern (`.pre-commit-config.yaml:31,37` — `tokens-schema` / `tokens-contrast` both scope invocation with `files:` so the hook only runs when a matching file is staged). The regex intentionally EXCLUDES `.example` suffixes via anchor absence of `.example` after `$` end-anchor — `(^|/)\.envrc$` matches `packages/devbox/.envrc` and bare `.envrc` but NOT `packages/devbox/.envrc.example`.
 
    - Register the rule under a stable invariant ID: `INV-gitignored-secret-commit-deny`. Add an entry to `packages/keel-invariants/src/invariants.manifest.ts` (after the last existing entry) with `sourcePath` pointing at `packages/keel-invariants/src/check-no-committed-dotfiles.ts`, `description` naming the story + rule + covered-filename-set, `contentHash` computed via `sha256sum` of the TS source (regenerate the hash after the file is in its final form), `anchors: ['INV-gitignored-secret-commit-deny']`. Run `pnpm -C packages/keel-invariants build && node packages/keel-invariants/dist/check.js` to verify the sync-gate accepts the new entry.
-   - Add an `INVARIANTS.md` anchor line under the existing rules — format matches Story 1.7's convention (`- **INV-gitignored-secret-commit-deny** — pre-commit hook refuses `.envrc` / `.envrc.local` / `.secrets` file additions; see `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.`). The anchor must byte-match the `anchors` field in the manifest entry or the sync-gate fails.
+   - Add an `INVARIANTS.md` anchor line under the existing rules — format matches the current file's convention: ID is backtick-wrapped inside the bold markers (e.g. `INVARIANTS.md:22` ships `- **`INV-tsconfig-base`** — strict TS + project-reference contract extended by every workspace member. Source: packages/keel-invariants/tsconfig.base.json.`). Shape for Story 2.2's anchor: `` - **`INV-gitignored-secret-commit-deny`** — pre-commit hook refuses `.envrc` / `.envrc.local` / `.secrets` file additions. Source: `docs/invariants/gitignored-secret-commit-deny.md`. `` Add a new `### Gitignored-secret commit-deny (Story 2.2)` section heading above the anchor line, matching the per-story `### …` grouping convention established by every other anchor block (see `INVARIANTS.md:20-94`). The anchor's ID substring (`INV-gitignored-secret-commit-deny`) must byte-match the `anchors` field in the manifest entry or the sync-gate fails per FR43.
    - Add `docs/invariants/gitignored-secret-commit-deny.md` with front-matter metadata + `## INV-gitignored-secret-commit-deny` body section (matches AI-7 iter-135's pattern for `INV-devbox-dind-available`) — see Task 4 subtask list below.
 
    **Story 2.2 scope clarification — pre-commit hook budget.** Prek config caps total hook time at ~10s (`.pre-commit-config.yaml:3`). The new hook must complete well under 1s (it reads argv + pattern-matches — no filesystem traversal, no network). Benchmark on a warm cache: invoke `pnpm keel-invariants:no-committed-dotfiles packages/devbox/.envrc` (should exit 0 — extension is `.envrc` but path has `.example` → wait that's not `.example`. Correct test: `pnpm keel-invariants:no-committed-dotfiles packages/devbox/.envrc.example` → exit 0; `pnpm keel-invariants:no-committed-dotfiles packages/devbox/.envrc` → exit 1 with pointer). If the hook exceeds 200ms on a cold start, the implementation is off-shape (most likely doing unnecessary `git` invocations when argv is already provided).
@@ -207,6 +208,9 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
   - [ ] Verify structural parse: `docker compose -f packages/devbox/docker-compose.yml config` exits 0 on the parameterised file WITHOUT `.envrc` present (`required: false` must keep compose tolerant). Verify default-fallback substitution: `docker compose -f packages/devbox/docker-compose.yml config | grep -E 'mem_limit|cpus|shm_size|nofile|3000|3001|6006|24679'` must show every default value substituted (e.g. `mem_limit: 12g`, `cpus: '8'`, `shm_size: 2g`). Verify override substitution: `KEEL_DEVBOX_MEMORY_GB=16 docker compose -f packages/devbox/docker-compose.yml config | grep 'mem_limit: 16g'` must match.
 
 - [ ] **Task 3: Author `packages/devbox/.secrets.example`** (AC: 4)
+
+  `.secrets.example` is the COMMITTED schema; each fork must `cp packages/devbox/.secrets.example .secrets` (gitignored per Task 5) and populate with per-fork values before invoking `act`. The example file ships with empty values + inline Epic-consumer pointers so fork operators know which secrets unlock which downstream feature. Document this copy-seed flow in the `.secrets.example` header AND in `packages/devbox/README.md § Retuning § Secrets` (Task 6).
+
   - [ ] Create `packages/devbox/.secrets.example` with the 6-key scaffold per AC4 scope-clarification. Keys (verbatim, alphabetised within their category, scrubbed values): `PADDLE_SANDBOX_API_KEY=`, `PADDLE_PROD_API_KEY=`, `RESEND_API_KEY=`, `GOOGLE_OAUTH_CLIENT_SECRET=`, `ANTHROPIC_API_KEY=`, `DATABASE_URL_EPHEMERAL=`.
   - [ ] Add a block-comment header naming (a) `act` as the primary consumer, (b) architecture.md:328-330 as the source-of-truth for the key list, (c) the GitHub → Settings → Secrets and variables production source, (d) the pre-merge-slow / nightly / release-gated CI tier scoping per architecture.md:329. Inline comment each key with its consuming Epic (Epic 8 / 9 / 10 / 13 / etc.).
   - [ ] Match the `.envrc.example` style: group by section (`# --- Billing ---`, `# --- Email ---`, `# --- OAuth ---`, `# --- Anthropic ---`, `# --- Database ---`). Keep lines ≤120 chars. Trailing newline.
@@ -245,7 +249,7 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
   - [ ] Add `bin` entry to `packages/keel-invariants/package.json`: `"keel-invariants:no-committed-dotfiles": "./dist/check-no-committed-dotfiles.js"`. Keep alphabetical order in the `bin` block if the maintainer prefers (existing order is insertion-order; match that).
   - [ ] Verify `tsc -b` compiles the new file to `dist/check-no-committed-dotfiles.js` with executable bit (shebang auto-executes under Node; the `bin` entry handles OS-level execution).
   - [ ] Add prek hook to `.pre-commit-config.yaml` per AC5 scope-clarification. Place it BETWEEN `format-check` and `tokens-schema` (logical adjacency — secret-file guard runs before the token validators). Use `pass_filenames: true` so prek passes staged filenames as argv.
-  - [ ] Register `INV-gitignored-secret-commit-deny` in `packages/keel-invariants/src/invariants.manifest.ts` — append a new entry at the tail (after the last existing entry) with:
+  - [ ] Register `INV-gitignored-secret-commit-deny` in `packages/keel-invariants/src/invariants.manifest.ts` — append a new entry at the tail (after the last existing entry `INV-devbox-dind-available` at `invariants.manifest.ts:248-255`) with `sourcePath` pointing at the INVARIANT DOC (not the TS impl), matching the AI-7 precedent verified at `invariants.manifest.ts:252` (`sourcePath: 'docs/invariants/devbox-dind.md'`):
 
     ```ts
     {
@@ -255,13 +259,13 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
         'Committed schemas (.envrc.example, .secrets.example) are exempt via anchored regex end-match. ' +
         'Implementation: packages/keel-invariants/src/check-no-committed-dotfiles.ts; ' +
         'wiring: .pre-commit-config.yaml → pnpm keel-invariants:no-committed-dotfiles.',
-      sourcePath: 'packages/keel-invariants/src/check-no-committed-dotfiles.ts',
-      contentHash: '<REGENERATE — sha256sum of the final TS source>',
+      sourcePath: 'docs/invariants/gitignored-secret-commit-deny.md',
+      contentHash: '<REGENERATE — sha256sum of the final docs/invariants/gitignored-secret-commit-deny.md>',
       anchors: ['INV-gitignored-secret-commit-deny'],
     },
     ```
 
-  - [ ] Compute `sha256sum packages/keel-invariants/src/check-no-committed-dotfiles.ts` AFTER the final TS source is in place; paste the 64-hex-char digest into the `contentHash` field. Rebuild: `pnpm -C packages/keel-invariants build`. Run sync-gate: `node packages/keel-invariants/dist/check.js` exits 0. If drift is reported, re-read the manifest entry — the hash must byte-match the on-disk source after the build step.
+  - [ ] Compute `sha256sum docs/invariants/gitignored-secret-commit-deny.md` AFTER the doc's final content is in place (Task 4's `docs/invariants/gitignored-secret-commit-deny.md` authoring step below); paste the 64-hex-char digest into the `contentHash` field. Hash the DOC, not the TS source — the manifest `sourcePath` field drives which file the sync-gate hashes. Rebuild: `pnpm -C packages/keel-invariants build`. Run sync-gate: `node packages/keel-invariants/dist/check.js` exits 0. If drift is reported, re-read the manifest entry — the hash must byte-match the on-disk doc after any final edits.
   - [ ] Add the anchor to `INVARIANTS.md` at the repo root — a one-line entry under the existing invariant anchors matching the Story 1.7 convention. The anchor text must byte-match the `anchors: ['INV-gitignored-secret-commit-deny']` field in the manifest entry (sync-gate drift-detects anchor mismatch per FR43 + Story 1.9).
   - [ ] Create `docs/invariants/gitignored-secret-commit-deny.md` with YAML front-matter (matches AI-7 iter-135's shape for `INV-devbox-dind-available`):
 
@@ -287,12 +291,16 @@ So that I can retune the devbox for my hardware (memory, CPU, tmpfs sizes, ports
     [How to test: stage a .envrc file; attempt commit; hook fails with pointer. Stage .envrc.example; attempt commit; succeeds.]
     ```
 
-    Compute `sha256sum` of this file AFTER authoring, and regenerate the `contentHash` field if the manifest entry's `sourcePath` points at this doc instead of the TS source. Canonical pattern per AI-7 is `sourcePath` = the doc, not the impl — double-check the AI-7 entry (iter-135 closed at `packages/keel-invariants/src/invariants.manifest.ts:253` → `docs/invariants/devbox-dind.md`). If the doc is the `sourcePath`, re-hash the doc after authoring. **Decide at implementation time based on the AI-7 precedent — the Story 1.9 sync-gate pattern is consistent.**
+    Compute `sha256sum docs/invariants/gitignored-secret-commit-deny.md` AFTER authoring the doc, and paste the digest into the manifest entry's `contentHash` field (the entry created in the previous substep with `sourcePath: 'docs/invariants/gitignored-secret-commit-deny.md'`). Doc-first `sourcePath` matches the AI-7 precedent at `invariants.manifest.ts:252`.
   - [ ] Smoke-test end-to-end: (a) stage a fake `.envrc` at repo root (`echo 'SECRET=abc' > .envrc && git add -f .envrc`); (b) run `pnpm exec prek run no-committed-dotfiles --all-files` — hook exits 1 with the pointer error; (c) `git restore --staged .envrc && rm .envrc`; (d) re-run hook — exits 0. Verify `.envrc.example` / `.secrets.example` additions do NOT trigger: `git add packages/devbox/.envrc.example && pnpm exec prek run no-committed-dotfiles --all-files` exits 0.
 
 - [ ] **Task 5: Extend `.gitignore` coverage** (AC: 5)
   - [ ] Edit `.gitignore` at the repo root per AC5 scope-clarification. Replace the existing `# Environment / secrets` block (`.gitignore:35-39`) with the expanded block listing `.env*`, `!.env.example`, `.envrc`, `.envrc.local`, `!.envrc.example`, `!packages/devbox/.envrc.example`, `.secrets`, `!.secrets.example`, `!packages/devbox/.secrets.example`, `*.pem`, `*.key`.
-  - [ ] Verify `git check-ignore -v packages/devbox/.envrc.example` prints nothing (un-ignored) AND `git check-ignore -v packages/devbox/.envrc` prints the matching rule (ignored). Repeat for `.secrets` / `.secrets.example` counterparts.
+  - [ ] Verify `.gitignore` rules via `git check-ignore -v`. **Exit codes drive the semantic, not stdout content.** Expected behaviour:
+    - `git check-ignore -v packages/devbox/.envrc.example` → exit 1, NO output (file is NOT ignored — no rule prevents tracking; this is the desired outcome for committed schema files).
+    - `git check-ignore -v packages/devbox/.envrc` → exit 0, prints the matching `.envrc` rule (file IS ignored).
+    - Repeat for `.secrets` / `.secrets.example` counterparts: `.secrets.example` → exit 1 no output; `.secrets` → exit 0 prints matching rule.
+    - If the `!<path>` negation rules are malformed, `check-ignore -v` on `.envrc.example` may print a matching `!` rule AND exit 0 — treat that as a regression; the correct state is exit 1.
   - [ ] Verify no regression to existing rules: `git status` after the edit still matches the pre-edit baseline — no newly-tracked files accidentally appear.
 
 - [ ] **Task 6: Extend `packages/devbox/README.md` with § Retuning** (AC: 1, 3)
@@ -400,7 +408,7 @@ Recent iterations established these patterns that Story 2.2 should reuse:
 
 - **Tmpfs-naming drift** — `_bmad-output/planning-artifacts/architecture.md:284-286` uses `KEEL_DEVBOX_TMPFS_TMP_GB` / `KEEL_DEVBOX_TMPFS_VAR_TMP_GB` (GB suffix, underscore-separated); `_bmad-output/planning-artifacts/epics.md:1210` + AC1 uses `KEEL_DEVBOX_TMPFS_TMP_MB` / `KEEL_DEVBOX_TMPFS_VARTMP_MB` (MB suffix). Story 2.2 ships the AC-literal `_MB` form; a future architecture amendment should align naming. Not blocking — the naming decision is frozen for Story 2.2.
 - **`.secrets.example` location** — `_bmad-output/planning-artifacts/architecture.md:802` places at repo root; `_bmad-output/planning-artifacts/epics.md:1223` AC4 places at `packages/devbox/.secrets.example`. Story 2.2 ships at `packages/devbox/.secrets.example` per AC-literal reading. A future story (likely Epic 13 CI harness) may add a root-level `.secrets.example` if `act` invocation from repo root requires it.
-- **Manifest `sourcePath` for the new invariant** — doc-first (AI-7 precedent) vs impl-first (keel-invariants src precedent — other entries in the manifest point at TS / config files). Decide based on which is the more stable long-term reference; the rule's semantics are primarily documentary (the prek hook is thin), so `sourcePath` pointing at `docs/invariants/gitignored-secret-commit-deny.md` is likely the right choice. Record decision + rationale in the Dev Agent Record.
+- **Manifest `sourcePath` for the new invariant — RESOLVED: doc-first.** `invariants.manifest.ts:252` ships `sourcePath: 'docs/invariants/devbox-dind.md'` for `INV-devbox-dind-available` (AI-7's invariant, closed at iter-135) — primary-documentary invariants whose machine-enforcement is a thin prek hook follow doc-first `sourcePath`. Story 2.2's `INV-gitignored-secret-commit-deny` matches this shape: the denylist regex is thin glue; the normative statement of what's refused + why lives in `docs/invariants/gitignored-secret-commit-deny.md`. Task 4 manifest template uses `sourcePath: 'docs/invariants/gitignored-secret-commit-deny.md'` + `sha256sum` of the doc for `contentHash`.
 
 ## Dev Agent Record
 
