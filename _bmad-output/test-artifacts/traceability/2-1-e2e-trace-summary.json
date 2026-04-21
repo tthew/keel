@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-21T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.1",
+    "label": "packages/devbox/ absorb from cc-devbox — image + compose + substrate tooling access (M0.5 a-c)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 4, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 4,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — four P2 ACs cover an infrastructure-smoke substrate story (first of its class) with no live test runner at 1.0. AC 1 + AC 2 + AC 3 + AC 4 all have STRONG substrate evidence: Task 7 four-check structural bundle (entrypoint.sh forbidden-pattern grep exit 1, Dockerfile pin-rationale header first-content, docker compose config exit 0, git ls-files 100755 for entrypoint.sh + benchmark.sh) + Task 4.1 iter-123 image bake persistence (keel-devbox:local sha256:e7e91f1537f196b39f32ae6168d33bb33fd58b76cc7a9a53582800ff4038f7a2, 847,527,165 bytes ≈ 848 MB, linux/arm64). All structural smokes re-verified LIVE at iter-126 trace-time — byte-identical image ID, grep exit 1, compose config exit 0, 100755 bits. AC 3 dynamic runtime (compose run pnpm test/lint) + AC 4 cold/warm benchmark RUNS are scope-clarification-consistent operator-owned carve-outs under backend-B iteration-context per iter-124 bind-mount denial root cause (host Docker Desktop File Sharing allowlist vs worktree path); substrate deliverables (script + safety gate + measurement method + README § Pending first bake doc) all landed. Per-AC runner-hosted coverage deferred to Story 2.1-test-runner-landing (Epic 13 scope) + operator-workstation follow-up runs (AC 3 compose-run verification + AC 4 authoritative cold + warm benchmark).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.1 authors the M0.5 (a)+(b)+(c) deliverable substrate (Dockerfile + docker-compose.yml + entrypoint.sh + scripts/benchmark.sh + VERSIONS.md + expanded README.md) + substrate-level files supporting the iteration-context DinD contract (docs/invariants/devbox-dind.md + packages/keel-invariants/src/invariants.manifest.ts entry INV-devbox-dind-available + INVARIANTS.md anchor + AGENTS.md + RALPH.md cross-references). Any silent edit to devbox-dind.md triggers sync-gate FAIL at pre-commit per Story 1.9 drift detection. Downstream consumers: Story 2.6 wraps the raw docker compose invocations in `pnpm devbox:*` lifecycle CLI; Story 2.11 extends workspace mount parameterization for shared-workspace mode; Epic 6 Story 6.5 `pnpm rls:explain` consumes the baked psql + delta + workspace bind-mount per VERSIONS.md § Epic 6 forward-compat roster.",
+      "requirements": ["AC-1", "AC-2", "AC-3"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.1 test-runner landing (Epic 13 scope) will unlock optional per-AC probes: AC 1 structural-shape smokes (file existence + comment-header regex); AC 2 Playwright install-deps completeness check (diff against upstream playwright.dev list) + baked-version sanity (docker run --rm keel-devbox:local <tool> --version at operator workstation); AC 3 compose run pnpm test/lint exit-0 check (operator-workstation or backend-A CI harness); AC 4 benchmark.sh cold + warm wall-clock assertion against NFR2 budget (M4-Pro native or backend-A DinD). None of these block Story 2.1 `review → done` transition under the WAIVED precedent — substrate evidence at iter-126 is complete for the in-iteration-executable portion of the story.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}
