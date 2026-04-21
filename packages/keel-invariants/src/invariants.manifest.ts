@@ -181,6 +181,30 @@ const raw: Invariant[] = [
     contentHash: '29f7b5860b7324d673696d1991eafd0452861524863dfaa794604b3a54707c54',
     anchors: ['INV-tokens-sync-gate'],
   },
+  {
+    id: 'INV-release-please-config',
+    description:
+      'release-please-monorepo single-bundled-mode configuration — .github/release-please-config.json; pins release-type node + linked-versions plugin (groupName keel) + bump-minor-pre-major + bump-patch-for-minor-pre-major + include-v-in-tag + changelog-sections (9 conventional-commit types; 4 visible + 5 hidden) + packages map listing the root component (.) and every workspace member (apps/web + 15 packages/*). Conventional-commit bump mapping: feat: → minor (pre-1.0 minor per bump-minor-pre-major), fix: → patch, feat!:/BREAKING CHANGE: → major. Consumed by Story 13.5 release-please.yml workflow (Epic 13) at every push to main; static drift is detected by Story 1.9 pre-merge sync-gate (FR43).',
+    sourcePath: '.github/release-please-config.json',
+    contentHash: 'bd7a6c6c1aac702548bb512c0610633fcd84e630586ab91ad2bc78b577239318',
+    anchors: ['INV-release-please-config'],
+  },
+  {
+    id: 'INV-release-please-manifest',
+    description:
+      "release-please state-of-record manifest — .github/.release-please-manifest.json; maps every releasable path (. root component + apps/web + 15 packages/*) to its current semver. Initial state: all 17 entries at 0.0.0 matching every workspace member's current package.json version. Updated atomically (every entry bumps in lockstep per linked-versions plugin) by release-please on Release-PR merge (AC 5). Linked-versions plugin requires key-parity with release-please-config.json packages map; drift between the two files is invalid config and would fail the Epic-13 workflow invocation.",
+    sourcePath: '.github/.release-please-manifest.json',
+    contentHash: '4df2aacf54a9849e8e550377c5915cec6efe155b33834b200a6e0c81aedc42e8',
+    anchors: ['INV-release-please-manifest'],
+  },
+  {
+    id: 'INV-release-please-rationale',
+    description:
+      "Documentation-layer rationale for the release-please single-bundled choice — docs/invariants/release.md; mirrors Story 1.10's INV-tokens-semantic-rationale pattern (companion doc to a machine-enforced invariant, drift-detected at the doc layer). Explains (a) the single-bundled vs per-package trade-off with a verbatim pointer to architecture.md § Deferred / Post-1.0 line 1342, (b) the feat:/fix:/feat!: → semver mapping table, (c) fork-extension guidance (FR44 — single-bundled → per-package is a source-fork change, not a config toggle), (d) consumption pointer to Story 13.5 release-please.yml workflow. Companion to INV-release-please-config.",
+    sourcePath: 'docs/invariants/release.md',
+    contentHash: 'c37ac2a89cc14d965f15cf2fe5a7695f0c9c0d1536e704d447f7b0a636ea547c',
+    anchors: ['INV-release-please-rationale'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));

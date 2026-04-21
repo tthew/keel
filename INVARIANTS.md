@@ -64,6 +64,14 @@ Each entry: stable ID + one-line description + source-file pointer.
 - **`INV-tokens-contrast-check`** — pre-commit gate computing WCAG 2.1 AA contrast ratios for every semantic `text × surface`, `status.fg × status.bg`, `severity × surface`, `state × surface`, `accent × surface`, and `border.accent × surface` pair in light + dark overlay modes; gamut-maps OKLCH → in-gamut sRGB (3-iteration chroma reduction + hard clamp) before relative-luminance math; threshold `4.5` for normal text / `3.0` for UI components per WCAG 1.4.11. Source: `packages/keel-invariants/src/check-tokens-contrast.ts`.
 - **`INV-tokens-sync-gate`** — pre-merge gate invoking the emitter in `--check` mode to byte-compare re-emitted outputs against committed `packages/ui/src/tokens.css` + `packages/ui/tailwind.preset.ts` + `packages/devbox/tui/theme.py`; shares `sourcePath` with `INV-tokens-emitter` (additive `--check` flag on the existing writer). Source: `packages/ui/scripts/generate-tokens.ts`.
 
+### Release management (Story 1.14)
+
+Single-bundled release-please config + per-workspace manifest + companion rationale doc; conventional-commits → semver bumps → rolling Release PR.
+
+- **`INV-release-please-config`**: .github/release-please-config.json — single-bundled monorepo config (release-type node + linked-versions plugin + bump-minor-pre-major + 17-key `packages:` map).
+- **`INV-release-please-manifest`**: .github/.release-please-manifest.json — per-path version state-of-record (17 entries; initial 0.0.0 everywhere).
+- **`INV-release-please-rationale`**: docs/invariants/release.md — single-bundled vs per-package trade-off rationale + commit-type semver mapping + fork-extension guidance.
+
 ## Consumption
 
 - **Humans / AI agents:** read this file; cross-reference the listed source files for the machine-enforced form.
