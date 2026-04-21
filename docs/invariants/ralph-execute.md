@@ -61,7 +61,7 @@ State → NOW task mapping (abridged):
 | `sm-fixes-pending`    | Top QUEUE fix task (satisfy unmet AC)                             |
 | `sm-verified`         | `/bmad-code-review (args: "2")`                                   |
 | `fixes-pending`       | Top QUEUE fix task (one CR action item per iter)                  |
-| `done`                | Next story or EPIC_DONE halt                                      |
+| `done`                | Next story in current epic; if epic has no more open stories → § Cross-epic transition (auto-advance if PR merged + next epic in backlog; else `EPIC_DONE`/`ALL_EPICS_DONE` halt) |
 
 Eight non-toggle-able anti-constraints:
 
@@ -80,12 +80,29 @@ Eight non-toggle-able anti-constraints:
 
 Closed reason enum at 1.0:
 
-- `EPIC_DONE` — epic shipped; stop.
+- `EPIC_DONE` — current epic shipped; PR pending human merge. Single-pass halt — on re-entry after merge, FR14n's § Cross-epic transition auto-advances to the next epic (no re-halt loop).
+- `ALL_EPICS_DONE` — every epic in sprint-status is done; terminal. `ralph.py` skips the GH project epic transition (no epic to close). `{epic:null, pr:null}`.
 - `AWAIT_MERGE` — PR open, CI green, waiting on human merge.
 - `BUDGET_EXHAUSTED` — crossed the 25K buffer floor mid-iteration (NFR4b).
 - `CI_BLOCKED` — pre-push CI gate blocks progress until human intervention (FR14i).
 - `SECURITY_CRITICAL` — critical-severity security finding halted the loop (NFR18).
 - `RALPH_STAGE_REGRESSION` — Ralph safe-set L1 stage-upgrade bootstrap-validation failed (FR14m + NFR4c).
+
+**Autonomy constraint (non-toggle-able, anchor: INV-ralph-halt-reason-enum).** Every reason is bounded — either self-resolving (`EPIC_DONE` via § Cross-epic transition on re-entry; `AWAIT_MERGE` via merge; `ALL_EPICS_DONE` is terminal) or triggered by a concrete external condition (budget/CI/security/stage regression). No reason blocks on open-ended human input. Ralph does NOT invoke `AskUserQuestion` from the runtime loop. When state is inconsistent and the decision tree cannot produce an unambiguous action, Ralph falls back to an existing bounded reason (typically `EPIC_DONE` with a diagnostic `note` field) rather than introducing a new waiting state. A hypothetical `AWAITING_USER` reason was explicitly rejected on autonomy grounds in the 2026-04-21 amendment.
+
+## Cross-epic transition (FR14n amendment, 2026-04-21)
+
+When `Story State = done` AND sprint-status has no more open stories in the current epic, the Story-lifecycle matrix routes through a cross-epic transition before halting. Build-mode Ralph:
+
+1. Reads the current epic's PR number from `.ralph/@plan.md § Context` (`**PR:** #N`).
+2. Queries actual PR state via `gh pr view <N> --json state,mergedAt` — `gh` is source of truth, not the § Context text.
+3. Branches:
+   - **MERGED (or no PR recorded) AND sprint-status has a next epic with a backlog first story `(N+1).1`** → queues `/bmad-create-story` for the next epic's first story as NOW; updates § Context (`Epic=N+1`, `Story=(N+1).1`, `Story State=_(no story)_`, `PR: n/a`); commits, pushes, exits. **No halt, no mode switch.** The iteration stays in build-mode; one task per iteration is preserved (create-story is the single task).
+   - **PR state in {OPEN, DRAFT, CLOSED-unmerged}** → writes `EPIC_DONE` halt. Next invocation re-evaluates from step 1 — after human merge, branch (a) fires and advances.
+   - **Sprint-status has no next epic** → writes `ALL_EPICS_DONE` halt (terminal).
+   - **State inconsistent** (missing sprint-status rows, `gh pr view` failure, § Context conflicts with sprint-status) → writes `EPIC_DONE` with a diagnostic `note` field describing the inconsistency; exits. Autonomy guardrail: no `AskUserQuestion`, no new waiting halt reason.
+
+This branch closes the Epic 1 iter-95..iter-97 re-halt loop where Ralph correctly halted at epic close but re-halted on every subsequent build-mode invocation because the matrix had no cross-epic advance path.
 
 ## Path Resolution
 
@@ -111,4 +128,4 @@ Agents MUST NOT use hardcoded main-repo absolute paths (`/workspace/<repo>/.ralp
 
 ## Fork enforcement
 
-Forks that replace the runtime (`ralph.py`) honour the halt schema + decision matrix + **path-resolution contract** (all three are normative), or fork-and-diverge. The matrix and path-resolution algorithm are shipped in `packages/keel-templates/PROMPT_build.template.md`; re-scaffolding a fresh fork recovers the canonical versions.
+Forks that replace the runtime (`ralph.py`) honour the halt schema (closed 7-reason enum + autonomy constraint) + decision matrix (story-lifecycle + cross-epic transition) + **path-resolution contract** (all three are normative), or fork-and-diverge. The matrix, cross-epic branch, and path-resolution algorithm are shipped in `packages/keel-templates/PROMPT_build.template.md`; re-scaffolding a fresh fork recovers the canonical versions. The autonomy constraint is registered as `INV-ralph-halt-reason-enum` in the invariants manifest — Story 1.9 sync-gate drift-detects any fork that introduces a human-input-blocking halt reason.

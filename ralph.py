@@ -39,10 +39,11 @@ so the agent and orchestrator always agree on where the halt sentinel lives.
 GitHub Project integration: on startup ralph.py discovers the user's
 GH Project (or uses --gh-project), maps Story / Epic issues by title,
 transitions the current story to "In Progress" at iteration start, and
-transitions the current epic to "Done" on an EPIC_DONE halt. Story
-"Done" transitions are left to GitHub's native PR-merge automation
-(Closes #N in the PR body). Failures degrade quietly — warnings log,
-the loop continues.
+transitions the current epic to "Done" on an EPIC_DONE halt. On an
+ALL_EPICS_DONE halt there is no epic to close (terminal). Story "Done"
+transitions are left to GitHub's native PR-merge automation (Closes #N
+in the PR body). Failures degrade quietly — warnings log, the loop
+continues.
 """
 
 from __future__ import annotations
@@ -1671,14 +1672,23 @@ class RalphApp(App):
         return "\n".join(lines) + "\n"
 
     def _handle_epic_done_transition(self, halt_text: str) -> None:
-        """On EPIC_DONE halts, transition the epic issue to Done."""
+        """On EPIC_DONE halts, transition the epic issue to Done.
+
+        ALL_EPICS_DONE is terminal with no epic to close — no-op.
+        Other halt reasons (AWAIT_MERGE, BUDGET_EXHAUSTED, CI_BLOCKED,
+        SECURITY_CRITICAL, RALPH_STAGE_REGRESSION) don't drive project
+        transitions here.
+        """
         if not halt_text.strip() or not self.gh_state or not self.gh_state.available:
             return
         try:
             halt = json.loads(halt_text)
         except json.JSONDecodeError:
             return
-        if halt.get("reason") != "EPIC_DONE":
+        reason = halt.get("reason")
+        if reason == "ALL_EPICS_DONE":
+            return
+        if reason != "EPIC_DONE":
             return
         epic_raw = halt.get("epic")
         if epic_raw is None:
