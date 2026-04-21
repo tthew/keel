@@ -45,7 +45,7 @@ UPSTREAM_RESOLVER="${KEEL_DEVBOX_DNS_UPSTREAM:-1.1.1.1}"
 
 log() { printf 'reload-egress: %s\n' "$*" >&2; }
 
-# --- Marker-validation preflight (AR-6 guardrail) -------------------------
+# --- Marker-validation preflight (AR-6 + AR-7 guardrail) ------------------
 # Assert each template's awk-substitution marker block is present with the
 # expected count AND balanced START/END pairs BEFORE the awk substitution
 # runs. If a template loses a marker (dev-edit typo), duplicates one, or the
@@ -55,19 +55,23 @@ log() { printf 'reload-egress: %s\n' "$*" >&2; }
 # nftables ships without the resolved accept rules) or stuffed with the
 # wrong block type (ipv4 rules into the ipv6 chain, server= directives into
 # the nftables ruleset). Both failure modes are invisible at reload time.
-# Preflight with an explicit per-template count catches the imbalance at
+# Preflight with an explicit per-marker count catches the imbalance at
 # exit 6 (pre-apply render failure) with a diagnostic naming the template +
-# expected vs. found counts. Pattern `^[[:space:]]*# KEEL_..._MARKER_{START,END}`
-# mirrors the awk regex exactly so preflight and substitution agree on what
-# counts as a marker — a non-anchored grep would false-match the documentation
-# references in the template header comments.
+# marker-name + expected vs. found counts. Pattern
+# `^[[:space:]]*# <marker>_{START,END}` mirrors the awk regex exactly so
+# preflight and substitution agree on what counts as a marker — a
+# non-anchored grep would false-match the documentation references in the
+# template header comments. AR-7 parameterises the marker name so the
+# nftables template (which now carries chain-scoped `KEEL_EGRESS_V4_MARKER`
+# + `KEEL_EGRESS_V6_MARKER`) and the dnsmasq template (still using
+# `KEEL_EGRESS_ALLOWLIST_MARKER`) share one validator.
 validate_markers() {
-	local template="$1" expected="$2" label="$3"
+	local template="$1" expected="$2" label="$3" marker="$4"
 	local start_count end_count
-	start_count="$(grep -c '^[[:space:]]*# KEEL_EGRESS_ALLOWLIST_MARKER_START' "${template}" || true)"
-	end_count="$(grep -c '^[[:space:]]*# KEEL_EGRESS_ALLOWLIST_MARKER_END' "${template}" || true)"
+	start_count="$(grep -c "^[[:space:]]*# ${marker}_START" "${template}" || true)"
+	end_count="$(grep -c "^[[:space:]]*# ${marker}_END" "${template}" || true)"
 	if [[ "${start_count}" -ne "${expected}" ]] || [[ "${end_count}" -ne "${expected}" ]] || [[ "${start_count}" -ne "${end_count}" ]]; then
-		log "ERROR: ${label} template marker imbalance: ${template}"
+		log "ERROR: ${label} template marker imbalance: ${template} (marker=${marker})"
 		log "  expected: ${expected} START / ${expected} END"
 		log "  found:    ${start_count} START / ${end_count} END"
 		log "  silent awk substitution would corrupt the allow-list region — aborting reload"
@@ -199,31 +203,40 @@ ipv4_rule_count="$(printf '%s' "${nft_ipv4_rules}" | grep -c '^' || true)"
 ipv6_rule_count="$(printf '%s' "${nft_ipv6_rules}" | grep -c '^' || true)"
 
 # --- Render nftables ruleset (SC-5 step 2) --------------------------------
-# Expected 2 START / 2 END (one pair per chain: output_v4 + output_v6).
-# AR-7 renames these per-chain; preflight expected count + grep pattern
-# updates move together in that change.
-validate_markers "${NFT_TEMPLATE}" 2 "nftables"
+# Chain-scoped markers (AR-7): each chain carries its own marker pair,
+# expected 1 START / 1 END per chain. Validating each marker-name
+# independently decouples the render from chain-declaration order — re-ordering
+# output_v4 / output_v6, adding a third chain, or renaming a chain header no
+# longer silently mis-routes the awk substitution. Each validate_markers call
+# fails exit 6 before the awk runs if its marker is absent or unbalanced.
+validate_markers "${NFT_TEMPLATE}" 1 "nftables v4" "KEEL_EGRESS_V4_MARKER"
+validate_markers "${NFT_TEMPLATE}" 1 "nftables v6" "KEEL_EGRESS_V6_MARKER"
 
 nft_rendered="$(mktemp -t keel-egress.nft.XXXXXX)"
 cleanup_files+=("${nft_rendered}")
 
+# Per-chain marker match: each START line selects its own family's rule
+# block to inject. No `chain` state variable — the marker name itself
+# disambiguates, so chain declaration order is irrelevant to correctness.
 awk -v ipv4_rules="${nft_ipv4_rules}" -v ipv6_rules="${nft_ipv6_rules}" '
-	BEGIN { chain = "" }
-	# Track which chain we are inside so the marker replacement picks the
-	# right family rule block.
-	/chain output_v4 \{/ { chain = "v4" }
-	/chain output_v6 \{/ { chain = "v6" }
-	/^[[:space:]]*# KEEL_EGRESS_ALLOWLIST_MARKER_START/ {
+	/^[[:space:]]*# KEEL_EGRESS_V4_MARKER_START/ {
 		in_marker = 1
 		print
-		if (chain == "v4") {
-			printf "%s", ipv4_rules
-		} else if (chain == "v6") {
-			printf "%s", ipv6_rules
-		}
+		printf "%s", ipv4_rules
 		next
 	}
-	/^[[:space:]]*# KEEL_EGRESS_ALLOWLIST_MARKER_END/ {
+	/^[[:space:]]*# KEEL_EGRESS_V4_MARKER_END/ {
+		in_marker = 0
+		print
+		next
+	}
+	/^[[:space:]]*# KEEL_EGRESS_V6_MARKER_START/ {
+		in_marker = 1
+		print
+		printf "%s", ipv6_rules
+		next
+	}
+	/^[[:space:]]*# KEEL_EGRESS_V6_MARKER_END/ {
 		in_marker = 0
 		print
 		next
@@ -242,7 +255,10 @@ fi
 
 # --- Render dnsmasq config (SC-5 step 4) ----------------------------------
 # Expected 1 START / 1 END (single server= block inserted into dnsmasq.conf).
-validate_markers "${DNSMASQ_TEMPLATE}" 1 "dnsmasq"
+# Marker name stays `KEEL_EGRESS_ALLOWLIST_MARKER` (unchanged by AR-7 — AR-7
+# only renames the nftables per-chain markers; dnsmasq has a single allow-list
+# region so chain-scoping doesn't apply).
+validate_markers "${DNSMASQ_TEMPLATE}" 1 "dnsmasq" "KEEL_EGRESS_ALLOWLIST_MARKER"
 
 dnsmasq_rendered="$(mktemp -t keel-egress.dnsmasq.XXXXXX)"
 cleanup_files+=("${dnsmasq_rendered}")

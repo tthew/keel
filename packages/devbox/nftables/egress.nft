@@ -2,10 +2,21 @@
 #
 # Single-file atomic-reload source for the container's egress policy.
 # Rendered at reload time by scripts/reload-egress.sh into a tempfile with the
-# `KEEL_EGRESS_ALLOWLIST_MARKER_{START,END}` region replaced by resolved
-# `ip daddr <ipv4> accept` / `ip6 daddr <ipv6> accept` rules derived from the
-# composed whitelist, then applied via `nft -f <tempfile>` — a single kernel
-# atomic transaction (SC-5). DO NOT split into multiple `.nft` files.
+# per-chain `KEEL_EGRESS_V4_MARKER_{START,END}` region (inside output_v4) and
+# `KEEL_EGRESS_V6_MARKER_{START,END}` region (inside output_v6) replaced by
+# resolved `ip daddr <ipv4> accept` / `ip6 daddr <ipv6> accept` rules derived
+# from the composed whitelist, then applied via `nft -f <tempfile>` — a single
+# kernel atomic transaction (SC-5). DO NOT split into multiple `.nft` files.
+#
+# Why chain-scoped marker names (AR-7): the prior shared marker name relied on
+# the awk substitution carrying a `chain` state variable transitioned by the
+# `chain output_v4 {` / `chain output_v6 {` header lines — a structural-order
+# coupling that silently corrupted the render if the chain declarations were
+# reordered (v6 above v4), if a chain header typoed past the regex, or if
+# someone added a third chain that didn't update the state machine. Splitting
+# the marker names lets the awk match each chain's block directly without
+# remembering where it is in the file; any re-ordering, addition, or header
+# edit keeps the render correct by construction.
 #
 # Family: inet (covers both ipv4 + ipv6 via `meta nfproto` match). Upstream
 # cc-devbox split by-family rulesets and left IPv6 at the kernel default
@@ -54,9 +65,9 @@ table inet keel_egress {
 		# DNS replies from our own dnsmasq back to clients inside the container.
 		udp sport 53 ip saddr 127.0.0.1 accept
 
-		# KEEL_EGRESS_ALLOWLIST_MARKER_START
+		# KEEL_EGRESS_V4_MARKER_START
 		# (reload-egress.sh injects `ip daddr <resolved-ipv4> accept` rules here)
-		# KEEL_EGRESS_ALLOWLIST_MARKER_END
+		# KEEL_EGRESS_V4_MARKER_END
 	}
 
 	# ----------------------------------------------------------------------
@@ -82,8 +93,8 @@ table inet keel_egress {
 		# kernel's IPv6 stack remains functional under a default-drop policy.
 		icmpv6 type { nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
 
-		# KEEL_EGRESS_ALLOWLIST_MARKER_START
+		# KEEL_EGRESS_V6_MARKER_START
 		# (reload-egress.sh injects `ip6 daddr <resolved-ipv6> accept` rules here)
-		# KEEL_EGRESS_ALLOWLIST_MARKER_END
+		# KEEL_EGRESS_V6_MARKER_END
 	}
 }
