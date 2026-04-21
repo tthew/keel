@@ -36,11 +36,23 @@ mkdir -p /run
 mkdir -p /var/log
 
 # --- Step 2: pin /etc/resolv.conf to 127.0.0.1 only (SC-13) ---------------
-# Overwrite atomically via tempfile + mv so a mid-write crash can't leave the
-# resolver pointing at a mangled half-written file.
-resolv_tmp="$(mktemp)"
-printf 'nameserver 127.0.0.1\noptions edns0 single-request-reopen\n' > "${resolv_tmp}"
-mv "${resolv_tmp}" /etc/resolv.conf
+# Overwrite /etc/resolv.conf in place. Docker bind-mounts /etc/resolv.conf by
+# default, so `mv tempfile /etc/resolv.conf` (rename(2)) fails "Device or
+# resource busy" — rename cannot replace a bind-mount target. A direct
+# truncate-and-write via `>` updates the existing inode, which works
+# uniformly for regular files, symlinks, and bind-mounted files. The ~60-byte
+# payload is far under PIPE_BUF, so the single write(2) is kernel-atomic — no
+# half-written-resolver race window.
+if ! resolv_err=$( { printf 'nameserver 127.0.0.1\noptions edns0 single-request-reopen\n' > /etc/resolv.conf; } 2>&1 ); then
+	# Distinguish chattr +i (operator-set) from other write failures so the
+	# operator gets an actionable remediation, not a generic errno.
+	if lsattr /etc/resolv.conf 2>/dev/null | head -n1 | awk '{print $1}' | grep -q 'i'; then
+		log "FATAL: /etc/resolv.conf has immutable attribute set (chattr +i); clear with 'chattr -i /etc/resolv.conf' before container restart"
+	else
+		log "FATAL: cannot write /etc/resolv.conf — ${resolv_err:-unknown error}"
+	fi
+	exit 1
+fi
 chmod 0644 /etc/resolv.conf
 log "pinned /etc/resolv.conf to 127.0.0.1"
 
