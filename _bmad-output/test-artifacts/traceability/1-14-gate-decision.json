@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-21T00:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.14",
+    "label": "release-please monorepo config — single-bundled mode"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Configuration-surface substrate story whose § Dev Notes → Testing Standards (story v1.2 iter-76 subsection lines 287-313) explicitly defers per-AC automated coverage to Story 1.16 (test-runner landing) via hybrid ground-(c) variant-(ii)+(iii) ATDD-skip clause. (a) substrate-verification-covers-ACs: Task 7 authored SIX SMOKES — (1) static JSON parse of both config + manifest files; (2) single-bundled-mode shape (separate-pull-requests:false + linked-versions plugin groupName=keel + 17-key packages map); (3) config-manifest key parity (17 entries both); (4) manifest-version parity (all 17 entries = 0.0.0 matching current package.json:version of each workspace member + root); (5) manifest-load smoke (`@keel/keel-invariants` exports 20 invariants = 17 pre-Story-1.14 + 3 new after `pnpm --filter @keel/keel-invariants build`); (6) sync-gate clean via `pnpm keel-invariants:check-all` exit 0 (Story 1.9 sync-gate walks the 20-entry manifest + verifies 3 new sha256 hashes + 3 new INVARIANTS.md anchors; 0.63s wall, 69% budget margin under AC 7 <2s). Smokes 1-5 re-verified LIVE at iter-78 trace-time — all PASS (identical byte outputs to iter-77 dev-story record). Smoke 6 re-verified LIVE at iter-78 via `pnpm keel-invariants:check-all` exit 0 silent (2.9s total for umbrella = sync-gate + tokens-sync). (b) no test runner at Story 1.14 time — Story 1.16 scope; recursive `find` for vitest/jest/playwright/cypress configs returns zero matches. (c) HYBRID variant-(ii)+(iii): variant (ii) downstream-story-covers-integration — Story 13.5's `.github/workflows/release-please.yml` (epics.md:5585-5602) is the runtime consumer and formal integration gate for Release-PR lifecycle + tag/release-notes emission; 4 of 6 ACs (AC 2/3/4/5) describe downstream Story-13.5 consumer behaviour EXPLICITLY CARVED OUT of Story 1.14 scope (see story § AC 5 scope carve-out verbatim); variant (iii) spec-declared-CR-substitution — § Testing Standards 'Adversarial coverage (deferred to CR pass at iter-80)' subsection affirmatively declares the 4 downstream-consumer ACs covered by `/bmad-code-review (args: '2')` Blind Hunter / Edge Case Hunter / Acceptance Auditor fan-out at iter-80. The deterministic FAIL signal (overall 0% < 80%) is a structural false-positive; no test runner is wired at Story 1.14 substrate stage. **EIGHTH CUMULATIVE WAIVED PRECEDENT** for contract-only / contract-populator / data-only / emitter+tooling / gate-authoring / configuration-surface substrate stories (Stories 1.7 iter-4 + 1.8 iter-3 + 1.9 iter-3 + 1.10 iter-46 + 1.11 iter-57 + 1.12 iter-64 + 1.13 iter-71 + 1.14 iter-78). Structural trace-artefact inheritance from Stories 1.11 + 1.12 + 1.13 (~90% reasoning-cost savings per iter-46/57/64/71 precedent; mechanical adaptation of 1-13 template to 1.14's 6-AC configuration-surface substrate with configuration-surface evidence replacing gate-authoring substrate evidence). Story 1.14 does NOT mutate any existing substrate package or emit new runtime code — pure two-JSON-file + one-markdown-file + three-manifest-entries + three-INVARIANTS.md-bullets authoring (lower-complexity surface than the 10-13-DEFER gate-authoring Stories 1.11-1.13).",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-14-release-please-monorepo-config-single-bundled-mode.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}
