@@ -2,11 +2,10 @@
 
 ## NOW
 
-- [ ] AR-2: Remove `.envrc.local.example` from the allow-list contract sentence in `docs/invariants/gitignored-secret-commit-deny.md:57` (Story 2.2 never names it as a committed companion in AC 1 or AC 4; `.gitignore` has no `!.envrc.local.example` negation, so doc-contract drifts from behaviour). Same iter: refresh `INV-gitignored-secret-commit-deny` `contentHash` in `invariants.manifest.ts` + re-run sync-gate. ~small (single-sentence doc edit + 1-field manifest edit + sync-gate re-run).
+- [ ] Re-run `/bmad-code-review (args: "2")` for `fixes-pending → done` confirmation. AR-1 (iter-152) + AR-2 (iter-153) have drained both PATCH items from the iter-151 CR opener; the 14 defers are all carry-annotated in `deferred-work.md` and the 5 dismissals are recorded in the Story 2.2 v1.5 Change Log. Expect ZERO-PATCH close (no new findings expected given the narrow doc-only surface) OR new-patch-cycle if Blind/Edge/Auditor surface regressions from the doc-correction churn.
 
 ## QUEUE (Story 2.2 `fixes-pending → done`)
 
-- [ ] Re-run `/bmad-code-review (args: "2")` for `fixes-pending → done` confirmation (no new findings expected given the narrow doc-only surface of AR-1 + AR-2) OR new-patch-cycle if Blind/Edge/Auditor surface new regressions from the doc-correction churn. ~small.
 - [ ] _(conditional, post-Story-2.17 done)_ Transition PR #230 Draft→Open — final CI gate after all Epic 2 stories done; monitor CI; merge.
 - [ ] _(conditional, post-Epic-2 merged)_ § Cross-epic transition → Epic 3 Story 3.1 via `/bmad-create-story` OR halt EPIC_DONE awaiting merge.
 
@@ -14,7 +13,9 @@
 
 _(none — Story 2.2 CR gate opened with 2 PATCH + 14 DEFER + 5 DISMISS; patches are doc-only drift corrections.)_
 
-## DONE (Story 2.2 — iter-145 draft, iter-146 review-with-fixes, iter-147 ATDD-skip, iter-148 dev-story, iter-149 trace, iter-150 SM-verified, iter-151 CR-opened, iter-152 AR-1 drained)
+## DONE (Story 2.2 — iter-145 draft, iter-146 review-with-fixes, iter-147 ATDD-skip, iter-148 dev-story, iter-149 trace, iter-150 SM-verified, iter-151 CR-opened, iter-152 AR-1 drained, iter-153 AR-2 drained)
+
+- [x] iter-153: **AR-2 drained — removed `.envrc.local.example` from the allow-list contract sentence in `docs/invariants/gitignored-secret-commit-deny.md:57` + `INV-gitignored-secret-commit-deny` contentHash refreshed (`54ef4340… → e0c70aa4…`) + sync-gate exit 0 + positive smoke (`packages/devbox/.envrc.example` → exit 0) + negative smoke (`/tmp/.envrc` → exit 1 with stderr pointer `Refusing to commit gitignored secret file: /tmp/.envrc (matches .envrc).`) end-to-end green.** Second CR fix drain in Story 2.2 `fixes-pending` lane; both iter-151 PATCHes now drained. Root cause: the doc sentence claimed `.envrc.local.example` was EXEMPT via anchored regex end-match, but `.gitignore` has no `!.envrc.local.example` negation (only `!.envrc.example`, `!packages/devbox/.envrc.example`, `!.secrets.example`, `!packages/devbox/.secrets.example`), so `.env*` silently ignores `.envrc.local.example` → doc-contract drifts from gitignore behaviour. Story 2.2 never names `.envrc.local.example` as a committed companion in AC 1 or AC 4; conservative fix = remove from allow-list contract. The hook's regex end-match claim (that `.envrc.local.example` would be EXEMPT from denial if staged) remains accurate in-script — just not surfaced in the doc sentence because it can't reach commit-time anyway through the gitignore gate. Zero backend dependency. Budget: ~6K tokens (Edit + sha256 + Edit + build + sync-gate + 2 smokes). Next: re-run `/bmad-code-review (args: "2")` for `fixes-pending → done`.
 
 - [x] iter-152: **AR-1 drained — `/tmp/fake.envrc → /tmp/.envrc` in `docs/invariants/gitignored-secret-commit-deny.md:42-43` + `INV-gitignored-secret-commit-deny` contentHash refreshed (`22448b33… → 54ef4340…`) + sync-gate exit 0 + negative-smoke end-to-end verified (`pnpm keel-invariants:no-committed-dotfiles /tmp/.envrc` → stderr pointer error "Refusing to commit gitignored secret file: /tmp/.envrc (matches .envrc)." → exit 1 as doc claims).** First CR fix drain in Story 2.2 `fixes-pending` lane. Zero backend dependency. Budget: ~6K tokens (Edit + sha256 + Edit + build + check + smoke). Next: AR-2 drain.
 
@@ -41,7 +42,7 @@ _(none — Story 2.2 CR gate opened with 2 PATCH + 14 DEFER + 5 DISMISS; patches
 - **Epic Branch:** `feat/epic-2-packaged-devbox` (stays Draft across full Epic 2; PR #230 transitions to Open at epic completion).
 - **Story:** 2.2 — `.envrc` parameterisation contract.
 - **Story File:** `_bmad-output/implementation-artifacts/2-2-envrc-parameterisation-contract.md`.
-- **Story State:** `fixes-pending` — iter-151 `/bmad-code-review (args: "2")` opened with 2 PATCH + 14 DEFER + 5 DISMISS; AR-1 drained iter-152 (`/tmp/fake.envrc → /tmp/.envrc` + contentHash refresh, sync-gate green, negative-smoke verified exit 1). Next iteration: AR-2 drain (remove `.envrc.local.example` from allow-list contract sentence + contentHash refresh).
+- **Story State:** `fixes-pending` — iter-151 `/bmad-code-review (args: "2")` opened with 2 PATCH + 14 DEFER + 5 DISMISS; AR-1 drained iter-152 (`/tmp/fake.envrc → /tmp/.envrc` + contentHash refresh, sync-gate green, negative-smoke verified exit 1); AR-2 drained iter-153 (removed `.envrc.local.example` from allow-list contract sentence + contentHash refresh, sync-gate green, positive+negative smokes verified). Both PATCHes drained. Next iteration: re-run `/bmad-code-review (args: "2")` for `fixes-pending → done` confirmation.
 - **GitHub Issue:** Story 2.2 issue **#42** (https://github.com/tthew/ralph-bmad/issues/42). Parent Epic 2 → #10.
 - **PR:** #230 **Draft** — https://github.com/tthew/ralph-bmad/pull/230 (stays Draft across Epic 2; no CI runners pre-Epic-13; transitions to Open at Story 2.17 done).
 

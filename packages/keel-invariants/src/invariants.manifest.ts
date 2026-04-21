@@ -261,7 +261,7 @@ const raw: Invariant[] = [
       'Implementation: packages/keel-invariants/src/check-no-committed-dotfiles.ts; ' +
       'wiring: .pre-commit-config.yaml → pnpm keel-invariants:no-committed-dotfiles.',
     sourcePath: 'docs/invariants/gitignored-secret-commit-deny.md',
-    contentHash: '54ef4340fb5c56f098aba003c06b1bf150e8d69297593128bf2a6af362f58cff',
+    contentHash: 'e0c70aa4882a9dcb9b58919a3735357e1c8dfac2a7e925b80ee1c200a07984f1',
     anchors: ['INV-gitignored-secret-commit-deny'],
   },
 ];

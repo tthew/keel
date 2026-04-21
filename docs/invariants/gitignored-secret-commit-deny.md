@@ -54,4 +54,4 @@ git restore --staged .envrc && rm .envrc
 pnpm exec prek run no-committed-dotfiles --all-files   # → exit 0, no violations
 ```
 
-The allow-list contract: `.envrc.example`, `.envrc.local.example`, `.secrets.example`, and `packages/devbox/.{envrc,secrets}.example` are all EXEMPT from the guard via anchored regex end-match. `.gitignore` negation rules (`!.envrc.example`, `!packages/devbox/.envrc.example`, `!.secrets.example`, `!packages/devbox/.secrets.example`) expose these schema companions as committable so forks have a canonical place to enumerate secret keys + devbox knobs without leaking values.
+The allow-list contract: `.envrc.example`, `.secrets.example`, and `packages/devbox/.{envrc,secrets}.example` are all EXEMPT from the guard via anchored regex end-match. `.gitignore` negation rules (`!.envrc.example`, `!packages/devbox/.envrc.example`, `!.secrets.example`, `!packages/devbox/.secrets.example`) expose these schema companions as committable so forks have a canonical place to enumerate secret keys + devbox knobs without leaking values.
