@@ -36,11 +36,36 @@ WORKSPACE_OWNER="${KEEL_DEVBOX_WORKSPACE_OWNER:-root:root}"
 # relaxed in the future, `-`-prefixed owners cannot be re-interpreted as
 # flags. Trust boundary here is low (operator writes their own `.envrc`),
 # but defence in depth costs nothing.
-if [[ ! "${WORKSPACE_OWNER}" =~ ^[A-Za-z0-9_-]+:[A-Za-z0-9_-]+$ ]]; then
+#
+# CR AR-2 (iter-140): widen the character class to accept POSIX-valid
+# usernames with `.` (dotted like `first.last`) or `+` (AD/LDAP-mapped like
+# `dev+ops`). AI-5's original `[A-Za-z0-9_-]+` under-cut the class relative
+# to the injection it was defending against, so any enterprise-fork operator
+# with an AD-synced username got `exit 2` on every container boot with no
+# README mention of the accepted shape. The revised anchor `[A-Za-z_]` as
+# the first character of each half still rejects leading digits (POSIX
+# username SHALL begin with alpha or `_`) AND leading `-` (preserves the
+# option-parse-injection defence); the tail class `[A-Za-z0-9_.+-]*` adds
+# `.` and `+` to cover the enterprise-convention extensions. `chown --`
+# remains belt-and-braces even under the widened shape.
+if [[ ! "${WORKSPACE_OWNER}" =~ ^[A-Za-z_][A-Za-z0-9_.+-]*:[A-Za-z_][A-Za-z0-9_.+-]*$ ]]; then
   echo "entrypoint.sh: invalid KEEL_DEVBOX_WORKSPACE_OWNER='${WORKSPACE_OWNER}'" \
-    "(expected 'user:group' with [A-Za-z0-9_-]+); refusing chown" >&2
+    "(expected 'user:group' with POSIX-valid chars [A-Za-z_][A-Za-z0-9_.+-]*); refusing chown" >&2
   exit 2
 fi
+
+# Per-invocation temp file for chown stderr capture.
+#
+# CR AR-2 (iter-140): replaces AI-5's hard-coded `/tmp/chown.err` with a
+# process-unique `mktemp -t chown.XXXXXX` path. AI-5's literal path races
+# under concurrent entrypoint invocations — Story 2.11 shared-workspace
+# mode OR back-to-back `docker compose run --rm` on the same host clobber
+# each other's stderr captures and each other's cleanup `rm`. mktemp
+# returns a unique path per invocation so parallel runs cannot interfere.
+# Per-block `rm -f "${chown_err}"` preserves happy-path cleanup; a
+# mid-script kill before `exec` leaks a ~0-byte tmpfile which is tolerable
+# because the name is unique and `/tmp` is cleared at boot.
+chown_err="$(mktemp -t chown.XXXXXX)"
 
 # Workspace mount — the compose bind maps the monorepo root to /workspace.
 # Ensure the directory is traversable even when the host mount arrives with
@@ -53,10 +78,10 @@ fi
 # host-side ownership on backend B) while making unexpected failures
 # diagnosable instead of silently swallowed.
 if [[ -d /workspace ]]; then
-  if ! chown -- "${WORKSPACE_OWNER}" /workspace 2>/tmp/chown.err; then
-    cat /tmp/chown.err >&2 || true
+  if ! chown -- "${WORKSPACE_OWNER}" /workspace 2>"${chown_err}"; then
+    cat "${chown_err}" >&2 || true
   fi
-  rm -f /tmp/chown.err
+  rm -f "${chown_err}"
 fi
 
 # Named-volume directory bring-up — Stories 2.8 / 2.9 materialise the OAuth
@@ -67,10 +92,10 @@ for dir in /home/dev/.claude /home/dev/.config/gh; do
   if [[ ! -d "${dir}" ]]; then
     mkdir -p "${dir}"
   fi
-  if ! chown -- "${WORKSPACE_OWNER}" "${dir}" 2>/tmp/chown.err; then
-    cat /tmp/chown.err >&2 || true
+  if ! chown -- "${WORKSPACE_OWNER}" "${dir}" 2>"${chown_err}"; then
+    cat "${chown_err}" >&2 || true
   fi
-  rm -f /tmp/chown.err
+  rm -f "${chown_err}"
 done
 
 # Hand off to the compose CMD (defaults to `sleep infinity`). Using `exec`
