@@ -1,0 +1,386 @@
+# Story 1.13: Token quality gates — schema validation + WCAG AA contrast + source-output sync
+
+Status: ready-for-dev
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As a substrate maintainer,
+I want three pre-commit/pre-merge quality gates on the token pipeline — schema validation, WCAG AA contrast check, and source-output sync gate — wired as CLI entry points in `@keel/keel-invariants` and registered in the invariants manifest,
+So that (a) the token source (`INV-tokens-source`) cannot be edited into a schema-invalid state without the commit being rejected (AC 1); (b) every `text.* × surface.*` (plus `severity.* × surface.*`, `state.* × surface.*`, and `status.*.fg × status.*.bg`) semantic pair is machine-verified against WCAG 2.1 AA contrast (4.5:1 normal / 3:1 large) with failing pairs named (AC 2); (c) the emitter's three byte-stable outputs (`INV-tokens-emitter` → `tokens.css` + `tailwind.preset.ts` + `theme.py`) cannot diverge from the committed source without the merge being rejected (AC 3); (d) Story 1.12's 10 CR defers (`deferred-work.md §§ Deferred from: code review of 1-12-...`) are absorbed into the gate implementations + spec amendments; (e) the three new gates are themselves drift-detected by Story 1.9's sync-gate (AC 4, FR43) — closing the UX-DR4/5/6 quality loop and completing the Epic 1 design-token substrate.
+
+## Acceptance Criteria
+
+1. **Given** the token source from Story 1.11 (`packages/ui/tokens.json`) and the token schema from Story 1.10 (`packages/ui/tokens.schema.json`),
+   **When** a commit touches `packages/ui/tokens.json`,
+   **Then** the pre-commit hook invokes `pnpm keel-invariants:tokens-schema` which validates the source against the schema via an Ajv-2020 (JSON Schema Draft 2020-12) parse
+   **And** schema-violating commits are rejected with a structured JSON error on stderr naming (a) the offending instance path (e.g. `color.status.info.fg.$value`), (b) the schema rule violated (e.g. `pattern`, `required`, `additionalProperties`), (c) the expected vs received value, and (d) the exit code is non-zero (fail-closed)
+   **And** schema-valid commits pass the gate (exit 0) with no stdout output (silent-on-success, JSON-on-failure).
+
+   **Story 1.13 scope carve-out — gate mechanism + Ajv choice.** The schema-validation gate is a pure CLI entry point in `@keel/keel-invariants` at `packages/keel-invariants/src/check-tokens-schema.ts` (new file). Dependency: **`ajv@8.x` + `ajv-formats@3.x`** as production deps of `@keel/keel-invariants` (NOT dev-only — the CLI is run at pre-commit tier against user working trees and must resolve installed deps; Ajv-2020 ships in `ajv@8` under the `ajv/dist/2020` sub-entry). Rationale for Ajv over alternatives: (a) `tokens.schema.json` is Draft 2020-12 (`$schema` declared at line 1 of `packages/ui/tokens.schema.json`); Ajv is the canonical Node Draft 2020 validator; (b) already the industry default for JSON Schema in Node; (c) single-file validator (zero transitive heft beyond formats plugin); (d) produces structured error paths that the gate maps 1:1 to the AC 1 JSON-error shape. The Zod schema in `packages/keel-invariants/src/invariants.manifest.ts:3-28` is for the **manifest** shape (Story 1.8/1.9 contract), NOT the token source — do NOT attempt to translate `tokens.schema.json` into a Zod schema (the JSON Schema file is the source of truth per `INV-tokens-schema-contract`; Zod would duplicate + risk drift).
+
+   **Story 1.13 scope carve-out — schema-validate BEFORE emitter in the pipeline.** Story 1.12 CR defer #7 (`deferred-work.md § 2026-04-21 defer "walkLeaves silently drops non-leaf, non-object values"`) notes that the emitter `walkLeaves` silently skips arrays / raw strings / stray numbers at non-leaf paths. Story 1.13 closes this by **requiring the schema gate to run BEFORE the emitter in any pipeline that depends on emitter purity** — the emitter trusts its input because the gate has already validated it. Concretely: (a) pre-commit hook runs `keel-invariants:tokens-schema` first; (b) Story 1.13 Task 5 regex-pins breakpoint `$value` to `/^\d+px$/` in the schema (defer #9 absorption — `tokens.schema.json` additionally-constrains the already-present `leafDimension` regex with a breakpoint-specific `pattern` override); (c) the emitter's own defensive check (Story 1.12 § AC 6 OPTIONAL schema-validation) remains optional + unchanged (Story 1.12 frozen).
+
+2. **Given** every semantic `text.* × surface.*` pair in base (light) and dark overlay modes, plus every `severity.* × surface.*`, every `state.* × surface.*`, and every `status.*.fg × status.*.bg` pair (AC-2 pair-enumeration exhaustively listed in Task 2),
+   **When** `pnpm keel-invariants:tokens-contrast` runs (pre-commit hook whenever `packages/ui/tokens.json` changes),
+   **Then** the gate resolves each pair's OKLCH values via the same alias-walker algorithm as the emitter (Story 1.12 `resolveValue` — cycle-detected DFS flatten), converts OKLCH → sRGB via an in-gamut-clamped (gamut-map) inline matrix-math conversion (NO external colour library), computes relative luminance per WCAG 2.1 § 1.4.3, and computes the contrast ratio `(L1 + 0.05) / (L2 + 0.05)` where `L1 >= L2`
+   **And** every pair is checked against AA thresholds — `4.5:1` for normal text, `3:1` for large text (≥ 18pt regular / ≥ 14pt bold per WCAG 2.1 § 1.4.3); the threshold applied per pair is pinned in the pair-enumeration table (Task 2 — most text pairs use 4.5; `severity.low` / large-text / display-scale pairs use 3.0 where documented)
+   **And** failing pairs are emitted to stderr as structured JSON: `{ pair: "text.primary × surface.default", mode: "dark", fg: "oklch(...)", bg: "oklch(...)", fgHex: "#...", bgHex: "#...", ratio: 3.35, threshold: 4.5, delta: -1.15 }` — hex values computed via the gamut-mapped sRGB conversion so CI logs carry the exact clipped-as-rendered colours
+   **And** the commit is rejected (exit non-zero) when ANY pair fails its threshold
+   **And** schema-valid + contrast-passing commits exit 0 silently.
+
+   **Story 1.13 scope carve-out — gamut-map BEFORE AA math.** Story 1.11 iter-59 CR defer #5 (`deferred-work.md § Story 1.11 defer "OKLCH out-of-sRGB-gamut leaves"`) identified five OKLCH leaves with slightly-negative linear-RGB components (browsers clip on render, altering perceived hue/chroma). The contrast gate MUST gamut-map OKLCH → nearest-in-gamut sRGB neighbour (preserving hue, reducing chroma) BEFORE computing relative luminance — so the gate operates on rendered pairings, not abstract OKLCH literals. Algorithm: OKLCH polar → OkLab cartesian → linear sRGB via the OkLab→linear sRGB matrix (Ottosson 2020) → clamp to `[0, 1]` per-channel → if clamped, recursively reduce chroma by 10% until in-gamut (3-iteration ceiling, then hard-clamp); inverse linear-sRGB → sRGB via the `1.055 * x^(1/2.4) - 0.055` piecewise transfer function. Reference implementation form: inline in `packages/keel-invariants/src/color-math.ts` (new file — ~80 lines of matrix arithmetic + transfer-function math; zero runtime deps). Test fixture: `color-math.test.ts` with 4 OKLCH→sRGB conversions + 2 contrast computations + 1 gamut-clip verification (absorbs Story 1.12 defer #3 / iter-59 defer #5).
+
+   **Story 1.13 scope carve-out — expected failing pairs at source-freeze + per-pair threshold.** Story 1.11 iter-59 CR defers #1–#3 enumerated the concrete pairs that fail AA today (dark-mode `status.<X>.fg` on overridden bg at 2.37–3.79:1; light-mode `status.info.fg` at 4.45:1; light-mode `status.warning.fg` at 3.70:1; dark-mode `text.accent` / `border.accent` on surfaces at 4.15–4.31:1). Story 1.13 Task 2 authoring MUST start with these pairs already PATCHed in `packages/ui/tokens.json` source — i.e. Story 1.13 **mutates** `INV-tokens-source` (`packages/ui/tokens.json`) to retune the failing leaves (see Task 2 retune table) so the gate PASSES on the authored state. This is the authoring-side counterpart to the gate landing. Without the retunes, the gate lands red on its own commit — a chicken-and-egg violation of NFR27 (gates fail-closed; no silent-success mode). The retune is scoped + minimal: adjust L/C within the ±15° hue ring per iter-59 defer carry-to #2 ("drop L to ~48% for info.fg and ~52% for warning.fg; hold hue + chroma"); add dark-mode overlay remaps for `text.accent` + `border.accent` pointing at `{color.accent.400}` (lighter — absorbs iter-59 defer #3 carry-to option (a)); add `$modes.dark.color.status.*.fg` overlay entries lifting fg L to ~75% (iter-59 defer #1 carry-to: "add dark-mode `status.<X>.fg` remaps (e.g. `oklch(75% 0.14 <hue>)`)"). Task 2 pins the exact `$value` deltas in an authored table; the hash of the retuned `tokens.json` is pinned in the manifest `INV-tokens-source contentHash` update.
+
+   **Story 1.13 scope carve-out — per-pair threshold default is 4.5 (AA normal).** Apply `3.0` (AA large) only where the pair is used ONLY for large display text — document in the pair-enumeration table. Default: all pairs checked at 4.5.
+
+3. **Given** a commit that changes `packages/ui/tokens.json` but does NOT update the three emitted outputs (`packages/ui/src/tokens.css`, `packages/ui/tailwind.preset.ts`, `packages/devbox/tui/theme.py`),
+   **When** the pre-merge sync gate runs (via `pnpm keel-invariants:tokens-sync`, invoked from `pnpm keel-invariants:check` composition OR standalone),
+   **Then** the gate invokes `pnpm --filter @keel/ui generate-tokens` in **`--check` mode** (new flag added to the Story 1.12 emitter — see § Task 3 emitter amendment), which re-emits the three outputs to a temp dir and byte-compares against the committed paths
+   **And** any byte-level divergence between "what would be emitted now" vs "what is committed" is emitted as structured JSON on stderr naming (a) the divergent output path, (b) the first differing byte offset, (c) the first ≤5 differing lines (unified-diff excerpt), and (d) exits non-zero
+   **And** a fully-synced commit (source + outputs authored consistently) passes (exit 0 silently).
+
+   **Story 1.13 scope carve-out — emitter `--check` mode is the canonical sync-gate verb.** Story 1.12 CR defer #3 (AA3 — `deferred-work.md § 2026-04-21 defer "Manifest entry INV-tokens-emitter description paraphrases spec Task 5 trailing parenthetical"`) formalised this ambiguity: iter-63 dev recorded the sync-gate mechanism as "emitter re-run + diff" in the `INV-tokens-emitter` manifest description (`packages/keel-invariants/src/invariants.manifest.ts:155`); Story 1.12 Task 5 line 163 prescribed `(emitter --check mode)`. Story 1.13 RESOLVES: the canonical verb is **`--check` mode**; the CLI flag is `--check`; invocation is `pnpm --filter @keel/ui generate-tokens -- --check` (the trailing `--` is pnpm's separator between script name + script args). The `--check` flag's contract: re-emit the three outputs to an in-memory or tmpdir location, byte-compare against the committed paths at `packages/ui/src/tokens.css` + `packages/ui/tailwind.preset.ts` + `packages/devbox/tui/theme.py`, exit 0 on match + non-zero on divergence. The emitter is extended (NOT rewritten) per Task 3. At the same time, Story 1.13 PATCHes `invariants.manifest.ts:155` description text from `(emitter re-run + diff).` to `(emitter --check mode).` — aligning with Story 1.12 spec Task 5 line 163 (AA3 absorption).
+
+   **Story 1.13 scope carve-out — emitter `--check` mode MUST NOT alter committed outputs.** The emitter's non-`--check` invocation (`pnpm --filter @keel/ui generate-tokens` with no flag) continues to write files in-place per Story 1.12 AC 1 (frozen behaviour). The `--check` flag gates the writer: reads source → emits to buffer → compares to on-disk → writes nothing → exits 0/1. This preserves FR67-adapted purity (Story 1.12 AC 6): `--check` mode performs zero filesystem writes. The `--check` mode is therefore stricter than the default mode on side-effects (zero writes vs three writes); it does not introduce new reads (reads the same `packages/ui/tokens.json` + three output paths — the output-path reads are new in `--check` mode but are semantically equivalent to the existing post-write output state and do not violate purity beyond the already-explicit three target paths).
+
+   **Story 1.13 scope carve-out — source-SHA resolver hoist + failure-mode distinction (defer #4 + #5 absorption).** Story 1.12 CR defers #4 (`resolveSourceSha` 4× per emitter run; TOCTOU + perf) and #5 (`resolveSourceSha` silent fallback to `uncommitted-<content-hash>` swallows multiple failure modes) are absorbed into Story 1.13 Task 3 emitter amendment alongside `--check` mode. (a) **Hoist**: resolve the source SHA once in `main()` + thread through as a parameter to the three emit stages (`emitCss` / `emitTailwind` / `emitPython`) — single subprocess spawn per run instead of four. (b) **Failure-mode distinction**: when the git resolver fails, distinguish the fallback in the provenance header: `git-unavailable-<content-sha256-16>` if `git` is missing from PATH (ENOENT / spawn error); `stderr-error-<content-sha256-16>` if `git` exited non-zero with stderr; `uncommitted-<content-sha256-16>` if the file is untracked (`git log -1 --format=%h ... <path>` returns empty stdout). CI pipelines can then grep the provenance header for `git-unavailable` / `stderr-error` and fail-fast on environment misconfiguration. The default (everything working) is still `<12-hex-sha>` with no prefix — matches Story 1.12 AC 1 carve-out.
+
+   **Story 1.13 scope carve-out — diamond-DAG alias-cycle false-positive guard (defer #6 absorption).** Story 1.12 CR defer #6 (`deferred-work.md § 2026-04-21 defer "Alias-cycle detector may false-positive on diamond alias DAGs"`) is absorbed by Story 1.13 Task 3 emitter amendment: key `visited` on **resolved-leaf identity** (absolute dot-path post-alias-resolution) rather than alias-path strings. Concretely, the `resolveValue` function's `visited` Set is initialised as `new Set<string>()` keyed by the CANONICAL path (e.g. `color.accent.500` — the terminal leaf path) that the alias ultimately resolves to, and detects cycles when re-visiting an IN-PROGRESS resolution on the current chain. Diamond-DAG fixture added under `packages/ui/__fixtures__/tokens.diamond-dag.json` (NEW) — `A → B, A → C, B → D, C → D` where D is a concrete leaf; asserts emitter resolves all four paths to D without throwing. Fixture is a Story 1.13 test asset (consumed by the test harness — see Task 7 substrate verification; NOT imported by production emitter).
+
+4. **Given** the three new gates register invariants in the manifest,
+   **When** the manifest walk runs (`pnpm keel-invariants:check` — Story 1.9 sync-gate),
+   **Then** three new entries exist in `packages/keel-invariants/src/invariants.manifest.ts` → `raw` array (manifest grows from 14 → 17):
+     - `INV-tokens-schema-validate` — sourcePath `packages/keel-invariants/src/check-tokens-schema.ts`; anchors `['INV-tokens-schema-validate']`
+     - `INV-tokens-contrast-check` — sourcePath `packages/keel-invariants/src/check-tokens-contrast.ts`; anchors `['INV-tokens-contrast-check']`
+     - `INV-tokens-sync-gate` — sourcePath `packages/keel-invariants/src/check-tokens-sync.ts`; anchors `['INV-tokens-sync-gate']`
+   **And** three corresponding anchor bullets exist in `INVARIANTS.md` under a new `### Design-token quality gates (Story 1.13)` section (inserted between the existing `### Design-token emitter pipeline (Story 1.12)` at line 57–58 and the `## Consumption` section at line 61)
+   **And** each anchor bullet follows the Story 1.10/1.11/1.12 column-0 bullet shape (`^-\s+\*\*\`INV-.+\`\*\*` — enforced by Story 1.9's `ANCHOR_REGEX` at `packages/keel-invariants/src/sync-gate.ts:24`)
+   **And** `pnpm keel-invariants:check` exits 0 on the Story 1.13 landing commit (no drift; three new manifest entries + three new `INVARIANTS.md` anchors + three new source files line up byte-for-byte).
+
+   **Story 1.13 scope carve-out — 3 gates = 3 separate invariants (NOT 1 bundled).** Per Story 1.8 convention (one stable ID per enforced invariant), each of the three gates gets its own stable ID + sourcePath + anchor. The alternative — a single `INV-tokens-gates` bundle covering all three — collapses drift detection (editing one gate without the others wouldn't be caught). Three-ID form preserves surgical drift detection per Story 1.9 AC 3. `sourcePath` points to the CLI entry file (not the `package.json` bin wiring), matching `INV-tokens-emitter` precedent (Story 1.12 § Task 5: `sourcePath: 'packages/ui/scripts/generate-tokens.ts'`).
+
+5. **Given** the pre-commit hook configuration at `{repo-root}/.pre-commit-config.yaml` (Story 1.4) plus the repo-root `package.json` scripts (Story 1.4),
+   **When** I inspect the config post-Story-1.13,
+   **Then** two new local hooks are registered in `.pre-commit-config.yaml` (in addition to the existing `typecheck` / `lint` / `format-check` / `commitlint` from Stories 1.4 + 1.5):
+     - `id: tokens-schema` — `entry: pnpm keel-invariants:tokens-schema` — `files: ^packages/ui/tokens\.json$` (hook fires only when source changes)
+     - `id: tokens-contrast` — `entry: pnpm keel-invariants:tokens-contrast` — `files: ^packages/ui/tokens\.json$`
+   **And** both hooks use `language: system` + `pass_filenames: false` (matches Story 1.4 precedent)
+   **And** repo-root `package.json` grows three new script entries: `keel-invariants:tokens-schema`, `keel-invariants:tokens-contrast`, `keel-invariants:tokens-sync` (each `pnpm --filter @keel/keel-invariants <binary-name>` form per Story 1.9 `keel-invariants:check` precedent)
+   **And** the pre-merge sync gate (`keel-invariants:tokens-sync`) is NOT added to `.pre-commit-config.yaml` — it composes with Story 1.9's existing pre-merge `keel-invariants:check` via a new `keel-invariants:check-all` umbrella script at repo root `package.json` that runs the manifest sync-gate (Story 1.9) THEN the token sync-gate (Story 1.13) in sequence; the CI workflow for pre-merge (landing in Epic 13) will call `keel-invariants:check-all`, but at Story 1.13 time the CLI entry points alone are sufficient (the umbrella is forward-compatible wiring).
+
+   **Story 1.13 scope carve-out — pre-commit tier budget (≤10s).** `.pre-commit-config.yaml` header declares "Hook budget: ≤10s total (pre-commit tier per architecture.md § CI pyramid)." The two new hooks MUST land under this budget. Measured targets (pin per Story 1.9 iter-14 timing discipline): schema-validate ≤200ms cold (Ajv parse + single-file walk); contrast-check ≤500ms cold (OKLCH→sRGB math × ~60 pair enumerations; matrix arithmetic is ~10μs/conversion, comfortably sub-second total). Record measurements in § Dev Agent Record → Debug Log; if either gate exceeds 1s cold-start, investigate (likely JSON-Schema compile cost — cache via Ajv pre-compile pattern).
+
+   **Story 1.13 scope carve-out — `files: ^packages/ui/tokens\.json$` is NOT path-traversal escape-vulnerable.** The prek `files:` regex is anchored (`^...$`); standard Python-regex semantics match the tracked path as-is. No change-detection workaround needed.
+
+6. **Given** Story 1.12's 10 CR defers (`deferred-work.md § Deferred from: code review of 1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme (2026-04-21)`), each with an explicit carry-to target,
+   **When** Story 1.13 implementation completes,
+   **Then** each of the 7 defers routed to Story 1.13 is absorbed at the prescribed site (Task-level mapping pinned in Task 4):
+     - AA1 (Story 1.12 § AC 1 carve-out source-SHA resolver literal) → **Story 1.12 spec file v1.5 Change Log row** amending line 38 `git rev-parse --short=12 HEAD -- packages/ui/tokens.json` to `git log -1 --format=%h --abbrev=12 -- packages/ui/tokens.json` + aligning the § AC 2 carve-out fallback paragraph (line 50) wording.
+     - AA2 (Story 1.12 Task 6 prettier-normalization bypass) → **Story 1.12 spec file v1.5 Change Log row** amending Task 6 line 179 prettier-write command to exclude emitted outputs (retain only `generate-tokens.ts` + `invariants.manifest.ts` + `INVARIANTS.md`) + document `.prettierignore` "emitter owns canonical byte-form" contract clause as a new Dev Notes sub-bullet.
+     - AA3 (sync-gate nomenclature alignment) → **PATCH** `invariants.manifest.ts:155` description text from `(emitter re-run + diff).` to `(emitter --check mode).` (covered by AC 4 manifest-entry amendment).
+     - Defer #4 (`resolveSourceSha` 4× per run) → Story 1.12 emitter source amended per § AC 3 carve-out "Source-SHA resolver hoist" above.
+     - Defer #5 (`resolveSourceSha` silent fallback) → Story 1.12 emitter source amended per § AC 3 carve-out "failure-mode distinction" above.
+     - Defer #6 (alias-cycle diamond-DAG false-positive) → Story 1.12 emitter source amended per § AC 3 carve-out "diamond-DAG guard" above.
+     - Defer #7 (`walkLeaves` silently drops non-leaf / non-object values) → absorbed by the schema-validate gate running BEFORE the emitter (§ AC 1 carve-out), not an emitter code amendment. Defensive emitter check remains optional per Story 1.12 § AC 6 carve-out (not amended at Story 1.13).
+     - Defer #9 (breakpoint `parseInt` garbage) → `packages/ui/tokens.schema.json` breakpoint-group `leafDimension` pattern narrowed to `^\d+px$` (schema refine; absorbed by Story 1.13 Task 5 schema-hardening + Task 1 schema-validate gate enforcement).
+     - Defers #8 (REPO_ROOT brittle) + #10 (emitter fontSize hardcoded lineHeight) → NOT absorbed by Story 1.13 (routed to reliability follow-up / Epic 3 and Epic 7 Story 7-1 / Epic 3 Story 3-X respectively per `deferred-work.md` carry-to targets).
+   **And** Story 1.11 iter-59 CR defers #1–#5 (contrast + gamut) are absorbed per § AC 2 carve-out (contrast-gate retunes `tokens.json` status.fg / text.accent / border.accent leaves + adds dark-mode overlays) and § AC 2 "gamut-map before AA math" carve-out.
+
+   **Story 1.13 scope carve-out — Story 1.12 spec-file amendments are done IN-PLACE (not via a new story).** Amending `_bmad-output/implementation-artifacts/1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme.md` is a drafting-time authoring action allowed by the BMad deferred-work-absorption pattern (Story 1.10 iter-52 amended the `INV-tokens-schema-contract` description at Story 1.11 authoring time to add the missing `font` group per iter-52 defer #1; same precedent). Story 1.12's Status field stays `done` — we add a `v1.5` row to § Change Log recording the three spec amendments + re-land the source-SHA resolver section + Task 6 prettier list + `.prettierignore` contract clause. No Task status flips (Story 1.12 Tasks stay `[x]`). The spec-amendment PATCHes are small (line-level string edits, not structural rewrites).
+
+## Tasks / Subtasks
+
+- [ ] **Task 1: Schema-validate gate — `packages/keel-invariants/src/check-tokens-schema.ts` + bin + Ajv deps** (AC: 1, 5)
+  - [ ] Add production deps to `@keel/keel-invariants`: `ajv@^8.17.0` + `ajv-formats@^3.0.1` (pinned per root devDep convention — exact or caret; check `packages/keel-invariants/package.json` existing style and match). `ajv-formats` is optional IF `tokens.schema.json` uses no format keywords (`date-time`, `email`, etc.) — audit at implementation time; include it by default for forward-compat. Add TypeScript types: Ajv ships types natively (no `@types/ajv`).
+  - [ ] Author `packages/keel-invariants/src/check-tokens-schema.ts` as a CLI entry (shebang `#!/usr/bin/env node`; top-level `await`). Shape:
+    - Read `packages/ui/tokens.schema.json` via `readFile` (resolve absolute path from `import.meta.dirname + '../../../packages/ui/tokens.schema.json'` — matches Story 1.9 `check.ts` `repoRoot` pattern at `packages/keel-invariants/src/check.ts:5`).
+    - Read `packages/ui/tokens.json` the same way.
+    - Compile schema with `new Ajv2020({ allErrors: true, strict: true })`; `addFormats(ajv)` if formats enabled.
+    - Validate source; on failure, emit structured JSON per AC 1 shape (`{ status: 'violation', findings: [{ instancePath, schemaPath, keyword, message, params }, ...] }`) to stderr + exit 1. On success, exit 0 silent.
+    - Wrap top-level await in try/catch per Story 1.9 CR defer (carry-forward: `deferred-work.md § code review of story-1.9 (2026-04-20) defer #2 "check.ts lacks try/catch"`). On thrown error, emit `{ status: 'error', message: e.message }` to stderr + exit 1.
+  - [ ] Add `bin` entry to `packages/keel-invariants/package.json`: `"keel-invariants:tokens-schema": "./dist/check-tokens-schema.js"`. Build config (tsconfig) MUST emit `dist/check-tokens-schema.js` alongside existing `dist/check.js`.
+  - [ ] Add repo-root `package.json` script: `"keel-invariants:tokens-schema": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-schema"` (matches Story 1.9 `keel-invariants:check` script wiring pattern at the root `package.json`).
+  - [ ] Unit-smoke (inline — no test runner lands until Story 1.16 per Epic 1 roadmap): author a manual smoke in `.ralph/tmp/story-1-13-smokes.sh` (gitignored per `.gitignore: .ralph/tmp/**`) invoking the gate against `packages/ui/tokens.json` (expect exit 0) AND against a temp-directory-copy of tokens.json with an injected schema violation (expect exit 1 + structured JSON on stderr). Document the smoke results in § Dev Agent Record → Debug Log. DO NOT commit the smoke file; DO cite its contents in Debug Log.
+
+- [ ] **Task 2: WCAG AA contrast gate — `packages/keel-invariants/src/check-tokens-contrast.ts` + `color-math.ts` + tokens.json retunes** (AC: 2, 5)
+  - [ ] Author `packages/keel-invariants/src/color-math.ts` (new file, ~80 lines, zero runtime deps):
+    - `parseOklch(value: string): { L: number; C: number; H: number } | null` — parses `oklch(54% 0.18 245)` / `oklch(54% 0.18 245 / 0.5)` (ignore alpha for contrast) / `oklch(0.54 0.18 245)` (decimal-L form) into the three components. Pattern: `/^oklch\(\s*(\d+(?:\.\d+)?)%?\s+(\d+(?:\.\d+)?)\s+(\d+(?:\.\d+)?)(?:\s*\/\s*[\d.]+)?\s*\)$/`. Return `null` on malformed input (gate reports as `oklch-parse-error` finding).
+    - `oklchToLinearRgb({L, C, H}): [number, number, number]` — polar→OkLab→linear sRGB via the Ottosson 2020 matrix (inline the 3×3 matrix constant). Returns three linear-RGB floats, possibly out-of-gamut.
+    - `gamutMap(linearRgb): [number, number, number]` — if any channel `< 0` or `> 1`, reduce chroma by 10% (operate in OkLab → re-convert) up to 3 iterations, then hard-clamp to `[0, 1]`.
+    - `linearRgbToSrgb(linearRgb): [number, number, number]` — per-channel `x <= 0.0031308 ? 12.92 * x : 1.055 * x^(1/2.4) - 0.055`.
+    - `srgbToHex([r, g, b]): string` — `#RRGGBB` via `Math.round(x * 255).toString(16).padStart(2, '0')`.
+    - `relativeLuminance(linearRgb): number` — `0.2126 * r + 0.7152 * g + 0.0722 * b` (WCAG 2.1 § 1.4.3 formula against LINEAR sRGB, not gamma-corrected).
+    - `contrastRatio(fg, bg): { ratio: number; fgHex: string; bgHex: string }` — composite: parse → oklchToLinearRgb → gamutMap → relativeLuminance → `(max + 0.05) / (min + 0.05)`; also return hex strings (post gamut-map; linearRgbToSrgb → srgbToHex).
+  - [ ] Author `packages/keel-invariants/src/check-tokens-contrast.ts` — CLI entry shape:
+    - Read `packages/ui/tokens.json`; build flat leaf-map via a local `walkLeaves` mirroring Story 1.12 emitter's walker (resolved-path → resolved-leaf-value; cycle-detected DFS). Resolves aliases at read time.
+    - Build pair-enumeration table (see Task 2 sub-bullet below).
+    - For each pair, invoke `contrastRatio(fg, bg)`; compare to threshold; collect failings.
+    - On success (zero failings), exit 0 silent.
+    - On failure, emit JSON `{ status: 'violation', findings: [{ pair, mode, fg, bg, fgHex, bgHex, ratio, threshold, delta }, ...] }` on stderr + exit 1.
+    - try/catch wrapper same as Task 1.
+  - [ ] **Pair-enumeration table (authoritative — pin these pairs at drafting time; audit exhaustively at implementation time against `packages/ui/tokens.json` Story-1.11-frozen keys + `$modes.dark` overlay):**
+    - **text × surface (base / light):** `text.primary × surface.default`, `text.primary × surface.raised`, `text.primary × surface.inset`, `text.primary × surface.overlay`, `text.secondary × surface.default`, `text.secondary × surface.raised`, `text.tertiary × surface.default`, `text.disabled × surface.default`, `text.inverse × surface.invert`, `text.accent × surface.default`, `text.accent × surface.raised`. (Threshold 4.5 for all except `text.disabled` which is intentionally sub-AA by WCAG SC 1.4.3 exception for disabled-UI → SKIP / threshold `N/A` — document in Debug Log.)
+    - **text × surface (dark overlay):** repeat above with `$modes.dark` overlay applied per-token at resolve time — same threshold pattern.
+    - **border × surface:** `border.default × surface.default`, `border.default × surface.raised`, `border.accent × surface.default`, `border.accent × surface.raised`. Threshold 3.0 (non-text — AA large-text equivalent for UI components per WCAG 2.1 § 1.4.11 "non-text contrast").
+    - **status.fg × status.bg (pair-internal):** for each `status.<X>` where `X ∈ {info, success, warning, error, critical}` — `status.X.fg × status.X.bg` in light + dark. Threshold 4.5.
+    - **severity × surface:** `severity.low × surface.default`, `severity.medium × surface.default`, `severity.high × surface.default`, `severity.critical × surface.default` in light + dark. Threshold 4.5 (severity badges render as normal text on surface).
+    - **state × surface:** `state.planned × surface.default`, `state.in-progress × surface.default`, `state.done × surface.default`, `state.blocked × surface.default`, `state.cancelled × surface.default` in light + dark. Threshold 4.5.
+    - **accent primitives × surface:** `accent.default × surface.default`, `accent.default × surface.raised` in light + dark. Threshold 3.0 (accent is non-text UI component colour per WCAG 1.4.11).
+    - Target pair count: ~60–70 pairs; enumerate exhaustively in `check-tokens-contrast.ts` as a typed `const PAIRS: Array<{ fg: string; bg: string; mode: 'light'|'dark'; threshold: number; label: string }> = [...];` table. Alternative: generate the pair table programmatically from a smaller rule-set (e.g. "for every `text.<X>` that is not `disabled`, cross with every `surface.<Y>`"). **Pin: static table** — explicit enumeration beats programmatic generation for gate auditability (CI log reads the exact pair names; gate failures are precise).
+  - [ ] **`packages/ui/tokens.json` retunes (AC 2 carve-out — must land BEFORE the gate to avoid red-on-landing):**
+    - **Light-mode retunes:**
+      - `color.status.info.fg`: `oklch(52% 0.14 230)` → `oklch(42% 0.14 230)` (lower L by 10pp to clear 4.5 on `surface.default` + `status.info.bg`).
+      - `color.status.warning.fg`: `oklch(58% 0.14 75)` → `oklch(44% 0.14 75)` (lower L by 14pp — warning needed more headroom than info).
+      - **Audit at implementation time**: re-compute contrast ratios per-retune via `color-math.ts`; iterate L if the retune under-shoots (target ≥ 4.7 for headroom).
+    - **Dark-mode `$modes.dark` overlay additions:**
+      - `$modes.dark.color.status.info.fg`: `oklch(78% 0.14 230)`
+      - `$modes.dark.color.status.success.fg`: `oklch(78% 0.14 145)`
+      - `$modes.dark.color.status.warning.fg`: `oklch(80% 0.14 75)`
+      - `$modes.dark.color.status.error.fg`: `oklch(78% 0.20 25)`
+      - `$modes.dark.color.status.critical.fg`: `oklch(78% 0.20 15)`
+      - `$modes.dark.color.text.accent`: `{color.accent.400}` (alias; accent.400 is `oklch(62% 0.16 245)`)
+      - `$modes.dark.color.border.accent`: `{color.accent.400}`
+    - **Audit note**: Story 1.11 `$modes.dark` at `packages/ui/tokens.json:167-215` already remaps `color.surface.*` + `color.text.*` + `color.border.*` + `color.accent.fg` + `color.status.*.bg`. Story 1.13 adds 7 new overlay entries (5 status.fg + text.accent + border.accent) + no removals.
+    - Hash impact: `packages/ui/tokens.json` contentHash changes; `INV-tokens-source` manifest entry MUST be updated with the new sha256 (Task 6 covers this — scoped-build + manifest PATCH pattern per Story 1.10/1.11/1.12 precedent).
+    - Severity-cascade: `severity.*` + `state.*` ALIAS into `color.status.*.fg` / `color.accent.default`; the dark-mode retunes propagate automatically through the alias graph to severity + state pairs. Audit at implementation time via emitter re-run + visual check of `theme.dark.colors.*` — confirm `severity_critical` / `state_in_progress` pick up the new values.
+  - [ ] Add repo-root `package.json` script: `"keel-invariants:tokens-contrast": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-contrast"`.
+  - [ ] Add `bin` entry: `"keel-invariants:tokens-contrast": "./dist/check-tokens-contrast.js"`.
+  - [ ] Unit-smoke: manual invocation against the retuned tokens.json (expect exit 0); against a temp-dir copy with a re-introduced failing pair (e.g. revert `status.info.fg` to `oklch(52% 0.14 230)`) expect exit 1 + JSON finding naming the pair + ratio.
+
+- [ ] **Task 3: Emitter amendment — `--check` mode + SHA-resolver hoist + failure-mode distinction + diamond-DAG guard** (AC: 3, 6)
+  - [ ] Extend `packages/ui/scripts/generate-tokens.ts` (Story 1.12 frozen baseline — 274 lines post-prettier; post-Story-1.13 estimate 330–360 lines):
+    - **`--check` flag parsing**: at top of `main()`, parse `process.argv.slice(2)` for `--check`. Boolean flag; zero other args.
+    - **In `--check` mode**: (a) resolve source SHA + emit three outputs to in-memory string buffers (refactor three `emit*` functions to return `string` instead of writing — alternative: emit to `os.tmpdir()` via existing `writeOutput` and read back). **Pin: buffer-return refactor** — cleaner, no tmpdir cleanup, zero filesystem writes per § AC 3 purity preservation. (b) For each of three target paths, `fs.readFileSync(target, 'utf-8')` → compare to buffer via `===` (string equality). (c) On ANY divergence, emit JSON `{ status: 'violation', diffs: [{ path, firstDiffByte, excerpt: '<up to 5 unified-diff lines>' }, ...] }` on stderr + exit 1. (d) On all-three match, exit 0 silent.
+    - **SHA resolver hoist**: move `const sourceSha = resolveSourceSha('packages/ui/tokens.json');` to the top of `main()`; pass `sourceSha` as a parameter to `emitCss` / `emitTailwind` / `emitPython`. Remove the inline `resolveSourceSha(...)` calls at `emitCss:409` / `emitTailwind:439` / `emitPython:582` / `main:624` (Story 1.12 iter-63 sites). Single spawn per run.
+    - **Failure-mode distinction in `resolveSourceSha`**: amend the function to return a tagged string. Three failure branches:
+      - `error.code === 'ENOENT'` (git missing from PATH) → return `'git-unavailable-' + sha256(sourceContent).slice(0, 16)`.
+      - `error.stderr` contains content (git exited non-zero with stderr) → return `'stderr-error-' + sha256(sourceContent).slice(0, 16)`.
+      - Empty stdout (file untracked) → return `'uncommitted-' + sha256(sourceContent).slice(0, 16)` (current behavior — preserved).
+      - Success → return `<12-hex-sha>` (current behavior — preserved; no prefix).
+      - Provenance header format unchanged (carries whatever string `resolveSourceSha` returns) — CI pipelines grep for the prefix.
+    - **Diamond-DAG guard**: in `resolveValue` (Story 1.12 line 360–384), replace the path-string `visited` Set with a resolved-leaf-identity Set. Concretely: track `inProgress: Set<string>` keyed by the path BEING RESOLVED (e.g. `color.accent.default`) at each level of recursion; before recursing, `if (inProgress.has(path)) throw cycleError;`; after recursion, `inProgress.delete(path);`. Diamond `A → B, A → C, B → D, C → D` resolves without throwing because `B` and `C` each complete before `A` re-enters the resolver.
+    - **Keep existing behaviour**: non-`--check` mode writes files in-place (frozen Story 1.12 contract). `--check` is ADDITIVE.
+  - [ ] Manifest update: `INV-tokens-emitter` entry (`packages/keel-invariants/src/invariants.manifest.ts:153-158`) — recompute `contentHash` sha256 after the emitter amendment + prettier pass + AA3 description PATCH (`(emitter re-run + diff).` → `(emitter --check mode).`).
+  - [ ] Add repo-root `package.json` script: `"keel-invariants:tokens-sync": "pnpm --filter @keel/ui generate-tokens -- --check"` (invokes the emitter in `--check` mode — no separate CLI file needed for the sync gate; emitter IS the sync gate when flagged).
+  - [ ] Umbrella script: `"keel-invariants:check-all": "pnpm keel-invariants:check && pnpm keel-invariants:tokens-sync"` (composes Story 1.9 manifest sync-gate + Story 1.13 token sync-gate; forward-compatible wiring for Epic 13 CI).
+  - [ ] Unit-smoke: run emitter in `--check` mode against a synced tree (expect exit 0 silent). Edit `packages/ui/tokens.json` (e.g. `color.accent.500` lightness 54% → 55%) WITHOUT re-running the writer — run `--check` again (expect exit 1 + JSON diff). Revert and re-run (expect exit 0).
+
+- [ ] **Task 4: Story 1.12 spec-file amendments + `tokens.schema.json` breakpoint regex pin (AC 6, defer #9)** (AC: 6)
+  - [ ] Amend `_bmad-output/implementation-artifacts/1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme.md`:
+    - § AC 1 carve-out line 38: `git rev-parse --short=12 HEAD -- packages/ui/tokens.json` → `git log -1 --format=%h --abbrev=12 -- packages/ui/tokens.json` (AA1). Adjust surrounding sentence if needed (the "NOT `HEAD` of the repo" clause still applies to the correct `git log` form).
+    - § AC 2 carve-out line 50: if the fallback paragraph references the old literal, align to `git log -1 --format=%h --abbrev=12 -- <path>`.
+    - § Task 6 line 179: prettier-write command list narrows from `packages/ui/scripts/generate-tokens.ts packages/ui/src/tokens.css packages/ui/tailwind.preset.ts packages/devbox/tui/theme.py packages/keel-invariants/src/invariants.manifest.ts INVARIANTS.md` → `packages/ui/scripts/generate-tokens.ts packages/keel-invariants/src/invariants.manifest.ts INVARIANTS.md` (emitted outputs dropped per AA2). Add one-line Dev Notes sub-bullet below the Task 6 table documenting the `.prettierignore` contract clause: "emitter owns canonical byte-form of the three generated outputs; prettier owns only the emitter source. Listed at `.prettierignore:13-16`."
+    - Append `v1.5` row to § Change Log: "`2026-04-21` Ralph (via Story 1.13 iter-N drafting) — AA1 + AA2 + AA3 absorption. Amended § AC 1 carve-out line 38 + § AC 2 carve-out line 50 to `git log -1 --format=%h --abbrev=12 -- packages/ui/tokens.json` (structurally-correct form — absorbs iter-66 CR Defer AA1). Amended § Task 6 line 179 prettier-write list to exclude emitted outputs (absorbs AA2). Added `.prettierignore` contract clause Dev Notes sub-bullet. `INV-tokens-emitter` manifest description aligned to `(emitter --check mode).` (AA3 absorption — covered by Story 1.13 Task 3 manifest PATCH). Spec-file amendments only; Story 1.12 Status remains `done`; Tasks remain `[x]`."
+  - [ ] Amend `packages/ui/tokens.schema.json`:
+    - Narrow the `leafDimension` pattern OR add a breakpoint-group-specific `leafBreakpoint` def (PICK: add **new `leafBreakpoint` def** with `$value` pattern `^\d+px$` — avoids narrowing `leafDimension` which is used for `space.*` / `radius.*` / `type.*` where non-px units could be valid in future). Reference the new def from `breakpointGroup` (`#/$defs/breakpointGroup`). Audit `breakpointGroup` structure at implementation time — if it currently references `leafDimension`, swap to `leafBreakpoint`; add the new `$defs.leafBreakpoint` block mirroring `leafDimension` but with the narrower pattern.
+    - Hash impact: `tokens.schema.json` contentHash changes; `INV-tokens-schema-contract` manifest entry contentHash (currently `contentHash: '<Story-1.10-frozen-hash>'` at `invariants.manifest.ts:131`) MUST be recomputed + updated at Task 6 manifest-mutation step.
+
+- [ ] **Task 5: Manifest growth 14 → 17 + INVARIANTS.md section + manifest PATCHes** (AC: 4)
+  - [ ] Compute sha256 (`sha256sum <file>`) for each new gate source after Task 1 + 2 + 3 authoring + prettier pass:
+    - `packages/keel-invariants/src/check-tokens-schema.ts`
+    - `packages/keel-invariants/src/check-tokens-contrast.ts` + `packages/keel-invariants/src/color-math.ts` (two-file invariant — pick: `INV-tokens-contrast-check.sourcePath` points to `check-tokens-contrast.ts`; `color-math.ts` is a sibling support module; the gate behaviour is carried by the check file; contrast-specific maths lives in `color-math.ts` but is not separately invariant-registered). Alternative: register `INV-tokens-color-math` separately. **Pin: no separate ID** — `color-math.ts` is implementation detail of the contrast gate, not an independent invariant.
+    - For `INV-tokens-sync-gate` — the sync gate IS the emitter in `--check` mode (no new CLI file). **Pin sourcePath: `packages/ui/scripts/generate-tokens.ts`** (same as `INV-tokens-emitter`). Wait — this creates a shared-sourcePath pair, triggering Story 1.8's `superRefine` cross-hash-consistency check (two invariants on one sourcePath MUST have identical contentHash). That's fine because both `INV-tokens-emitter` + `INV-tokens-sync-gate` are about the SAME file — they'll share the same post-amendment hash. **Accept: shared sourcePath, identical contentHash.** Document this in Dev Notes (precedent: Story 1.8's `eslint.config.keel-invariants.js` hosts both `INV-eslint-shared` + `INV-eslint-import-boundary` with identical contentHashes).
+  - [ ] Append three new entries to `packages/keel-invariants/src/invariants.manifest.ts` → `raw` array (after line 158's `INV-tokens-emitter` entry, before the `];` closure at line 160 approximate). Manifest grows from 14 → 17 entries:
+    ```typescript
+    {
+      id: 'INV-tokens-schema-validate',
+      description:
+        'Pre-commit gate that validates packages/ui/tokens.json against the Story-1.10 contract (packages/ui/tokens.schema.json) via Ajv-2020 (JSON Schema Draft 2020-12). Rejects commits that introduce schema violations with a structured JSON error on stderr naming the offending instancePath + schema keyword + expected-vs-received value. Runs before the token-contrast + sync gates in the pre-commit pipeline so emitter + contrast stages can trust source shape. Invocation: pnpm keel-invariants:tokens-schema.',
+      sourcePath: 'packages/keel-invariants/src/check-tokens-schema.ts',
+      contentHash: '<sha256 from sha256sum above>',
+      anchors: ['INV-tokens-schema-validate'],
+    },
+    {
+      id: 'INV-tokens-contrast-check',
+      description:
+        'Pre-commit gate that computes WCAG 2.1 AA contrast ratios for every semantic text × surface / severity × surface / state × surface / status.fg × status.bg / accent × surface pair in light + dark overlay modes. OKLCH values are resolved via the same alias-flatten walker as the emitter, gamut-mapped to in-gamut sRGB before relative-luminance math (per Story 1.11 CR defer #5 absorption), then compared to threshold 4.5 (normal text) or 3.0 (UI components per WCAG 1.4.11) per pair. Failing pairs emit structured JSON on stderr with pair label + mode + fg/bg OKLCH + gamut-mapped hex + ratio + threshold + delta. Invocation: pnpm keel-invariants:tokens-contrast.',
+      sourcePath: 'packages/keel-invariants/src/check-tokens-contrast.ts',
+      contentHash: '<sha256 from sha256sum above>',
+      anchors: ['INV-tokens-contrast-check'],
+    },
+    {
+      id: 'INV-tokens-sync-gate',
+      description:
+        'Pre-merge gate that re-invokes the Story 1.12 emitter in --check mode (packages/ui/scripts/generate-tokens.ts --check) to byte-compare the re-emitted three outputs (packages/ui/src/tokens.css + packages/ui/tailwind.preset.ts + packages/devbox/tui/theme.py) against the committed files. Any byte-level divergence between "what would be emitted now" and "what is committed" fails the gate with unified-diff excerpts on stderr + non-zero exit. Source file is the emitter itself (--check mode is additive to the writer mode); shares sourcePath with INV-tokens-emitter (both invariants pin the same file). Invocation: pnpm keel-invariants:tokens-sync (which runs pnpm --filter @keel/ui generate-tokens -- --check); composed into pnpm keel-invariants:check-all alongside Story 1.9 manifest sync-gate.',
+      sourcePath: 'packages/ui/scripts/generate-tokens.ts',
+      contentHash: '<sha256 from sha256sum above — same as INV-tokens-emitter post-Task-3>',
+      anchors: ['INV-tokens-sync-gate'],
+    },
+    ```
+  - [ ] PATCH `INV-tokens-emitter` entry (`invariants.manifest.ts:153-158`):
+    - Description: `(emitter re-run + diff).` → `(emitter --check mode).` (AA3 absorption).
+    - `contentHash` → new sha256 post-Task-3 amendment.
+  - [ ] PATCH `INV-tokens-source` entry (`invariants.manifest.ts:145-150`):
+    - `contentHash` → new sha256 post-Task-2 tokens.json retunes.
+  - [ ] PATCH `INV-tokens-schema-contract` entry (`invariants.manifest.ts:129-134`):
+    - `contentHash` → new sha256 post-Task-4 breakpoint pattern addition.
+  - [ ] Append sibling anchor bullets to `INVARIANTS.md` under a new `### Design-token quality gates (Story 1.13)` section, inserted between existing `### Design-token emitter pipeline (Story 1.12)` (INVARIANTS.md:57–58) and `## Consumption` header (INVARIANTS.md:61). Three column-0 bullets (Story 1.9 `ANCHOR_REGEX` compatibility):
+    ```
+    ### Design-token quality gates (Story 1.13)
+
+    - **`INV-tokens-schema-validate`** — pre-commit gate validating `packages/ui/tokens.json` against `packages/ui/tokens.schema.json` (Ajv-2020); rejects schema-violating commits with a structured stderr error. Source: `packages/keel-invariants/src/check-tokens-schema.ts`.
+    - **`INV-tokens-contrast-check`** — pre-commit gate computing WCAG 2.1 AA contrast ratios for every text × surface / severity × surface / state × surface / status.fg × status.bg / accent × surface pair in light + dark overlays; gamut-mapped OKLCH → sRGB; 4.5/3.0 thresholds. Source: `packages/keel-invariants/src/check-tokens-contrast.ts`.
+    - **`INV-tokens-sync-gate`** — pre-merge gate invoking the emitter in `--check` mode to byte-compare re-emitted outputs against committed `packages/ui/src/tokens.css` + `packages/ui/tailwind.preset.ts` + `packages/devbox/tui/theme.py`; shares sourcePath with `INV-tokens-emitter` (additive writer flag). Source: `packages/ui/scripts/generate-tokens.ts`.
+    ```
+  - [ ] **Forbidden** (Story 1.9 + 1.10 + 1.11 + 1.12 Task 3 precedent): no anchors inside triple-backtick code fences (`deferred-work.md § Story 1.9 iter-14 defer #2`); use inline backticks outside the column-0 anchor bullets.
+  - [ ] Verify: `pnpm -w typecheck` — Zod `InvariantsSchema.parse(raw)` at import time validates all 17 entries (id regex / sha256-hex-length regex / anchors non-empty / sourcePath-traversal refine / ID-uniqueness superRefine / shared-sourcePath cross-hash consistency superRefine for the `INV-tokens-emitter` + `INV-tokens-sync-gate` pair).
+  - [ ] **Scoped build before sync-gate check** (Story 1.10 iter-51 + Story 1.11 iter-56 + Story 1.12 iter-63 lesson): after manifest mutation, `pnpm --filter @keel/keel-invariants build` regenerates `dist/check.js` + `dist/check-tokens-schema.js` + `dist/check-tokens-contrast.js` BEFORE `pnpm keel-invariants:check` (or `pnpm keel-invariants:check-all`).
+
+- [ ] **Task 6: `.pre-commit-config.yaml` + repo-root `package.json` + `@keel/keel-invariants` `package.json` wiring** (AC: 5)
+  - [ ] Add two new local hooks to `.pre-commit-config.yaml` (between the existing `format-check` hook and the `commitlint` hook — the commitlint hook MUST remain last because it's the only one in the `commit-msg` stage):
+    ```yaml
+          - id: tokens-schema
+            name: Design-token schema validation (@keel/keel-invariants)
+            entry: pnpm keel-invariants:tokens-schema
+            language: system
+            pass_filenames: false
+            files: ^packages/ui/tokens\.json$
+          - id: tokens-contrast
+            name: Design-token WCAG AA contrast check (@keel/keel-invariants)
+            entry: pnpm keel-invariants:tokens-contrast
+            language: system
+            pass_filenames: false
+            files: ^packages/ui/tokens\.json$
+    ```
+    Note: `always_run: true` is OMITTED for these two hooks (matches `files:` filter semantics — run only when the matched file changes; pre-commit semantics). The existing 3 hooks (`typecheck` / `lint` / `format-check`) use `always_run: true` because they're workspace-wide (prek runs them regardless of which files changed); token gates are source-scoped.
+    Hash impact: `.pre-commit-config.yaml` contentHash changes; `INV-prek-pre-commit-config` manifest entry contentHash (currently `contentHash: '<Story-1.4-frozen-hash>'` at `invariants.manifest.ts:91`) MUST be recomputed + updated at Task 5 manifest-mutation step. Same for `INV-prek-commit-msg-config` at `:108` — the commit-msg hook's position in the YAML file shifted from "row 4" to "row 6" (after the two new hooks); this is a content-level change that re-hashes the whole file.
+    **Critical**: this cross-cuts Story 1.4 + 1.5 manifest entries. Amend `INV-prek-pre-commit-config` + `INV-prek-commit-msg-config` contentHash fields at Task 5 manifest-PATCH sub-task.
+  - [ ] Add three repo-root `package.json` scripts:
+    ```json
+        "keel-invariants:tokens-schema": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-schema",
+        "keel-invariants:tokens-contrast": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-contrast",
+        "keel-invariants:tokens-sync": "pnpm --filter @keel/ui generate-tokens -- --check",
+        "keel-invariants:check-all": "pnpm keel-invariants:check && pnpm keel-invariants:tokens-sync"
+    ```
+    (The umbrella script composes manifest sync-gate (Story 1.9) + token sync-gate (Story 1.13) in sequence with `&&` short-circuit semantics.) Hash impact: root `package.json` contentHash changes; `INV-prek-prepare-lifecycle` manifest entry contentHash (`invariants.manifest.ts:101`) MUST be recomputed.
+  - [ ] Add three bin entries to `packages/keel-invariants/package.json`:
+    ```json
+        "bin": {
+          "keel-invariants:check": "./dist/check.js",
+          "keel-invariants:tokens-schema": "./dist/check-tokens-schema.js",
+          "keel-invariants:tokens-contrast": "./dist/check-tokens-contrast.js"
+        }
+    ```
+    (The `INV-tokens-sync-gate` has no separate bin — it's `pnpm --filter @keel/ui generate-tokens -- --check`.)
+  - [ ] Add production deps to `packages/keel-invariants/package.json`: `ajv@^8.17.0` + `ajv-formats@^3.0.1` (per Task 1 dep-choice).
+  - [ ] Verify: `pnpm install` regenerates `pnpm-lock.yaml` with the new Ajv closure (Ajv + ajv-formats + fast-deep-equal + json-schema-traverse + punycode + uri-js ≈ 6 packages, scoped to `@keel/keel-invariants`; no unrelated workspace churn expected).
+
+- [ ] **Task 7: Quality gates + substrate-verification smokes + sprint-status bump** (no AC — substrate verification)
+  - [ ] `pnpm install` at repo root — verify the Ajv closure delta is scoped + small (~6 packages).
+  - [ ] `pnpm -w typecheck` — green (new CLI files type-check under `@keel/keel-invariants` shared tsconfig; 17-entry manifest parses cleanly via Zod).
+  - [ ] `pnpm -w lint` — green (new CLI files pass ESLint; verify no new `no-restricted-imports` violations — `node:fs`/`node:child_process`/`ajv`/`ajv-formats` are all allowed).
+  - [ ] `pnpm -w build` — green (rebuilds `@keel/keel-invariants` dist including `dist/check-tokens-schema.js` + `dist/check-tokens-contrast.js` + `dist/color-math.js`; rebuilds `@keel/ui` dist).
+  - [ ] `pnpm format:check` — green (run `pnpm exec prettier --write packages/keel-invariants/src/check-tokens-schema.ts packages/keel-invariants/src/check-tokens-contrast.ts packages/keel-invariants/src/color-math.ts packages/ui/scripts/generate-tokens.ts packages/ui/tokens.json packages/ui/tokens.schema.json packages/keel-invariants/src/invariants.manifest.ts INVARIANTS.md .pre-commit-config.yaml package.json packages/keel-invariants/package.json _bmad-output/implementation-artifacts/1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme.md` first to normalise; then re-compute sha256 + update manifest contentHashes if prettier touched any source; re-run typecheck + build after the hash updates; land final settled hashes in one atomic commit per Story 1.10/1.11/1.12 pattern).
+  - [ ] `pnpm exec commitlint --from origin/main --to HEAD --verbose` — green on any Story 1.13 commits.
+  - [ ] `pnpm keel-invariants:check-all` (umbrella) — green: Story 1.9 manifest sync-gate + Story 1.13 token sync-gate both exit 0. Validates (a) all 17 manifest entries hash-match their sources; (b) INVARIANTS.md anchors are registered; (c) no orphaned anchors; (d) emitter `--check` mode reports clean vs the committed outputs (tokens.json retunes → re-run emitter → outputs committed → `--check` clean).
+  - [ ] **Determinism smoke 3 (NEW — absorbs Story 1.12 smoke 1+2)**: re-run emitter in non-`--check` mode; compare outputs byte-for-byte to committed (expect identical; sha256sum equality). Re-run in `--check` mode (expect exit 0 silent). This smoke verifies the Task 3 emitter amendment (SHA-resolver hoist, failure-mode distinction, diamond-DAG guard) preserved Story 1.12 AC 2 byte-identical-round-trip contract.
+  - [ ] **Schema-gate negative smoke**: copy `packages/ui/tokens.json` to `/tmp/broken-tokens.json`; introduce a schema violation (e.g. delete `$type` field from one leaf); invoke `node packages/keel-invariants/dist/check-tokens-schema.js` with `TOKENS_PATH=/tmp/broken-tokens.json` (or similar env override — add if needed) OR temporarily copy broken file to `packages/ui/tokens.json`, run gate, verify exit 1 + JSON finding naming the offending path, restore original. Document in Debug Log.
+  - [ ] **Contrast-gate negative smoke**: revert one of the Task 2 retunes (e.g. `status.info.fg` back to `oklch(52% 0.14 230)`); run `pnpm keel-invariants:tokens-contrast`; expect exit 1 + finding naming `text: status.info.fg × surface.default ratio 4.45 < threshold 4.5`; restore; re-run; expect exit 0.
+  - [ ] **Sync-gate negative smoke**: edit `packages/ui/tokens.json` (change any leaf); DO NOT re-run emitter writer; run `pnpm keel-invariants:tokens-sync`; expect exit 1 + diff excerpt; revert via `git checkout -- packages/ui/tokens.json`; re-run; expect exit 0.
+  - [ ] Update `_bmad-output/implementation-artifacts/sprint-status.yaml`:
+    - `development_status[1-13-token-quality-gates-schema-validation-wcag-aa-contrast-source-output-sync]`: `backlog` → `ready-for-dev`.
+    - `last_updated`: `2026-04-21 Story-1-12-CR-done UTC` → `2026-04-DD Story-1-13-ready-for-dev UTC` (dev agent fills concrete date at implementation time).
+    - Update the `:2` header-comment `last_updated` line to match.
+
+## Dev Notes
+
+- **Why this story matters.** Story 1.13 closes the Epic 1 design-token substrate. Stories 1.10 (schema) + 1.11 (source) + 1.12 (emitter) delivered the producer side; Story 1.13 delivers the quality-enforcement side — three gates that make source + emitter drift impossible at commit/merge time. Without these gates, Story 1.12's byte-identical guarantee is only substrate-verified (determinism smokes); with Story 1.13's `--check` sync gate, it's CI-enforced. Story 1.13 also absorbs 7 of Story 1.12's 10 CR defers (the remaining 3 are routed to Epic 3 / Epic 7) + 5 of Story 1.11's 5 CR defers (all WCAG / gamut) — this is the quality-gate consolidation point for the substrate token layer. UX-DR4 (schema validation), UX-DR5 (WCAG AA contrast), UX-DR6 (source-output sync) all close here.
+
+- **Why three separate invariants, not one.** Per Story 1.8 invariant-granularity convention, each machine-enforced rule gets its own stable ID + sourcePath so drift detection is surgical. A single `INV-tokens-gates` bundle would collapse drift on individual gates (editing `check-tokens-schema.ts` without touching the others wouldn't be caught by the manifest walk). The three-ID form also preserves Story 1.9's sync-gate "anchor-matches-manifest" invariant per-gate — each gate has an INVARIANTS.md anchor independently walkable.
+
+- **Why Ajv, not Zod.** `packages/ui/tokens.schema.json` is the source-of-truth JSON Schema Draft 2020-12 file (per `INV-tokens-schema-contract` Story 1.10). Re-expressing this in Zod would duplicate the contract + risk drift. Ajv is the canonical Node Draft-2020 validator; it reads the JSON Schema file directly. This matches Story 1.10's architectural decision to ship JSON Schema + rationale doc (not Zod). Zod is still used for the MANIFEST shape (`InvariantsSchema` at `invariants.manifest.ts:3-28`) because the manifest is a TS-authored contract, not a user-facing schema.
+
+- **Why the emitter owns `--check` mode instead of a separate sync-gate file.** The simpler + more testable pattern: the emitter has the only source-truth for "what would be emitted"; a separate sync-gate file would re-implement the walker + alias resolver + three-emit-stages logic, inviting drift. `--check` is additive — the emitter's existing three emit stages return strings (after Task 3 refactor from "write to disk" to "return string"; `main()` routes the string to write OR compare based on the flag). This keeps the sync-gate's correctness guaranteed by the emitter's correctness. `INV-tokens-sync-gate` sharing sourcePath with `INV-tokens-emitter` is precedented by Story 1.8's `eslint.config.keel-invariants.js` hosting `INV-eslint-shared` + `INV-eslint-import-boundary` (two invariants on one file; Story 1.8 superRefine enforces shared hash).
+
+- **Why gamut-map BEFORE relative-luminance, not after.** Browsers + terminals clip out-of-gamut OKLCH to the sRGB boundary at render time, altering perceived hue/chroma. If the contrast gate computes luminance on the unclipped (possibly negative-channel) linear-RGB values, it's measuring a contrast that no user will ever see. Gamut-mapping first ensures the gate's math matches rendered reality. The 10%-chroma-reduction iterative fallback preserves hue (the most-perceived axis); hard-clamp is last-resort for deeply out-of-gamut values.
+
+- **Why status.fg retunes are authored at Story 1.13, not Story 1.11 RETRO.** Story 1.11 is `done`; retroactively editing its authored leaves would trigger Story 1.9's sync-gate (hash drift in `INV-tokens-source` without matching story-file rationale). Story 1.13 is the appropriate landing for the retunes because (a) the retunes are CAUSED by the contrast gate landing (gate demands pass-on-landing state); (b) the retune rationale ("passes WCAG AA per the new gate") is Story-1.13-scoped; (c) the hash update to `INV-tokens-source` is accompanied by a Story 1.13 Change Log row explaining the delta. Net effect: `packages/ui/tokens.json` is edited at Story 1.13 time; the edit is documented in this story's § AC 2 carve-out + Task 2 retune table + Dev Notes.
+
+- **Why `.pre-commit-config.yaml` cross-cuts Story 1.4 + 1.5 invariants.** Adding two new hook entries mutates the file's contentHash, triggering drift on `INV-prek-pre-commit-config` (row 1–3 coverage) + `INV-prek-commit-msg-config` (row 4 coverage — position now row 6). The manifest entry descriptions reference ROW POSITIONS, which shift. Per Story 1.8 shared-sourcePath precedent, both entries point at `.pre-commit-config.yaml` and must share identical contentHashes after the edit. Task 5 recomputes both. If the description text references "rows 1–3" or "row 4" LITERALLY, align those references to the new row layout (verify at implementation time — current descriptions at `invariants.manifest.ts:89-93` + `:105-109`).
+
+- **Why `always_run: true` is dropped for the new hooks.** The existing 3 hooks (`typecheck` / `lint` / `format-check`) run on every pre-commit regardless of files-changed because TS/ESLint/Prettier operate workspace-wide (changing package A's code can invalidate package B's types). The new token gates are scoped to `packages/ui/tokens.json` — no cross-package invalidation. `files: ^packages/ui/tokens\.json$` fires the hook ONLY when that file changes, keeping pre-commit fast on non-token commits (≤10s budget per `.pre-commit-config.yaml` header comment).
+
+- **Alignment with unified project structure.** `packages/keel-invariants/src/check-tokens-{schema,contrast}.ts` siblings to the existing `check.ts` + `sync-gate.ts` (Story 1.9); `color-math.ts` sibling utility. `packages/ui/tokens.schema.json` is Story 1.10-frozen (edits at Task 4 are additive — new `leafBreakpoint` def, no structural changes to the 8 group defs). Emitter amendments at `packages/ui/scripts/generate-tokens.ts` stay in the Story 1.12 file.
+
+- **Ralph L3 classification.** All three new CLI entry files + `color-math.ts` + manifest entries are L3 lint-guarded per architecture.md:786 (`.ralph-safe-set.yaml` Story 3.24 scope — not yet landed; at Story 1.13 time all substrate files are L3 by default). `packages/ui/tokens.json` is L3; retunes flow through existing substrate patterns. `.pre-commit-config.yaml` mutation flows through the same prek gate configuration patterns established by Stories 1.4/1.5.
+
+- **No conflict with Story 1.8 manifest shape.** Three new entries + three existing-entry PATCHes (description + contentHash) + four additional contentHash-only PATCHes (cross-cutting into Stories 1.4/1.5/1.10/1.11 source entries due to file edits). All entries pass Zod validation (id regex / sha256-hex-length / sourcePath refine / uniqueness / shared-sourcePath consistency).
+
+### Project Structure Notes
+
+- New source files (Story 1.13):
+  - `packages/keel-invariants/src/check-tokens-schema.ts` (CLI entry; ~60 lines)
+  - `packages/keel-invariants/src/check-tokens-contrast.ts` (CLI entry; ~200 lines including pair-enumeration table)
+  - `packages/keel-invariants/src/color-math.ts` (pure module; ~80 lines)
+- Amended source files (Story 1.13):
+  - `packages/ui/scripts/generate-tokens.ts` (Story 1.12 emitter; add `--check` mode + SHA-hoist + failure-mode distinction + diamond-DAG guard; estimate 274 → 330–360 lines)
+  - `packages/ui/tokens.json` (Story 1.11 source; retunes per Task 2; hash update)
+  - `packages/ui/tokens.schema.json` (Story 1.10 schema; add `leafBreakpoint` def; hash update)
+  - `packages/keel-invariants/src/invariants.manifest.ts` (14 → 17 entries + 3 existing-entry PATCHes + 4 hash-only PATCHes)
+- Amended config files:
+  - `.pre-commit-config.yaml` (2 new local hooks)
+  - `package.json` (repo root; 4 new scripts)
+  - `packages/keel-invariants/package.json` (2 new deps + 2 new bin entries)
+- Amended docs:
+  - `INVARIANTS.md` (new section + 3 anchor bullets)
+  - `_bmad-output/implementation-artifacts/1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme.md` (v1.5 Change Log row + 3 spec-text amendments per Task 4)
+- Amended sprint tracking:
+  - `_bmad-output/implementation-artifacts/sprint-status.yaml` (Story 1.13 status `backlog → ready-for-dev`; `last_updated`)
+- No forbidden / variance paths — all edits align with existing structure.
+
+### References
+
+- [Source: _bmad-output/planning-artifacts/epics.md#Story-1.13-Token-quality-gates] — lines 1018–1045 — primary ACs (4) covering schema validation + WCAG AA contrast + source-output sync + manifest integration.
+- [Source: _bmad-output/planning-artifacts/epics.md#Story-1.12-Token-emitter-pipeline] — lines 982–1016 — Story 1.12 emitter AC text + FR67 purity contract + provenance header shape (amended at Task 4).
+- [Source: _bmad-output/planning-artifacts/epics.md#Story-1.11-Design-token-source] — lines 954–981 — Story 1.11 source contract (mutated at Task 2 tokens.json retunes).
+- [Source: _bmad-output/planning-artifacts/epics.md#Story-1.10-Design-token-schema] — lines 925–953 — Story 1.10 schema contract (amended at Task 4 `leafBreakpoint` addition).
+- [Source: _bmad-output/planning-artifacts/prd.md#FR43-invariant-sync-gate] — line 1009 — FR43 sync-gate contract; Story 1.13 registers 3 new invariants that this gate walks.
+- [Source: _bmad-output/planning-artifacts/prd.md#FR41-versioned-invariants-package] — line 1007 — `@keel/keel-invariants` hosts the three new CLI gates.
+- [Source: _bmad-output/planning-artifacts/prd.md#NFR20-WCAG-AA] — line 1094 — baseline UI components meet WCAG 2.1 Level AA; Story 1.13 contrast gate is the source-layer enforcement substrate for NFR20.
+- [Source: _bmad-output/planning-artifacts/prd.md#NFR27-gates-fail-closed] — line 1108 — quality gates fail closed; Story 1.13 gates exit non-zero on any violation.
+- [Source: _bmad-output/planning-artifacts/architecture.md#Cross-runtime-semantic-tokens] — lines 85–90 — cross-runtime invariant (Tailwind + Textual parity); Story 1.13 sync gate enforces it.
+- [Source: _bmad-output/implementation-artifacts/1-12-token-emitter-pipeline-web-css-tailwind-preset-tui-theme.md] — Story 1.12 baseline (emitter amended at Task 3; spec amended at Task 4; 3 existing manifest entries referenced).
+- [Source: _bmad-output/implementation-artifacts/1-11-design-token-source-direction-a-baseline-with-motion-density-scales.md] — Story 1.11 source-layer (mutated at Task 2 retunes).
+- [Source: _bmad-output/implementation-artifacts/1-10-design-token-schema-semantic-rationale-contract.md] — Story 1.10 schema + rationale doc (schema extended at Task 4).
+- [Source: _bmad-output/implementation-artifacts/1-9-invariant-sync-gate-runtime-tooling-reader-walker-drift-detector.md] — Story 1.9 sync-gate runtime (composed with Story 1.13 gates via `keel-invariants:check-all` umbrella).
+- [Source: _bmad-output/implementation-artifacts/1-8-invariants-manifest-ts-contract-exporter.md] — `Invariant` interface + `InvariantSchema` precedent; shared-sourcePath cross-hash consistency (`INV-tokens-emitter` + `INV-tokens-sync-gate`).
+- [Source: _bmad-output/implementation-artifacts/1-4-pre-commit-quality-gates-via-prek-type-check-lint-format.md] — Story 1.4 prek config precedent; new hooks follow the same shape.
+- [Source: _bmad-output/implementation-artifacts/deferred-work.md § Deferred from: code review of 1-12-token-emitter-pipeline-...-2026-04-21] — all 10 iter-66 CR defers; 7 absorbed here per AC 6 mapping.
+- [Source: _bmad-output/implementation-artifacts/deferred-work.md § Deferred from: code review of story-1.11 (2026-04-20)] — all 5 iter-59 CR defers; absorbed via § AC 2 retunes + gamut-map clause.
+- [Source: _bmad-output/implementation-artifacts/deferred-work.md § Deferred from: code review of story-1.9 (2026-04-20)] — Story 1.9 defer #2 (`check.ts lacks try/catch`) — Story 1.13 new CLI files adopt the try/catch wrapper pattern to avoid repeating.
+- [Source: packages/ui/tokens.json] — Story 1.11-frozen; retuned at Task 2.
+- [Source: packages/ui/tokens.schema.json] — Story 1.10-frozen; extended at Task 4.
+- [Source: packages/ui/scripts/generate-tokens.ts] — Story 1.12-frozen; amended at Task 3.
+- [Source: packages/keel-invariants/src/invariants.manifest.ts:153-158] — `INV-tokens-emitter` entry (description + hash PATCHes at Task 5).
+- [Source: packages/keel-invariants/src/invariants.manifest.ts:129-134 + :145-150] — `INV-tokens-schema-contract` + `INV-tokens-source` (hash-only PATCHes at Task 5).
+- [Source: packages/keel-invariants/src/invariants.manifest.ts:89-93 + :105-109] — `INV-prek-pre-commit-config` + `INV-prek-commit-msg-config` (hash-only PATCHes at Task 6 due to `.pre-commit-config.yaml` mutation).
+- [Source: packages/keel-invariants/src/invariants.manifest.ts:97-101] — `INV-prek-prepare-lifecycle` (hash-only PATCH at Task 6 due to repo-root `package.json` mutation).
+- [Source: packages/keel-invariants/src/sync-gate.ts:24] — `ANCHOR_REGEX` column-0 bullet form — required anchor shape in `INVARIANTS.md`.
+- [Source: packages/keel-invariants/src/check.ts:1-13] — Story 1.9 CLI-entry precedent (top-level await; `runSyncGate(repoRoot)` shape).
+- [Source: INVARIANTS.md:57-61] — `### Design-token emitter pipeline (Story 1.12)` section — precedent structure for the new Story 1.13 section.
+- [Source: .pre-commit-config.yaml] — Story 1.4 3-hook precedent + Story 1.5 4th hook (commit-msg stage).
+- [Source: RALPH.md] — iter-53..66 Story 1.11 + 1.12 signposts establishing drafting + pre-dev SM + dev + trace + post-dev SM + CR discipline that Story 1.13 inherits (seven preventative-audit layers; compound-ZERO-PATCH trajectory).
+- [Source: Ajv docs — https://ajv.js.org/json-schema.html#draft-2020-12] — JSON Schema Draft 2020-12 support in Ajv v8; import form `import Ajv from 'ajv/dist/2020.js';`.
+- [Source: WCAG 2.1 Recommendation — https://www.w3.org/TR/WCAG21/#contrast-minimum (SC 1.4.3) + #non-text-contrast (SC 1.4.11)] — contrast-ratio thresholds + formula.
+- [Source: Björn Ottosson, "A perceptual color space for image processing" (2020) — https://bottosson.github.io/posts/oklab/] — OkLab / OKLCH conversion matrix (reference used for `color-math.ts` inline implementation).
+
+## Dev Agent Record
+
+### Agent Model Used
+
+{{agent_model_name_version}}
+
+### Debug Log References
+
+### Completion Notes List
+
+### File List
+
+## Change Log
+
+| Version | Date       | Author           | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------- | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1.0    | 2026-04-21 | Ralph (iter-67)  | Initial draft via `/bmad-create-story`. 6 ACs (schema-validate gate + WCAG AA contrast gate + source-output sync gate + manifest-integration of three new IDs + pre-commit hook wiring + Story 1.12 spec amendments absorbing 7 of 10 iter-66 CR defers). 7 Tasks (schema-validate CLI + Ajv deps / contrast CLI + color-math + tokens.json retunes / emitter `--check` + SHA-hoist + diamond-DAG guard / Story 1.12 spec amendments + schema breakpoint pin / manifest 14→17 + INVARIANTS.md section / .pre-commit + package.json wiring / quality gates + 3 negative smokes + sprint-status bump). **Seven preventative audit layers pre-applied at drafting time** (iter-53 three-point + iter-54 two-point + iter-56 sixth + iter-59 seventh-candidate + iter-60 L7 gamut opt-out): (L1) stable-IDs for gate boundaries — three separate IDs (`INV-tokens-schema-validate` / `INV-tokens-contrast-check` / `INV-tokens-sync-gate`) with the sync-gate sharing sourcePath with `INV-tokens-emitter` per Story 1.8 precedent; (L2) task-enumeration-vs-consumer-requirement diff — every carry-forward defer mapped to a Task (AA1/AA2 → Task 4; AA3 → Task 3 manifest PATCH; defer#4/#5/#6 → Task 3 emitter amendment; defer #7 → ordering carve-out; defer #9 → Task 4 schema pin); (L3) sprint-status transition wording — direct `backlog → ready-for-dev` + Task 7 dual-site update pre-specified; (L4) internal-consistency drift — sync-gate invocation verb pinned (`--check`), Ajv version pinned, OKLCH→sRGB math algorithm pinned, pair-enumeration approach pinned (static table vs programmatic), per-pair thresholds pinned; (L5) cross-file line-number staleness — all citations (epics.md/prd.md/architecture.md/manifest.ts/INVARIANTS.md/.pre-commit-config.yaml/tokens.schema.json) verified at Read time; (L6) schema-permission diff — `leafBreakpoint` def addition (not structural change) verified non-breaking; (L7) gamut-mapping surface — absorbed explicitly at § AC 2 carve-out "gamut-map before AA math". Cross-cutting manifest PATCHes enumerated exhaustively (3 new entries + 3 description-or-hash PATCHes on Story 1.10/1.11/1.12 entries + 3 hash-only PATCHes on Story 1.4/1.5 prek entries due to `.pre-commit-config.yaml` + root `package.json` mutation cross-cuts). Sprint-status: `1-13-...: backlog → ready-for-dev`; `last_updated: 2026-04-21 Story-1-13-ready-for-dev UTC`. |
