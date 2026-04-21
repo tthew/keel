@@ -74,6 +74,12 @@ export default [
 - **Amendment-vs-fork decision.** Three paths when a fork disagrees with substrate: (a) FORK — fork-specific need, use `eslint.config.fork.js`; (b) AMEND — substrate-wide need, open a PR against `packages/keel-invariants/` + `INVARIANTS.md` + manifest entry + anchor bullet (the Story 1.6 + 1.9 source-level fork path); (c) DEFER — premature need, log in `_bmad-output/implementation-artifacts/deferred-work.md`.
 - **Growth-tier `INVARIANTS.fork.md`.** See `docs/invariants/fork.md` § INVARIANTS.fork.md scaffold for the Growth-tier opt-in flow; Epic 15a's `create-keel-app --include-fork-invariants` flag is the downstream runtime automating the manual template copy.
 
+## Devbox iteration environment
+
+The `cc-devbox` container has Docker installed per [`docs.docker.com/engine/install/ubuntu/`](https://docs.docker.com/engine/install/ubuntu/). `docker`, `docker compose`, and the Docker socket are available to the Ralph subprocess. Docker availability is a **fork-time substrate requirement** codified by `INV-devbox-dind-available` (`docs/invariants/devbox-dind.md`) — every fork's cc-devbox-equivalent environment must provide it so Ralph can exercise full-stack vertical slices against services, architecture, and infrastructure (Epic 2 Docker-gated tasks, Epic 6 RLS debugger, Epic 13 CI harness smokes). NFR2 cold/warm benchmarks remain authoritative on the M4-Pro operator workstation; DinD runs are indicative baselines only.
+
+**Two backends satisfy the invariant** (see `docs/invariants/devbox-dind.md` § Backend contract): **A** = true Docker-in-Docker (isolated daemon), **B** = host socket-passthrough (`/var/run/docker.sock` bind-mounted; daemon is the host's). Keel's reference environment at 2026-04-21 uses backend B. **Safety rule — critical under B:** broad-state-mutation scripts (`docker system prune`, `docker volume prune`, `docker image prune -a`, `docker rm -f $(docker ps -aq)`) MUST detect the backend and refuse destructive ops by default; they destroy unrelated host projects otherwise. Prefer scoped ops (`docker image rm keel-devbox:local`, `docker compose down --rmi local --volumes`) that are safe under either backend. `packages/devbox/scripts/benchmark.sh` is the reference implementation of this gate.
+
 ## Ralph loop
 
 - `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.

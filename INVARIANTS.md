@@ -87,6 +87,12 @@ FR44 ESLint-extend pattern (`eslint.config.fork.js` importing `@keel/keel-invari
 - **`INV-fork-extension-rationale`**: docs/invariants/fork.md — FR44 ESLint-extend pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold + substrate-wins precedence + amendment-vs-fork decision tree.
 - **`INV-fork-invariants-scaffold`**: packages/keel-invariants/templates/INVARIANTS.fork.md — Growth-tier fork-invariants template with H1 + § Precedence + § Fork invariants index + § Consumption + § Extension + commented FORK-\<fork-slug\>-\<category\>-\<slug\> naming example.
 
+### Devbox iteration substrate (Story 2.1)
+
+Docker-in-Docker as a fork-time substrate requirement: every Ralph iteration environment (cc-devbox or equivalent) must provide a functioning Docker daemon. Spec-enforced at 1.0; runtime check (`command -v docker && docker info`) lands as a `packages/keel-invariants/` rule on a later Ralph iteration.
+
+- **`INV-devbox-dind-available`** — Ralph iteration environment provides `docker` on PATH + reachable daemon (`/var/run/docker.sock` canonical; remote transport permitted) + `docker compose` subcommand. Canonical install path: `docs.docker.com/engine/install/ubuntu/` against the cc-devbox `FROM ubuntu:24.04` base. Does NOT change NFR2 authority — M4-Pro native remains authoritative; DinD entries land in README § Benchmarks flagged `modelled indicative baseline`. Source: `docs/invariants/devbox-dind.md`.
+
 ## Consumption
 
 - **Humans / AI agents:** read this file; cross-reference the listed source files for the machine-enforced form.
