@@ -152,8 +152,15 @@ RUN set -eux; \
     aws --version
 
 # ---------------------------------------------------------------------------
-# Supabase CLI via the official .deb (arch-aware), falling back to no-op if
-# unavailable for the platform. Renovate tracks the GitHub-release URL.
+# Supabase CLI via the official .deb (arch-aware). Renovate tracks the
+# GitHub-release URL. The else-branch is FAIL-CLOSED (exit 1) rather than
+# silent-skip — AC 2 enumerates `supabase-cli` unconditionally, so an image
+# that ships without it would advertise tooling it doesn't have. Supabase's
+# release matrix covers linux/amd64 + linux/arm64 (the only archs Ralph
+# targets), so this gate is defensive fail-fast for exotic host archs (e.g.
+# linux/arm/v7, linux/riscv64) where the bake would otherwise produce a
+# misleading artefact. Pattern matches the git-delta block below (iter-128
+# CR AI-6 consistency finding).
 # ---------------------------------------------------------------------------
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
@@ -168,7 +175,8 @@ RUN set -eux; \
       rm -rf /var/lib/apt/lists/* /tmp/supabase.deb; \
       supabase --version; \
     else \
-      echo "supabase-cli: no matching asset for arch=$arch; skipping" >&2; \
+      echo "supabase-cli: no matching release asset for arch=$arch" >&2; \
+      exit 1; \
     fi
 
 # ---------------------------------------------------------------------------
