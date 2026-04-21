@@ -16,6 +16,12 @@
 #   nft list chain inet keel_egress output_v4 | grep -q 'policy drop'
 #   nft list chain inet keel_egress output_v6 | grep -q 'policy drop'
 
+# Create-if-absent: `add table` is idempotent in nftables (no-op when the
+# table already exists; `create table` would error). Required so the `flush
+# table` below has a valid target on the first-ever `nft -f` run from a
+# fresh netns — without it, flush fails "No such file or directory" and the
+# whole atomic transaction aborts before chains are installed.
+add table inet keel_egress
 flush table inet keel_egress
 
 table inet keel_egress {
