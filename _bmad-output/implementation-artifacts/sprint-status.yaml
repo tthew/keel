@@ -6,6 +6,7 @@
 # last_updated: 2026-04-21 Story-2-2-in-progress UTC
 # last_updated: 2026-04-21 Story-2-2-review UTC
 # last_updated: 2026-04-21 Story-2-2-fixes-pending UTC
+# last_updated: 2026-04-21 Story-2-2-done UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -69,7 +70,7 @@ development_status:
 
   epic-2: in-progress
   2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access: done
-  2-2-envrc-parameterisation-contract: in-progress
+  2-2-envrc-parameterisation-contract: done
   2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: backlog
   2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: backlog
   2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: backlog
