@@ -14,6 +14,7 @@
 # last_updated: 2026-04-22 Story-2-4-ready-for-dev UTC
 # last_updated: 2026-04-22 Story-2-4-review UTC
 # last_updated: 2026-04-22 Story-2-4-fixes-pending UTC
+# last_updated: 2026-04-22 Story-2-4-done UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -49,7 +50,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-22 Story-2-4-fixes-pending UTC
+last_updated: 2026-04-22 Story-2-4-done UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -79,7 +80,7 @@ development_status:
   2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access: done
   2-2-envrc-parameterisation-contract: done
   2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: done
-  2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: review
+  2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: done
   2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: backlog
   2-6-host-side-pnpm-devbox-cli-surface: backlog
   2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan: backlog
