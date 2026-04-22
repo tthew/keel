@@ -52,4 +52,15 @@ if [[ ! -f "${DEVBOX_DIR}/scripts/monitor.sh" ]]; then
 	exit 3
 fi
 
-exec docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/monitor.sh "$@"
+# AI-10 (Story 2.6 CR iter-214): TTY-detect stdin before passing `-t` to
+# `docker exec`. Hardcoded `-it` fails under non-TTY callers (CI runners,
+# `pnpm devbox:monitor | tee run.log`, subprocess invocation) with "the
+# input device is not a TTY". `-i` keeps stdin attached either way; `-t`
+# is added only when a real terminal is present. tail -F (inside monitor.sh)
+# ignores SIGWINCH cleanly in either posture.
+if [[ -t 0 ]]; then
+	tty_flag="-it"
+else
+	tty_flag="-i"
+fi
+exec docker exec "${tty_flag}" "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/monitor.sh "$@"

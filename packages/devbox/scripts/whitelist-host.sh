@@ -40,4 +40,15 @@ fi
 # docker-compose.override.yml flipping `user: root` and causing whitelist
 # mutations to write /run/keel-whitelist-mutate.lock + whitelist.local.txt
 # with root ownership — a subsequent `dev`-user mutation would then fail.
-exec docker exec -it --user dev "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/whitelist.sh "$@"
+#
+# AI-10 (Story 2.6 CR iter-214): TTY-detect stdin before passing `-t` to
+# `docker exec`. Hardcoded `-it` fails under non-TTY callers (CI runners,
+# pre-commit hooks, `sh -c '...'`, `ssh host pnpm devbox:whitelist list`)
+# with "the input device is not a TTY". `-i` keeps stdin attached either
+# way; `-t` is added only when a real terminal is present.
+if [[ -t 0 ]]; then
+	tty_flag="-it"
+else
+	tty_flag="-i"
+fi
+exec docker exec "${tty_flag}" --user dev "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/whitelist.sh "$@"
