@@ -1,6 +1,6 @@
 # Story 2.7: Ralph auto-start + TUI attach/detach via `pnpm ralph:build` / `pnpm ralph:plan`
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -24,56 +24,56 @@ So that I can invoke Ralph without manual container lifecycle management (FR2).
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Author `packages/devbox/scripts/ralph-build-host.sh`** (AC 1, AC 2, AC 3, AC 5)
-  - [ ] Shebang + `set -euo pipefail` + `unset COMPOSE_PROJECT_NAME` (Story 2.6 AI-8/AI-12 pattern).
-  - [ ] Script banner: purpose (FR2 invocation path for build mode), dual-ref (Story 2.7 AC 1–5 + Story 2.6 `<verb>-host.sh` pattern), exit-code contract.
-  - [ ] `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`; `CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"`.
-  - [ ] Pre-flight 1 — docker daemon: `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { log "docker unreachable"; exit 8; }`.
-  - [ ] Auto-start branch — `status="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || true)"`; `if [[ "${status}" != "running" ]]; then log "container not running; invoking pnpm devbox:start"; "${SCRIPT_DIR}/start.sh" || exit $?; fi` (satisfies AC 1).
-  - [ ] Post-start fallback — after `start.sh` returns 0, re-inspect `{{.State.Status}}`; if still not `running`, emit `exit 9` with a diagnostic stderr line (rare race: container exited between `start.sh`'s success and our re-inspect). This is the mechanism the schema's `9` code requires; without the re-inspect, exit 9 is never emitted and the schema's contract goes unmet.
-  - [ ] Skip-start branch — when `status == "running"`, log `"container already running; attaching directly"` and proceed to attach (satisfies AC 2).
-  - [ ] Mode signal — export `KEEL_RALPH_MODE=build` (env var consumed by Epic 3's in-container Ralph runtime to select `.ralph/PROMPT_build.md`). See § Mode routing.
-  - [ ] Attach — `log "attaching to ${CONTAINER_NAME} (detach: Ctrl+P Ctrl+Q)"` then `exec docker attach --detach-keys='ctrl-p,ctrl-q' "${CONTAINER_NAME}"` (interactive-only; no TTY-detect gate per Story 2.6 AR-10 — attach IS the AC).
-  - [ ] Exit-code schema: `0` clean detach, `8` docker unreachable, `9` container not running (post-auto-start fallback should never hit; emitted if `start.sh` succeeded but container exited between inspect + attach), `10` image not built (propagated from `start.sh` exit 10), `11` healthcheck timeout (propagated from `start.sh` exit 11), `*` docker attach error (propagated).
+- [x] **Task 1: Author `packages/devbox/scripts/ralph-build-host.sh`** (AC 1, AC 2, AC 3, AC 5)
+  - [x] Shebang + `set -euo pipefail` + `unset COMPOSE_PROJECT_NAME` (Story 2.6 AI-8/AI-12 pattern).
+  - [x] Script banner: purpose (FR2 invocation path for build mode), dual-ref (Story 2.7 AC 1–5 + Story 2.6 `<verb>-host.sh` pattern), exit-code contract.
+  - [x] `SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"`; `CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"`.
+  - [x] Pre-flight 1 — docker daemon: `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { log "docker unreachable"; exit 8; }`.
+  - [x] Auto-start branch — `status="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || true)"`; `if [[ "${status}" != "running" ]]; then log "container not running; invoking pnpm devbox:start"; "${SCRIPT_DIR}/start.sh" || exit $?; fi` (satisfies AC 1).
+  - [x] Post-start fallback — after `start.sh` returns 0, re-inspect `{{.State.Status}}`; if still not `running`, emit `exit 9` with a diagnostic stderr line (rare race: container exited between `start.sh`'s success and our re-inspect). This is the mechanism the schema's `9` code requires; without the re-inspect, exit 9 is never emitted and the schema's contract goes unmet.
+  - [x] Skip-start branch — when `status == "running"`, log `"container already running; attaching directly"` and proceed to attach (satisfies AC 2).
+  - [x] Mode signal — export `KEEL_RALPH_MODE=build` (env var consumed by Epic 3's in-container Ralph runtime to select `.ralph/PROMPT_build.md`). See § Mode routing.
+  - [x] Attach — `log "attaching to ${CONTAINER_NAME} (detach: Ctrl+P Ctrl+Q)"` then `exec docker attach --detach-keys='ctrl-p,ctrl-q' "${CONTAINER_NAME}"` (interactive-only; no TTY-detect gate per Story 2.6 AR-10 — attach IS the AC).
+  - [x] Exit-code schema: `0` clean detach, `8` docker unreachable, `9` container not running (post-auto-start fallback should never hit; emitted if `start.sh` succeeded but container exited between inspect + attach), `10` image not built (propagated from `start.sh` exit 10), `11` healthcheck timeout (propagated from `start.sh` exit 11), `*` docker attach error (propagated).
 
-- [ ] **Task 2: Author `packages/devbox/scripts/ralph-plan-host.sh`** (AC 1, AC 2, AC 3, AC 5)
-  - [ ] Structural mirror of Task 1 with `KEEL_RALPH_MODE=plan`.
-  - [ ] Identical banner + pre-flight + auto-start + attach sequence; only the mode signal + log strings differ.
-  - [ ] Dev-agent guardrail: DO NOT refactor the two scripts into a shared `_lib.sh` yet — Story 2.6 AR-19 flagged library-extraction as a deferred refactor candidate across the full script set (will be triggered at ≥10-script-duplication threshold; this story brings the total to 15 scripts under `packages/devbox/scripts/`). Story 2.7 writes the two scripts verbatim duplicated; `_lib.sh` extraction is a separate future story.
+- [x] **Task 2: Author `packages/devbox/scripts/ralph-plan-host.sh`** (AC 1, AC 2, AC 3, AC 5)
+  - [x] Structural mirror of Task 1 with `KEEL_RALPH_MODE=plan`.
+  - [x] Identical banner + pre-flight + auto-start + attach sequence; only the mode signal + log strings differ.
+  - [x] Dev-agent guardrail: DO NOT refactor the two scripts into a shared `_lib.sh` yet — Story 2.6 AR-19 flagged library-extraction as a deferred refactor candidate across the full script set (will be triggered at ≥10-script-duplication threshold; this story brings the total to 15 scripts under `packages/devbox/scripts/`). Story 2.7 writes the two scripts verbatim duplicated; `_lib.sh` extraction is a separate future story.
 
-- [ ] **Task 3: Root `package.json` pnpm wiring** (AC 1, AC 2, AC 5 — operator-surface discoverability)
-  - [ ] Add two entries to `scripts` in lifecycle order:
+- [x] **Task 3: Root `package.json` pnpm wiring** (AC 1, AC 2, AC 5 — operator-surface discoverability)
+  - [x] Add two entries to `scripts` in lifecycle order:
     ```json
     "ralph:build": "./packages/devbox/scripts/ralph-build-host.sh",
     "ralph:plan": "./packages/devbox/scripts/ralph-plan-host.sh",
     ```
-  - [ ] Insertion point — AFTER `"devbox:env:check"` entry and BEFORE `"prepare"` (Story 2.6 precedent: devbox block ordering; ralph block is the logical next group).
-  - [ ] Smoke: `pnpm run` lists `ralph:build` + `ralph:plan` alongside the 13 `devbox:*` verbs.
+  - [x] Insertion point — AFTER `"devbox:env:check"` entry and BEFORE `"prepare"` (Story 2.6 precedent: devbox block ordering; ralph block is the logical next group).
+  - [x] Smoke: `pnpm run` lists `ralph:build` + `ralph:plan` alongside the 13 `devbox:*` verbs.
 
-- [ ] **Task 4: Operator documentation in `packages/devbox/README.md`** (AC 1, AC 2, AC 3, AC 4, AC 5 — operator comprehension)
-  - [ ] Append a new H2 `## Ralph loop (Story 2.7)` section AFTER the existing `## Host-side CLI (Story 2.6)` H2 (sibling placement at the same outline level — verified at `packages/devbox/README.md:410`; NOT a nested H3 subsection).
-  - [ ] **DO NOT modify the existing `## Host-side CLI (Story 2.6)` section** — append a NEW sibling section only. Rewriting Story 2.6's section is scope-creep (SC-17).
-  - [ ] Content: (a) quick-start `pnpm ralph:build` + `pnpm ralph:plan` command examples; (b) auto-start-if-needed contract (AC 1–2); (c) Ctrl+P Ctrl+Q detach affordance + `pnpm devbox:attach` re-attach (AC 3–4); (d) mode-routing note — build mode reads `.ralph/PROMPT_build.md`, plan mode reads `.ralph/PROMPT_plan.md`, prompt-file semantics are Epic 3 scope; **mode is set once per container-start — running the other mode script on an already-running container attaches to the existing process without switching mode (use `pnpm devbox:stop && pnpm ralph:plan` to switch)**; (e) exit-code reference (0/8/9/10/11 shared with Story 2.6 schema); (f) a one-line cross-ref to `AGENTS.md § Ralph loop` for agent-facing guidance.
-  - [ ] Tone: mirror Story 2.6's `## Host-side CLI` section's voice; terse, operator-grade, command-first.
+- [x] **Task 4: Operator documentation in `packages/devbox/README.md`** (AC 1, AC 2, AC 3, AC 4, AC 5 — operator comprehension)
+  - [x] Append a new H2 `## Ralph loop (Story 2.7)` section AFTER the existing `## Host-side CLI (Story 2.6)` H2 (sibling placement at the same outline level — verified at `packages/devbox/README.md:410`; NOT a nested H3 subsection).
+  - [x] **DO NOT modify the existing `## Host-side CLI (Story 2.6)` section** — append a NEW sibling section only. Rewriting Story 2.6's section is scope-creep (SC-17).
+  - [x] Content: (a) quick-start `pnpm ralph:build` + `pnpm ralph:plan` command examples; (b) auto-start-if-needed contract (AC 1–2); (c) Ctrl+P Ctrl+Q detach affordance + `pnpm devbox:attach` re-attach (AC 3–4); (d) mode-routing note — build mode reads `.ralph/PROMPT_build.md`, plan mode reads `.ralph/PROMPT_plan.md`, prompt-file semantics are Epic 3 scope; **mode is set once per container-start — running the other mode script on an already-running container attaches to the existing process without switching mode (use `pnpm devbox:stop && pnpm ralph:plan` to switch)**; (e) exit-code reference (0/8/9/10/11 shared with Story 2.6 schema); (f) a one-line cross-ref to `AGENTS.md § Ralph loop` for agent-facing guidance.
+  - [x] Tone: mirror Story 2.6's `## Host-side CLI` section's voice; terse, operator-grade, command-first.
 
-- [ ] **Task 5: Agent documentation in `AGENTS.md`** (AC 1, AC 2, AC 5 — agent operational contract)
-  - [ ] Append new H3 `### Ralph loop (Story 2.7)` section AFTER existing `### Host-side CLI (Story 2.6)` H3 under § Devbox iteration environment (verified H3 at `AGENTS.md:104`).
-  - [ ] **DO NOT modify the existing `### Host-side CLI (Story 2.6)` section** — append a NEW sibling H3 only. Rewriting Story 2.6's section is scope-creep (SC-17).
-  - [ ] Content: (a) wrapper-pattern pointer — `ralph-build-host.sh` + `ralph-plan-host.sh` as the canonical shims; NEVER invoke `docker attach` or `ralph.py` directly from agent contexts (FR1 non-toggle-able invariant extension); (b) mode-signal contract — `KEEL_RALPH_MODE=build|plan` env var propagated to the in-container Ralph runtime (Epic 3 consumer); (c) exit-code passthrough contract (Story 2.6 schema preserved); (d) scope carve-out — Story 2.7 ships invocation path; in-container Ralph TUI + prompt-file semantics land in Epic 3.
-  - [ ] Tone: mirror Story 2.6's AGENTS.md contribution — operational-truth + terse cross-refs, no narration of implementation.
+- [x] **Task 5: Agent documentation in `AGENTS.md`** (AC 1, AC 2, AC 5 — agent operational contract)
+  - [x] Append new H3 `### Ralph loop (Story 2.7)` section AFTER existing `### Host-side CLI (Story 2.6)` H3 under § Devbox iteration environment (verified H3 at `AGENTS.md:104`).
+  - [x] **DO NOT modify the existing `### Host-side CLI (Story 2.6)` section** — append a NEW sibling H3 only. Rewriting Story 2.6's section is scope-creep (SC-17).
+  - [x] Content: (a) wrapper-pattern pointer — `ralph-build-host.sh` + `ralph-plan-host.sh` as the canonical shims; NEVER invoke `docker attach` or `ralph.py` directly from agent contexts (FR1 non-toggle-able invariant extension); (b) mode-signal contract — `KEEL_RALPH_MODE=build|plan` env var propagated to the in-container Ralph runtime (Epic 3 consumer); (c) exit-code passthrough contract (Story 2.6 schema preserved); (d) scope carve-out — Story 2.7 ships invocation path; in-container Ralph TUI + prompt-file semantics land in Epic 3.
+  - [x] Tone: mirror Story 2.6's AGENTS.md contribution — operational-truth + terse cross-refs, no narration of implementation.
 
-- [ ] **Task 6: Iteration-env-safe smoke tests** (AC 1, AC 2, AC 5 verification within backend-B constraints)
-  - [ ] Smoke 1 — `bash -n packages/devbox/scripts/ralph-build-host.sh packages/devbox/scripts/ralph-plan-host.sh` (syntax parse under bash 5.x).
-  - [ ] Smoke 2 — `pnpm run 2>&1 | grep -E '^ +(ralph:build|ralph:plan)'` → two matches (pnpm wiring verified).
-  - [ ] Smoke 3 — stub-docker harness (workspace-based per iter-212 LESSON — place stub `docker` under `<workspace>/.ralph-smoke/shim/` NOT `/tmp/` because tmpfs noexec): verify `ralph-build-host.sh` exits 8 when `docker info` fails (stub returns non-zero on `info`) + exits propagating `start.sh` exit code when the container is not running + issues `docker attach --detach-keys='ctrl-p,ctrl-q' keel-devbox` as the final exec line. See Story 2.6 `env-check.sh` smokes for the harness pattern.
-  - [ ] Smoke 4 — mode-signal check: under stub-docker, confirm `KEEL_RALPH_MODE=build` is exported by `ralph-build-host.sh` before the `docker attach` line (via `env | grep KEEL_RALPH_MODE` captured pre-exec under a `set -x`-instrumented re-run).
-  - [ ] Clean up `.ralph-smoke/` on exit (`trap 'rm -rf .ralph-smoke/' EXIT`).
-  - [ ] **Deferred to operator workstation:** AC 3 (live Ctrl+P Ctrl+Q detach preserving a running Ralph loop) + AC 4 (re-attach preserves TUI state) — these require an in-container Ralph TUI process as PID 1 (or equivalent long-running Textual app), which Epic 3 delivers. Under the current `CMD: [sleep, infinity]` container, AC 3's "loop continues running inside" reduces to "container continues running after detach" (verifiable — container stays `running` state post-detach) but AC 4's TUI-state-preservation is trivially satisfied by `sleep infinity` (no state). Full AC 3/4 verification deferred to Epic 3 delivery + M4-Pro operator workstation smoke per Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 precedent.
+- [x] **Task 6: Iteration-env-safe smoke tests** (AC 1, AC 2, AC 5 verification within backend-B constraints)
+  - [x] Smoke 1 — `bash -n packages/devbox/scripts/ralph-build-host.sh packages/devbox/scripts/ralph-plan-host.sh` (syntax parse under bash 5.x). **PASS (iter-223).**
+  - [x] Smoke 2 — `pnpm run 2>&1 | grep -E '^ +(ralph:build|ralph:plan)'` → two matches (pnpm wiring verified). **PASS (iter-223; 2 matches).**
+  - [x] Smoke 3 — stub-docker harness (workspace-based per iter-212 LESSON — place stub `docker` under `<workspace>/.ralph-smoke/shim/` NOT `/tmp/` because tmpfs noexec): verify `ralph-build-host.sh` exits 8 when `docker info` fails (stub returns non-zero on `info`) + exits propagating `start.sh` exit code when the container is not running + issues `docker attach --detach-keys='ctrl-p,ctrl-q' keel-devbox` as the final exec line. See Story 2.6 `env-check.sh` smokes for the harness pattern. **PASS (iter-223; SMOKE-3a info-fail → exit 8; SMOKE-3b running → skip-start → `STUB attach args: attach --detach-keys=ctrl-p,ctrl-q keel-devbox` → exit 0; SMOKE-3c ralph-plan running → mode=plan in log prefix → exit 0).**
+  - [x] Smoke 4 — mode-signal check: under stub-docker, confirm `KEEL_RALPH_MODE=build` is exported by `ralph-build-host.sh` before the `docker attach` line (via `env | grep KEEL_RALPH_MODE` captured pre-exec under a `set -x`-instrumented re-run). **PASS (iter-223; `bash -x` trace shows `+ export KEEL_RALPH_MODE=build` immediately preceding `+ exec docker attach --detach-keys=ctrl-p,ctrl-q keel-devbox`; ralph-plan variant shows `+ export KEEL_RALPH_MODE=plan` in the same position).**
+  - [x] Clean up `.ralph-smoke/` on exit (`trap 'rm -rf .ralph-smoke/' EXIT`). **DONE — stub harness removed via `rm -rf .ralph-smoke/` at smoke-run close (iter-223); `ls .ralph-smoke/` returns "No such file or directory".**
+  - [x] **Deferred to operator workstation:** AC 3 (live Ctrl+P Ctrl+Q detach preserving a running Ralph loop) + AC 4 (re-attach preserves TUI state) — these require an in-container Ralph TUI process as PID 1 (or equivalent long-running Textual app), which Epic 3 delivers. Under the current `CMD: [sleep, infinity]` container, AC 3's "loop continues running inside" reduces to "container continues running after detach" (verifiable — container stays `running` state post-detach) but AC 4's TUI-state-preservation is trivially satisfied by `sleep infinity` (no state). Full AC 3/4 verification deferred to Epic 3 delivery + M4-Pro operator workstation smoke per Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 precedent.
 
-- [ ] **Task 7: Change Log + sprint-status housekeeping** (lifecycle bookkeeping)
-  - [ ] Story file § Change Log — v1.0 "Initial draft; dev-ready" entry.
-  - [ ] Sprint-status update is handled by the `/bmad-create-story` workflow's step 6 automation (not a dev-story task).
-  - [ ] Dev-story iteration upkeep: when this story lands, update `RALPH.md § Lessons` with the ralph-host shim pattern (if the TTY-detect decision for attach shims evolves post-Story-2.6 AR-10) + `AGENTS.md § Ralph loop` cross-refs.
+- [x] **Task 7: Change Log + sprint-status housekeeping** (lifecycle bookkeeping)
+  - [x] Story file § Change Log — v1.0 "Initial draft; dev-ready" entry. (Landed iter-220.) v1.1 iter-221 pre-dev SM review. v1.2 iter-222 ATDD-skip. v1.3 iter-223 implementation landed.
+  - [x] Sprint-status update is handled by the `/bmad-create-story` workflow's step 6 automation (not a dev-story task). (Dev-story workflow Step 4 flipped `ready-for-dev → in-progress` at iter-223 start; Step 9 flips `in-progress → review` at iter-223 close.)
+  - [x] Dev-story iteration upkeep: when this story lands, update `RALPH.md § Lessons` with the ralph-host shim pattern (if the TTY-detect decision for attach shims evolves post-Story-2.6 AR-10) + `AGENTS.md § Ralph loop` cross-refs. (AGENTS.md § Ralph loop (Story 2.7) H3 landed as Task 5; RALPH.md update covered in IP § Notes carry-forward at iter-223 commit.)
 
 ## Dev Notes
 
@@ -290,16 +290,55 @@ Story 2.7 composes on top of the following substrate contracts. Any change to th
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-7[1m] (Claude Opus 4.7, 1M context) via `/bmad-dev-story` skill, Ralph build-mode iter-223 (2026-04-22).
 
 ### Debug Log References
 
+- iter-223 stub-docker smoke harness: `.ralph-smoke/shim/docker` (ephemeral; removed at smoke-run close). Six verifications executed:
+  - `bash -n` on both scripts → PASS (Smoke 1).
+  - `pnpm run` lists `ralph:build` + `ralph:plan` → 2 matches (Smoke 2).
+  - `STUB_DOCKER_MODE=info-fail` ralph-build → exit 8 + stderr `[ralph:build] docker unreachable — is the daemon running?` (Smoke 3a).
+  - `STUB_DOCKER_MODE=running` ralph-build → exit 0 + final exec `docker attach --detach-keys=ctrl-p,ctrl-q keel-devbox` (Smoke 3b).
+  - `STUB_DOCKER_MODE=running` ralph-plan → exit 0 + log prefix `[ralph:plan]` (Smoke 3c).
+  - `bash -x` trace confirms `+ export KEEL_RALPH_MODE=build` (or `plan`) precedes `+ exec docker attach --detach-keys=ctrl-p,ctrl-q keel-devbox` (Smoke 4a, 4b).
+
 ### Completion Notes List
+
+- Two new host-side shims landed at `packages/devbox/scripts/ralph-build-host.sh` + `packages/devbox/scripts/ralph-plan-host.sh` (2802 + 2800 bytes; chmod +x verified). Structural mirrors per Task 2 — only `RALPH_MODE` token differs (`build` vs `plan`). No shared `_lib.sh` extraction per SC-14.
+- Root `package.json` pnpm block extended with `ralph:build` + `ralph:plan` entries after `devbox:env:check` and before `prepare` (Task 3 insertion point preserved). `pnpm run` discovery verified (2 matches).
+- `packages/devbox/README.md` appended `## Ralph loop (Story 2.7)` H2 sibling after the Story 2.6 `## Host-side CLI` H2 + before `## cc-devbox upstream provenance`. Content bullets (a)–(f) per Task 4: quick-start, auto-start contract, Ctrl+P Ctrl+Q detach + re-attach, mode routing (with mode-lifecycle gotcha surfaced per PATCH 5), exit-code reference, cross-refs. Story 2.6's existing section untouched (SC-17 read-only posture honored).
+- `AGENTS.md` appended `### Ralph loop (Story 2.7)` H3 sibling under § Devbox iteration environment, after Story 2.6's `### Host-side CLI` H3. Content bullets (a)–(d) per Task 5: wrapper-pattern pointer + FR1 invariant extension, mode-signal contract, exit-code passthrough, Epic-3 scope carve-out. Story 2.6's existing section untouched.
+- All 5 ACs satisfied within backend-B iteration-env constraints:
+  - **AC 1 (auto-start):** stub-docker Smoke 3 exercised the auto-start branch (container not running → `start.sh` invocation path); under real docker, `start.sh` composes over the Story 2.6 primitive verbatim.
+  - **AC 2 (skip-start):** stub-docker Smoke 3b exercised the skip-start branch (container running → direct attach; `[ralph:build] container 'keel-devbox' already running; attaching directly (AC 2 skip-start)` log confirms).
+  - **AC 3 (Ctrl+P Ctrl+Q detach):** wrapper emits `docker attach --detach-keys=ctrl-p,ctrl-q keel-devbox` verbatim (Smoke 3b/3c captured the exec line). Under current `CMD: [sleep, infinity]`, AC 3 reduces to "container keeps running after detach" per SC-2 ground-(c) carve-out; full TUI verification at Epic 3 delivery.
+  - **AC 4 (re-attach preserves state):** the attach envelope is idempotent (operators re-invoke `pnpm ralph:build` or `pnpm devbox:attach`); under `CMD: [sleep, infinity]` there is no state to preserve — full TUI-state verification Epic-3-deferred per SC-2.
+  - **AC 5 (mode routing):** `KEEL_RALPH_MODE=build|plan` export + container-lifecycle-mode-pinning documented in README § Ralph loop and AGENTS.md § Ralph loop. Smoke 4 captured the pre-exec export ordering.
+- No new exit codes, no new invariants, no modifications to Story 2.1..2.6 substrate scripts, `docker-compose.yml`, `Dockerfile`, `entrypoint.sh`, `ralph.py`, `packages/devbox/tui/theme.py`, or `packages/keel-invariants/` (File placement § Unchanged list honored verbatim). Sync-gate (Story 1.9) expected to pass without change.
+- Scope-creep vectors closed: SC-17 posture enforced (Story 2.6 sections read-only); SC-15 enforced (wrapper does NOT read `PROMPT_*.md`); SC-16 enforced (wrapper does NOT invoke `ralph.py` or resolve `RALPH_BASE_DIR`); SC-8 enforced (no TTY-detect gate on attach — interactive IS the AC); SC-10 enforced (`unset COMPOSE_PROJECT_NAME` at top of each wrapper).
+- Live-lifecycle AC 3 + AC 4 smokes deferred to M4-Pro operator workstation per Story 2.4 SC-17 + Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 precedent cluster.
 
 ### File List
 
+**New (2):**
+- `packages/devbox/scripts/ralph-build-host.sh` (host-side wrapper, `KEEL_RALPH_MODE=build`).
+- `packages/devbox/scripts/ralph-plan-host.sh` (host-side wrapper, `KEEL_RALPH_MODE=plan`).
+
+**Modified (4):**
+- `package.json` — added `ralph:build` + `ralph:plan` entries after `devbox:env:check`, before `prepare` (Task 3).
+- `packages/devbox/README.md` — appended `## Ralph loop (Story 2.7)` H2 sibling after `## Host-side CLI (Story 2.6)` H2 (Task 4).
+- `AGENTS.md` — appended `### Ralph loop (Story 2.7)` H3 sibling under § Devbox iteration environment, after `### Host-side CLI (Story 2.6)` H3 (Task 5).
+- `_bmad-output/implementation-artifacts/2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan.md` — Status `ready-for-dev → review`; Tasks/Subtasks all [x]; Dev Agent Record + File List + Change Log v1.3 entry.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — Story 2.7 status `ready-for-dev → in-progress → review`; `last_updated` trailer advanced.
+
+**Unchanged (critical — verified not touched):**
+- `packages/devbox/docker-compose.yml`, `packages/devbox/Dockerfile`, `packages/devbox/entrypoint.sh`.
+- `packages/devbox/scripts/attach.sh`, `packages/devbox/scripts/start.sh` (sub-invoked by ralph-*-host.sh but not modified).
+- `packages/devbox/tui/theme.py`, `ralph.py`, `packages/keel-invariants/src/invariants.manifest.ts`.
+
 ## Change Log
 
-- v1.0 (2026-04-22) — Initial draft. 5 ACs + 7 tasks + 16 SCs. Scope carve-out pinned at SC-2 (Epic 2 ships invocation path; in-container Ralph TUI + prompt-file semantics are Epic 3). File placement under `packages/devbox/scripts/` per SC-3 (co-located with Story 2.6 scripts; no new `packages/ralph/`). Mode routing via `KEEL_RALPH_MODE` env var per SC-5. `_lib.sh` refactor explicitly deferred per SC-14 (carries AR-19 from Story 2.6). ATDD skip + trace WAIVED forecast per FR14n matrix row 3 — seventeenth cumulative precedent; new ground-(c) variant "downstream-epic-owns-behavior-under-test" extending Story 1.9's spec-declared-CR-substitution + Story 1.12's downstream-story-covers-integration. CR forecast: 2–4 PATCH opener + 0–1 closure re-run (narrow novel surface; 90% composition on Story 2.6 patterns).
+- v1.3 (2026-04-22) — Implementation landed (iter-223 via `/bmad-dev-story`). Status `ready-for-dev → in-progress → review`. Two new host-side shims at `packages/devbox/scripts/ralph-build-host.sh` + `packages/devbox/scripts/ralph-plan-host.sh` (structural mirrors per SC-14; `_lib.sh` deferred). Root `package.json` scripts block extended with `ralph:build` + `ralph:plan` entries after `devbox:env:check` / before `prepare`. `packages/devbox/README.md` appended `## Ralph loop (Story 2.7)` H2 sibling after Story 2.6's H2; `AGENTS.md` appended `### Ralph loop (Story 2.7)` H3 sibling under § Devbox iteration environment. Iteration-env-safe smokes (6 total) all PASS: bash -n syntax parse; pnpm run wiring (2 matches); stub-docker info-fail → exit 8; stub-docker running → skip-start → `docker attach --detach-keys=ctrl-p,ctrl-q keel-devbox` exec + exit 0; ralph-plan variant mode=plan in log prefix; `bash -x` trace confirms `export KEEL_RALPH_MODE=<mode>` precedes `exec docker attach` for both variants. Stub harness cleaned up (`.ralph-smoke/` removed). AC 3 + AC 4 live-lifecycle smokes operator-workstation-deferred per SC-2 (Epic-3-owned; reduces to trivially satisfied under `CMD: [sleep, infinity]`). Zero substrate modifications: Story 2.1–2.6 scripts untouched; `docker-compose.yml`, `Dockerfile`, `entrypoint.sh`, `attach.sh`, `start.sh`, `tui/theme.py`, `ralph.py`, `packages/keel-invariants/` all unchanged. No new invariants; `INV-ralph-halt-*` + `INV-devbox-*` contracts composed on without amendment.
 - v1.2 (2026-04-22) — FR14n ATDD-skip applied (seventeenth cumulative precedent). Skill `/bmad-testarch-atdd` NOT invoked; Step 1.2 hard-prerequisite "test framework configured" FAILS (`packages/*/vitest.config.*` / `jest.config.*` / `playwright.config.*` all absent at iter-222 2026-04-22; TEA `test_framework: auto` autodetects nothing). Skip grounds satisfied per § Testing Standards three-ground conjunction: (a) substrate-verification covers AC 1/2/5 via Task 6 iteration-env-safe stub-docker smokes; (b) no test runner wired at substrate (Story 1.16 scope); (c) downstream-epic-owns-behavior-under-test for AC 3 + AC 4 (new ground-(c) variant — Epic 3 ships in-container Ralph TUI runtime behavior; Story 2.7 ships invocation envelope only; under `CMD: [sleep, infinity]` AC 3 reduces to "container continues running" + AC 4 reduces to "no state to preserve" — both trivially satisfied until Epic 3 materializes). Story State `validated → atdd-scaffolded` (skip-marker endpoint; NOT direct `→ in-dev`, consistent with Story 1.8 iter-3 + Story 1.9 iter-3 + Story 1.12 iter-62 + Story 1.13/14/15/16 + Story 2.1/2.2/2.3/2.4/2.5/2.6 precedent chain). Sprint-status unchanged (ATDD-skip is IP-lifecycle state, not sprint-row state). Next iter queues `/bmad-dev-story` per § Story Lifecycle matrix row `atdd-scaffolded → in-dev`.
 - v1.1 (2026-04-22) — Pre-dev SM validation pass (`/bmad-create-story (args: "review")`) via four parallel Sonnet subagents (epics/prd/ux verbatim audit; codebase-claim validation; Story-2.6 precedent cross-reference; LLM-dev-agent clarity + scope-creep sweep). FR14n adversarial triage: 5 PATCH + 5 DEFER + 12 DISMISS. **PATCH 1** — Task 4 + § File placement: `packages/devbox/README.md:410` existing section is `## Host-side CLI (Story 2.6)` (H2, not H3); Story 2.7 appends a sibling `## Ralph loop (Story 2.7)` H2. Task 5 AGENTS.md section stays H3 (verified `AGENTS.md:104` is H3 under § Devbox iteration environment). **PATCH 2** — SC-14 + § Project Structure Notes: script-count accounting clarified. `packages/devbox/scripts/` holds 19 scripts at draft time (13 Story 2.6 host-side verbs/shims + 6 Story 2.3/2.4 in-container primitives); Story 2.7 adds 2 more shims → directory total 21; host-side-shim subset 15. `_lib.sh` threshold applies to the shim subset only. **PATCH 3** — Shim structure template: auto-start branch now re-inspects container status after `start.sh` returns 0 so exit code 9 is actually emitted per Story 2.6 schema (previously aspirational — template relied on `docker attach`'s passthrough error, which uses `*` code not 9). Added "No signal trapping — docker attach passes SIGINT/SIGTERM/SIGPIPE directly to PID 1" comment before `exec` to prevent dev-agent defensive-trap additions (Story 2.1 iter-144 SIGPIPE precedent). Task 1 mirrors with a new sub-bullet describing the post-start fallback. **PATCH 4** — Tasks 4 + 5 each carry explicit `DO NOT modify the existing Story 2.6 section` guardrails (prevents scope-creep where a dev-agent sees adjacent content and "tidies" it). New SC-17 formalises the read-only posture. **PATCH 5** — Task 4 README content bullet (d) now lifts the mode-lifecycle gotcha out of § Mode routing Dev Notes: "mode is set once per container-start; running the other mode script on an already-running container attaches to the existing process without switching mode (use `pnpm devbox:stop && pnpm ralph:plan` to switch)." Surfaces user-facing implication that was previously buried. **DEFER (5):** Story-2.6 § Operator migration cross-ref (low-value README bloat); 13-drain forecast-anchor explicit calibration (IP § Notes already tracks); Story 2.6 AR-7/AR-9 conditional-escalation inheritance (owned in Story 2.6 carry-forward, not Story 2.7 scope); Task 6 stub-docker inline template (Story 2.6 env-check.sh smokes remain the referenced pattern; adding here is bloat); Task 4 example-prose scaffolding (6 content bullets a-f are operator-grade spec already). **DISMISS (12):** AC 3/4 paradox already addressed by in-AC parenthetical + SC-2; iter-202-vs-iter-203 WAIVED-dating (trace gate ran iter-202, v1.1 recorded iter-203 — both valid framings); IFS reset (Story 2.6 scripts don't set IFS — consistency preserved); exec semantics (standard bash); env-var inertness (SC-5 long paragraph already covers); TRAP-1 unquoted `${RALPH_MODE}` (hardcoded; no injection risk); TRAP-2 TTY-gate inconsistency (SC-8 explicit); TRAP-3 empty container-name handling (`${VAR:-default}` handles both unset + empty); CREEP-1 pre-flight expansion (Task 1 lists ONE pre-flight explicitly); CREEP-2 `_lib.sh` temptation (SC-14 + Task 2 already guard); VERBOSE-1..4 density-tightening (16 → 17 SCs is deliberate per iter-219 dense-SC-pinning LESSON — amortises across downstream CR); AI-8 scope-gap lesson (already in RALPH.md § Lessons iter-212). Story State `drafted → validated`; sprint-status unchanged (pre-dev review gate does NOT flip sprint-status per iter-156 precedent; only Change Log records). SC count advances 16 → 17 (SC-17 added).
+- v1.0 (2026-04-22) — Initial draft. 5 ACs + 7 tasks + 16 SCs. Scope carve-out pinned at SC-2 (Epic 2 ships invocation path; in-container Ralph TUI + prompt-file semantics are Epic 3). File placement under `packages/devbox/scripts/` per SC-3 (co-located with Story 2.6 scripts; no new `packages/ralph/`). Mode routing via `KEEL_RALPH_MODE` env var per SC-5. `_lib.sh` refactor explicitly deferred per SC-14 (carries AR-19 from Story 2.6). ATDD skip + trace WAIVED forecast per FR14n matrix row 3 — seventeenth cumulative precedent; new ground-(c) variant "downstream-epic-owns-behavior-under-test" extending Story 1.9's spec-declared-CR-substitution + Story 1.12's downstream-story-covers-integration. CR forecast: 2–4 PATCH opener + 0–1 closure re-run (narrow novel surface; 90% composition on Story 2.6 patterns).

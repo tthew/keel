@@ -502,6 +502,51 @@ pnpm devbox:env:check                                   # exit 3 if no .envrc; e
 - `### Operator migration (pre-Story-2.5 named-volume recovery)` above — one-time recovery for volumes populated before Story 2.5's `USER dev` posture.
 - `docs/invariants/devbox-dind.md § Backend contract` — backend-A/B detection + destructive-op safety rule.
 
+## Ralph loop (Story 2.7)
+
+`pnpm ralph:build` and `pnpm ralph:plan` are the operator entry points to the Ralph iteration loop (FR2). Each command auto-starts the devbox if not running, then attaches the operator terminal to the container's PID 1 stdio. The in-container Ralph runtime (Epic 3) consumes a mode signal the wrapper sets before attaching.
+
+### Quick start
+
+```sh
+pnpm ralph:build    # build mode — container auto-starts if stopped, then attach
+pnpm ralph:plan     # plan mode — same lifecycle, different mode signal
+# Ctrl+P Ctrl+Q     # detach from the container; the loop keeps running
+pnpm devbox:attach  # re-attach to the running loop
+```
+
+### Auto-start contract (AC 1, AC 2)
+
+Each wrapper inspects the container's state before attaching:
+
+- **Container not running** → invokes `packages/devbox/scripts/start.sh` (the Story 2.6 primitive; does NOT shell out to `pnpm devbox:start` — see Story 2.7 § SC-9). `start.sh` builds the image if needed, `docker compose up -d`s the devbox, and polls the healthcheck until ready. On its success, the wrapper re-inspects the container and proceeds to attach. On its failure, the exit code propagates verbatim (`10` / `11` / `8`).
+- **Container already running** → skips the start step and attaches directly.
+
+### Ctrl+P Ctrl+Q detach + re-attach (AC 3, AC 4)
+
+`docker attach --detach-keys='ctrl-p,ctrl-q'` is pinned explicitly — it matches docker's default but guards against future docker-default changes (Story 2.6 `attach.sh:39` precedent). Pressing Ctrl+P Ctrl+Q detaches the operator terminal without killing the container; the in-container Ralph loop keeps running. Re-attach with `pnpm devbox:attach` or by re-invoking `pnpm ralph:build` — the existing loop is preserved.
+
+### Mode routing (AC 5)
+
+Before attaching, each wrapper exports `KEEL_RALPH_MODE=build|plan`. Epic 3's in-container Ralph runtime reads this at startup to select `.ralph/PROMPT_build.md` or `.ralph/PROMPT_plan.md`. **Mode is set once per container-start** — running the other mode script on an already-running container attaches to the existing process without switching mode. To switch modes, stop and re-start: `pnpm devbox:stop && pnpm ralph:plan`. Prompt-file semantics themselves are Epic 3 scope.
+
+### Exit codes (inherited from Story 2.6)
+
+| Code | Meaning                                                                              |
+| ---- | ------------------------------------------------------------------------------------ |
+| `0`  | Clean detach.                                                                        |
+| `8`  | Docker runtime unreachable — `docker info` failed. Hint: is the daemon running?      |
+| `9`  | Container not running (rare — post-auto-start fallback after `start.sh` returned 0). |
+| `10` | Image not built — propagated from `start.sh`.                                        |
+| `11` | `start` healthcheck timeout — propagated from `start.sh`.                            |
+| `*`  | `docker attach` error — propagated.                                                  |
+
+### Cross-references
+
+- `AGENTS.md § Ralph loop` — agent-facing operational contract for the wrappers.
+- `### Host-side CLI (Story 2.6)` above — `start.sh` / `attach.sh` primitives that Story 2.7 composes on.
+- Story 2.7 file `_bmad-output/implementation-artifacts/2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan.md` — full spec, scope clarifications SC-1..SC-17, and Epic-3 carve-out.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:

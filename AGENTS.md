@@ -111,6 +111,15 @@ Canonical devbox invocation surface is `pnpm devbox:<verb>` at the repo root —
 - **Monitor semantic:** `pnpm devbox:monitor` is the FR1a JSONL DNS-event tail (PRD `:494`, architecture `:1003`), NOT `docker stats`. Epics AC 7's "cpu/memory/network" phrasing is historical drift; PRD is authoritative.
 - **Cross-reference:** § Per-fork whitelist override (Story 2.4) for `pnpm devbox:whitelist` subcommand semantics; § Container hardening (Story 2.5) for the substrate contracts every host-side script composes on top of.
 
+### Ralph loop (Story 2.7)
+
+`pnpm ralph:build` and `pnpm ralph:plan` are the FR2 invocation path for the Ralph iteration loop. Each is a host-side shim under `packages/devbox/scripts/` (`ralph-build-host.sh` + `ralph-plan-host.sh`) that auto-starts the devbox if stopped, then `docker attach`es the operator terminal to the container's PID 1. Agents MUST invoke Ralph via these wrappers — NEVER call `docker attach`, `docker compose`, or `ralph.py` directly (FR1 non-toggle-able invariant, extended from Story 2.6's 13-verb surface to the 2-verb ralph surface).
+
+- **Wrapper pattern:** `ralph-build-host.sh` + `ralph-plan-host.sh` follow Story 2.6's `<verb>-host.sh` naming. Both scripts are structural mirrors — only the `RALPH_MODE` value (`build` vs `plan`) and the log-prefix token differ. `_lib.sh` extraction is deferred (Story 2.6 AR-19; Story 2.7 SC-14) until the shim count crosses the substrate-wide refactor threshold.
+- **Mode signal:** each wrapper exports `KEEL_RALPH_MODE=build|plan` before `exec docker attach`. Epic 3's in-container Ralph runtime reads this env var at startup to select `.ralph/PROMPT_build.md` or `.ralph/PROMPT_plan.md`. Mode is a container-lifecycle attribute — one mode per container-start; switching modes requires `pnpm devbox:stop && pnpm ralph:<mode>`.
+- **Exit-code passthrough:** Story 2.6's uniform schema (`0`/`8`/`9`/`10`/`11`/`*`) is preserved unchanged. No new exit codes. Post-auto-start `status` re-inspect emits exit `9` if the container exited between `start.sh`'s success and the attach call (rare race); otherwise exit `9` is unused for the ralph wrappers.
+- **Scope carve-out:** Story 2.7 ships the invocation path only. The in-container Ralph TUI process (long-running Textual app consuming `packages/devbox/tui/theme.py` from Story 1.12, rendering kanban + log + context-meter panels, preserving state across attach/detach) is Epic 3's delivery. Under the current `CMD: [sleep, infinity]`, AC 3 reduces to "container keeps running after detach" and AC 4 reduces to "no state to preserve"; both are trivially satisfied until Epic 3 materializes.
+
 ## Ralph loop
 
 - `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.
