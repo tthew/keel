@@ -345,9 +345,13 @@ docker exec keel-devbox sh -c 'printf "#!/bin/sh\necho hello\n" > /tmp/t.sh && c
 # Expect nonzero exit: "Permission denied" or "exec format error"
 # Uses `printf` (not POSIX `echo`) so the shebang+body actually land on two lines.
 
-# AC 5 Smoke B — no-new-privileges blocks sudo
-docker exec keel-devbox sudo --help; echo exit=$?
-# Expect sudo-level refusal (NoNewPrivs:1 visible in /proc/self/status)
+# AC 5 Smoke B — no-new-privileges visible in kernel flags
+docker exec keel-devbox sh -c 'grep ^NoNewPrivs /proc/self/status'
+# Expect: "NoNewPrivs:\t1" — direct kernel-flag read, version-independent.
+# Proves PR_SET_NO_NEW_PRIVS=1 is applied to the container's init process
+# (and inherited by every `docker exec` descendant). Prior `sudo --help`
+# form exited 0 without attempting elevation — false-positive under any
+# posture; /proc/self/status exercises the AC 5 NNP contract directly.
 
 # Capability-exercise smoke (nftables + dnsmasq functional under cap_drop)
 docker exec keel-devbox nft list table inet keel_egress

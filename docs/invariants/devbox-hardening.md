@@ -133,10 +133,14 @@ docker exec keel-devbox sh -c 'printf "#!/bin/sh\necho hello\n" > /tmp/t.sh && c
 ### AC 5 Smoke B — no-new-privileges
 
 ```sh
-docker exec keel-devbox sudo --help; echo exit=$?
-# Under NNP, sudo self-disables (sudo detects PR_SET_NO_NEW_PRIVS=1 via
-# /proc/self/status NoNewPrivs:1 and declines to exec with setuid bit).
-# Expect error exit code — sudo's own refusal or "command not found" class.
+docker exec keel-devbox sh -c 'grep ^NoNewPrivs /proc/self/status'
+# Expect: "NoNewPrivs:\t1". Direct kernel-flag read — version-independent,
+# no dependence on sudo's own NNP detection heuristics. Proves
+# PR_SET_NO_NEW_PRIVS=1 is applied to the container's init process
+# (and inherited by every `docker exec` descendant). Prior `sudo --help`
+# form exited 0 without attempting privilege elevation — false-positive
+# under any posture; /proc/self/status exercises the AC 5 NNP contract
+# directly at the kernel interface.
 ```
 
 ### Capability-exercise smoke (SC-15 ambient-cap verification)
