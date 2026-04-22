@@ -14,6 +14,17 @@
 # matching `*_TOKEN|*_SECRET|*_KEY|*_PASSWORD` has its value echoed
 # (defensive; no such vars exist in the KEEL_DEVBOX_* set at 1.0).
 #
+# Repo-root resolution (AI-5 iter-204 CR): three-tier fallback so symlinked
+# invocations, vendored-at-depth forks (`vendor/keel/packages/devbox/…`),
+# and future `packages/devbox/cli/` reorgs resolve `.envrc` correctly
+# instead of hardcoding "two levels up from `packages/devbox/`". Honours an
+# explicit `KEEL_DEVBOX_REPO_ROOT` envvar override (unconditional operator
+# escape hatch), then `git rev-parse --show-toplevel` (authoritative when
+# `.git` is present — substrate checkouts, forks, worktrees, submodules),
+# then the historical `${DEVBOX_DIR}/../..` arithmetic (tarball-extracted
+# forks where `.git` is absent). Error log at exit 3 cites the override
+# knob so operators can correct a bad auto-detect without editing code.
+#
 # Exit codes (SC-5):
 #   0   every required var present + every shape-validated var passes.
 #   2   missing var(s) or shape violation(s).
@@ -23,7 +34,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
-ENVRC_PATH="${DEVBOX_DIR}/../../.envrc"
+
+# Three-tier repo-root resolver (AI-5): override → git → historical fallback.
+if [[ -n "${KEEL_DEVBOX_REPO_ROOT:-}" ]]; then
+	REPO_ROOT="${KEEL_DEVBOX_REPO_ROOT}"
+elif REPO_ROOT="$(git -C "${DEVBOX_DIR}" rev-parse --show-toplevel 2>/dev/null)"; then
+	: # resolved via git
+else
+	REPO_ROOT="$(cd "${DEVBOX_DIR}/../.." && pwd)"
+fi
+ENVRC_PATH="${REPO_ROOT}/.envrc"
 
 log() { printf 'env-check: %s\n' "$*" >&2; }
 
@@ -58,7 +78,7 @@ SHAPE_POSITIVE_INT=(
 )
 
 if [[ ! -r "${ENVRC_PATH}" ]]; then
-	log ".envrc not found at ${ENVRC_PATH} — run 'direnv allow' or copy 'packages/devbox/.envrc.example' to '.envrc' at the repo root"
+	log ".envrc not found at ${ENVRC_PATH} — run 'direnv allow' or copy 'packages/devbox/.envrc.example' to '.envrc' at the repo root (override auto-detected root via KEEL_DEVBOX_REPO_ROOT if resolved path is wrong for your layout)"
 	exit 3
 fi
 
