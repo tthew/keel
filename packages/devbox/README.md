@@ -342,7 +342,10 @@ docker volume inspect keel-devbox_keel_home_dev
 
 # AC 5 Smoke A — /tmp noexec
 docker exec keel-devbox sh -c 'printf "#!/bin/sh\necho hello\n" > /tmp/t.sh && chmod +x /tmp/t.sh && /tmp/t.sh; echo exit=$?'
-# Expect nonzero exit: "Permission denied" or "exec format error"
+# Expect nonzero exit: "Permission denied".
+# MNT_NOEXEC produces EACCES only; ENOEXEC ("exec format error") is a
+# distinct kernel error class for malformed shebang or bad ELF magic,
+# unrelated to the noexec mount flag — do not expect it from this smoke.
 # Uses `printf` (not POSIX `echo`) so the shebang+body actually land on two lines.
 
 # AC 5 Smoke B — no-new-privileges visible in kernel flags

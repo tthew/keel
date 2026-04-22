@@ -124,7 +124,10 @@ docker volume inspect keel-devbox_keel_home_dev
 
 ```sh
 docker exec keel-devbox sh -c 'printf "#!/bin/sh\necho hello\n" > /tmp/t.sh && chmod +x /tmp/t.sh && /tmp/t.sh; echo exit=$?'
-# Expect nonzero exit: 'Permission denied' or 'exec format error'.
+# Expect nonzero exit: 'Permission denied'.
+# MNT_NOEXEC produces EACCES only; ENOEXEC ("exec format error") is a
+# distinct kernel error class fired for malformed shebangs or bad ELF
+# magic, unrelated to the noexec mount flag — do not expect it here.
 # Uses `printf` not `echo`: POSIX echo does NOT interpret \n without -e, so
 # the shebang+body write is single-line with echo and does not produce a
 # valid script — printf reliably emits both lines (SC-13).
