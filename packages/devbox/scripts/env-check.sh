@@ -88,6 +88,18 @@ fi
 # signal "present but empty" (e.g., `KEEL_DEVBOX_DNS_UPSTREAM=`).
 declare -A parsed
 while IFS= read -r line; do
+	# AI-7 iter-211 CR: strip trailing CR from CRLF line endings before any
+	# downstream parse step. A Windows-edited or WSL-piped `.envrc` ends every
+	# line with `\r`; the trailing-whitespace strip at the end of this loop
+	# relies on `[:space:]` membership, which is locale-dependent for `\r`
+	# (present in POSIX C/en_US isspace(), but exotic locale configurations
+	# may omit it — then `KEEL_DEVBOX_TMPFS_TMP_MB=64\r` reaches the shape
+	# regex with an invisible trailing CR and fails as `'64' — expected
+	# positive integer` with the `\r` un-renderable in log output). Stripping
+	# here (line-level, before quoting-aware extraction) is a strict superset
+	# of the IP-prescribed `value`-level strip: it handles bare values,
+	# quoted values, and shape-validated values uniformly in one site.
+	line="${line%$'\r'}"
 	# Strip leading whitespace.
 	stripped="${line#"${line%%[![:space:]]*}"}"
 	# Skip blank + comments.
