@@ -195,7 +195,7 @@ cmd_sync() {
 	ensure_run_dir
 
 	local tempfile
-	tempfile="$(mktemp /tmp/keel-whitelist-sync.XXXXXX)"
+	tempfile="$(mktemp /run/keel-whitelist-sync.XXXXXX)"
 	# shellcheck disable=SC2064
 	trap "rm -f '${tempfile}'" EXIT
 
