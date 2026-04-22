@@ -1,0 +1,219 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-22T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.8",
+    "label": "Claude Code OAuth via `pnpm claude`"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-8-claude-code-oauth-via-pnpm-claude.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "OAuth flow surfaced to host terminal — `pnpm claude` invokes `claude` inside the container and the OAuth URL is surfaced to the host terminal; following the URL in a host browser completes the flow",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/claude-host.sh (iter-230 NEW; 54 lines; 0755): `#!/usr/bin/env bash` + `set -euo pipefail` + `unset COMPOSE_PROJECT_NAME` (Story 2.6 AI-8/AI-12 + Story 2.7 SC-10 defensive-posture precedent preserved). `CONTAINER_NAME=\"${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}\"` (Story 2.2 .envrc parameterisation consumed). No `SCRIPT_DIR` (SC-4 no-auto-start; contrast Story 2.7 ralph-*-host.sh:29+46). Banner cites Story 2.8 + AC 1–5 + Story 2.6 `<verb>-host.sh` pattern + Story 2.7 ralph-build-host.sh interactive-exec precedent + exit-code contract.",
+        "packages/devbox/scripts/claude-host.sh (iter-230 NEW): Pre-flight 1 — `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { log \"docker unreachable — is the daemon running?\"; exit 8; }`. Inherits Story 2.7 `ralph-build-host.sh:36` tighter variant (catches reachable-but-broken-daemon states) rather than Story 2.6 bare form per v1.1 PATCH 1.",
+        "packages/devbox/scripts/claude-host.sh (iter-230 NEW): Final exec — `exec docker exec -it --user dev -w /workspace \"${CONTAINER_NAME}\" claude \"$@\"`. Interactive-only; hardcoded `-it` (no TTY-detect gate per SC-6 — OAuth flow IS the operator-interactive AC, same posture as Story 2.7 `docker attach` wrappers). `--user dev` binds to UID 1000 per Story 2.5 hardening substrate (`/home/dev/.claude/` inside `keel_home_dev` named volume is dev-owned). `-w /workspace` aligns with Story 2.6 shell.sh/attach.sh cwd convention. Args-passthrough via `\"$@\"` per SC-9 enables `pnpm claude --version` + `pnpm claude -p \"…\"` composition.",
+        "Iteration-env substrate verification (iter-230) — Smoke 3a stub-docker info-fail branch: stub `docker info` returns non-zero → `claude-host.sh` emits `[claude] docker unreachable — is the daemon running?` on stderr + exits 8 (PASS). Stub replaces real docker at PATH head under `<workspace>/.ralph-smoke/shim/` per Story 2.7 iter-223 LESSON (workspace tmpfs noexec forces non-`/tmp/` shim placement).",
+        "Iteration-env substrate verification (iter-230) — Smoke 3c stub-docker running branch: stub `docker inspect --format '{{.State.Status}}' keel-devbox` returns `running` → `claude-host.sh` logs `[claude] invoking claude inside keel-devbox (first run: complete OAuth in host browser; token persists at /home/dev/.claude/)` → proceeds to `exec docker exec -it --user dev -w /workspace keel-devbox claude` → stub-docker captured verbatim (after the leading `exec` verb consumed by the stub) → wrapper exit 0 (PASS).",
+        "Iteration-env substrate verification (iter-230) — Smoke 3d args-passthrough: `claude-host.sh --version` under `STUB_DOCKER_MODE=running` → stub captures `-it --user dev -w /workspace keel-devbox claude --version` — `--version` arg reaches claude verbatim via `\"$@\"` (PASS; SC-9 satisfied).",
+        "Iteration-env substrate verification (iter-230) — bash -n syntax parse PASS (Smoke 1).",
+        "Live-smoke AC 1 runtime verification — `pnpm claude` → URL printed to host terminal → operator follows URL in host browser → device-code exchange completes → token written under `/home/dev/.claude/` — deferred to M4-Pro operator workstation per § Testing Standards ground-(c) `external-service-owns-behavior-under-test`. Backend B iteration env cannot safely exercise interactive OAuth against Anthropic without polluting operator credentials (Story 2.4 SC-17 + Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 + Story 2.7 iter-223 precedent cluster).",
+        "Adversarial AC-1 coverage delegated to iter-CR (Story 2.8 CR opener): Blind Hunter examines pre-flight branches (exit 8 under docker unreachable + exit 9 under container not running) + final-exec assembly correctness (`exec docker exec -it --user dev -w /workspace keel-devbox claude \"$@\"` literal value) + no-auto-start posture (SC-4 pinned; contrast Story 2.7 auto-start); Edge Case Hunter probes docker-exec-output-redirection (OAuth URL printed to stdout — `-it` preserves TTY on both sides, URL surfaces to host terminal; no stdout redirection in wrapper); Acceptance Auditor verifies AC 1 verbatim match — `pnpm claude` → claude inside container → OAuth URL to host terminal → host browser completes flow."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "Token persisted in named volume — tokens stored at `/home/dev/.claude/` inside the Story 2.5 `keel_home_dev` named volume; token file is never bind-mounted to host filesystem",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "Story 2.5 substrate (iter-188 landed; UNTOUCHED at Story 2.8 iter-230): `packages/devbox/docker-compose.yml:90-92` declares `keel_home_dev` named volume mounted at `/home/dev` with `INV-devbox-homedev-named-volume` enforcing non-toggle-able posture. `/home/dev/.claude/` inherits the named-volume persistence transitively — token file lives inside the named volume by construction, not by Story 2.8 wrapper action. Story 2.8 does NOT create, mount, or modify any volume; composition-only on Story 2.5.",
+        "packages/devbox/scripts/claude-host.sh (iter-230 NEW): Wrapper does NOT read, parse, inspect, bind-mount, or surface the token file. Zero `volume` / `mount` / `--mount` / `-v` flags in the final exec line. Token file format + write location owned by upstream `@anthropic-ai/claude-code@2.1.116` CLI (Dockerfile:119 baked). SC-15 read-only posture codifies the no-wrapper-token-access discipline.",
+        "Iteration-env substrate verification (iter-230) — grep `-c 'volume\\|mount\\|-v ' packages/devbox/scripts/claude-host.sh` → 0 matches (verified: no bind-mount flags in wrapper). `grep -c '\\.claude' packages/devbox/scripts/claude-host.sh` → reference only in the info-log literal (`token persists at /home/dev/.claude/`), not in any exec argument.",
+        "SC-12 scope carve-out (iter-228 pinned + iter-230 implementation-confirmed): Story 2.8 does NOT modify `packages/devbox/docker-compose.yml`. The stale `# TODO(Story 2.8 / 2.9): named-volume mounts for OAuth tokens.` at compose:156 is intentionally left in place per SC-12 — Story 2.5 compose:90-92 already subsumes the token-mount requirement; TODO is self-documenting.",
+        "Live-smoke AC 2 runtime verification — `pnpm claude` → OAuth completes → `docker exec keel-devbox ls -la /home/dev/.claude/` shows token file owned by UID 1000 inside `keel_home_dev` named volume; `docker inspect --format '{{json .Mounts}}' keel-devbox | jq` confirms `/home/dev` mount source is the named volume NOT a bind-mount path — deferred to M4-Pro operator workstation per § Testing Standards ground-(c) + Story 2.5 iter-187 precedent cluster.",
+        "Adversarial AC-2 coverage delegated to iter-CR: Blind Hunter verifies the wrapper has zero path traversal or token-handling logic (SC-15 read-only posture holds; upstream CLI owns the token write); Edge Case Hunter probes the Story 2.5 named-volume contract durability (operator explicit `-v /path:/home/dev` override at docker run time would bypass the volume — not reachable via `pnpm claude` surface per Story 2.6 wrapping; operator can only drop to raw `docker run` deliberately, which is FR1 non-toggle-able invariant violation anyway); Acceptance Auditor verifies AC 2 verbatim match — tokens at `/home/dev/.claude/` + never bind-mounted to host."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "Token survives restart — `pnpm devbox:restart` or `pnpm devbox:stop && start` preserves token; subsequent Claude Code invocation reuses existing token (no re-auth)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "Story 2.5 substrate (iter-188 landed; UNTOUCHED at Story 2.8 iter-230): `keel_home_dev` named volume survives container restart by Docker semantics — `docker compose down` without `--volumes` flag does NOT delete named volumes; `docker compose up -d` on an existing volume mounts the same volume. Story 2.6 `pnpm devbox:restart` + `pnpm devbox:stop && start` are the canonical restart primitives and are named-volume-safe by Story 2.6 SC default + Story 2.5 `INV-devbox-homedev-named-volume`. Token-survival is a property of the Docker named-volume substrate, NOT of Story 2.8's wrapper.",
+        "packages/devbox/scripts/claude-host.sh (iter-230 NEW): Wrapper is stateless — re-invocation after restart hits the same pre-flight branches + final exec line against the same `${CONTAINER_NAME}` container. There is no wrapper-side state cache; claude reads its token from the mounted named volume on every invocation. Idempotent by construction.",
+        "Upstream Claude Code CLI semantics (`@anthropic-ai/claude-code@2.1.116` baked at Dockerfile:119): On invocation, claude checks `/home/dev/.claude/` for an existing token; valid token → skip OAuth, proceed silently; missing or expired token → trigger OAuth flow (AC 4 path). This is upstream Anthropic-owned behavior — Story 2.8 does NOT duplicate, proxy, or inspect it. `@anthropic-ai/claude-code@2.1.116` pinning protects against upstream breaking changes until substrate-controlled bump.",
+        "Live-smoke AC 3 runtime verification — sequence `pnpm claude` (OAuth completes first run) → `pnpm devbox:restart` → `pnpm claude` second invocation → claude proceeds silently (no OAuth re-trigger; existing token reused) — deferred to M4-Pro operator workstation per § Testing Standards ground-(c). Requires live Anthropic endpoint for initial seed; subsequent restart-survival check is a filesystem-persistence assertion against Docker named-volume semantics (Story 2.5 substrate; not re-verified at Story 2.8 scope).",
+        "Adversarial AC-3 coverage delegated to iter-CR: Blind Hunter verifies the wrapper adds no re-auth-forcing logic (no `rm /home/dev/.claude/*` or `--logout` flag injection); Edge Case Hunter probes concurrent-invocation (two operators run `pnpm claude` on the same devbox simultaneously — upstream CLI owns the file-locking contract; Story 2.8 wrapper does not serialise), token-file-corruption (upstream CLI owns recovery — AC 4 re-auth path activates); Acceptance Auditor verifies AC 3 verbatim match — restart preserves token + subsequent invocation reuses it."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "Re-auth on expiry is self-serve — Ralph or manual `claude` invocation under expired/revoked token surfaces clear re-auth pointer; `pnpm claude` can be re-run to refresh without affecting other devbox state",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/README.md (iter-230 MODIFIED): New `## Claude Code authentication (Story 2.8)` H2 sibling section documents the re-auth path operator-facing — bullet (d): \"if claude reports 'not authenticated' or Ralph's pre-push gate surfaces an auth failure, re-run `pnpm claude` — OAuth re-triggers in the same flow.\" Operator comprehension covered.",
+        "AGENTS.md (iter-230 MODIFIED): New `### Claude Code authentication (Story 2.8)` H3 sibling section under § Devbox iteration environment documents the agent-facing re-auth pointer — `Re-auth pointer:` bullet: \"if Ralph's `gh push`-adjacent tooling reports a Claude Code auth failure, queue `pnpm claude` as a fix task (operator-interactive). Agents SHOULD NOT attempt automated re-auth — OAuth requires a host browser.\" Agent contract codified.",
+        "packages/devbox/scripts/claude-host.sh (iter-230 NEW): Re-auth flows through the SAME pre-flight branches + same final exec line as initial auth — wrapper is idempotent. Upstream CLI detects expired/revoked token and triggers OAuth flow on invocation; wrapper surfaces the URL to operator terminal identically to AC 1. No separate re-auth code path needed.",
+        "Upstream Claude Code CLI semantics (`@anthropic-ai/claude-code@2.1.116`): Token expiry + refresh + re-OAuth-trigger logic owned by upstream. Clear error message surfacing is upstream behavior; Story 2.8 wrapper neither catches nor massages claude's stderr. SC-15 read-only posture.",
+        "Live-smoke AC 4 runtime verification — sequence `pnpm claude` (OAuth completes) → artificially expire token (`docker exec keel-devbox sh -c 'touch -d \"-30 days\" /home/dev/.claude/*'` OR wait for real expiry) → `pnpm claude` → claude detects expiration, prints re-auth URL, operator re-completes OAuth in browser — deferred to M4-Pro operator workstation per § Testing Standards ground-(c). Requires live Anthropic endpoint + real token lifecycle.",
+        "Adversarial AC-4 coverage delegated to iter-CR: Blind Hunter verifies the wrapper does not suppress or mangle claude's stderr (no `2>/dev/null` or stderr redirection on the final exec); Edge Case Hunter probes partial-expiry (refresh-token valid + access-token expired — upstream CLI owns refresh-flow; Story 2.8 transparent), revocation-from-anthropic-side (upstream reports 401 + triggers OAuth; same surfaced-URL flow as AC 1); Acceptance Auditor verifies AC 4 verbatim match — expired/revoked token → clear re-auth pointer + `pnpm claude` refresh path + no collateral devbox-state damage."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": "Volume-delete clears token (NFR10 fresh-fork behaviour) — `pnpm devbox:clean --with-volumes` wipes tokens; next devbox run requires `pnpm claude` re-auth",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "Story 2.6 substrate (iter-201 landed; UNTOUCHED at Story 2.8 iter-230): `pnpm devbox:clean` preserves `keel_home_dev` by default (NFR10). `--with-volumes` flag gates on `[y/N]` prompt (or `--yes`); under backend B an additional `--force-backend-b` flag is required to prevent surprise destruction of a host-shared volume per AGENTS.md § Host-side CLI (Story 2.6). Volume-delete → `/home/dev/.claude/` → token file gone by Docker semantics.",
+        "packages/devbox/scripts/claude-host.sh (iter-230 NEW): Wrapper does NOT cache or persist token state outside `/home/dev/.claude/`. After `pnpm devbox:clean --with-volumes`, next `pnpm claude` invocation hits an empty `/home/dev/.claude/` → upstream CLI detects no token → triggers OAuth flow → operator completes → token re-seeds fresh. Expected per NFR10 fresh-fork behaviour (deliberate design; not a bug).",
+        "packages/devbox/README.md (iter-230 MODIFIED): § Claude Code authentication bullet (e) — \"`pnpm devbox:clean --with-volumes` wipes `/home/dev/.claude/` along with `keel_home_dev`; expected per NFR10 fresh-fork behaviour; re-run `pnpm claude` to re-seed.\" Operator comprehension covered.",
+        "Story 2.5 substrate: `INV-devbox-homedev-named-volume` enforces named-volume posture; volume-delete semantics are Docker-native. Story 2.8 does NOT add a re-seed-on-delete hook or auto-re-auth — operator-interactive re-seed is the intended NFR10 posture.",
+        "Live-smoke AC 5 runtime verification — sequence `pnpm claude` (OAuth seeds token) → `pnpm devbox:clean --with-volumes --force-backend-b` (volume deleted) → `pnpm devbox:start` → `pnpm claude` → OAuth URL surfaces again (token gone; fresh flow required) — deferred to M4-Pro operator workstation per § Testing Standards ground-(c) + Story 2.5 iter-187 precedent. Backend B cannot safely exercise `--with-volumes --force-backend-b` without destroying host-shared state.",
+        "Adversarial AC-5 coverage delegated to iter-CR: Blind Hunter verifies no wrapper-side backup or shadow-copy of token outside the named volume (SC-15 read-only posture); Edge Case Hunter probes `pnpm devbox:clean` WITHOUT `--with-volumes` (token SHOULD survive — NFR10 preservation; verified by Story 2.6 iter-201 substrate default), partial-volume-delete-interruption (volume is atomic at Docker daemon level — either deleted or retained, no partial state), named-volume-renamed-by-operator (`COMPOSE_PROJECT_NAME` override would produce a different volume name — Story 2.8 wrapper's `unset COMPOSE_PROJECT_NAME` defends against this per Story 2.6 AI-8 + Story 2.7 SC-10 pattern); Acceptance Auditor verifies AC 5 verbatim match — volume-delete → token gone → `pnpm claude` re-auth required."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 5, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-5", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — five P2 ACs covering an Epic-2-ships-envelope-upstream-CLI-ships-runtime class story (EIGHTH Epic 2 delivery: 1 NEW host-side bash shim under packages/devbox/scripts/claude-host.sh composed on Story 2.6's 13 pnpm devbox:* verbs + Story 2.7's 2 pnpm ralph:* verbs + 1 NEW pnpm `claude` script entry in repo-root package.json + 1 NEW README H2 § Claude Code authentication (Story 2.8) + 1 NEW AGENTS.md H3 § Claude Code authentication (Story 2.8) + Story 2.8 Change Log v1.3). All 5 ACs have substrate evidence verified LIVE at iter-230: Task 5 iteration-env-safe smokes ALL PASSED — bash -n × 1 script (syntax valid); pnpm wiring count 1 (claude); stub-docker info-fail branch → exit 8 + log `[claude] docker unreachable — is the daemon running?`; stub-docker not-running branch → exit 9 + log `[claude] container 'keel-devbox' is not running — run 'pnpm devbox:start' first`; stub-docker running branch → final exec `docker exec -it --user dev -w /workspace keel-devbox claude` captured verbatim → exit 0; args-passthrough `claude-host.sh --version` → stub captures `-it --user dev -w /workspace keel-devbox claude --version` (--version reaches claude verbatim); no-TTY-gate verification `grep -c 'tty_flag\\|-t 0' claude-host.sh` → 0 matches (hardcoded -it per SC-6). 1/5 ACs (AC 1 invocation envelope) substrate-smoked at shell level (pre-flight branches + final-exec assembly + args-passthrough); 4/5 ACs (AC 2 token-volume-persistence / AC 3 restart-survival / AC 4 re-auth-on-expiry / AC 5 volume-delete-clears) upstream-CLI + Docker-substrate-deferred under SC-2 ground-(c) `external-service-owns-behavior-under-test` + `substrate-layer-owns-behavior-under-test` — full verification unlocks at M4-Pro operator workstation live OAuth flow against Anthropic endpoint. EIGHTEENTH cumulative trace-WAIVED precedent; NINETEENTH ATDD-skip-trace-WAIVED co-application pairing.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.8 authors 1 NEW host-side bash shim + 3 modified files per SC-17 scope boundary: packages/devbox/scripts/claude-host.sh (54 lines; 0755; inherits Story 2.7 interactive-exec precedent from ralph-build-host.sh) + repo-root package.json (+1 `claude` entry after ralph:plan before prepare per SC-3) + packages/devbox/README.md (+1 NEW H2 `## Claude Code authentication (Story 2.8)` sibling of Story 2.7 `## Ralph loop (Story 2.7)`; 8 bullets a–h: quick-start + OAuth flow + persistence contract + re-auth path + volume-delete reset + pre-flight + exit codes + agent-doc cross-ref) + AGENTS.md (+1 NEW H3 `### Claude Code authentication (Story 2.8)` sibling of Story 2.7 `### Ralph loop (Story 2.7)` under § Devbox iteration environment; 4 bullets a–d: wrapper pattern + no-auto-start contrast + token-persistence contract + re-auth pointer + upstream scope carve-out). Substrate contracts preserved verbatim per § Substrate contracts preserved: Story 2.1 Dockerfile + entrypoint.sh + CMD[sleep,infinity] UNTOUCHED; Story 2.2 .envrc parameterisation consumed (KEEL_DEVBOX_CONTAINER_NAME read); Story 2.3 egress substrate composed on (api.anthropic.com + console.anthropic.com already whitelisted); Story 2.4 whitelist orthogonal; Story 2.5 hardening + named-volume posture LOAD-BEARING for AC 2/3/5 (NOT modified); Story 2.6 13 pnpm devbox:* verbs + host-side shim pattern + interactive-exec convention COMPOSED ON (shell.sh + attach.sh pattern-mirror); Story 2.7 2-verb ralph surface + ralph-*-host.sh interactive-exec precedent COMPOSED ON (NOT auto-start — SC-4 explicit deviation); Story 1.12 theme.py orthogonal (Epic 3 consumer). No new invariants.manifest.ts entries (SC carve-out; all contracts compose on INV-devbox-dind-available + INV-devbox-egress-contract + INV-devbox-homedev-named-volume). Sync-gate GREEN (no invariant contentHash drift; 1 NEW script does not affect existing invariant sourcePaths).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.8 live-OAuth-flow verification unlocks at M4-Pro operator workstation backend-A: AC 1 OAuth URL surface requires live `@anthropic-ai/claude-code@2.1.116` reaching Anthropic's OAuth endpoint (`api.anthropic.com` + `console.anthropic.com` already in substrate whitelist per Story 2.3/2.4) + host browser for URL completion + M4-Pro native Docker Desktop for reliable `docker exec -it` TTY + stdin_open under cap-dropped containers; AC 2 token file write requires live claude completing OAuth + filesystem inspection inside `keel_home_dev` named volume; AC 3 token-survival-across-restart requires live token seed + `pnpm devbox:restart` + silent second invocation; AC 4 re-auth-on-expiry requires real token lifecycle (or simulated `touch` back-dating) + upstream CLI detecting expiration + re-triggering OAuth; AC 5 volume-delete-clears requires `pnpm devbox:clean --with-volumes --force-backend-b` (destructive on host-shared state under backend B — M4-Pro operator workstation is backend-A where `--force-backend-b` is not required). No Story 2.8 code change required at any AC verification point — wrapper is stateless; upstream CLI + Docker named-volume substrate own all five behaviors. Downstream consumer signal: Story 2.9 `pnpm gh:auth` inherits the same upstream-CLI-ships-runtime pattern verbatim (GitHub CLI + GitHub OAuth endpoint); NINETEENTH ATDD-skip-trace-WAIVED pairing forecast at Story 2.9 with identical ground-(c) variant `external-service-owns-behavior-under-test`.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
