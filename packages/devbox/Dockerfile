@@ -262,6 +262,21 @@ RUN groupadd --gid 1000 dev \
  && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev \
  && chown -R dev:dev /home/dev
 
+# ---------------------------------------------------------------------------
+# Story 2.5 CR AI-2 — dnsmasq log-facility writable under USER dev.
+#
+# dnsmasq.conf's `log-facility=/var/log/dnsmasq.log` opens that file for
+# append at startup. Under `USER dev` (below) dnsmasq runs as UID 1000 and
+# `cap_drop: [ALL]` strips CAP_DAC_OVERRIDE, so it cannot create/append
+# files under the root-owned /var/log tree — dnsmasq would fatal-exit at
+# boot, reload-egress.sh would return 7, start-egress.sh would fail-close
+# and the container would never come up. Pre-create the file as dev-owned
+# so the open-for-append succeeds without chown'ing /var/log globally
+# (preserves dpkg/apt log ownership). egress-log-tailer.sh (Story 2.3)
+# tails this exact path — no tailer/script edits required.
+# ---------------------------------------------------------------------------
+RUN install -m 0644 -o dev -g dev /dev/null /var/log/dnsmasq.log
+
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
