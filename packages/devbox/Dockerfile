@@ -28,6 +28,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
 #   unzip, jq, software-properties-common, lsb-release.
 # - Postgres client (`psql`): forward-compatibility for Epic 6 Story 6.5
 #   `pnpm rls:explain` without image rebuilds (story AC3 Dev Note).
+# - setcap tool (`libcap2-bin`): provides `/sbin/setcap` invoked at image-build
+#   (Dockerfile `RUN setcap … /usr/sbin/dnsmasq` / `… /usr/sbin/nft` below) to
+#   emit `+eip` file-capabilities as a portability fallback for runtimes
+#   without Docker ≥19.03 ambient-cap automation. Ubuntu 24.04 does NOT ship
+#   libcap2-bin by default; omission fails the build at the first `setcap` RUN
+#   with `setcap: command not found` (Story 2.5 CR finding AI-6, iter-193).
 # - Playwright browser OS-level libraries per
 #   https://playwright.dev/docs/browsers#install-browsers — Ubuntu 24.04 deps
 #   list kept inline so Renovate (Story 1.15 `.github/renovate.json` custom
@@ -61,6 +67,7 @@ RUN apt-get update \
       less \
       locales \
       postgresql-client \
+      libcap2-bin \
       libnss3 \
       libnspr4 \
       libatk1.0-0t64 \
