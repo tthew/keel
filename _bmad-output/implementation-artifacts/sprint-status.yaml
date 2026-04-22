@@ -18,6 +18,7 @@
 # last_updated: 2026-04-22 Story-2-5-ready-for-dev UTC
 # last_updated: 2026-04-22 Story-2-5-in-progress UTC
 # last_updated: 2026-04-22 Story-2-5-review UTC
+# last_updated: 2026-04-22 Story-2-5-done UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -53,7 +54,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-22 Story-2-5-in-progress UTC
+last_updated: 2026-04-22 Story-2-5-done UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -84,7 +85,7 @@ development_status:
   2-2-envrc-parameterisation-contract: done
   2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: done
   2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: done
-  2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: review
+  2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: done
   2-6-host-side-pnpm-devbox-cli-surface: backlog
   2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan: backlog
   2-8-claude-code-oauth-via-pnpm-claude: backlog
