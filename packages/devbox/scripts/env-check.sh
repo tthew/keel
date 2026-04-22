@@ -98,13 +98,26 @@ while IFS= read -r line; do
 	[[ "${stripped}" =~ ^KEEL_DEVBOX_[A-Z0-9_]+= ]] || continue
 	name="${stripped%%=*}"
 	value="${stripped#*=}"
-	# Strip surrounding quotes.
-	value="${value#\"}"; value="${value%\"}"
-	value="${value#\'}"; value="${value%\'}"
-	# Strip inline trailing comment (after whitespace). Conservative: only
-	# strip when a space precedes `#` to avoid corrupting values containing
-	# `#` (none expected in KEEL_DEVBOX_* but defensive).
-	value="${value%% #*}"
+	# Value-parse preserving quoting context (AI-6 iter-210 CR): if the
+	# value is quoted, the quoted content is authoritative — do NOT strip
+	# `#` inside it. Operators MAY intentionally embed a literal `#` in a
+	# quoted value (e.g. `KEEL_DEVBOX_DNS_UPSTREAM="1.1.1.1 # primary"`
+	# where the trailing `# primary` is part of the value, not a shell
+	# comment). Only bare values get inline-comment stripping. The prior
+	# "strip quotes first, then `%% #*`" order dropped quoted-internal
+	# content after the first ` #` substring.
+	first_char="${value:0:1}"
+	if [[ "${first_char}" == '"' || "${first_char}" == "'" ]]; then
+		# Quoted: capture content up to the FIRST matching close-quote
+		# (`%%${qc}*` longest-trailing-match strips from the earliest
+		# close-quote onwards). Any trailing ` # comment` after the
+		# closing quote is discarded — that's a real comment.
+		rest="${value:1}"
+		value="${rest%%${first_char}*}"
+	else
+		# Bare: strip inline trailing comment (after whitespace).
+		value="${value%% #*}"
+	fi
 	# Strip trailing whitespace.
 	value="${value%"${value##*[![:space:]]}"}"
 	parsed["${name}"]="${value}"
