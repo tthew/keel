@@ -26,6 +26,22 @@
 # AC 3 / AC 4 raw-compose verifications are runnable.
 # ---------------------------------------------------------------------------
 
+# Compose project name. Without this key, Docker Compose defaults the project
+# name to the basename of the compose file's directory (`devbox`), producing
+# fully-qualified resource names like `devbox_keel_home_dev`. The documented
+# operator verification commands — `docker volume inspect
+# keel-devbox_keel_home_dev` in `packages/devbox/README.md § Hardening §
+# Verification` and `docs/invariants/devbox-hardening.md § Verification` —
+# together with the `INV-devbox-homedev-named-volume` invariant surface all
+# pin the `keel-devbox_*` project prefix. Pinning the project name here
+# aligns compose identity with the `container_name` default (`keel-devbox`
+# per the service-level block below) AND the documented volume identity, so
+# `docker volume inspect keel-devbox_keel_home_dev` + `docker inspect
+# keel-devbox --format '… keel-devbox_keel_home_dev …'` resolve without
+# operator intervention. Rationale: Story 2.5 CR AI-3 (iter-190 Blind
+# Hunter) — iter-194 drain.
+name: keel-devbox
+
 services:
   devbox:
     # Parameterised so two worktrees / two forks sharing a single host
