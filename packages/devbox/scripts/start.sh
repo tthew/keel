@@ -17,7 +17,16 @@
 #   3   env-check.sh source unreadable (propagated).
 #   8   docker runtime unreachable (`docker info` failed).
 #   10  image not built (run `pnpm devbox:build` first).
-#   11  healthcheck timeout — container left running for debugging.
+#   11  startup polling failed. Three sub-cases, same code (SC-5 keeps the exit
+#       set flat):
+#         (a) healthcheck timeout (line 65-68) — container left running for
+#             debug via 'pnpm devbox:logs';
+#         (b) container 'unhealthy' (line 84-87) — still running; logs hint
+#             applies;
+#         (c) container entered fatal state 'exited|dead|removing|paused'
+#             (line 88-91) — NOT running; 'pnpm devbox:logs' may still print
+#             last output before exit but the "left running" promise does not
+#             apply. Operator hint is state-aware (AI-2, iter-206).
 #   *   docker compose up error (propagated).
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -81,8 +90,19 @@ while true; do
 				log "container still 'starting' past 30s grace — continuing to poll until ${HEALTHCHECK_TIMEOUT_S}s deadline"
 			fi
 			;;
-		unhealthy|exited|dead|removing|paused)
-			log "container entered fatal state '${health}' — check 'pnpm devbox:logs'"
+		unhealthy)
+			# Container is still running — healthcheck probe is failing.
+			# 'pnpm devbox:logs' gives live output; docstring's "left running
+			# for debugging" promise holds.
+			log "container 'unhealthy' (still running) — check 'pnpm devbox:logs' for failing healthcheck"
+			exit 11
+			;;
+		exited|dead|removing|paused)
+			# Container is NOT running. Docker retains logs for 'exited'
+			# containers (daemon-config-dependent for 'removing'); be honest
+			# that the "left running for debugging" promise from the docstring
+			# does not apply here.
+			log "container entered fatal state '${health}' (not running) — 'pnpm devbox:logs' may show last output before exit"
 			exit 11
 			;;
 		"")
