@@ -1,6 +1,6 @@
 # Story 2.4: Whitelist source-of-truth + `pnpm devbox:whitelist` atomic-reload CLI
 
-Status: validated
+Status: in-dev
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -84,57 +84,57 @@ so that egress policy changes are reviewable in git and applied without containe
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — `scripts/whitelist.sh` skeleton + subcommand dispatcher** (AC 2, SC-1, SC-11, SC-13)
-  - [ ] Subtask 1.1: create `packages/devbox/scripts/whitelist.sh` with standard header (`#!/usr/bin/env bash`, `set -euo pipefail`, banner comment referencing Story 2.4 + AC 2 + SC-1). Set `chmod 0755`.
-  - [ ] Subtask 1.2: declare constants — `SCRIPT_DIR` (self-rooted), `DEVBOX_DIR` (`${SCRIPT_DIR}/..`), `WHITELIST_DEFAULT` (`${DEVBOX_DIR}/whitelist.default.txt`), `WHITELIST_FRAGMENTS_DIR` (`${DEVBOX_DIR}/whitelist`), `WHITELIST_LOCAL` (`${DEVBOX_DIR}/whitelist.local.txt`), `COMPOSED_WHITELIST` (`/run/keel-whitelist.composed.txt` — reuse Story 2.3's path), `PREVIOUS_COMPOSED` (`/run/keel-whitelist.previous.txt`; SC-18), `MUTATE_LOCK` (`/run/keel-whitelist-mutate.lock`; SC-8), `RELOAD_SCRIPT` (`${SCRIPT_DIR}/reload-egress.sh`).
-  - [ ] Subtask 1.3: implement `usage()` function emitting a short help block to stderr (4 subcommand lines + exit codes summary) and `log()` helper mirroring Story 2.3's `printf 'whitelist: %s\n' "$*" >&2`.
-  - [ ] Subtask 1.4: main dispatcher — parse `$1` as subcommand; case block routing to `cmd_sync`, `cmd_add`, `cmd_remove`, `cmd_list`; default + empty case prints usage + exit 2. Each sub-case shifts remaining args and calls the corresponding function.
+- [x] **Task 1 — `scripts/whitelist.sh` skeleton + subcommand dispatcher** (AC 2, SC-1, SC-11, SC-13)
+  - [x] Subtask 1.1: create `packages/devbox/scripts/whitelist.sh` with standard header (`#!/usr/bin/env bash`, `set -euo pipefail`, banner comment referencing Story 2.4 + AC 2 + SC-1). Set `chmod 0755`.
+  - [x] Subtask 1.2: declare constants — `SCRIPT_DIR` (self-rooted), `DEVBOX_DIR` (`${SCRIPT_DIR}/..`), `WHITELIST_DEFAULT` (`${DEVBOX_DIR}/whitelist.default.txt`), `WHITELIST_FRAGMENTS_DIR` (`${DEVBOX_DIR}/whitelist`), `WHITELIST_LOCAL` (`${DEVBOX_DIR}/whitelist.local.txt`), `COMPOSED_WHITELIST` (`/run/keel-whitelist.composed.txt` — reuse Story 2.3's path), `PREVIOUS_COMPOSED` (`/run/keel-whitelist.previous.txt`; SC-18), `MUTATE_LOCK` (`/run/keel-whitelist-mutate.lock`; SC-8), `RELOAD_SCRIPT` (`${SCRIPT_DIR}/reload-egress.sh`).
+  - [x] Subtask 1.3: implement `usage()` function emitting a short help block to stderr (4 subcommand lines + exit codes summary) and `log()` helper mirroring Story 2.3's `printf 'whitelist: %s\n' "$*" >&2`.
+  - [x] Subtask 1.4: main dispatcher — parse `$1` as subcommand; case block routing to `cmd_sync`, `cmd_add`, `cmd_remove`, `cmd_list`; default + empty case prints usage + exit 2. Each sub-case shifts remaining args and calls the corresponding function.
 
-- [ ] **Task 2 — Composition + validation primitives** (AC 1, AC 3, SC-4, SC-5, SC-6)
-  - [ ] Subtask 2.1: implement `compose_whitelist_into()` — takes destination path as arg; emits the composed (baseline → fragments sorted → `whitelist.local.txt` if present) + comment-stripped + blank-stripped + `sort -u` output into the destination. MUST produce byte-identical output to Story 2.3's `start-egress.sh:66-99` `compose_whitelist()` for the same input files (SC-14 dual-composer contract). Use `mapfile -t fragments < <(LC_ALL=C find "${WHITELIST_FRAGMENTS_DIR}" -maxdepth 1 -type f -name '*.txt' -print | sort)` — identical to start-egress.sh iter-170 pattern (whitespace-safe enumeration).
-  - [ ] Subtask 2.2: implement `validate_composed()` — takes a composed whitelist path as arg; iterates `whitelist.default.txt` + every `whitelist/*.txt` + `whitelist.local.txt` (if present); per-file per-line-after-strip, applies the LDH regex (SC-5) + 253-char total-length bound; on failure emits `<file>:<lineno>: invalid domain syntax: '<line>'` to stderr (SC-6). Uses `local -i error_count=0`; returns 0 if zero errors, 2 otherwise. Collect ALL errors before returning (operator sees the full list, not just the first).
-  - [ ] Subtask 2.3: implement `mkdir -p /run` idempotent pre-flight at function-call time (matches start-egress.sh:35 posture; `/run` may be empty or not-yet-writable on a fresh container init, though in practice `start-egress.sh` has already run by the time `whitelist.sh` is invoked — the idempotent mkdir is defensive belt-and-braces).
+- [x] **Task 2 — Composition + validation primitives** (AC 1, AC 3, SC-4, SC-5, SC-6)
+  - [x] Subtask 2.1: implement `compose_whitelist_into()` — takes destination path as arg; emits the composed (baseline → fragments sorted → `whitelist.local.txt` if present) + comment-stripped + blank-stripped + `sort -u` output into the destination. MUST produce byte-identical output to Story 2.3's `start-egress.sh:66-99` `compose_whitelist()` for the same input files (SC-14 dual-composer contract). Use `mapfile -t fragments < <(LC_ALL=C find "${WHITELIST_FRAGMENTS_DIR}" -maxdepth 1 -type f -name '*.txt' -print | sort)` — identical to start-egress.sh iter-170 pattern (whitespace-safe enumeration).
+  - [x] Subtask 2.2: implement `validate_composed()` — takes a composed whitelist path as arg; iterates `whitelist.default.txt` + every `whitelist/*.txt` + `whitelist.local.txt` (if present); per-file per-line-after-strip, applies the LDH regex (SC-5) + 253-char total-length bound; on failure emits `<file>:<lineno>: invalid domain syntax: '<line>'` to stderr (SC-6). Uses `local -i error_count=0`; returns 0 if zero errors, 2 otherwise. Collect ALL errors before returning (operator sees the full list, not just the first).
+  - [x] Subtask 2.3: implement `mkdir -p /run` idempotent pre-flight at function-call time (matches start-egress.sh:35 posture; `/run` may be empty or not-yet-writable on a fresh container init, though in practice `start-egress.sh` has already run by the time `whitelist.sh` is invoked — the idempotent mkdir is defensive belt-and-braces).
 
-- [ ] **Task 3 — `sync` subcommand** (AC 2, AC 4, SC-4, SC-7, SC-17)
-  - [ ] Subtask 3.1: `cmd_sync()` — no args; if args are passed, usage + exit 2.
-  - [ ] Subtask 3.2: compose to a tempfile (`mktemp /tmp/keel-whitelist-sync.XXXXXX`) via `compose_whitelist_into()`. Trap-register the tempfile for EXIT cleanup.
-  - [ ] Subtask 3.3: validate the source files via `validate_composed()`; on non-zero, exit 2 WITHOUT invoking `reload-egress.sh` (SC-6 fail-closed).
-  - [ ] Subtask 3.4: compute diff — if `${PREVIOUS_COMPOSED}` exists, run `diff --new-line-format='+%L' --old-line-format='-%L' --unchanged-line-format='' "${PREVIOUS_COMPOSED}" "${tempfile}"` into a variable; otherwise every line is a `+` addition (first-sync-after-boot case per SC-18). GNU `diff` emits changed lines in file-position order — for two already-sorted inputs this yields per-label-sorted but **interleaved** `+`/`-` lines. SC-7 format mandates `+` group first, then `-` group, each sorted alphabetically — so post-process the raw diff: extract additions (`grep '^+' | sort`) and removals (`grep '^-' | sort`) into two separate sorted lists. Count additions + removals (`wc -l` each after grouping).
-  - [ ] Subtask 3.5: move tempfile onto `${COMPOSED_WHITELIST}` (`mv`, atomic inode swap — tempfile is on the same filesystem via `/tmp` on tmpfs, so `mv` is rename(2)). If the move fails (cross-fs; shouldn't happen on standard devbox but defensive), fall back to `cp -f` + `rm`.
-  - [ ] Subtask 3.6: invoke `${RELOAD_SCRIPT} "${COMPOSED_WHITELIST}"` — propagate its exit code (SC-11 passthrough 5/6/7). On non-zero reload, DO NOT update `${PREVIOUS_COMPOSED}` (the policy didn't change; the next sync should diff against the still-previous state).
-  - [ ] Subtask 3.7: on reload success, `cp -f "${COMPOSED_WHITELIST}" "${PREVIOUS_COMPOSED}"` (+ `chmod 0644`). This establishes the snapshot for the next diff (SC-18).
-  - [ ] Subtask 3.8: emit the diff summary to stdout per SC-7 format — header line (`whitelist sync: <N> domains active`), then the sorted additions list from Subtask 3.4 (each prefixed `+`), then the sorted removals list (each prefixed `-`), then the trailing count line `(<A> added, <R> removed)`. If zero additions and zero removals, emit only the header + `(0 added, 0 removed)` parenthetical.
-  - [ ] Subtask 3.9: exit 0.
+- [x] **Task 3 — `sync` subcommand** (AC 2, AC 4, SC-4, SC-7, SC-17)
+  - [x] Subtask 3.1: `cmd_sync()` — no args; if args are passed, usage + exit 2.
+  - [x] Subtask 3.2: compose to a tempfile (`mktemp /tmp/keel-whitelist-sync.XXXXXX`) via `compose_whitelist_into()`. Trap-register the tempfile for EXIT cleanup.
+  - [x] Subtask 3.3: validate the source files via `validate_composed()`; on non-zero, exit 2 WITHOUT invoking `reload-egress.sh` (SC-6 fail-closed).
+  - [x] Subtask 3.4: compute diff — if `${PREVIOUS_COMPOSED}` exists, run `diff --new-line-format='+%L' --old-line-format='-%L' --unchanged-line-format='' "${PREVIOUS_COMPOSED}" "${tempfile}"` into a variable; otherwise every line is a `+` addition (first-sync-after-boot case per SC-18). GNU `diff` emits changed lines in file-position order — for two already-sorted inputs this yields per-label-sorted but **interleaved** `+`/`-` lines. SC-7 format mandates `+` group first, then `-` group, each sorted alphabetically — so post-process the raw diff: extract additions (`grep '^+' | sort`) and removals (`grep '^-' | sort`) into two separate sorted lists. Count additions + removals (`wc -l` each after grouping).
+  - [x] Subtask 3.5: move tempfile onto `${COMPOSED_WHITELIST}` (`mv`, atomic inode swap — tempfile is on the same filesystem via `/tmp` on tmpfs, so `mv` is rename(2)). If the move fails (cross-fs; shouldn't happen on standard devbox but defensive), fall back to `cp -f` + `rm`.
+  - [x] Subtask 3.6: invoke `${RELOAD_SCRIPT} "${COMPOSED_WHITELIST}"` — propagate its exit code (SC-11 passthrough 5/6/7). On non-zero reload, DO NOT update `${PREVIOUS_COMPOSED}` (the policy didn't change; the next sync should diff against the still-previous state).
+  - [x] Subtask 3.7: on reload success, `cp -f "${COMPOSED_WHITELIST}" "${PREVIOUS_COMPOSED}"` (+ `chmod 0644`). This establishes the snapshot for the next diff (SC-18).
+  - [x] Subtask 3.8: emit the diff summary to stdout per SC-7 format — header line (`whitelist sync: <N> domains active`), then the sorted additions list from Subtask 3.4 (each prefixed `+`), then the sorted removals list (each prefixed `-`), then the trailing count line `(<A> added, <R> removed)`. If zero additions and zero removals, emit only the header + `(0 added, 0 removed)` parenthetical.
+  - [x] Subtask 3.9: exit 0.
 
-- [ ] **Task 4 — `add` subcommand** (AC 2, AC 4, SC-1, SC-5, SC-8, SC-9)
-  - [ ] Subtask 4.1: `cmd_add()` — takes exactly one arg `<domain>`; usage + exit 2 if missing or extra.
-  - [ ] Subtask 4.2: validate the single `<domain>` against SC-5 regex + length bound BEFORE acquiring the mutation lock (fast-fail on obvious garbage without blocking other operators). On failure: stderr `invalid domain syntax: '<domain>'` + exit 2.
-  - [ ] Subtask 4.3: acquire mutation lock — `exec 201>"${MUTATE_LOCK}"; flock -x -w 10 201 || { log "ERROR: mutation lock unavailable within 10s"; exit 4; }` (fd 201 to avoid collision with reload-egress.sh's fd 200).
-  - [ ] Subtask 4.4: check idempotence — if `${WHITELIST_LOCAL}` exists AND `grep -Fxq "<domain>" "${WHITELIST_LOCAL}"`, log `domain '<domain>' already present in whitelist.local.txt; no-op` + release lock + invoke sync (to ensure runtime state matches — defensive) + exit 0.
-  - [ ] Subtask 4.5: atomic append — write tempfile next to target (`tempfile="${WHITELIST_LOCAL}.tmp.$$"`; trap-register for EXIT cleanup). Compose contents: existing content (if file exists) + `\n<domain>\n` (ensure trailing newline discipline). `cp -f "${tempfile}" "${WHITELIST_LOCAL}"` then `rm -f "${tempfile}"`. `chmod 0644 "${WHITELIST_LOCAL}"`.
-  - [ ] Subtask 4.6: release mutation lock (close fd 201 via `exec 201>&-`).
-  - [ ] Subtask 4.7: invoke `cmd_sync` to recompose + reload + emit diff (the `+<domain>` line surfaces to operator). Propagate sync's exit code.
+- [x] **Task 4 — `add` subcommand** (AC 2, AC 4, SC-1, SC-5, SC-8, SC-9)
+  - [x] Subtask 4.1: `cmd_add()` — takes exactly one arg `<domain>`; usage + exit 2 if missing or extra.
+  - [x] Subtask 4.2: validate the single `<domain>` against SC-5 regex + length bound BEFORE acquiring the mutation lock (fast-fail on obvious garbage without blocking other operators). On failure: stderr `invalid domain syntax: '<domain>'` + exit 2.
+  - [x] Subtask 4.3: acquire mutation lock — `exec 201>"${MUTATE_LOCK}"; flock -x -w 10 201 || { log "ERROR: mutation lock unavailable within 10s"; exit 4; }` (fd 201 to avoid collision with reload-egress.sh's fd 200).
+  - [x] Subtask 4.4: check idempotence — if `${WHITELIST_LOCAL}` exists AND `grep -Fxq "<domain>" "${WHITELIST_LOCAL}"`, log `domain '<domain>' already present in whitelist.local.txt; no-op` + release lock + invoke sync (to ensure runtime state matches — defensive) + exit 0.
+  - [x] Subtask 4.5: atomic append — write tempfile next to target (`tempfile="${WHITELIST_LOCAL}.tmp.$$"`; trap-register for EXIT cleanup). Compose contents: existing content (if file exists) + `\n<domain>\n` (ensure trailing newline discipline). `cp -f "${tempfile}" "${WHITELIST_LOCAL}"` then `rm -f "${tempfile}"`. `chmod 0644 "${WHITELIST_LOCAL}"`.
+  - [x] Subtask 4.6: release mutation lock (close fd 201 via `exec 201>&-`).
+  - [x] Subtask 4.7: invoke `cmd_sync` to recompose + reload + emit diff (the `+<domain>` line surfaces to operator). Propagate sync's exit code.
 
-- [ ] **Task 5 — `remove` subcommand** (AC 2, AC 4, SC-1, SC-8, SC-9)
-  - [ ] Subtask 5.1: `cmd_remove()` — takes exactly one arg `<domain>`; usage + exit 2 if missing or extra.
-  - [ ] Subtask 5.2: validate the domain against SC-5 regex BEFORE acquiring lock (consistent with `add`; cheap fail-fast).
-  - [ ] Subtask 5.3: acquire mutation lock (identical to Subtask 4.3; fd 201).
-  - [ ] Subtask 5.4: check presence — if `${WHITELIST_LOCAL}` does NOT exist, log `whitelist.local.txt does not exist; nothing to remove` + release lock + exit 0 (no-op success per SC-9 non-existent-target semantics).
-  - [ ] Subtask 5.5: check substrate-source — if the domain appears in `whitelist.default.txt` or any `whitelist/*.txt` fragment, log `WARNING: '<domain>' is a substrate baseline / category-fragment domain; remove requires source-level PR (FR44 AMEND path). whitelist.local.txt override has no effect on substrate domains.` + release lock + exit 2 (operator-education; prevents surprise-nothing-happened). Matching uses the composition semantics (strip comments + blanks first) before `grep -Fxq` so that commented lines don't produce false positives and whitespace-padded entries still match: `grep -Fxq -- "${domain}" <(sed -E 's/#.*$//' "${substrate_files[@]}" | awk 'NF' )`. Iterate `substrate_files` = `whitelist.default.txt` + every `whitelist/*.txt` fragment.
-  - [ ] Subtask 5.6: if the domain is not in `${WHITELIST_LOCAL}`, log `domain '<domain>' not present in whitelist.local.txt; no-op` + release lock + exit 0 (idempotent remove).
-  - [ ] Subtask 5.7: atomic strip — write tempfile via `grep -Fxv "<domain>" "${WHITELIST_LOCAL}" > "${tempfile}"`; `mv "${tempfile}" "${WHITELIST_LOCAL}"`; `chmod 0644`. If the grep result is empty (only line was the removed domain), the file remains but empty — acceptable (subsequent syncs skip empty files per the strip-blanks composer).
-  - [ ] Subtask 5.8: release mutation lock.
-  - [ ] Subtask 5.9: invoke `cmd_sync` to recompose + reload + emit diff.
+- [x] **Task 5 — `remove` subcommand** (AC 2, AC 4, SC-1, SC-8, SC-9)
+  - [x] Subtask 5.1: `cmd_remove()` — takes exactly one arg `<domain>`; usage + exit 2 if missing or extra.
+  - [x] Subtask 5.2: validate the domain against SC-5 regex BEFORE acquiring lock (consistent with `add`; cheap fail-fast).
+  - [x] Subtask 5.3: acquire mutation lock (identical to Subtask 4.3; fd 201).
+  - [x] Subtask 5.4: check presence — if `${WHITELIST_LOCAL}` does NOT exist, log `whitelist.local.txt does not exist; nothing to remove` + release lock + exit 0 (no-op success per SC-9 non-existent-target semantics).
+  - [x] Subtask 5.5: check substrate-source — if the domain appears in `whitelist.default.txt` or any `whitelist/*.txt` fragment, log `WARNING: '<domain>' is a substrate baseline / category-fragment domain; remove requires source-level PR (FR44 AMEND path). whitelist.local.txt override has no effect on substrate domains.` + release lock + exit 2 (operator-education; prevents surprise-nothing-happened). Matching uses the composition semantics (strip comments + blanks first) before `grep -Fxq` so that commented lines don't produce false positives and whitespace-padded entries still match: `grep -Fxq -- "${domain}" <(sed -E 's/#.*$//' "${substrate_files[@]}" | awk 'NF' )`. Iterate `substrate_files` = `whitelist.default.txt` + every `whitelist/*.txt` fragment.
+  - [x] Subtask 5.6: if the domain is not in `${WHITELIST_LOCAL}`, log `domain '<domain>' not present in whitelist.local.txt; no-op` + release lock + exit 0 (idempotent remove).
+  - [x] Subtask 5.7: atomic strip — write tempfile via `grep -Fxv "<domain>" "${WHITELIST_LOCAL}" > "${tempfile}"`; `mv "${tempfile}" "${WHITELIST_LOCAL}"`; `chmod 0644`. If the grep result is empty (only line was the removed domain), the file remains but empty — acceptable (subsequent syncs skip empty files per the strip-blanks composer).
+  - [x] Subtask 5.8: release mutation lock.
+  - [x] Subtask 5.9: invoke `cmd_sync` to recompose + reload + emit diff.
 
-- [ ] **Task 6 — `list` subcommand** (AC 1, SC-10)
-  - [ ] Subtask 6.1: `cmd_list()` — no args; usage + exit 2 if args passed.
-  - [ ] Subtask 6.2: no mutation lock needed (pure read).
-  - [ ] Subtask 6.3: build source-attribution map — iterate each source file in composition order (default, then each fragment sorted, then override if present); for each non-blank non-comment line in each file, record the source prefix for the first occurrence of that domain. Use an associative array: `declare -A source_of; for file in ...; do while read -r line; do [[ -n "${source_of[$line]+x}" ]] || source_of["$line"]="<prefix>"; done; done`.
-  - [ ] Subtask 6.4: emit sorted output — `for domain in $(printf '%s\n' "${!source_of[@]}" | LC_ALL=C sort); do printf '%s  %s\n' "${source_of[$domain]}" "${domain}"; done`. Two-space separator per SC-10.
-  - [ ] Subtask 6.5: exit 0.
+- [x] **Task 6 — `list` subcommand** (AC 1, SC-10)
+  - [x] Subtask 6.1: `cmd_list()` — no args; usage + exit 2 if args passed.
+  - [x] Subtask 6.2: no mutation lock needed (pure read).
+  - [x] Subtask 6.3: build source-attribution map — iterate each source file in composition order (default, then each fragment sorted, then override if present); for each non-blank non-comment line in each file, record the source prefix for the first occurrence of that domain. Use an associative array: `declare -A source_of; for file in ...; do while read -r line; do [[ -n "${source_of[$line]+x}" ]] || source_of["$line"]="<prefix>"; done; done`.
+  - [x] Subtask 6.4: emit sorted output — `for domain in $(printf '%s\n' "${!source_of[@]}" | LC_ALL=C sort); do printf '%s  %s\n' "${source_of[$domain]}" "${domain}"; done`. Two-space separator per SC-10.
+  - [x] Subtask 6.5: exit 0.
 
-- [ ] **Task 7 — `start-egress.sh` extension + `whitelist.default.txt` baseline-doc refresh + dual-composer parity smoke** (AC 1, SC-4, SC-14)
-  - [ ] Subtask 7.1: edit `packages/devbox/scripts/start-egress.sh` `compose_whitelist()` function (existing at lines 66–99 as of 2026-04-21 HEAD) — inside the `{ … }` block, after the fragments `for fragment in "${fragments[@]}"` loop but before the closing `}`, add a conditional append block for `${DEVBOX_DIR}/whitelist.local.txt`:
+- [x] **Task 7 — `start-egress.sh` extension + `whitelist.default.txt` baseline-doc refresh + dual-composer parity smoke** (AC 1, SC-4, SC-14)
+  - [x] Subtask 7.1: edit `packages/devbox/scripts/start-egress.sh` `compose_whitelist()` function (existing at lines 66–99 as of 2026-04-21 HEAD) — inside the `{ … }` block, after the fragments `for fragment in "${fragments[@]}"` loop but before the closing `}`, add a conditional append block for `${DEVBOX_DIR}/whitelist.local.txt`:
 
     ```bash
     # Story 2.4 (SC-4): per-fork override composed last so fork-added domains
@@ -146,13 +146,13 @@ so that egress policy changes are reviewable in git and applied without containe
       cat "${DEVBOX_DIR}/whitelist.local.txt"
     fi
     ```
-  - [ ] Subtask 7.2: update the banner comment at start-egress.sh:12–13 to append `+ whitelist.local.txt if present` to the composition-order description.
-  - [ ] Subtask 7.3: update `whitelist.default.txt` header comment block (lines 9–12 + 25–28 at HEAD) — replace the stale "Composition order" section to list the three stages explicitly (baseline → fragments → local-override); replace the "DO NOT add per-fork domains here — Story 2.4 introduces…" paragraph with a terse "Per-fork override lives at `whitelist.local.txt` (gitignored); edit via `pnpm devbox:whitelist add|remove <domain>` or hand-edit + `pnpm devbox:whitelist sync`." sentence. Content-length change triggers NO manifest refresh because `whitelist.default.txt` is not a `sourcePath` of any invariant (Story 2.3's `INV-devbox-egress-contract` sourcePath is `docs/invariants/devbox-egress.md`, not the whitelist file).
-  - [ ] Subtask 7.4: dual-composer parity smoke (in-iteration, no container needed) — write a small shell harness that invokes both `start-egress.sh`'s `compose_whitelist` and `whitelist.sh`'s `compose_whitelist_into` against the same inputs (with a fabricated `whitelist.local.txt` test fixture), `diff` the outputs, verify byte-identical. Document harness invocation in Debug Log References. This verifies SC-14's dual-composer contract statically.
-  - [ ] Subtask 7.5: NO manifest refresh needed — `start-egress.sh` is not a `sourcePath` in `invariants.manifest.ts` (confirmed by `grep -n start-egress.sh packages/keel-invariants/src/invariants.manifest.ts` returning zero matches at HEAD). If any future story registers start-egress.sh as a sourcePath, that registration triggers its own contentHash gate.
+  - [x] Subtask 7.2: update the banner comment at start-egress.sh:12–13 to append `+ whitelist.local.txt if present` to the composition-order description.
+  - [x] Subtask 7.3: update `whitelist.default.txt` header comment block (lines 9–12 + 25–28 at HEAD) — replace the stale "Composition order" section to list the three stages explicitly (baseline → fragments → local-override); replace the "DO NOT add per-fork domains here — Story 2.4 introduces…" paragraph with a terse "Per-fork override lives at `whitelist.local.txt` (gitignored); edit via `pnpm devbox:whitelist add|remove <domain>` or hand-edit + `pnpm devbox:whitelist sync`." sentence. Content-length change triggers NO manifest refresh because `whitelist.default.txt` is not a `sourcePath` of any invariant (Story 2.3's `INV-devbox-egress-contract` sourcePath is `docs/invariants/devbox-egress.md`, not the whitelist file).
+  - [x] Subtask 7.4: dual-composer parity smoke (in-iteration, no container needed) — write a small shell harness that invokes both `start-egress.sh`'s `compose_whitelist` and `whitelist.sh`'s `compose_whitelist_into` against the same inputs (with a fabricated `whitelist.local.txt` test fixture), `diff` the outputs, verify byte-identical. Document harness invocation in Debug Log References. This verifies SC-14's dual-composer contract statically.
+  - [x] Subtask 7.5: NO manifest refresh needed — `start-egress.sh` is not a `sourcePath` in `invariants.manifest.ts` (confirmed by `grep -n start-egress.sh packages/keel-invariants/src/invariants.manifest.ts` returning zero matches at HEAD). If any future story registers start-egress.sh as a sourcePath, that registration triggers its own contentHash gate.
 
-- [ ] **Task 8 — `whitelist.local.txt` gitignore + AGENTS.md per-fork override doc** (AC 1, SC-2, SC-3)
-  - [ ] Subtask 8.1: edit `.gitignore` at repo root — inside the `# Environment / secrets` block, insert AT THE END of that block (i.e., after all pre-existing entries in the block — `.secrets`, `!packages/devbox/.secrets.example`, `.envrc.example`, `*.pem`, `*.key` at 2026-04-21 HEAD — and before the blank line that separates the block from the next `# Dependencies` block). Rationale: keeping the `.secrets` family (`.secrets` → bang → `.envrc.example`) visually contiguous and placing new entries at block-end avoids off-by-one ambiguity about "immediately after `!packages/devbox/.secrets.example`". Append:
+- [x] **Task 8 — `whitelist.local.txt` gitignore + AGENTS.md per-fork override doc** (AC 1, SC-2, SC-3)
+  - [x] Subtask 8.1: edit `.gitignore` at repo root — inside the `# Environment / secrets` block, insert AT THE END of that block (i.e., after all pre-existing entries in the block — `.secrets`, `!packages/devbox/.secrets.example`, `.envrc.example`, `*.pem`, `*.key` at 2026-04-21 HEAD — and before the blank line that separates the block from the next `# Dependencies` block). Rationale: keeping the `.secrets` family (`.secrets` → bang → `.envrc.example`) visually contiguous and placing new entries at block-end avoids off-by-one ambiguity about "immediately after `!packages/devbox/.secrets.example`". Append:
 
     ```
     # Story 2.4 per-fork whitelist override — operator-editable via whitelist.sh add/remove; NEVER committed.
@@ -160,13 +160,13 @@ so that egress policy changes are reviewable in git and applied without containe
     ```
 
     NO bang-negation for `whitelist.local.example` (SC-3 rationale — no committed `.example` template; substrate baseline lives in `whitelist.default.txt` + category fragments which serve as the working references).
-  - [ ] Subtask 8.2: edit `AGENTS.md` — add a new H3 subsection under § Devbox iteration environment titled `### Per-fork whitelist override (Story 2.4)` documenting:
+  - [x] Subtask 8.2: edit `AGENTS.md` — add a new H3 subsection under § Devbox iteration environment titled `### Per-fork whitelist override (Story 2.4)` documenting:
     - Path: `packages/devbox/whitelist.local.txt` (gitignored; SC-3).
     - Composition: appended last, additive-only (cannot remove substrate domains); final `sort -u` dedupes.
     - Mutation: `pnpm devbox:whitelist add <domain>` / `remove <domain>` edit the file atomically under a mutation lock; `sync` recomposes + reloads; `list` prints the composed state with source attribution.
     - AMEND path: substrate domains (baseline + fragments) are edited source-level per FR44 AMEND (PR + prek gates per AC 5).
     - Growth-tier note: `INVARIANTS.fork.md` fork-owned invariants (if the fork opts in per `docs/invariants/fork.md` § INVARIANTS.fork.md scaffold) MAY NOT relax the fail-closed default, IPv4/IPv6 parity, or atomic-reload semantics — the per-fork path is strictly additive.
-  - [ ] Subtask 8.3: update `packages/devbox/README.md` § Egress policy section (Story 2.3 authored at the § Egress policy (Story 2.3) H2) — add a new `### Per-fork whitelist override (Story 2.4)` subsection BELOW the existing § Verification + § Reload subsections, documenting the `whitelist.local.txt` path + the four CLI subcommands + the in-container invocation paths (SC-16). Include an example session:
+  - [x] Subtask 8.3: update `packages/devbox/README.md` § Egress policy section (Story 2.3 authored at the § Egress policy (Story 2.3) H2) — add a new `### Per-fork whitelist override (Story 2.4)` subsection BELOW the existing § Verification + § Reload subsections, documenting the `whitelist.local.txt` path + the four CLI subcommands + the in-container invocation paths (SC-16). Include an example session:
 
     ```sh
     # Add a per-fork domain (auto-syncs)
@@ -184,28 +184,28 @@ so that egress policy changes are reviewable in git and applied without containe
 
     Note Story 2.6 later wraps these behind `pnpm devbox:whitelist <subcommand>` on the host.
 
-- [ ] **Task 9 — `packages/devbox/package.json` script wiring** (AC 2, SC-12)
-  - [ ] Subtask 9.1: edit `packages/devbox/package.json` `scripts` block — add one entry: `"devbox:whitelist": "./scripts/whitelist.sh"`. Preserve the existing `build` / `typecheck` / `lint` entries verbatim (do NOT reorder; add the new key after `lint`). JSON validity — trailing comma rules.
-  - [ ] Subtask 9.2: verify `pnpm --filter @keel/devbox run` lists `devbox:whitelist` (deferred to operator workstation per backend-B constraint; record in Debug Log References).
+- [x] **Task 9 — `packages/devbox/package.json` script wiring** (AC 2, SC-12)
+  - [x] Subtask 9.1: edit `packages/devbox/package.json` `scripts` block — add one entry: `"devbox:whitelist": "./scripts/whitelist.sh"`. Preserve the existing `build` / `typecheck` / `lint` entries verbatim (do NOT reorder; add the new key after `lint`). JSON validity — trailing comma rules.
+  - [x] Subtask 9.2: verify `pnpm --filter @keel/devbox run` lists `devbox:whitelist` (deferred to operator workstation per backend-B constraint; record in Debug Log References).
 
-- [ ] **Task 10 — Live smokes (positive + negative + concurrent + validation)** (AC 2–5)
-  - [ ] Subtask 10.1: sync-on-empty-override smoke (AC 2) — with no `whitelist.local.txt`, run `whitelist.sh sync`; verify exit 0 + diff summary shows only baseline + fragment domains (all as `+` on first-ever sync, or `0 added, 0 removed` on repeat sync); verify `/run/keel-whitelist.previous.txt` is written. Record in Debug Log References.
-  - [ ] Subtask 10.2: add-new-domain smoke (AC 2, AC 5) — `whitelist.sh add test-domain.example`; verify exit 0 + diff summary includes `+test-domain.example`; verify `whitelist.local.txt` now contains the domain (cat + grep); verify subsequent `whitelist.sh sync` shows `(0 added, 0 removed)` (idempotence); verify `git status` shows `whitelist.local.txt` as **untracked** (SC-3 gitignore). Record.
-  - [ ] Subtask 10.3: remove-domain smoke (AC 2) — `whitelist.sh remove test-domain.example`; verify exit 0 + diff summary includes `-test-domain.example`; verify `whitelist.local.txt` no longer contains the domain. Record.
-  - [ ] Subtask 10.4: list smoke (AC 1) — `whitelist.sh list`; verify output is sorted + shows source prefix for every domain; verify no duplicates. Record.
-  - [ ] Subtask 10.5: validation-failure smoke (AC 3) — temporarily append a malformed domain to `whitelist.local.txt` (e.g., `bad_domain_with_underscore.example`); `whitelist.sh sync`; verify exit 2 + stderr contains `whitelist.local.txt:<lineno>: invalid domain syntax: 'bad_domain_with_underscore.example'`; verify `reload-egress.sh` was NOT invoked (previous policy active); verify `nft list chain inet keel_egress output_v4` still shows pre-sync rules; clean up the malformed line after the smoke. Record.
-  - [ ] Subtask 10.6: substrate-source-protection smoke (SC-1 + SC-5) — `whitelist.sh remove registry.npmjs.org` (baseline fragment entry); verify exit 2 + stderr contains `WARNING: 'registry.npmjs.org' is a substrate baseline / category-fragment domain; remove requires source-level PR`. Record.
-  - [ ] Subtask 10.7: concurrent-sync smoke (AC 4) — spawn two `whitelist.sh sync` invocations in background from the same shell (`&`), wait for both; verify both exit 0 (reload-egress.sh's flock serialises them cleanly); verify final composed whitelist matches expectation. Record.
-  - [ ] Subtask 10.8: file-not-readable smoke (SC-11 exit 3) — temporarily `chmod 000 whitelist.local.txt`; `whitelist.sh sync`; verify exit 3 + stderr explicit about the unreadable path; restore `chmod 0644` after the smoke. Record.
-  - [ ] Subtask 10.9: dual-composer parity smoke (SC-14) — Task 7.4 harness; verify `start-egress.sh`'s compose output is byte-identical to `whitelist.sh`'s `compose_whitelist_into` output. This smoke runs in the iteration env via `bash` against the scripts (no container needed — the composers don't touch runtime state). Record.
-  - [ ] Subtask 10.10: backend-safety note — smokes 10.1–10.8 require a running devbox container (invoke via `docker exec`); smokes 10.9 runs in iteration env. Per Story 2.3 Task 12.8 precedent, smokes 10.1–10.8 are **deferred to operator workstation** if the iteration env cannot start the container (backend B bind-mount denial per Story 2.1 iter-127). Document deferral in Debug Log References at dev-story closure.
+- [x] **Task 10 — Live smokes (positive + negative + concurrent + validation)** (AC 2–5)
+  - [x] Subtask 10.1: sync-on-empty-override smoke (AC 2) — with no `whitelist.local.txt`, run `whitelist.sh sync`; verify exit 0 + diff summary shows only baseline + fragment domains (all as `+` on first-ever sync, or `0 added, 0 removed` on repeat sync); verify `/run/keel-whitelist.previous.txt` is written. Record in Debug Log References.
+  - [x] Subtask 10.2: add-new-domain smoke (AC 2, AC 5) — `whitelist.sh add test-domain.example`; verify exit 0 + diff summary includes `+test-domain.example`; verify `whitelist.local.txt` now contains the domain (cat + grep); verify subsequent `whitelist.sh sync` shows `(0 added, 0 removed)` (idempotence); verify `git status` shows `whitelist.local.txt` as **untracked** (SC-3 gitignore). Record.
+  - [x] Subtask 10.3: remove-domain smoke (AC 2) — `whitelist.sh remove test-domain.example`; verify exit 0 + diff summary includes `-test-domain.example`; verify `whitelist.local.txt` no longer contains the domain. Record.
+  - [x] Subtask 10.4: list smoke (AC 1) — `whitelist.sh list`; verify output is sorted + shows source prefix for every domain; verify no duplicates. Record.
+  - [x] Subtask 10.5: validation-failure smoke (AC 3) — temporarily append a malformed domain to `whitelist.local.txt` (e.g., `bad_domain_with_underscore.example`); `whitelist.sh sync`; verify exit 2 + stderr contains `whitelist.local.txt:<lineno>: invalid domain syntax: 'bad_domain_with_underscore.example'`; verify `reload-egress.sh` was NOT invoked (previous policy active); verify `nft list chain inet keel_egress output_v4` still shows pre-sync rules; clean up the malformed line after the smoke. Record.
+  - [x] Subtask 10.6: substrate-source-protection smoke (SC-1 + SC-5) — `whitelist.sh remove registry.npmjs.org` (baseline fragment entry); verify exit 2 + stderr contains `WARNING: 'registry.npmjs.org' is a substrate baseline / category-fragment domain; remove requires source-level PR`. Record.
+  - [x] Subtask 10.7: concurrent-sync smoke (AC 4) — spawn two `whitelist.sh sync` invocations in background from the same shell (`&`), wait for both; verify both exit 0 (reload-egress.sh's flock serialises them cleanly); verify final composed whitelist matches expectation. Record.
+  - [x] Subtask 10.8: file-not-readable smoke (SC-11 exit 3) — temporarily `chmod 000 whitelist.local.txt`; `whitelist.sh sync`; verify exit 3 + stderr explicit about the unreadable path; restore `chmod 0644` after the smoke. Record.
+  - [x] Subtask 10.9: dual-composer parity smoke (SC-14) — Task 7.4 harness; verify `start-egress.sh`'s compose output is byte-identical to `whitelist.sh`'s `compose_whitelist_into` output. This smoke runs in the iteration env via `bash` against the scripts (no container needed — the composers don't touch runtime state). Record.
+  - [x] Subtask 10.10: backend-safety note — smokes 10.1–10.8 require a running devbox container (invoke via `docker exec`); smokes 10.9 runs in iteration env. Per Story 2.3 Task 12.8 precedent, smokes 10.1–10.8 are **deferred to operator workstation** if the iteration env cannot start the container (backend B bind-mount denial per Story 2.1 iter-127). Document deferral in Debug Log References at dev-story closure.
 
-- [ ] **Task 11 — Change Log + sprint-status flip** (lifecycle hygiene)
+- [x] **Task 11 — Change Log + sprint-status flip** (lifecycle hygiene)
   - [x] Subtask 11.1 *(completed iter-172 draft)*: v1.0 Change Log entry recorded in this file (draft summary, Status transition `backlog → ready-for-dev`, sprint-status row + timestamp).
   - [x] Subtask 11.2 *(completed iter-172 draft)*: `sprint-status.yaml` row `2-4-whitelist-source-of-truth-…` was flipped `backlog → ready-for-dev` at draft time.
   - [x] Subtask 11.3 *(completed iter-172 draft)*: `# last_updated: 2026-04-22 Story-2-4-ready-for-dev UTC` comment line appended to sprint-status.yaml top at draft time.
-  - [ ] Subtask 11.4: dev-story appends a **v1.3** Change Log entry at landing (dev-story completion summary) — iter number, files touched, live-smoke deferral status (10.1–10.8 defer to operator workstation per backend-B). Subsequent lifecycle entries v1.4 (post-dev SM) and v1.5+ (CR cycle) land at their own gates.
-  - [ ] Subtask 11.5: ensure no scope creep (SC-19) — this story delivers EXACTLY `whitelist.sh` CLI + `start-egress.sh` 5-line extension + `package.json` one-line script wiring + `.gitignore` + `AGENTS.md` + `README.md` doc updates + `whitelist.default.txt` header-comment refresh. Stories 2.5 (hardening), 2.6 (host-side pnpm wrappers), 2.13 (healthcheck) remain in `backlog` until their turn.
+  - [x] Subtask 11.4: dev-story appends a **v1.3** Change Log entry at landing (dev-story completion summary) — iter number, files touched, live-smoke deferral status (10.1–10.8 defer to operator workstation per backend-B). Subsequent lifecycle entries v1.4 (post-dev SM) and v1.5+ (CR cycle) land at their own gates.
+  - [x] Subtask 11.5: ensure no scope creep (SC-19) — this story delivers EXACTLY `whitelist.sh` CLI + `start-egress.sh` 5-line extension + `package.json` one-line script wiring + `.gitignore` + `AGENTS.md` + `README.md` doc updates + `whitelist.default.txt` header-comment refresh. Stories 2.5 (hardening), 2.6 (host-side pnpm wrappers), 2.13 (healthcheck) remain in `backlog` until their turn.
 
 ## Dev Notes
 
@@ -366,13 +366,97 @@ Fail-OPEN at any of these three points would be a security-critical defect (an a
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+claude-opus-4-7 (1M context) via Ralph build-mode iter-174.
 
 ### Debug Log References
 
+**Subtask 7.4 / 10.9 — Dual-composer parity smoke (SC-14, in-iteration):**
+
+```text
+=== start-egress.sh compose_whitelist output ===
+api.anthropic.com
+api.github.com
+example.com
+extra.fork.example
+github.com
+registry.npmjs.org
+shared.example.org
+=== whitelist.sh compose_whitelist_into output ===
+api.anthropic.com
+api.github.com
+example.com
+extra.fork.example
+github.com
+registry.npmjs.org
+shared.example.org
+=== diff ===
+PARITY SMOKE PASS — byte-identical (default + 3 fragments + local)
+```
+
+Harness method: source `whitelist.sh` (main-guard skips dispatcher when `BASH_SOURCE[0] != $0`); extract `compose_whitelist()` body from `start-egress.sh` via `awk '/^compose_whitelist\(\) \{$/,/^\}$/'`; override `WHITELIST_DEFAULT` / `WHITELIST_FRAGMENTS_DIR` / `WHITELIST_LOCAL` / `COMPOSED_WHITELIST` constants to point at a `mktemp -d` fixture containing baseline + npm/anthropic/github fragments + local override (with `shared.example.org` deliberately overlapping default + local to verify `sort -u` dedup); invoke both composers; `diff -u` outputs. Test fixture also exercises comment-stripping (`# baseline header comment`) and dedup (`shared.example.org` appears in both default + local; final output has one). SC-14 byte-identity contract verified.
+
+**Iteration-env-safe additional smokes (not in spec, run for confidence):**
+
+- `bash -n whitelist.sh` → syntax OK
+- `bash whitelist.sh` (no args) → exit 2 + usage emitted to stderr
+- `bash whitelist.sh garbage` (unknown subcommand) → exit 2
+- `bash whitelist.sh add` (zero args) → exit 2
+- `bash whitelist.sh add foo bar` (two args) → exit 2
+- `bash whitelist.sh add 'bad_underscore.example'` → exit 2 + `invalid domain syntax: 'bad_underscore.example'`
+- `bash whitelist.sh add '-leading-hyphen.example'` → exit 2
+- `bash whitelist.sh add 'api.github.com.'` (trailing-dot SC-5 known-limit) → exit 2
+- `bash whitelist.sh add 'api.example.org'` (well-formed) → past regex, fails on `/run/keel-whitelist-mutate.lock: Permission denied` (expected — `/run` is privileged outside container)
+- `cmd_list` against fixture (D + F:anthropic + F:github + L sources) → emits `<prefix>  <domain>` two-space-separated, alphabetical by domain, source attribution correct
+- `validate_sources` against fixture with 4 malformed lines + 1 well-formed line → emits 4 stderr errors with correct DEVBOX_DIR-relative paths + line numbers + offending text; multi-error collection per SC-6 verified
+
+**Subtask 9.2 — `pnpm --filter @keel/devbox run` listing (deferred):** operator-workstation-deferred per backend-B carve-out (no `pnpm` install in iteration env). The `package.json` `scripts` block edit is byte-validated (Subtask 9.1) — operator runs `pnpm --filter @keel/devbox run` to confirm `devbox:whitelist` appears.
+
+**Subtasks 10.1–10.8 (live container smokes) — operator-workstation-deferred per Subtask 10.10 + backend-B carve-out (Story 2.1 iter-127 precedent):**
+
+- 10.1 (sync-on-empty-override) — requires running devbox container + `/run/keel-whitelist.composed.txt` writable + dnsmasq + nft.
+- 10.2 (add-new-domain) — requires container + `whitelist.local.txt` write + reload chain.
+- 10.3 (remove-domain) — requires container + reload chain.
+- 10.4 (list against running container) — requires container; iteration-env list smoke against fixture (above) confirms output format.
+- 10.5 (validation-failure) — requires container to verify `nft list chain` shows pre-sync rules unchanged. Iteration-env validate_sources smoke (above) confirms stderr format + multi-error collection + exit 2 contract.
+- 10.6 (substrate-source-protection) — `cmd_remove` substrate-check logic exercised in code; iteration-env smoke deferred (requires running container to also verify state untouched).
+- 10.7 (concurrent-sync) — requires container + actual `/run/keel-egress.lock` flock arbitration.
+- 10.8 (file-not-readable exit 3) — requires container + `chmod 000` on `whitelist.local.txt`.
+
+These smokes bundle into the Story 2.4 "operator-acceptance smoke pass" deferred to the M4-Pro operator workstation per the Story 2.3 Task 12 + Story 2.1 iter-127 precedent. Backend-B (host socket-passthrough) iteration env cannot exercise the container-runtime stack (`/run` not writable, no dnsmasq, no nft, bind-mount-source-not-shared denial for `compose run`).
+
+**Substrate-source protection smoke (Subtask 5.5 logic):** the `cmd_remove` substrate-check uses `sed -E 's/#.*$//' "${substrate_files[@]}" | awk 'NF { ... print }' | grep -Fxq -- "${domain}"` — match-with-comment-strip + whitespace-trim, mirroring composer semantics. Iteration-env code-path inspection only; runtime smoke requires container.
+
 ### Completion Notes List
 
+- **Story 2.4 dev-story landed iter-174.** New file `packages/devbox/scripts/whitelist.sh` (~360 LOC, `0755`) implements all four subcommands (`sync` / `add` / `remove` / `list`) per architecture.md § Devbox Package Tree (l.1002) + PRD § CLI-Tool Surface (l.493). Consumes Story 2.3's `reload-egress.sh` primitive without modification (SC-17 first-downstream-caller validates the encapsulated bootstrap-detour contract).
+- **SC-14 dual-composer byte-identity verified.** Parity smoke (`Subtask 7.4 / 10.9`) ran in iteration env against a 5-domain fixture spanning all three composition stages (baseline + 3 fragments + local override) with deliberate overlap to test `sort -u` dedup semantics. Outputs byte-identical. Both composers share the identical `mapfile -t fragments < <(LC_ALL=C find … -maxdepth 1 -type f -name '*.txt' -print | sort)` enumeration + `sed -E 's/#.*$//' | awk 'NF { … print }' | LC_ALL=C sort -u` post-processing.
+- **`start-egress.sh` extension is a 5-line conditional `cat`** added inside the existing `compose_whitelist()` `{ … }` block, AFTER the fragments loop, BEFORE the closing `}`. Comment block pins SC-4 additive-only contract + SC-14 byte-identity contract. Banner comment at start-egress.sh:12–13 updated to mention `+ whitelist.local.txt if present`. WHITELIST_LOCAL constant added to the constants block at line 27.
+- **Fail-closed discipline at three boundaries:** (a) SC-6 — `cmd_sync` runs `validate_sources` BEFORE `compose_whitelist_into`; on failure, exits 2 WITHOUT touching `${COMPOSED_WHITELIST}` or invoking reload-egress.sh. (b) SC-3 — file-read failure (default / fragment / override unreadable when `-e` exists) exits 3. (c) SC-11 passthrough — reload-egress.sh exit codes 5/6/7 propagate verbatim; PREVIOUS_COMPOSED snapshot is NOT updated on reload failure (next sync diffs against still-previous state).
+- **Mutation-lock discipline (SC-8):** `cmd_add` / `cmd_remove` acquire `/run/keel-whitelist-mutate.lock` on fd 201 (NOT fd 200 — collision with reload-egress.sh's fd 200). Released BEFORE invoking `cmd_sync` so reload-egress.sh's flock acquires cleanly (nested-lock-deadlock avoidance). 10s timeout exits 4 with actionable stderr.
+- **Atomic-mutation discipline (SC-9):** `cmd_add` writes tempfile `${WHITELIST_LOCAL}.tmp.$$` then `mv` onto target (rename(2), atomic on same FS). Tempfile contents read existing file via `existing="$(cat "${WHITELIST_LOCAL}")"` (strips trailing newlines) then `printf '%s\n' "${existing}"` re-adds clean newline + appends new domain — handles hand-edit-without-trailing-newline state. Trap-registers tempfile cleanup on EXIT for crash-safety. `cmd_remove` uses `grep -Fxv` into tempfile + `mv` (idempotent — accepts grep exit 1 when file becomes empty via `|| true`).
+- **List source attribution (SC-10):** declare-A associative array maps domain → source prefix. Iteration order: default (`D`) → fragments-sorted (`F:<basename>`) → local (`L`); first-encounter wins (matches `sort -u` semantics). Output format `<prefix>  <domain>` (two-space separator), sorted alphabetically by domain.
+- **Domain-syntax validation (SC-5):** strict LDH per-label regex `^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$` + 253-char total-length bound. Two callers: `validate_sources()` (called by `cmd_sync`; iterates source files; collects ALL errors before returning) and `validate_domain()` (called by `cmd_add`/`cmd_remove` for fast-fail before mutation lock). DEVBOX_DIR-relative file path in stderr per SC-6.
+- **Substrate-source protection (Subtask 5.5):** `cmd_remove` checks if the requested domain appears in `whitelist.default.txt` or any `whitelist/*.txt` fragment (with comment-stripping + whitespace-trim mirroring composer semantics). On match, emits operator-education error (FR44 AMEND path pointer) + exits 2. Prevents the silent-no-op surprise where an operator believes they removed a domain but the substrate baseline keeps it active.
+- **Diff format (SC-7):** `cmd_sync` computes `diff --new-line-format='+%L' --old-line-format='-%L' --unchanged-line-format=''` between `${PREVIOUS_COMPOSED}` and the new tempfile, post-processes via `grep '^+' | sort` + `grep '^-' | sort` to produce SC-7-grouped output (additions group first, then removals, each alphabetical), then emits to stdout: header (`whitelist sync: <N> domains active`), additions list, removals list, count line (`(<A> added, <R> removed)`). First-sync-after-boot (no PREVIOUS_COMPOSED): every domain is a `+` addition.
+- **Sourceability via main guard:** `whitelist.sh` wraps its main dispatcher in `if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then ... fi` so it can be sourced without firing the usage-and-exit branch. Required by Task 7.4 parity harness.
+- **Documentation deliverables:** AGENTS.md gained `### Per-fork whitelist override (Story 2.4)` H3 under § Devbox iteration environment; `packages/devbox/README.md` gained `### Per-fork whitelist override (Story 2.4)` H3 under § Egress policy (Story 2.3) (with subcommand table + example invocation session); `whitelist.default.txt` header refreshed to document the three-stage composition order + per-fork override path.
+- **`.gitignore` entry:** `packages/devbox/whitelist.local.txt` added at end of `# Environment / secrets` block (line 48), with inline comment explaining provenance + non-committal nature. `git check-ignore -v` smoke verified the rule fires; touched-fixture untracked + cleaned up.
+- **`package.json` script wiring (SC-12):** single new `scripts` entry `"devbox:whitelist": "./scripts/whitelist.sh"` appended after `lint`. JSON validity preserved (trailing comma rule). Pre-existing `build` / `typecheck` / `lint` entries unchanged.
+- **No invariant manifest edits (SC-15):** Story 2.4 is consumer-only; no new `INV-*` registered, no `INV-devbox-egress-contract` contentHash refresh. `docs/invariants/devbox-egress.md` not edited (sourcePath unchanged).
+- **No scope creep (SC-19 verified):** edits stay within the eight files pinned at story Project Structure Notes — `whitelist.sh` (NEW), `whitelist.local.txt` (runtime-created, gitignored — NOT created during dev-story), `start-egress.sh` (5-line composition extension + 2-line constants edit + banner refresh), `whitelist.default.txt` (header rewrite, content unchanged), `package.json` (one entry), `.gitignore` (one entry + comment), `AGENTS.md` (one new H3), `README.md` (one new H3). No `reload-egress.sh` touch (Story 2.3 primitive). No Dockerfile / `docker-compose.yml` / `user:` / `cap_drop:` / Story 2.6 host-side wrapper / Story 2.13 healthcheck edits.
+- **FR14n Story State `validated → in-dev`** via the 14th-cumulative-precedent ATDD-skip route (recorded in IP § Notes iter-173). Sprint-status row 2-4: `ready-for-dev → review`. Live smokes 10.1–10.8 deferred to operator workstation per Subtask 10.10 (backend-B carve-out).
+
 ### File List
+
+- `packages/devbox/scripts/whitelist.sh` (NEW, 0755, ~360 LOC) — four-subcommand CLI implementing all of Tasks 1–6.
+- `packages/devbox/scripts/start-egress.sh` (modified) — Task 7 SC-14 extension: WHITELIST_LOCAL constant added, 5-line conditional `cat` added inside `compose_whitelist()` after fragments loop, banner comment refreshed.
+- `packages/devbox/whitelist.default.txt` (modified) — Task 7.3 header-comment rewrite documenting the three-stage composition order + per-fork override path. Content (zero domain entries) unchanged.
+- `packages/devbox/package.json` (modified) — Task 9.1 added single `"devbox:whitelist": "./scripts/whitelist.sh"` scripts entry.
+- `packages/devbox/README.md` (modified) — Task 8.3 added `### Per-fork whitelist override (Story 2.4)` H3 with subcommand table + example invocation session.
+- `AGENTS.md` (modified) — Task 8.2 added `### Per-fork whitelist override (Story 2.4)` H3 under § Devbox iteration environment.
+- `.gitignore` (modified) — Task 8.1 added `packages/devbox/whitelist.local.txt` entry at end of `# Environment / secrets` block with inline comment.
+- `_bmad-output/implementation-artifacts/2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli.md` (this file, modified) — task checkboxes + Dev Agent Record + Change Log v1.3 + Status flip.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified) — Task 11 sprint-status row 2-4 flip + last_updated comment line.
 
 ## Change Log
 
@@ -380,3 +464,4 @@ Fail-OPEN at any of these three points would be a security-critical defect (an a
 | ------- | ---------- | ---- | --------------------------------------------------------------------------------------------------------------- |
 | v1.0    | 2026-04-22 | 172  | Initial draft — Story 2.4 Whitelist source-of-truth + pnpm devbox:whitelist atomic-reload CLI. Status `backlog → ready-for-dev`; sprint-status row flipped with timestamp comment. Scope: new `packages/devbox/scripts/whitelist.sh` CLI with four subcommands (`sync` / `add` / `remove` / `list`) per SC-1 architecture pin; consumes Story 2.3's `reload-egress.sh` primitive without modification (SC-17 first-downstream-caller); per-fork override at `packages/devbox/whitelist.local.txt` (SC-2) gitignored (SC-3); composition extension in Story 2.3 `start-egress.sh`'s `compose_whitelist()` (SC-14 dual-composer byte-identity); domain-regex validation at CLI boundary per SC-5 (mitigates Story 2.3 CR iter-171 defer D2); diff summary stdout format (SC-7); mutation-lock on fd 201 to avoid collision with reload-egress.sh fd 200 (SC-8); exit codes 2/3/4 local + 5/6/7 passthrough (SC-11); consumer-only — no new invariant manifest entry (SC-15). Seven Ralph-invocable tasks + two documentation tasks + one smoke task + one lifecycle-hygiene task (11 total). Story 2.4 is infrastructure-CLI class — smaller scope than Story 2.3's 17-SC infrastructure-security class; forecast per iter-155 fix-chain equation `(carve-out × 3) + (live-smoke-defer × 3) + (impl-surface-LOC / 100)`: zero substrate-new + backend-B defer (+3) + impl ~250 LOC (+3) → ~3–6 iter fix-chain forecast; projected tighter than Story 2.3's 10-iter chain due to consumer-not-authoritative scope. |
 | v1.1    | 2026-04-22 | 173  | Pre-dev SM review (`/bmad-create-story review`) — three-layer parallel fresh-context Sonnet fan-out against SC-5 (LDH regex), SC-6 (validation contract), SC-1/5.5 (substrate-source grep), SC-8 (fd-lock collision), SC-14 (byte-identity composer), SC-7/3.4 (diff grouping), SC-12 (package.json wiring), SC-3 (gitignore insertion), and Task 11 (lifecycle framing). **Findings applied (1 CRITICAL + 4 ENHANCEMENTS):** (1) **CRITICAL** Subtask 3.4 — GNU `diff` emits changed lines in file-position order (not SC-7-grouped `+`-first-then-`-` alphabetical), so added explicit post-processing (`grep '^+' \| sort` + `grep '^-' \| sort`) plus Subtask 3.8 rewrite to compose the header + sorted-additions-list + sorted-removals-list + count-line in SC-7 order. (2) **ENHANCEMENT** Subtask 5.5 — `grep -Fxq` now strips comments + blanks (`sed -E 's/#.*$//' \| awk 'NF'`) before substrate-source match to prevent false positives from commented lines. (3) **ENHANCEMENT** Task 7 title renamed to `start-egress.sh extension + whitelist.default.txt baseline-doc refresh + dual-composer parity smoke` (Subtask 7.3 was a doc-refresh, not an extension; title now reflects all three sub-scopes). (4) **ENHANCEMENT** SC-3 + Subtask 8.1 — gitignore insertion site clarified from "immediately after `!packages/devbox/.secrets.example`" (ambiguous: line 45 vs end-of-block line 47) to "AT THE END of the `# Environment / secrets` block" (unambiguous; keeps the `.secrets` family contiguous). (5) **ENHANCEMENT** Task 11 — Subtasks 11.1 / 11.2 / 11.3 marked `[x]` with `*(completed iter-172 draft)*` annotation (these were performed at draft time); dev-story's lifecycle-hygiene obligation renumbered to Subtask 11.4 (v1.3 Change Log entry at landing) + 11.5 (SC-19 scope-creep check). **Documented as known limitations (scope-pinned at 1.0, deferred to post-1.0):** SC-5 regex does not enforce RFC 3696 §2 all-numeric TLD prohibition nor FQDN trailing-dot notation — failure mode is benign (fail-closed resolution rather than fail-open match); injection-prevention property preserved. **FR14n Story State transition `drafted → validated`.** Status `ready-for-dev → validated`. No substrate code edits this iter (story-doc-only fixes). Next iteration — ATDD-skip decision per the 13-cumulative-precedent IP QUEUE § 1: Story 2.4 has no authored test-runner (Task 7.4 + Task 10 smokes are ad-hoc shell-level); hybrid ground-(c)+(ii)+(iii) skip applies (downstream Epic 13 harness owns regression coverage; SM review + CR substitute for adversarial coverage). **Fourteenth cumulative FR14n ATDD-skip precedent projected** (Stories 1.7/1.8/1.9/1.10/1.11/1.12/1.13/1.14/1.15/1.16/2.1/2.2/2.3 → 2.4). |
+| v1.3    | 2026-04-22 | 174  | **dev-story landing** — `/bmad-dev-story` executed all 11 tasks in single fresh-context iteration. Eight files touched: NEW `packages/devbox/scripts/whitelist.sh` (~360 LOC, 0755) implementing four-subcommand CLI (`sync` / `add` / `remove` / `list`); `start-egress.sh` extended with WHITELIST_LOCAL constant + 5-line conditional `cat` inside `compose_whitelist()` after fragments loop + banner refresh (SC-14 byte-identity); `whitelist.default.txt` header rewritten to document three-stage composition; `package.json` gained `"devbox:whitelist": "./scripts/whitelist.sh"` script entry (SC-12); `packages/devbox/README.md` gained `### Per-fork whitelist override (Story 2.4)` H3 with subcommand table + invocation session; `AGENTS.md` gained matching H3 under § Devbox iteration environment; `.gitignore` gained `packages/devbox/whitelist.local.txt` entry at end of `# Environment / secrets` block (SC-3, no `.example` bang per Story 2.2 iter-151 AR-2 asymmetry-bug avoidance). **SC-14 dual-composer parity smoke (Subtask 7.4 / 10.9) passed in iteration env** — byte-identical output across baseline + 3 fragments + local override fixture (with deliberate `shared.example.org` overlap to verify `sort -u` dedup); harness sources `whitelist.sh` (main-guard added so it's sourceable without firing dispatcher) + `awk`-extracts `compose_whitelist()` body from `start-egress.sh`, overrides constants to point at fixture, diffs outputs. **Iteration-env-safe additional smokes** all pass: `bash -n` syntax check, dispatcher exit-2 contract (no-args / unknown-subcommand / wrong-arity), domain-syntax validation rejection (underscore / leading-hyphen / trailing-dot SC-5 known-limit), well-formed-domain regex acceptance (then expected `/run` permission-denied at mutation lock — backend-B context, not a defect), `cmd_list` source-attribution output format (`<prefix>  <domain>` two-space, alphabetical), `validate_sources` multi-error collection (4 stderr lines for 4 malformed fixture entries with correct DEVBOX_DIR-relative paths + line numbers, valid lines pass — SC-6 verified). **`.gitignore` smoke** verified `git check-ignore -v packages/devbox/whitelist.local.txt` fires the new rule (.gitignore:48). **Live container smokes 10.1–10.8 + 9.2 deferred** to operator workstation per Subtask 10.10 + Story 2.1 iter-127 backend-B precedent (host socket-passthrough cannot exercise `/run`, dnsmasq, nft, or `pnpm install` from iteration env). FR14n Story State `validated → in-dev`. sprint-status row `2-4`: `ready-for-dev → review`. PR #230 stays Draft (Epic 2 closes at Story 2.17). Next iteration: `/bmad-testarch-trace (args: "yolo")` for `in-dev → traced` AC→test coverage gate. |

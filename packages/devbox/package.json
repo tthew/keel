@@ -14,7 +14,8 @@
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "devbox:whitelist": "./scripts/whitelist.sh"
   },
   "devDependencies": {
     "@keel/keel-invariants": "workspace:*"

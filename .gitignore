@@ -44,6 +44,8 @@ pnpm-debug.log*
 !packages/devbox/.secrets.example
 *.pem
 *.key
+# Story 2.4 per-fork whitelist override — operator-editable via whitelist.sh add/remove; NEVER committed.
+packages/devbox/whitelist.local.txt
 
 # Dependencies
 node_modules/

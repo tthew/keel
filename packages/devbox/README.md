@@ -256,6 +256,37 @@ docker exec -it keel-devbox /workspace/packages/devbox/scripts/monitor.sh
 
 `reload-egress.sh` serialises concurrent reloads via `flock -x /run/keel-egress.lock` (10 s timeout → exit 4); applies the nftables ruleset via a single `nft -f <tempfile>` kernel transaction (failure → exit 5, previous ruleset stays active); reloads dnsmasq via `kill -HUP <pid>` (fallback `pkill -HUP dnsmasq`; failure → exit 7 — fallible seam per SC-5 residual risk).
 
+### Per-fork whitelist override (Story 2.4)
+
+Story 2.4 ships `packages/devbox/scripts/whitelist.sh` — the user-facing CLI on top of Story 2.3's `reload-egress.sh` primitive. Four subcommands per `architecture.md § Devbox Package Tree` (l.1002):
+
+| Subcommand        | Effect                                                                | Exit codes                                        |
+| ----------------- | --------------------------------------------------------------------- | ------------------------------------------------- |
+| `sync`            | Recompose + LDH-regex validate + atomic-reload (no mutation)          | 0 ok; 2 validate; 3 unreadable; 5–7 reload        |
+| `add <domain>`    | Append `<domain>` to `whitelist.local.txt` (atomic, locked) + `sync`  | 0 ok; 2 syntax; 4 lock-timeout; 5–7 reload        |
+| `remove <domain>` | Strip `<domain>` from `whitelist.local.txt` (atomic, locked) + `sync` | 0 ok; 2 substrate-domain / syntax; 4 lock-timeout |
+| `list`            | Print composed state with source prefix (`D` / `F:<name>` / `L`)      | 0 ok                                              |
+
+The per-fork override file `packages/devbox/whitelist.local.txt` is gitignored (no committed `.example` template — substrate baseline already lives in `whitelist.default.txt` + `whitelist/*.txt`). Composition is additive-only; the override CANNOT shrink the substrate baseline (`remove <substrate-domain>` errors with operator education and routes the operator to the source-level PR / FR44 AMEND path).
+
+In-container invocation paths (Story 2.6 later wraps these behind a host-side `pnpm devbox:whitelist` alias; until then operators invoke via `docker exec`):
+
+```sh
+# Add a per-fork domain (auto-syncs)
+docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh add internal-registry.myfork.com
+
+# Inspect composed state with source attribution
+docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh list
+
+# Remove a per-fork domain (auto-syncs)
+docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh remove internal-registry.myfork.com
+
+# Recompose + reload without changes (e.g., after hand-editing whitelist.local.txt)
+docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh sync
+```
+
+Domain-syntax validation uses a strict LDH (letter-digit-hyphen) regex with a 253-char total-length bound (RFC 1035). Underscores, leading/trailing hyphens, empty labels, slashes, embedded whitespace, and zero-width Unicode are rejected. IDN entries MUST be pre-punycode-encoded by the operator (1.0 scope; refinement deferred). Validation failure exits 2 WITHOUT invoking `reload-egress.sh` — previous policy stays active (AC 3 fail-closed).
+
 ### Known upstream bugs fixed
 
 1. **Divergent whitelist tooling** — upstream shipped two independent reload paths (`manage-whitelist.sh` + `whitelist`) with different state; Story 2.3 collapses onto a single `reload-egress.sh` primitive.

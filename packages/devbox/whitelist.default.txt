@@ -1,13 +1,15 @@
-# packages/devbox/whitelist.default.txt — Story 2.3 (SC-8)
+# packages/devbox/whitelist.default.txt — Story 2.3 (SC-8) + Story 2.4 (SC-4)
 #
 # Baseline per-fork allow-list for devbox egress (dnsmasq + nftables).
 # Empty at substrate level — category fragments under packages/devbox/whitelist/
 # ship the canonical starting set (npm, anthropic, github).
 #
-# Composition order (concatenation at container start by scripts/start-egress.sh):
-#   1. packages/devbox/whitelist.default.txt  (this file — baseline)
+# Composition order (concatenation by scripts/start-egress.sh at boot AND by
+# scripts/whitelist.sh at CLI invocation; both composers MUST produce
+# byte-identical output per SC-14):
+#   1. packages/devbox/whitelist.default.txt  (this file — substrate baseline)
 #   2. packages/devbox/whitelist/*.txt        (category fragments, sorted)
-#   3. (Story 2.4 later) per-fork override file
+#   3. packages/devbox/whitelist.local.txt    (per-fork override; gitignored)
 #
 # Syntax:
 #   - one domain per line
@@ -19,7 +21,7 @@
 # rules in the nftables `inet keel_egress` table. dnsmasq forwards the domain
 # to ${KEEL_DEVBOX_DNS_UPSTREAM} (default 1.1.1.1).
 #
-# DO NOT add per-fork domains here — Story 2.4 introduces the user-facing
-# `whitelist.sh` CLI with a proper override path. Substrate forks amend by
-# source-level PR against this file (FR44 AMEND path); per-fork additions wait
-# for Story 2.4.
+# Per-fork override lives at `whitelist.local.txt` (gitignored); edit via
+# `pnpm devbox:whitelist add|remove <domain>` or hand-edit the file then
+# `pnpm devbox:whitelist sync`. Substrate amendments to this file or to
+# whitelist/*.txt go through source-level PRs subject to prek gates (FR44 AMEND).

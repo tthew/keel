@@ -80,6 +80,14 @@ The `cc-devbox` container has Docker installed per [`docs.docker.com/engine/inst
 
 **Two backends satisfy the invariant** (see `docs/invariants/devbox-dind.md` § Backend contract): **A** = true Docker-in-Docker (isolated daemon), **B** = host socket-passthrough (`/var/run/docker.sock` bind-mounted; daemon is the host's). Keel's reference environment at 2026-04-21 uses backend B. **Safety rule — critical under B:** broad-state-mutation scripts (`docker system prune`, `docker volume prune`, `docker image prune -a`, `docker rm -f $(docker ps -aq)`) MUST detect the backend and refuse destructive ops by default; they destroy unrelated host projects otherwise. Prefer scoped ops (`docker image rm keel-devbox:local`, `docker compose down --rmi local --volumes`) that are safe under either backend. `packages/devbox/scripts/benchmark.sh` is the reference implementation of this gate.
 
+### Per-fork whitelist override (Story 2.4)
+
+The egress allow-list composes from three sources in order: `packages/devbox/whitelist.default.txt` (substrate baseline), `packages/devbox/whitelist/*.txt` (sorted category fragments — npm, anthropic, github), and `packages/devbox/whitelist.local.txt` (per-fork override; gitignored per Story 2.4 SC-3). Composition is **additive-only**: the override CANNOT remove substrate domains. Final `sort -u` dedupes; fail-closed default + IPv4/IPv6 parity + atomic-reload semantics from `INV-devbox-egress-contract` are unchanged.
+
+- **Mutation:** `pnpm devbox:whitelist add <domain>` / `remove <domain>` edit `whitelist.local.txt` atomically under a mutation lock (fd 201 — disjoint from reload-egress.sh's fd 200) then invoke `sync`. `pnpm devbox:whitelist sync` recomposes + validates + reloads (no mutation). `pnpm devbox:whitelist list` prints composed state with source attribution (`D` = default, `F:<name>` = fragment, `L` = local override).
+- **AMEND path (substrate edits):** baseline + fragment edits go through source-level PRs subject to prek gates (FR44 AMEND), not the runtime CLI. `whitelist.sh remove <substrate-domain>` errors with operator education; substrate domains are immutable from the override.
+- **Growth-tier `INVARIANTS.fork.md`:** if a fork opts into the Growth-tier scaffold (`docs/invariants/fork.md` § INVARIANTS.fork.md scaffold), fork-owned invariants MAY NOT relax the fail-closed default, IPv4/IPv6 parity, or atomic-reload semantics — the per-fork path is strictly additive.
+
 ## Ralph loop
 
 - `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.

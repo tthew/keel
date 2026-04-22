@@ -10,7 +10,9 @@
 #   2. Pin /etc/resolv.conf to 127.0.0.1 only (SC-13) — closes upstream
 #      cc-devbox's fail-open 8.8.8.8 fallback.
 #   3. Compose the static baseline whitelist (whitelist.default.txt +
-#      whitelist/*.txt fragments) into /run/keel-whitelist.composed.txt (SC-8).
+#      whitelist/*.txt fragments + whitelist.local.txt if present) into
+#      /run/keel-whitelist.composed.txt (SC-8; Story 2.4 SC-4 + SC-14
+#      dual-composer byte-identity with whitelist.sh compose_whitelist_into).
 #   4. Invoke reload-egress.sh for the first-time atomic rule + config apply.
 #   5. Launch egress-log-tailer.sh in background for JSONL emission.
 #   6. Verify dnsmasq is serving on 127.0.0.1:53 — fail-hard exit 1 if not.
@@ -24,6 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WHITELIST_DEFAULT="${DEVBOX_DIR}/whitelist.default.txt"
 WHITELIST_FRAGMENTS_DIR="${DEVBOX_DIR}/whitelist"
+WHITELIST_LOCAL="${DEVBOX_DIR}/whitelist.local.txt"
 COMPOSED_WHITELIST="/run/keel-whitelist.composed.txt"
 TAILER_PID_FILE="/run/keel-egress-tailer.pid"
 DNSMASQ_PID_FILE="/run/dnsmasq.pid"
@@ -90,6 +93,16 @@ compose_whitelist() {
 				[[ -r "${fragment}" ]] || continue
 				cat "${fragment}"
 			done
+		fi
+		# Story 2.4 SC-4: per-fork override composed last, additive-only.
+		# The override CANNOT remove substrate domains (final sort -u dedupes;
+		# fail-closed default + IPv4/IPv6 parity unchanged). File is gitignored
+		# (SC-3); absent by default; present when operator has invoked
+		# `whitelist.sh add <domain>` at least once or pre-placed via fork
+		# scaffolding. SC-14 byte-identity contract: this composition stage MUST
+		# match whitelist.sh's compose_whitelist_into exactly.
+		if [[ -r "${WHITELIST_LOCAL}" ]]; then
+			cat "${WHITELIST_LOCAL}"
 		fi
 	} \
 		| sed -E 's/#.*$//' \
