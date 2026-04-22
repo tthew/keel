@@ -547,6 +547,57 @@ Before attaching, each wrapper exports `KEEL_RALPH_MODE=build|plan`. Epic 3's in
 - `### Host-side CLI (Story 2.6)` above — `start.sh` / `attach.sh` primitives that Story 2.7 composes on.
 - Story 2.7 file `_bmad-output/implementation-artifacts/2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan.md` — full spec, scope clarifications SC-1..SC-17, and Epic-3 carve-out.
 
+## Claude Code authentication (Story 2.8)
+
+`pnpm claude` is the operator entry point for Claude Code inside the devbox (FR3). First invocation per fresh devbox triggers the Anthropic OAuth flow; the URL surfaces on your host terminal and you complete the flow in a host browser. Tokens persist at `/home/dev/.claude/` inside the `keel_home_dev` named volume (Story 2.5 substrate), so subsequent invocations skip auth and survive `pnpm devbox:restart`.
+
+### Quick start
+
+```sh
+pnpm devbox:start       # bring the container up first (no auto-start per SC-4)
+pnpm claude             # first run: follow the URL printed to your terminal in a host browser
+pnpm claude --version   # any claude args pass through via "$@"
+pnpm claude -p "hello"  # one-shot prompt after the token is seeded
+```
+
+### First-run OAuth flow (AC 1, AC 2)
+
+1. `pnpm claude` with no existing token invokes `claude` inside `keel-devbox` under `docker exec -it --user dev -w /workspace`. The OAuth device-code flow prints a URL (and optionally a code) to your terminal.
+2. Open the URL in a host browser, complete Anthropic OAuth, and — if prompted — paste the device code back into the page.
+3. `claude` writes the token file under `/home/dev/.claude/` inside the `keel_home_dev` named volume. The token is never bind-mounted to the host filesystem.
+
+### Persistence contract (AC 3)
+
+Tokens survive `pnpm devbox:restart`, `pnpm devbox:stop && pnpm devbox:start`, and host reboots — the `keel_home_dev` named volume persists across the container's lifecycle (Story 2.5 § Named volume `keel_home_dev`). Re-running `pnpm claude` on an already-authed devbox is a no-op at the auth layer: claude detects the existing token and proceeds to its default action (interactive session, or whatever `"$@"` args selected).
+
+### Re-auth on expiry (AC 4)
+
+If claude reports "not authenticated" — or Ralph's pre-push gate surfaces an auth failure — re-run `pnpm claude`. The OAuth flow repeats; the new token overwrites the old under `/home/dev/.claude/`. No wrapper-side state tracking is required; Claude Code owns the refresh semantics.
+
+### Volume-delete reset (AC 5)
+
+`pnpm devbox:clean --with-volumes` wipes `/home/dev/.claude/` along with the entire `keel_home_dev` named volume — expected per NFR10 fresh-fork behaviour. After a volume-delete reset, `pnpm claude` must be re-run to re-seed the token.
+
+### Pre-flight expectation
+
+`pnpm claude` fails-closed with exit `9` if the container is not running — it does NOT auto-start the devbox (contrast `pnpm ralph:build`, which DOES auto-start per Story 2.7 SC-1). Auth is a one-off operator gesture; auto-start would mask intent and add a 30–60s first-invocation delay. Run `pnpm devbox:start` first.
+
+### Exit codes (Story 2.6 uniform schema)
+
+| Code | Meaning                                                                         |
+| ---- | ------------------------------------------------------------------------------- |
+| `0`  | Clean exit — OAuth completed, or claude's own clean exit.                       |
+| `8`  | Docker runtime unreachable — `docker info` failed. Hint: is the daemon running? |
+| `9`  | Container not running — run `pnpm devbox:start` first (no auto-start per SC-4). |
+| `*`  | `claude` or `docker exec` error — propagated unchanged.                         |
+
+### Cross-references
+
+- `AGENTS.md § Claude Code authentication` — agent-facing operational contract (never invoke `docker exec … claude` directly; token persistence contract on `keel_home_dev`).
+- `### Host-side CLI (Story 2.6)` above — `shell.sh` / `attach.sh` interactive-exec primitives that `claude-host.sh` mirrors.
+- `### Ralph loop (Story 2.7)` above — contrast: `ralph-build-host.sh` / `ralph-plan-host.sh` DO auto-start; `claude-host.sh` does NOT (SC-4).
+- Story 2.8 file `_bmad-output/implementation-artifacts/2-8-claude-code-oauth-via-pnpm-claude.md` — full spec, scope clarifications SC-1..SC-17, upstream-CLI carve-out.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:

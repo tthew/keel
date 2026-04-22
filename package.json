@@ -34,6 +34,7 @@
     "devbox:env:check": "./packages/devbox/scripts/env-check.sh",
     "ralph:build": "./packages/devbox/scripts/ralph-build-host.sh",
     "ralph:plan": "./packages/devbox/scripts/ralph-plan-host.sh",
+    "claude": "./packages/devbox/scripts/claude-host.sh",
     "prepare": "prek install -t pre-commit -t commit-msg"
   },
   "devDependencies": {
