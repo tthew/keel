@@ -260,12 +260,12 @@ docker exec -it keel-devbox /workspace/packages/devbox/scripts/monitor.sh
 
 Story 2.4 ships `packages/devbox/scripts/whitelist.sh` — the user-facing CLI on top of Story 2.3's `reload-egress.sh` primitive. Four subcommands per `architecture.md § Devbox Package Tree` (l.1002):
 
-| Subcommand        | Effect                                                                | Exit codes                                        |
-| ----------------- | --------------------------------------------------------------------- | ------------------------------------------------- |
-| `sync`            | Recompose + LDH-regex validate + atomic-reload (no mutation)          | 0 ok; 2 validate; 3 unreadable; 5–7 reload        |
-| `add <domain>`    | Append `<domain>` to `whitelist.local.txt` (atomic, locked) + `sync`  | 0 ok; 2 syntax; 4 lock-timeout; 5–7 reload        |
-| `remove <domain>` | Strip `<domain>` from `whitelist.local.txt` (atomic, locked) + `sync` | 0 ok; 2 substrate-domain / syntax; 4 lock-timeout |
-| `list`            | Print composed state with source prefix (`D` / `F:<name>` / `L`)      | 0 ok                                              |
+| Subcommand        | Effect                                                                | Exit codes                                                                  |
+| ----------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `sync`            | Recompose + LDH-regex validate + atomic-reload (no mutation)          | 0 ok; 2 validate; 3 unreadable; 5–7 reload                                  |
+| `add <domain>`    | Append `<domain>` to `whitelist.local.txt` (atomic, locked) + `sync`  | 0 ok; 2 syntax; 3 unreadable; 4 lock-timeout; 5–7 reload                    |
+| `remove <domain>` | Strip `<domain>` from `whitelist.local.txt` (atomic, locked) + `sync` | 0 ok; 2 substrate-domain / syntax; 3 unreadable; 4 lock-timeout; 5–7 reload |
+| `list`            | Print composed state with source prefix (`D` / `F:<name>` / `L`)      | 0 ok                                                                        |
 
 The per-fork override file `packages/devbox/whitelist.local.txt` is gitignored (no committed `.example` template — substrate baseline already lives in `whitelist.default.txt` + `whitelist/*.txt`). Composition is additive-only; the override CANNOT shrink the substrate baseline (`remove <substrate-domain>` errors with operator education and routes the operator to the source-level PR / FR44 AMEND path).
 
