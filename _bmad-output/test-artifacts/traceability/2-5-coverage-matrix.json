@@ -1,0 +1,225 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-22T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.5",
+    "label": "container hardening (non-root user + capabilities + tmpfs noexec + named volume)"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "Non-root `dev` user created with stable UID/GID and Dockerfile `USER dev` directive switches before entrypoint runs",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/Dockerfile (iter-187): `RUN groupadd --gid 1000 dev && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev && chown -R dev:dev /home/dev` chained into a single RUN step per SC-1 + SC-3 (minimises intermediate layers). Stable UID/GID 1000 is load-bearing: Docker auto-init-from-image populates the `keel_home_dev` named volume with correct ownership on first boot (SC-6 + docs.docker.com/storage/volumes semantics).",
+        "packages/devbox/Dockerfile (iter-187): `USER dev` directive placed on its own line AFTER `COPY entrypoint.sh` + `RUN chmod +x /usr/local/bin/entrypoint.sh` and BEFORE `WORKDIR /workspace` per SC-2. Mkdir of `/workspace /home/dev/.claude ...` runs BEFORE USER dev so root-context creation of `/workspace` at filesystem root is preserved.",
+        "packages/devbox/Dockerfile (iter-187): `RUN setcap cap_net_admin,cap_net_raw,cap_net_bind_service+eip /usr/sbin/dnsmasq && setcap cap_net_admin+eip /usr/sbin/nft` after the Playwright deps block per SC-15 defence-in-depth fallback. Inline comment block documents: SC-15 ambient-cap automation is the primary mechanism under Docker ≥19.03 + `no-new-privileges:true` (kernel masks file-cap F(effective) on exec via PR_SET_NO_NEW_PRIVS=1 per capabilities(7)); setcap +eip is harmless-no-op under NNP + ambient caps but provides a working fallback on older Docker / Podman-compat runtimes.",
+        "packages/devbox/Dockerfile (iter-187): pin-rationale comment header above the `useradd` block cites SC-1 UID/GID-1000 choice + `/bin/bash` over `/bin/sh` (entrypoint.sh uses `#!/usr/bin/env bash`; operator-shell consistency) + `--create-home` for Docker named-volume auto-init-from-image behaviour. Second pin-rationale comment block above `setcap` cites SC-15 ambient-cap + NNP file-cap masking mechanism.",
+        "packages/devbox/entrypoint.sh:26 (iter-187): `WORKSPACE_OWNER=\"${KEEL_DEVBOX_WORKSPACE_OWNER:-dev:dev}\"` (was `:-root:root` pre-Story-2.5) per SC-7 declarative operator intent. CR-AI-5 input-shape validation regex at `:51` (`^[A-Za-z_][A-Za-z0-9_.+-]*:[A-Za-z_][A-Za-z0-9_.+-]*$`) already accepts `dev:dev` — no regex change needed.",
+        "packages/devbox/entrypoint.sh (iter-187): SC-5 runtime chown best-effort posture preserved verbatim — existing `chown` calls at `:81` (workspace + /home/dev/.claude + /home/dev/.config/gh) remain with `2>/dev/null || true` stderr-capture + continue semantics. Under `cap_drop: [ALL]` without CAP_CHOWN, these calls fail harmlessly; image-build-time chown (SC-3) for /home/dev/* is the load-bearing mechanism; /workspace bind-mount UID passthrough handles the workspace-ownership path on UID-1000-aligned hosts.",
+        "packages/devbox/entrypoint.sh (iter-187): multi-line completed-substrate reference block replaces the `TODO(Story 2.5)` marker at `:25-26` pointing to `docs/invariants/devbox-hardening.md § Capability bounding set`; file-header comment refreshed to reference Story 2.5 landing + the three-cap rationale.",
+        "Iteration-env substrate verification (iter-187): `docker compose config` (parse-smoke) PASSED — compose file parses cleanly with all hardening stanzas present (cap_drop, cap_add, security_opt, tmpfs, service volumes extended, top-level volumes.keel_home_dev). Substantively validates that the USER dev + cap_drop + cap_add + security_opt composition is Docker-Compose-schema-valid. No runtime container assertion (see Live-smoke below).",
+        "Live-smoke AC 1 runtime verification — Subtask 11.1 (`docker exec keel-devbox id` → `uid=1000(dev) gid=1000(dev) groups=1000(dev)`) + Subtask 11.2 (`docker exec keel-devbox stat -c '%u:%g' /home/dev` → `1000:1000`) + Subtask 11.4 (`docker inspect --format '{{.Config.User}}' keel-devbox` → `dev`) — deferred to M4-Pro operator workstation per Story 2.4 SC-17 precedent + Story 2.5 SC-13 backend-B live-smoke constraint (DinD-B cannot safely exercise `docker exec` sequences against cap-dropped containers). Canonical recipes pinned in `docs/invariants/devbox-hardening.md § Verification` + `packages/devbox/README.md § Hardening § Verification`.",
+        "Adversarial AC-1 coverage delegated to iter-CR per § Dev-agent guardrails hybrid ground-(c) variant-(iii) spec-declared-CR-substitution: Blind Hunter examines Dockerfile layer ordering (useradd → chown -R → setcap → COPY entrypoint → chmod +x → USER dev → WORKDIR → ENTRYPOINT) + verifies USER dev does not mask a build-time root-required operation; Edge Case Hunter probes `--create-home` interaction with empty named-volume first-boot population + UID-collision edge (host UID ≠ 1000) + Docker tmpfs auto-mount ownership preservation; Acceptance Auditor verifies AC 1 verbatim match — `USER dev` on its own line, UID/GID 1000, before ENTRYPOINT resolution."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "`docker-compose.yml` declares `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` + `security_opt: [no-new-privileges:true]`",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/docker-compose.yml (iter-187): `cap_drop: [ALL]` followed by `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` per SC-4. Order — cap_drop BEFORE cap_add — enforces semantic clarity (drop-everything-then-grant-three-narrow-caps). Inline comment documents SC-4 three-cap rationale: NET_ADMIN (nftables netlink rule-load for Story 2.3 reload-egress.sh); NET_RAW (raw-socket probes dnsmasq may issue during health checks); NET_BIND_SERVICE (bind to <1024 for dnsmasq port 53 under cap_drop:[ALL] stripping NET_BIND_SERVICE from the bounding set — without this third cap kernel rejects :<1024 bind from ANY process per capabilities(7)).",
+        "packages/devbox/docker-compose.yml (iter-187): `security_opt: [no-new-privileges:true]` added immediately after `cap_add` block. Sets `PR_SET_NO_NEW_PRIVS=1` on PID 1 — kernel masks file-cap F(effective) on exec + disables setuid-bit elevation (capabilities(7) + no_new_privs kernel semantics).",
+        "packages/devbox/docker-compose.yml (iter-187): header-checklist comment refreshed to `LANDED iter-187` with each hardening stanza marked green (cap_drop, cap_add, security_opt, tmpfs /tmp, tmpfs /var/tmp, service volumes → keel_home_dev, top-level volumes.keel_home_dev). Pre-existing Story 2.11/2.12/2.13/2.8-2.9 TODO markers preserved.",
+        "Iteration-env substrate verification (iter-187): `docker compose config` (parse-smoke) PASSED — cap_drop/cap_add/security_opt stanzas parse cleanly. Output includes literal `[\"ALL\"]` cap_drop list + three-cap cap_add list + `no-new-privileges:true` security_opt token. Schema validity proves Docker Compose accepts the declaration; kernel enforcement is the operator-workstation live-smoke concern (Subtask 11.6).",
+        "SC-15 ambient-cap-vs-setcap interaction pinned in `docs/invariants/devbox-hardening.md § Capability bounding set` (iter-187 NEW ~130 LOC doc): under USER dev + cap_drop:[ALL] + cap_add:[three caps] + no-new-privileges:true, Docker ≥19.03's ambient-cap automation (`prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, …)`) is the PRIMARY privilege-propagation mechanism for entrypoint.sh → start-egress.sh → dnsmasq/nft chain. File capabilities via `setcap +eip` are kernel-disabled under PR_SET_NO_NEW_PRIVS=1 (F(effective) masked to 0 on exec) — setcap is the defence-in-depth PORTABILITY fallback for older Docker / Podman-compat runtimes without automated ambient-cap handling; harmless no-op on the substrate reference runtime.",
+        "Live-smoke AC 2 runtime verification — Subtask 11.5 (`docker inspect --format '{{.HostConfig.CapDrop}} {{.HostConfig.CapAdd}}' keel-devbox` → `[ALL] [NET_ADMIN NET_RAW NET_BIND_SERVICE]`) + Subtask 11.6 (`docker inspect --format '{{.HostConfig.SecurityOpt}}' keel-devbox` → `[no-new-privileges]`) + Subtask 11.7 capability-exercise smoke (`docker exec keel-devbox sh -c 'ss -tlnp | grep :53 && nft list table inet keel_egress'` → dnsmasq bound on :53 + nftables rules loaded, proving ambient caps raised correctly from Docker ≥19.03's automation) — deferred to M4-Pro operator workstation per SC-13 + Story 2.4 SC-17 precedent. Canonical recipes pinned in `docs/invariants/devbox-hardening.md § Verification`.",
+        "Adversarial AC-2 coverage delegated to iter-CR: Blind Hunter examines cap_drop-before-cap_add ordering + the three-cap set for over/under-grant (NET_BIND_SERVICE proves required by kernel port-bind semantics under cap_drop:[ALL] per SC-4; CAP_CHOWN deliberately excluded per SC-5); Edge Case Hunter probes ambient-cap-missing fallback (older Docker) + setcap fallback path correctness + capability bounding set interaction with non-root UID; Acceptance Auditor verifies AC 2 verbatim match — `cap_drop: [ALL]` + `cap_add` three-cap list + `security_opt: [no-new-privileges:true]` + the AC 2 parenthetical (\"required by nftables in Story 2.3\") reconciled with SC-4's third-cap addition (`NET_BIND_SERVICE`)."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "`/tmp` and `/var/tmp` are tmpfs-mounted with `noexec,nosuid` options; sizes parameterised via `KEEL_DEVBOX_TMPFS_TMP_MB` + `KEEL_DEVBOX_TMPFS_VARTMP_MB`",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/docker-compose.yml (iter-187): service-level `tmpfs:` long-syntax block with two entries per SC-8. `/tmp` → `exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m`; `/var/tmp` → `exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m`. Docker Compose's `exec=false` = kernel `noexec`; `suid=false` = kernel `nosuid`. Sizes in MB (Compose parses `m`/`g` case-insensitively).",
+        "packages/devbox/.envrc.example:29-31 (Story 2.2 iter-151 — UNTOUCHED by Story 2.5 per SC-18 + SC-19): `KEEL_DEVBOX_TMPFS_TMP_MB=2048` + `KEEL_DEVBOX_TMPFS_VARTMP_MB=1024` + `KEEL_DEVBOX_TMPFS_LOGS_MB=500` published as operator-configurable knobs. Story 2.5 CONSUMES the first two; `KEEL_DEVBOX_TMPFS_LOGS_MB` remains inert at 1.0 per SC-8 (`/var/log` NOT tmpfs-mounted — dnsmasq/nftables logs live under `/workspace/logs/` per Story 2.3 SC-17 bind-mount).",
+        "docs/invariants/devbox-hardening.md (iter-187 NEW): § tmpfs posture sub-contract documents the two tmpfs mounts + the `/var/log` non-tmpfs carve-out rationale (Story 2.3 log-bind-mount precedence) + the inert `LOGS_MB` knob status. H3 sub-contract inherits the single-sourcePath-single-contentHash discipline per Story 2.3 SC-10 + Story 2.5 SC-9.",
+        "Iteration-env substrate verification (iter-187): `docker compose config` (parse-smoke) PASSED — tmpfs long-syntax parses cleanly with env-var defaults applied (shows `size=2048m` for /tmp + `size=1024m` for /var/tmp when no .envrc override). Schema validity proves Compose accepts the tmpfs long-syntax declaration; kernel enforcement of noexec + nosuid is the operator-workstation live-smoke concern (Subtask 11.3 + AC 5 Smoke A).",
+        "Live-smoke AC 3 runtime verification — Subtask 11.3 (`docker exec keel-devbox findmnt -no OPTIONS /tmp /var/tmp` → both mounts show `noexec,nosuid` in options column) — deferred to M4-Pro operator workstation per SC-13 backend-B live-smoke constraint. The `findmnt` output is the canonical assertion surface: kernel-reported mount options reflect the tmpfs long-syntax `exec=false,suid=false` translation.",
+        "Adversarial AC-3 coverage delegated to iter-CR: Blind Hunter examines tmpfs long-syntax parsing order (option-list comma-separation; Compose's `size=...m` suffix parsing; env-var interpolation with fallback-default); Edge Case Hunter probes size-knob override bounds (1-char value; empty override; non-numeric override — Compose validation catches) + /var/log non-tmpfs decision boundary (Story 2.3 log-dir-bind-mount + dnsmasq log-dir-initialization interaction); Acceptance Auditor verifies AC 3 verbatim match — `/tmp` + `/var/tmp` tmpfs-mounted with noexec,nosuid + parameterisation via Story 2.2-published knobs."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "Named Docker volume `keel_home_dev` mounted at `/home/dev`; no host bind-mount under any `KEEL_DEVBOX_*` setting; non-toggle-able invariant registered as `INV-devbox-homedev-named-volume`",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/docker-compose.yml (iter-187): service `volumes:` block extended with `type: volume, source: keel_home_dev, target: /home/dev` long-syntax entry AFTER the pre-existing `/workspace` bind-mount per SC-6. Top-level `volumes:` block added at end of file (same indentation as `services:`): `volumes: { keel_home_dev: {} }` with inline comment documenting non-toggle posture. Default `local` driver — no `driver_opts` — for portability across Docker Desktop (macOS, Linux) + rootless Docker + Podman-compat forks.",
+        "docs/invariants/devbox-hardening.md (iter-187 NEW ~130 LOC): primary sourcePath doc for `INV-devbox-homedev-named-volume` per SC-9. H1 + § Intent + § Contract with four H3 sub-contracts (Non-root dev user + Capability bounding set + tmpfs posture + /home/dev named volume). The `INV-devbox-homedev-named-volume` anchor appears backtick-wrapped in the doc body per SC-11 anchor-location convention (walker finds literal anchors in body, NOT H3 headers).",
+        "packages/keel-invariants/src/invariants.manifest.ts (iter-187): NEW entry registered — `INV-devbox-homedev-named-volume` with sourcePath `docs/invariants/devbox-hardening.md` + contentHash `5b2e95462566cc67fe2a575886b0d94cd28a796cd2cf9dce26480598524d67f4` + anchors pointing at each of the four H3 sub-contract anchors + description citing SC-9 umbrella entry posture. Sync-gate exit 0 GREEN at iter-187 (21 manifest entries valid; NEW entry contentHash verified via the Story 2.3 iter-162 / Story 2.5 SC-11 placeholder-then-actualHash capture protocol — sync-gate reported `actualHash: 5b2e95462566cc67fe2a575886b0d94cd28a796cd2cf9dce26480598524d67f4`; placeholder `0000...` replaced; re-run → exit 0).",
+        "INVARIANTS.md (iter-187): new H3 `### Devbox hardening (Story 2.5) — INV-devbox-homedev-named-volume` section + manifest-index anchor bullet citing sourcePath + Story-2.5 registration. Cross-references the four sub-contracts + the Story 2.17 runtime-compose-shape-check deferral (SC-10).",
+        "packages/devbox/README.md (iter-187): new `## Hardening` H2 section below the existing § Egress policy section. Documents AC 1-5 verbatim (operator-readable spec pin) + SC-4 three-cap rationale (why NET_BIND_SERVICE is the third cap) + SC-14 whitelist.sh `/run` compatibility note (happy-path branch assumed) + § Verification subsection with Smoke A + Smoke B from SC-13 as copy-paste operator commands.",
+        "AGENTS.md (iter-187): new `### Container hardening (Story 2.5)` H3 subsection under § Devbox iteration environment documenting (a) non-root dev UID/GID 1000; (b) cap-drop + three-cap-allow list with rationale per cap; (c) `no-new-privileges` + tmpfs noexec/nosuid posture; (d) named-volume `keel_home_dev` contract (non-toggle); (e) runtime-chown best-effort posture under dropped CAP_CHOWN (SC-5 known limitation). Companion to Story 2.4's `### Per-fork whitelist override (Story 2.4)` subsection.",
+        "Iteration-env substrate verification (iter-187): `pnpm keel-invariants:check` (sync-gate) exit 0 GREEN validating 21 manifest entries including the new `INV-devbox-homedev-named-volume` entry with contentHash `5b2e95462566cc67fe2a575886b0d94cd28a796cd2cf9dce26480598524d67f4` matching the sourcePath canonicalization. `pnpm check-all` GREEN + `pnpm typecheck` GREEN + `pnpm lint` GREEN (16 successful passes) + `pnpm format:check` GREEN. `docker compose config` GREEN showing service.volumes includes keel_home_dev → /home/dev volume + top-level volumes.keel_home_dev definition.",
+        "Live-smoke AC 4 runtime verification — Subtask 11.8 (`docker volume inspect keel-devbox_keel_home_dev` → exists + mountpoint under Docker Desktop vm + empty on first-boot) + Subtask 11.9 (`docker inspect --format '{{range .Mounts}}{{.Type}} {{.Source}} {{.Destination}}{{println}}{{end}}' keel-devbox` → includes `volume keel_home_dev /home/dev` line) — deferred to M4-Pro operator workstation per SC-13. Structural static-contract-assertion (`type: volume` in compose + top-level volumes block) pins the non-toggle-able invariant statically; runtime inspection verifies Docker wires it correctly. SC-10 pins that the runtime compose-shape check (parsing docker-compose.yml + rejecting accidental bind-mount drift) ships at Story 2.17 or a dedicated check-devbox-compose-shape.ts consumer — NOT at Story 2.5 itself.",
+        "Adversarial AC-4 coverage delegated to iter-CR: Blind Hunter examines SC-6 named-volume naming (keel_home_dev) + top-level volumes block placement + default `local` driver portability + absence of any `KEEL_DEVBOX_*` knob that could toggle bind-mount (non-toggle contract); Edge Case Hunter probes first-boot empty-volume Docker auto-init-from-image ownership propagation (depends on SC-1 UID/GID 1000 + SC-3 /home/dev chown) + volume-name-collision with upstream cc-devbox legacy names + Podman-compat driver differences; Acceptance Auditor verifies AC 4 verbatim match — named-volume at `/home/dev`, no bind-mount under any knob, invariant registered with ID `INV-devbox-homedev-named-volume` per SC-9."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": "Executing a binary from `/tmp` fails with `noexec`; setuid privilege-gain blocked by `nosuid` + `no-new-privileges`",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/docker-compose.yml (iter-187): kernel enforcement surface declared — `tmpfs: [/tmp:exec=false,suid=false,...]` + `security_opt: [no-new-privileges:true]` per AC 3 + AC 2. AC 5 asserts the runtime effect of these two declarations; substrate completeness proves the declaration exists and is syntactically correct; kernel-level binary-exec rejection + setuid-bit masking requires a live container (SC-13).",
+        "docs/invariants/devbox-hardening.md § Verification (iter-187): Smoke A (noexec) and Smoke B (no-new-privileges) pinned as copy-paste operator commands per SC-13. Smoke A: `docker exec keel-devbox sh -c 'printf \"#!/bin/sh\\necho hello\\n\" > /tmp/t.sh && chmod +x /tmp/t.sh && /tmp/t.sh'` → expect exit nonzero with `Permission denied` or `exec format error` (kernel noexec mount flag). SC-13 pin-rationale: `printf` NOT `echo` — POSIX echo does not interpret `\\n` without `-e`, which is non-portable. Smoke B: `docker exec keel-devbox sh -c 'ls -la /usr/bin/sudo'` (sudo binary exists but unusable — attempting `sudo something` returns a sudo-detects-NNP-posture error). `no_new_privs=1` masks setuid-bit honouring per kernel security_cred policy.",
+        "packages/devbox/README.md § Hardening § Verification (iter-187): Smoke A + Smoke B repeated verbatim as operator-readable copy-paste commands. Canonical verification environment: M4-Pro native Docker Desktop with backend-A true Docker-in-Docker OR direct-native Docker (not backend-B host-socket-passthrough per SC-13).",
+        "Iteration-env substrate verification (iter-187): AC 5 has ZERO in-iteration-executable smokes — the DinD backend-B iteration environment cannot safely `docker exec` against cap-dropped containers without risk of poisoning host docker state (Story 2.4 SC-17 precedent). Parse-level `docker compose config` GREEN proves the noexec/nosuid/no-new-privileges declarations are present + schema-valid; kernel-level exec-rejection verification requires a running container on the operator workstation.",
+        "SC-13 AC 5 backend-B live-smoke carve-out: explicit scope-pin at Story 2.5 draft time that AC 5's TWO distinct kernel enforcement mechanisms (tmpfs noexec + NNP setuid masking) are verified together on the M4-Pro operator workstation — not in iteration env. This matches Story 2.3 iter-159 zero-iteration-env-runtime-assertions precedent + Story 2.4 iter-175 backend-B-deferred-live-reload-chain precedent. Story 2.5 contributes iteration-env substrate-schema validation + operator-workstation authoritative live-kernel verification.",
+        "Adversarial AC-5 coverage delegated to iter-CR: Blind Hunter examines the chain noexec → tmpfs mount options → Compose long-syntax translation → kernel mount flag + nosuid → setuid-bit masking + PR_SET_NO_NEW_PRIVS=1 → file-cap F(effective) masking (capabilities(7)); Edge Case Hunter probes `/tmp` exec-attempt via shebang interpreter (kernel enforces on exec(2) syscall regardless of interpreter — BUT interpreter path like `sh /tmp/t.sh` bypasses noexec because the interpreter is the exec target, not /tmp/t.sh — documented as known limitation in SC-13); Acceptance Auditor verifies AC 5 verbatim match — exec attempt from /tmp fails + setuid elevation blocked."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 5, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-5", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — five P2 ACs cover an architecture-security / container-hardening class story (FIFTH Epic 2 + FIRST of its class: Docker-layer security posture combining non-root user + capability bounding set + tmpfs noexec/nosuid + no-new-privileges + named-volume non-toggle invariant — operates at the Docker daemon / kernel-security subsystem boundary, orthogonal to both Story 2.3's daemon+kernel-rule infrastructure-security class AND Story 2.4's user-facing-CLI class) with no live test runner at 1.0. All 5 ACs have STRONG substrate evidence verified LIVE at iter-187: Dockerfile USER dev + useradd + chown -R + setcap (SC-1 + SC-3 + SC-15); compose cap_drop:[ALL] + cap_add:[NET_ADMIN,NET_RAW,NET_BIND_SERVICE] + security_opt:[no-new-privileges:true] + tmpfs /tmp,/var/tmp long-syntax + service volumes keel_home_dev + top-level volumes stanza (SC-4 + SC-6 + SC-8); entrypoint.sh WORKSPACE_OWNER default dev:dev (SC-7); NEW docs/invariants/devbox-hardening.md ~130 LOC four-sub-contract umbrella doc (SC-9); INVARIANTS.md H3 + manifest entry INV-devbox-homedev-named-volume with contentHash 5b2e95462566cc67fe2a575886b0d94cd28a796cd2cf9dce26480598524d67f4 captured via sync-gate protocol (SC-11); README.md ## Hardening section + Smoke A/B operator recipes (SC-13 + SC-17); AGENTS.md ### Container hardening H3 (SC-16). Iteration-env executable verification: `docker compose config` parse-smoke GREEN (all hardening stanzas parse cleanly); sync-gate GREEN (21 manifest entries); check-all GREEN; typecheck GREEN; lint GREEN (16 successful); format:check GREEN. Per-AC runner-hosted + kernel-enforcement smokes (AC 1 Subtask 11.1-11.2-11.4 user-verification; AC 2 Subtask 11.5-11.7 capability-exercise; AC 3 Subtask 11.3 findmnt; AC 4 Subtask 11.8-11.9 volume-inspection; AC 5 Smoke A noexec + Smoke B no-new-privileges) deferred to M4-Pro operator workstation per SC-13 + Story 2.4 SC-17 backend-B-deferred-live-smoke precedent. Unlike Story 2.4 (which had MORE iteration-env evidence than Story 2.3), Story 2.5 has SIMILAR iteration-env evidence posture to Story 2.3 — compose parses cleanly (schema-valid) but live kernel-enforcement verification requires the operator workstation because DinD-B cannot safely exercise cap-dropped containers without poisoning host docker state (Story 2.4 SC-17 verbatim).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.5 authors the architecture-security / container-hardening substrate: 1 NEW file (docs/invariants/devbox-hardening.md ~130 LOC) + 7 modified files (packages/devbox/Dockerfile + packages/devbox/docker-compose.yml + packages/devbox/entrypoint.sh + INVARIANTS.md + packages/keel-invariants/src/invariants.manifest.ts + packages/devbox/README.md + AGENTS.md) exactly matching v0.2 SM-reviewed forecast. 8 files total per SC-19 scope boundary. NEW `INV-devbox-homedev-named-volume` manifest entry with contentHash captured via the Story 2.3 iter-162 placeholder-then-actualHash protocol per SC-11 (do NOT hand-compute sha256 — walker canonicalization may differ from naive file hashing). Sync-gate GREEN with 21 entries valid. Downstream consumers: Story 2.6 host-side `pnpm devbox:*` CLI surface runs as dev user (validates AC 1 at shell-exec-time against running container); Story 2.8 Claude Code OAuth token persistence subscribes to /home/dev/.claude/ subpath inside keel_home_dev named volume (validates AC 4 non-toggle + first-boot populate semantics); Story 2.9 gh CLI OAuth token persistence subscribes to /home/dev/.config/gh/ subpath inside keel_home_dev (same); Story 2.11 shared-workspace mode orthogonal (bind-mount at /workspace, not /home/dev); Story 2.13 healthcheck probes dnsmasq+sshd liveness (orthogonal to hardening posture); Story 2.17 ships the runtime compose-shape check (packages/keel-invariants/src/check-devbox-compose-shape.ts parsing docker-compose.yml + rejecting accidental bind-mount drift for /home/dev per SC-10 deferral).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.5 test-runner landing (Epic 13 scope) + backend-A operator-workstation live smokes will unlock per-AC runner-hosted probes: AC 1 (`docker exec keel-devbox id` → uid=1000(dev); `stat -c '%u:%g' /home/dev` → 1000:1000; `docker inspect --format '{{.Config.User}}' keel-devbox` → dev); AC 2 (`docker inspect --format '{{.HostConfig.CapDrop}} {{.HostConfig.CapAdd}}' keel-devbox` → `[ALL] [NET_ADMIN NET_RAW NET_BIND_SERVICE]`; `docker inspect --format '{{.HostConfig.SecurityOpt}}' keel-devbox` → `[no-new-privileges]`; capability-exercise: `ss -tlnp | grep :53 && nft list table inet keel_egress` proves ambient-cap propagation to dnsmasq+nft under NNP); AC 3 (`docker exec keel-devbox findmnt -no OPTIONS /tmp /var/tmp` → both show noexec,nosuid); AC 4 (`docker volume inspect keel-devbox_keel_home_dev`; `docker inspect` Mounts array includes `volume keel_home_dev /home/dev` line); AC 5 Smoke A (`printf \"#!/bin/sh\\necho hello\\n\" > /tmp/t.sh && chmod +x /tmp/t.sh && /tmp/t.sh` → exit nonzero with Permission denied / exec format error proving kernel noexec mount flag; `printf` NOT `echo -e` per SC-13 portability); AC 5 Smoke B (`ls -la /usr/bin/sudo; sudo id` → sudo declines under no-new-privileges posture). None of these block Story 2.5 `review → done` transition under the WAIVED precedent — substrate evidence + iteration-env parse-smoke at iter-188 are complete for the in-iteration-executable portion of the story.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
