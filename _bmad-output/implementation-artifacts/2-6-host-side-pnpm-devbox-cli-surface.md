@@ -71,13 +71,13 @@ so that I never need to learn raw `docker compose` incantations to operate my de
   | `devbox:attach` | `packages/devbox/scripts/attach.sh` | `docker attach --detach-keys='ctrl-p,ctrl-q' …` |
   | `devbox:status` | `packages/devbox/scripts/status.sh` | `docker compose ps` + healthcheck state |
   | `devbox:logs` | `packages/devbox/scripts/logs.sh` | `docker compose logs -f` |
-  | `devbox:monitor` | `packages/devbox/scripts/monitor.sh` | `docker exec … /workspace/packages/devbox/scripts/egress-log-tailer.sh` (Story 2.3 primitive) |
+  | `devbox:monitor` | `packages/devbox/scripts/monitor-host.sh` | `docker exec … /workspace/packages/devbox/scripts/monitor.sh` (Story 2.3 in-container JSONL tail primitive) |
   | `devbox:whitelist` | `packages/devbox/scripts/whitelist-host.sh` | `docker exec … /workspace/packages/devbox/scripts/whitelist.sh "$@"` (Story 2.4 in-container primitive) |
   | `devbox:env:check` | `packages/devbox/scripts/env-check.sh` | validate `.envrc` presence + required `KEEL_DEVBOX_*` vars |
 
   Script filenames use hyphens (kebab-case) to match existing siblings (`benchmark.sh`, `egress-log-tailer.sh`, `reload-egress.sh`, `start-egress.sh`). The `env-check.sh` filename has ONE hyphen; the pnpm alias `devbox:env:check` has the double-colon (filename-naming vs CLI-namespace-naming are deliberately distinct — see Story 2.4 SC-13 script-shape precedent).
 
-  **Rationale for `monitor.sh` vs `whitelist-host.sh` rename:** the existing in-container monitor has no host-side counterpart today, so `monitor.sh` is free for the host-side shim OR Story 2.6 creates `monitor-host.sh` mirroring the `whitelist-host.sh` pattern. **Decision: rename the existing in-container `monitor.sh` to `monitor-egress.sh` is out of scope; instead, Story 2.6's host-side `monitor.sh` DOES NOT pre-exist — check current state.** If `packages/devbox/scripts/monitor.sh` already exists as in-container tailer (precursor), rename it IN THIS STORY to `monitor-egress.sh` + update any entrypoint references + add the host-side `monitor.sh` shim that `docker exec`s into it. See Task 2 for the pre-flight check.
+  **Rationale for `monitor-host.sh` suffix (matches `whitelist-host.sh` precedent):** at 2026-04-22 HEAD, `packages/devbox/scripts/monitor.sh` already exists as the Story 2.3 in-container JSONL egress-log tailer (`monitor.sh:1-22` banner confirms: *"packages/devbox/scripts/monitor.sh — Story 2.3 (AC 3 observability) — Operator-facing live tail of the JSONL egress query log."*). Story 2.6 does NOT rename, delete, or edit this file — it is the in-container primitive that the host-side shim `docker exec`s into. Story 2.6 adds a NEW host-side file `packages/devbox/scripts/monitor-host.sh` mirroring Story 2.4's `whitelist.sh` (in-container) / `whitelist-host.sh` (host-side shim) pattern. The `-host` suffix disambiguates in every `ls packages/devbox/scripts/monitor*` listing — operators and future-Ralph see the two-file pair and the locus distinction is immediate. See Task 1.2 for the pre-flight verification (expected state path).
 
 - **SC-3 (repo-root `package.json` wiring, AC 1):** add 13 script entries to the `"scripts"` block of `/workspace/ralph-bmad/.claude/worktrees/ralph/package.json`. Each entry maps to the host-side script under `packages/devbox/scripts/`. Example shape:
 
@@ -94,13 +94,13 @@ so that I never need to learn raw `docker compose` incantations to operate my de
     "devbox:attach": "./packages/devbox/scripts/attach.sh",
     "devbox:status": "./packages/devbox/scripts/status.sh",
     "devbox:logs": "./packages/devbox/scripts/logs.sh",
-    "devbox:monitor": "./packages/devbox/scripts/monitor.sh",
+    "devbox:monitor": "./packages/devbox/scripts/monitor-host.sh",
     "devbox:whitelist": "./packages/devbox/scripts/whitelist-host.sh",
     "devbox:env:check": "./packages/devbox/scripts/env-check.sh"
   }
   ```
 
-  Order: insert AFTER the existing `keel-invariants:*` block and BEFORE `"prepare"`. Alphabetical ordering WITHIN the `devbox:*` block is NOT required (grouped by lifecycle: build → start → stop → clean, then interactive (shell/attach), then observability (status/logs/monitor), then whitelist + env:check). DO NOT add `"devbox:whitelist"` to `packages/devbox/package.json` at the same time — Story 2.4 already owns that entry for the in-container invocation path; Story 2.6 adds ONLY the root-level host-side alias with the `-host.sh` suffix suffix-resolved script.
+  Order: insert AFTER the existing `keel-invariants:*` block and BEFORE `"prepare"`. Alphabetical ordering WITHIN the `devbox:*` block is NOT required (grouped by lifecycle: build → start → stop → clean, then interactive (shell/attach), then observability (status/logs/monitor), then whitelist + env:check). DO NOT add `"devbox:whitelist"` to `packages/devbox/package.json` at the same time — Story 2.4 already owns that entry for the in-container invocation path; Story 2.6 adds ONLY the root-level host-side alias with the `-host.sh`-suffix-resolved script (applies to `devbox:whitelist` → `whitelist-host.sh` AND `devbox:monitor` → `monitor-host.sh`; all other verbs use their canonical unsuffixed filename).
 
 - **SC-4 (script shape — matches Story 2.4 SC-13):** every new `packages/devbox/scripts/<verb>.sh` file:
   - kebab-case, `.sh` suffix, `0755` perm, `#!/usr/bin/env bash`, `set -euo pipefail`.
@@ -184,7 +184,9 @@ so that I never need to learn raw `docker compose` incantations to operate my de
 - **SC-15 (`status.sh` / `logs.sh` / `monitor.sh` — AC 7):**
   - `status.sh`: `docker compose -f "${COMPOSE_FILE}" ps --format table devbox` + explicit healthcheck extraction via `docker inspect --format '{{.State.Health.Status}}' "${CONTAINER_NAME}" 2>/dev/null || echo "(no healthcheck configured)"`. Emits both to stdout. Exit 0 even if container is stopped (status-reporting is not itself an error); exit 9 only if the container object doesn't exist at all.
   - `logs.sh`: `docker compose -f "${COMPOSE_FILE}" logs -f --tail=100 devbox`. Default follow-mode with 100-line backlog. Flags `--no-follow`, `--tail=<N>` forwarded to compose if supplied. Exit 0 on clean detach (SIGINT).
-  - `monitor.sh`: **host-side shim** — `docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/egress-log-tailer.sh "$@"` OR `/workspace/packages/devbox/scripts/monitor.sh` depending on the in-container primitive's name at Story 2.6 impl-time. **Pre-flight discovery:** `ls packages/devbox/scripts/monitor*.sh egress-log-tailer.sh` at impl time; the FR1a-mandated "JSONL tail" surface (`prd.md:494`) is Story 2.3's output at `packages/devbox/scripts/egress-log-tailer.sh` at 2026-04-22 HEAD. If `packages/devbox/scripts/monitor.sh` already exists as an in-container primitive, this story MAY rename it to `monitor-egress.sh` to free the `monitor.sh` filename for the host-side shim, OR it MAY name the host-side shim `monitor-host.sh` + keep in-container `monitor.sh` untouched. **Decision at drafting: name the host-side shim `monitor.sh` ONLY IF no in-container file of that name exists; otherwise name it `monitor-host.sh` to avoid the collision.** Dev-agent resolves at Task 2 pre-flight.
+  - `monitor-host.sh`: **host-side shim** — `docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/monitor.sh "$@"`. The in-container `monitor.sh` is Story 2.3's JSONL egress-log tailer (exists at 2026-04-22 HEAD per `packages/devbox/scripts/monitor.sh:1-22`: *"Operator-facing live tail of the JSONL egress query log"*). Pre-flight `test -f packages/devbox/scripts/monitor.sh` confirms presence; failure exits 3 with `devbox monitor: in-container primitive missing — rebuild via 'pnpm devbox:build'` message.
+    - **Semantic reconciliation — PRD `:494` is authoritative:** epics AC 7 verbatim says `monitor` "displays a live resource snapshot (cpu/memory/network)." This is loose shorthand that the PRD clarifies: PRD § CLI-Tool Surface at `prd.md:494` defines `pnpm devbox:monitor` as *"Structured tail of allowed/blocked DNS events consuming the FR1a structured query-log (JSONL). Replaces upstream's `monitor-blocks.sh` grep-on-dnsmasq-log approach."* Architecture tree at `architecture.md:1003` reinforces: `monitor.sh # JSONL tail (FR1a replacement for monitor-blocks.sh)`. **Implementation semantic: `pnpm devbox:monitor` = FR1a JSONL DNS-event tail, NOT `docker stats`-style cpu/memory view.** The epics "cpu/memory/network" phrasing is historical drift from the PRD and does NOT override the authoritative PRD + architecture definition. Dev-agent MUST implement the JSONL-tail shim, not a `docker stats` wrapper. Any future `docker stats`-style verb would require a separate story (out of scope at 1.0).
+    - Pre-flight: container-running gate (exit 9 if stopped). Passthrough stdout/stderr with docker `-it` for interactive terminal sizing. On SIGINT, clean detach (exit 0).
 
 - **SC-16 (`whitelist-host.sh` — AC 9 + Story 2.4 SC-12 absorption):**
   - Thin shim: `docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/whitelist.sh "$@"`. Arguments passthrough verbatim (including the `add|remove|list|sync` subcommand + domain argument).
@@ -247,12 +249,9 @@ so that I never need to learn raw `docker compose` incantations to operate my de
 ## Tasks / Subtasks
 
 - [ ] **Task 1 — Pre-flight: map existing `packages/devbox/scripts/*.sh` vs Story 2.6 target names** (SC-2, SC-4, SC-15)
-  - [ ] Subtask 1.1: `ls packages/devbox/scripts/*.sh` — record which target filenames (build/start/stop/restart/shell/attach/status/logs/clean/rebuild/monitor/env-check/whitelist-host) already exist. At drafting HEAD (2026-04-22), the following exist: `benchmark.sh`, `egress-log-tailer.sh`, `monitor.sh`, `reload-egress.sh`, `start-egress.sh`, `whitelist.sh`. The name collision risk is `monitor.sh` — resolve per SC-15 at Subtask 1.2.
-  - [ ] Subtask 1.2: inspect the existing `packages/devbox/scripts/monitor.sh` — is it (a) an in-container tailer (precursor to the FR1a JSONL-monitor surface), (b) a host-side stub, or (c) not present at all (filename was reserved in the arch tree but not yet shipped)? Three decision paths:
-    - (a) In-container tailer → rename to `packages/devbox/scripts/monitor-egress.sh` + update any entrypoint / docs / package.json references + create the new host-side `monitor.sh` shim.
-    - (b) Host-side stub → replace contents with the proper host-side shim.
-    - (c) Not present → create the host-side `monitor.sh` shim (net-new file).
-  - [ ] Subtask 1.3: record the decision in Dev Agent Record § Debug Log References.
+  - [ ] Subtask 1.1: `ls packages/devbox/scripts/*.sh` — confirm HEAD state matches drafting snapshot (2026-04-22): `benchmark.sh`, `egress-log-tailer.sh`, `monitor.sh`, `reload-egress.sh`, `start-egress.sh`, `whitelist.sh`. If new scripts have been added by Stories 2.3-2.5 follow-ons between draft (iter-198) and impl, note the delta in Dev Agent Record.
+  - [ ] Subtask 1.2: verify `packages/devbox/scripts/monitor.sh` is the Story 2.3 in-container JSONL tailer (banner line 3 matches `packages/devbox/scripts/monitor.sh — Story 2.3`). If banner-confirmed, NO rename/edit is performed — Story 2.6 adds the NEW `monitor-host.sh` host-side shim per SC-2 + SC-15. If the file has drifted (contents changed since 2026-04-22 HEAD) or is absent, halt + escalate to operator (this is a cross-story regression signal, not a Story 2.6 repair path).
+  - [ ] Subtask 1.3: record the HEAD-confirmation result in Dev Agent Record § Debug Log References.
   - [ ] Subtask 1.4: regenerate the authoritative `KEEL_DEVBOX_*` required-var list at Story 2.6 impl time via `rg -N --no-heading 'KEEL_DEVBOX_[A-Z_]+' packages/devbox/ .envrc.example 2>/dev/null | grep -oE 'KEEL_DEVBOX_[A-Z_]+' | sort -u`. Compare against SC-14 seed list; drift is expected (Story 2.2 tmpfs-size knobs + Story 2.5 container-name + Story 2.6 healthcheck-timeout MUST all appear). Record the final list as a constant in `env-check.sh`.
 
 - [ ] **Task 2 — Create 13 bash scripts under `packages/devbox/scripts/`** (SC-2, SC-4, SC-6, one file per verb; all AC)
@@ -266,7 +265,7 @@ so that I never need to learn raw `docker compose` incantations to operate my de
   - [ ] Subtask 2.8: `attach.sh` per SC-13 (docker attach --detach-keys=ctrl-p,ctrl-q).
   - [ ] Subtask 2.9: `status.sh` per SC-15 (compose ps + docker inspect health).
   - [ ] Subtask 2.10: `logs.sh` per SC-15 (compose logs -f --tail=100 + flag forwarding).
-  - [ ] Subtask 2.11: `monitor.sh` (or `monitor-host.sh` per Subtask 1.2 decision) — host-side shim per SC-15 (docker exec into egress-log-tailer.sh or in-container monitor-egress.sh).
+  - [ ] Subtask 2.11: `monitor-host.sh` — host-side shim per SC-15: `docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/monitor.sh "$@"`. The in-container target is Story 2.3's JSONL egress-log tailer per PRD `:494` + architecture `:1003` (NOT `docker stats`). Pre-flight: container-running gate (exit 9 if stopped).
   - [ ] Subtask 2.12: `whitelist-host.sh` per SC-16 (thin `docker exec … whitelist.sh "$@"` shim).
   - [ ] Subtask 2.13: `env-check.sh` per SC-14 (parse .envrc + required-var presence + AR-11 shape validation for tmpfs-size ints).
   - [ ] Subtask 2.14: `chmod 0755` on every new script file.
@@ -330,7 +329,9 @@ so that I never need to learn raw `docker compose` incantations to operate my de
   - [ ] Subtask 10.3: `pnpm --filter @keel/devbox typecheck` → clean (bash additions don't affect tsc).
   - [ ] Subtask 10.4: `pnpm keel-invariants:check-all` → exit 0. If SC-17 sync-gate fired (Tasks 4–5 docs-invariant edits), confirm contentHash is in sync.
   - [ ] Subtask 10.5: `docker compose -f packages/devbox/docker-compose.yml config --quiet` → exit 0 (parse-smoke; Story 2.5 iter-187 precedent; the compose file is untouched at Story 2.6, but the parse-smoke detects any transitive-env-var breakage).
-  - [ ] Subtask 10.6: update sprint-status.yaml: `development_status["2-6-host-side-pnpm-devbox-cli-surface"]` flip `backlog → ready-for-dev` (or `in-progress` → `review` at dev-story commit time, etc. per lifecycle state).
+  - [x] Subtask 10.6a: flip sprint-status `development_status["2-6-host-side-pnpm-devbox-cli-surface"]` `backlog → ready-for-dev`. *(completed iter-198 draft; do NOT re-flip from `backlog` — current sprint-status row is already at `ready-for-dev`.)*
+  - [ ] Subtask 10.6b: flip sprint-status `ready-for-dev → in-progress` at dev-story commencement (dev-story skill auto-performs this; operator confirms after run).
+  - [ ] Subtask 10.6c: flip sprint-status `in-progress → review` at dev-story commit-time (dev-story skill auto-performs this on completion).
   - [ ] Subtask 10.7: update Dev Agent Record + File List + Completion Notes.
 
 ## Dev Notes
@@ -390,7 +391,7 @@ Operators who override via `COMPOSE_PROJECT_NAME=<name>` or `-p <name>` drift th
 
 ### File List targets (for Dev Agent Record at impl-time)
 
-New files (13 scripts + possibly 1 rename):
+New files (13 scripts):
 - `packages/devbox/scripts/build.sh` (NEW)
 - `packages/devbox/scripts/rebuild.sh` (NEW)
 - `packages/devbox/scripts/start.sh` (NEW)
@@ -401,10 +402,9 @@ New files (13 scripts + possibly 1 rename):
 - `packages/devbox/scripts/attach.sh` (NEW)
 - `packages/devbox/scripts/status.sh` (NEW)
 - `packages/devbox/scripts/logs.sh` (NEW)
-- `packages/devbox/scripts/monitor.sh` OR `packages/devbox/scripts/monitor-host.sh` (NEW; Task 1.2 decision)
-- `packages/devbox/scripts/whitelist-host.sh` (NEW)
+- `packages/devbox/scripts/monitor-host.sh` (NEW — host-side shim; in-container target is existing Story 2.3 `monitor.sh` unedited)
+- `packages/devbox/scripts/whitelist-host.sh` (NEW — host-side shim; in-container target is existing Story 2.4 `whitelist.sh` unedited)
 - `packages/devbox/scripts/env-check.sh` (NEW)
-- (optional) `packages/devbox/scripts/monitor-egress.sh` (RENAMED from existing `monitor.sh` per Task 1.2 decision (a))
 
 Modified files:
 - `/workspace/ralph-bmad/.claude/worktrees/ralph/package.json` — 13 new `devbox:*` script entries (SC-3).
@@ -423,7 +423,7 @@ Modified files:
 - Docs split across README (narrative + recipes, SC-23) + AGENTS.md (operational, SC-24) matches Story 2.4 / Story 2.5 three-surface precedent.
 
 **Detected conflicts or variances:**
-- Existing `packages/devbox/scripts/monitor.sh` filename collision with Story 2.6 target host-side `monitor.sh` — resolved at Task 1.2 (rename in-container tailer OR suffix host-side shim with `-host`).
+- Existing `packages/devbox/scripts/monitor.sh` (Story 2.3 in-container JSONL tailer) stays unedited; Story 2.6 adds a NEW host-side shim at `packages/devbox/scripts/monitor-host.sh` per SC-2 + SC-15 (mirrors Story 2.4 `whitelist-host.sh` pattern). No collision risk; no rename path.
 - Repo-root `package.json` has NO existing `devbox:*` scripts (SC-3 is a net-new block); no merge-conflict risk.
 - `.envrc.example` + `.envrc` — Story 2.2 contract. Story 2.6 `env-check` parses `.envrc` only (`.envrc.example` is a template reference, not runtime). If operator hasn't copied `.envrc.example → .envrc`, env-check emits exit 3 + copy-pointer message.
 
@@ -434,7 +434,7 @@ Modified files:
 - Architecture: `_bmad-output/planning-artifacts/architecture.md:74` (host-surface rule), `:152` (Turborepo), `:158` (`pnpm devbox:shell`), `:304` (`env_file: ../../.envrc`), `:335` (names-only env-check), `:975-1004` (Devbox Package Tree), `:1283` (Vite HMR via `pnpm devbox:shell`).
 - Story 2.4 (canonical CLI template): `_bmad-output/implementation-artifacts/2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli.md` — SC-11 exit codes, SC-12 scope boundary, SC-13 script shape, SC-16 in-container locus, Tasks 1-7 subtask decomposition pattern.
 - Story 2.5: `_bmad-output/implementation-artifacts/2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume.md` — § Review Findings AR-7..AR-12 (Story 2.6 absorbs AR-10 + AR-11 + AR-12 unconditionally; AR-7 + AR-9 conditional on operator-workstation smoke outcome).
-- Invariants: `INVARIANTS.md` lines 90-106 (devbox-trio); `docs/invariants/devbox-dind.md` (backend-B detection); `docs/invariants/devbox-egress-contract.md` (consumed via `whitelist-host.sh` + `monitor.sh`); `docs/invariants/devbox-hardening.md` (SC-17 sync-gate target if edited; SC-22 AR-12 docs polish target).
+- Invariants: `INVARIANTS.md` lines 90-106 (devbox-trio); `docs/invariants/devbox-dind.md` (backend-B detection); `docs/invariants/devbox-egress-contract.md` (consumed via host-side shims `whitelist-host.sh` + `monitor-host.sh`, which `docker exec` into in-container primitives `whitelist.sh` + `monitor.sh`); `docs/invariants/devbox-hardening.md` (SC-17 sync-gate target if edited; SC-22 AR-12 docs polish target).
 - Manifest: `packages/keel-invariants/src/invariants.manifest.ts` — `INV-devbox-homedev-named-volume` contentHash `f34cb62feea03eb0d3ef80d29221fc85fa1d1ee3ba01e7e26ef06ee5c9715a5e` (Story 2.5 v1.8 drain landing; SC-17 sync-gate refresh target if SC-22 touches the invariant doc).
 - Canonical reference implementation to copy patterns from: `packages/devbox/scripts/whitelist.sh` (488 lines; SC-4 script shape, SC-5 exit codes, main-guard dispatcher).
 - Backend-B detection reference: `packages/devbox/scripts/benchmark.sh` (`devbox-dind.md:47`).
@@ -464,4 +464,5 @@ _(populated by dev-story iteration — see Dev Notes § File List targets for ex
 
 | Version | Date | Iter | Who | Change |
 | --- | --- | --- | --- | --- |
+| v0.2 | 2026-04-22 | iter-199 | Ralph (create-story review — pre-dev SM) | Pre-dev SM validation patches (AI-1..AI-8). **AI-1 CRITICAL:** SC-2 monitor-naming self-contradiction resolved — pinned `monitor-host.sh` per Story 2.4 `whitelist-host.sh` precedent; dropped the "rename existing monitor.sh to monitor-egress.sh" path (scope-creep). SC-2 13-verb table + SC-3 example-block + Task 1.2 + Task 2.11 + Dev Notes File List targets updated consistently. **AI-2 CRITICAL:** Epics AC 7 ("cpu/memory/network") vs PRD `:494` + architecture `:1003` ("JSONL DNS-event tail") semantic drift reconciled — SC-15 now cites PRD `:494` as authoritative, explicitly pinning `pnpm devbox:monitor` = FR1a JSONL tail (NOT `docker stats`). **AI-3 ENHANCEMENT:** Task 10.6 split into 10.6a (`backlog → ready-for-dev`, `[x]` completed-at-draft) + 10.6b (`ready-for-dev → in-progress`, dev-story start) + 10.6c (`in-progress → review`, dev-story commit) per iter-173 carry-forward rule (lifecycle-hygiene subtasks done at draft time marked `[x]` with annotation to avoid dev-agent re-flip). **AI-4 OPTIMIZATION:** SC-3 typo fix ("suffix suffix-resolved" → "`-host.sh`-suffix-resolved"). **AI-5..AI-8 OPTIMIZATION:** Task 1.2 simplification (HEAD state known; dropped (b)/(c) decision paths), Task 2.11 consistency, File List targets clarification, this Change Log entry. Story State `drafted → validated`. Sprint-status unchanged (stays `ready-for-dev`). |
 | v0.1 | 2026-04-22 | iter-198 | Ralph (create-story) | Initial draft — 13-verb host-side CLI surface, 25 scope clarifications, 10 tasks. Absorbs Story 2.5 CR DEFERs AR-10 (unconditional) + AR-11 (env-check shape validation, unconditional) + AR-12 (compose-project-name docs polish, unconditional); AR-7 `/run` relocation + AR-9 `/etc/*` chown conditional on operator-workstation smoke outcome per SC-19 + SC-20. Status drafted (sprint-status `backlog → ready-for-dev`). |
