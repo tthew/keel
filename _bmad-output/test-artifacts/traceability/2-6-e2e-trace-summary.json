@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-22T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.6",
+    "label": "host-side `pnpm devbox:*` CLI surface"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-6-host-side-pnpm-devbox-cli-surface.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 9,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 9,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 9, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 9,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 9 P2 ACs; user-facing-CLI class story (SECOND of its class after Story 2.4); SIXTEENTH cumulative trace-WAIVED; SEVENTEENTH ATDD-skip-trace-WAIVED co-application pairing.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.6 authors 13 NEW bash scripts + 4 modified docs/config surfaces per SC-25 scope boundary: packages/devbox/scripts/{build,rebuild,start,stop,restart,clean,shell,attach,status,logs,monitor-host,whitelist-host,env-check}.sh + repo-root package.json (+13 devbox:* entries) + packages/devbox/README.md (+ AR-10 H3, + AR-12 qualifier, + H2 Host-side CLI) + AGENTS.md (+ H3 Host-side CLI) + docs/invariants/devbox-hardening.md (+ AR-12 qualifier) + invariants.manifest.ts (2× contentHash refresh) + dist/check.js (rebuild). Sync-gate 2× refresh GREEN (INV-prek-prepare-lifecycle + INV-devbox-homedev-named-volume).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC lifecycle live smokes deferred to M4-Pro operator workstation (AC 2-7 build/start/status/shell/logs/stop/restart/clean end-to-end) per Story 2.4 SC-17 + Story 2.5 SC-13 backend-B live-smoke precedent. Iteration-env-safe smokes ALL PASSED at iter-201 (bash -n × 13; pnpm wiring count 13; env-check exit-3/exit-0/exit-2; dispatcher usage).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-6-host-side-pnpm-devbox-cli-surface.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

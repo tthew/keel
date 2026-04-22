@@ -1,0 +1,317 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-22T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.6",
+    "label": "host-side `pnpm devbox:*` CLI surface"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-6-host-side-pnpm-devbox-cli-surface.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "One script per command under packages/devbox/scripts/ and each wired as a `pnpm devbox:<cmd>` entry in repo-root package.json",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/ (iter-201): 13 NEW bash scripts created — build.sh, rebuild.sh, start.sh, stop.sh, restart.sh, clean.sh, shell.sh, attach.sh, status.sh, logs.sh, monitor-host.sh, whitelist-host.sh, env-check.sh. Each file is 0755; `#!/usr/bin/env bash`; `set -euo pipefail`; self-rooted paths via `SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"` + `DEVBOX_DIR=\"$(cd \"${SCRIPT_DIR}/..\" && pwd)\"` (no absolute `/workspace/` paths — relocation-safe per SC-4). Banner comment block cites Story 2.6 + relevant AC ids + brief purpose + SC-5 exit-code table per SC-4.",
+        "packages/devbox/scripts/ (iter-201): existing 6 scripts UNEDITED — benchmark.sh (Story 2.1), egress-log-tailer.sh + monitor.sh + reload-egress.sh + start-egress.sh (Story 2.3), whitelist.sh (Story 2.4). Story 2.6 ADDS only; does not rename, delete, or edit prior-story in-container primitives (SC-25 scope boundary). The new host-side shims monitor-host.sh + whitelist-host.sh `docker exec` into the pre-existing Story 2.3 monitor.sh + Story 2.4 whitelist.sh respectively.",
+        "/workspace/ralph-bmad/.claude/worktrees/ralph/package.json (iter-201): 13 NEW `devbox:*` script entries inserted AFTER the `keel-invariants:*` block and BEFORE `\"prepare\"` per SC-3. Each entry maps 1:1 to the host-side script path (`./packages/devbox/scripts/<name>.sh`). Canonical kebab-case + colon namespace; one colon for top-level verbs, double colon for sub-namespaced `devbox:env:check` (matches PRD § CLI-Tool Surface at `prd.md:488-494` + architecture § Devbox Package Tree at `architecture.md:975-1004`).",
+        "Iteration-env substrate verification (iter-201): `pnpm run | grep -E '^\\s+devbox:' | wc -l` → 13 (all 13 devbox:* scripts listed in pnpm's script inventory; Subtask 8.5 smoke PASSED).",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/<each>.sh` × 13 → all OK (syntax-valid; Subtask 8.1 smoke PASSED). Story 2.6 LESSON formalised: `bash -n` as iteration-env-safe syntax smoke applies to every CLI-family story (zero side effects; works under any backend).",
+        "Sync-gate GREEN (iter-201): `INV-prek-prepare-lifecycle` contentHash drift expected + captured + refreshed (`87f37b45…` → `5960e7c4…`) because package.json edit +13 devbox:* entries changes the sourcePath contents. Manifest updated; `pnpm --filter @keel/keel-invariants build` rebuilt `dist/check.js`; `keel-invariants:check-all` exit 0.",
+        "AGENTS.md (iter-201): new H3 `### Host-side CLI (Story 2.6)` under `## Devbox iteration environment` AFTER the existing `### Container hardening (Story 2.5)` H3 per SC-24 — 5 terse operational bullets documenting pnpm as the only host surface + env-check pre-flight + named-volume preservation + uniform exit-code family + monitor semantic pin + cross-references to Story 2.4 whitelist + Story 2.5 hardening H3s.",
+        "packages/devbox/README.md (iter-201): new H2 `## Host-side CLI (Story 2.6)` after `## Hardening (Story 2.5)` per SC-23 — FR1 summary citing `architecture.md:74` host-surface rule + 13-row subcommand table + exit-code family table + `.envrc` integration paragraph + backend-B awareness paragraph + operator-workstation verification recipes + iteration-env-safe smokes recipe + cross-references.",
+        "Live-smoke AC 1 runtime verification — `pnpm devbox:build`, `pnpm devbox:start`, `pnpm devbox:status`, `pnpm devbox:shell`, `pnpm devbox:logs`, `pnpm devbox:stop`, `pnpm devbox:restart`, `pnpm devbox:clean` end-to-end lifecycle — deferred to M4-Pro operator workstation per Story 2.4 SC-17 + Story 2.5 SC-13 backend-B live-smoke constraint. Copy-paste recipes pinned in `packages/devbox/README.md § Host-side CLI (Story 2.6) § Verification (operator-workstation)`.",
+        "Adversarial AC-1 coverage delegated to iter-CR per § Dev-agent guardrails hybrid ground-(c) variant-(iii) spec-declared-CR-substitution: Blind Hunter examines 13-script layer shape + main-guard + self-rooted path resolution + banner-exit-code-table consistency + package.json edit target ordering; Edge Case Hunter probes missing-script-file when pnpm entry exists (exit 127 bash-resolution) + duplicated pnpm entry detection + operator-ran-from-any-subdir relocation-safety via SCRIPT_DIR; Acceptance Auditor verifies AC 1 verbatim match — one script per command (or single dispatcher) + every command exposed as `pnpm devbox:<cmd>`."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "`pnpm devbox:build` builds image from packages/devbox/Dockerfile; `pnpm devbox:rebuild` rebuilds with `--no-cache`",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/build.sh (iter-201 NEW): `docker compose -f \"${COMPOSE_FILE}\" build devbox` per SC-8. Named service; compose handles cache. Exit 0 on success; propagates docker exit code on failure. SC-5 exit-code table: 0/2/3/8 (usage / compose file unreadable / docker unreachable). Does NOT run the container (build-only).",
+        "packages/devbox/scripts/rebuild.sh (iter-201 NEW): `docker compose -f \"${COMPOSE_FILE}\" build --no-cache devbox` per SC-8. Fresh rebuild from scratch (used after Dockerfile change or layer-corruption recovery). Backend-B destructive-op gate: NONE required — `--no-cache` invalidates cache for the `keel-devbox` service only, not host-wide (SC-11 rationale).",
+        "packages/devbox/docker-compose.yml (iter-201 UNTOUCHED per SC-18): compose file preserves Story 2.5 hardening posture verbatim. Both build.sh + rebuild.sh use `-f \"${COMPOSE_FILE}\"` explicit file flag (avoids working-directory ambiguity) + NO `-p`/`--project-name` flag (project-name pinned to `keel-devbox` via top-level `name:` at `docker-compose.yml:43`; operator overrides via `COMPOSE_PROJECT_NAME` documented in SC-22 AR-12 docs polish).",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/build.sh` + `bash -n packages/devbox/scripts/rebuild.sh` → OK. `docker compose config --quiet` (parse-smoke) → exit 0 (compose file parses cleanly with all env-var defaults).",
+        "Live-smoke AC 2 runtime verification — `pnpm devbox:build` → `keel-devbox:local` image built from `packages/devbox/Dockerfile`; `pnpm devbox:rebuild` → same image rebuilt with `--no-cache` (cache invalidation verified via build-log absence of `CACHED` markers) — deferred to M4-Pro operator workstation per Story 2.4 SC-17 precedent + Story 2.5 SC-13 + Story 2.6 backend-B iteration env constraint (lifecycle-mutating `docker compose build` is safe under either backend but the follow-on `docker compose up/down` lifecycle verification requires backend A to avoid poisoning host state).",
+        "Adversarial AC-2 coverage delegated to iter-CR: Blind Hunter examines `docker compose build` flag correctness (named service `devbox` vs unnamed) + `-f` explicit-file-flag placement + `--no-cache` flag handling in rebuild; Edge Case Hunter probes build-with-no-cache-dir behaviour + Dockerfile-absent edge + cross-run cache-invalidation determinism; Acceptance Auditor verifies AC 2 verbatim match — `devbox:build` builds from `packages/devbox/Dockerfile` + `devbox:rebuild` rebuilds with `--no-cache`."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "`pnpm devbox:start` brings up container via compose; healthcheck (Story 2.13) must pass before command returns zero",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/start.sh (iter-201 NEW): pre-flight sequence per SC-9 — (1) `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || exit 8` (docker runtime reachable); (2) `docker image inspect keel-devbox:local >/dev/null 2>&1 || exit 10` (image exists — suggest `pnpm devbox:build`); (3) `env-check.sh` pre-flight invocation unless `KEEL_DEVBOX_START_SKIP_ENV_CHECK=true` (operator escape hatch for CI scenarios with alternate env injection).",
+        "packages/devbox/scripts/start.sh (iter-201 NEW): `docker compose -f \"${COMPOSE_FILE}\" up -d devbox` + healthcheck poll loop per SC-9. Stub-friendly poll (pre-Story-2.13): `docker inspect --format '{{.State.Health.Status}}' keel-devbox 2>/dev/null || docker inspect --format '{{.State.Status}}' keel-devbox` every 2s up to `${KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S:-120}` seconds. Accepts `healthy`, bare `running` (pre-Story-2.13 posture when no healthcheck configured), or `starting` (within first 30s grace). Rejects `unhealthy|exited|dead|removing|paused` IMMEDIATELY → exit 11 (container left running for operator debug).",
+        "packages/devbox/scripts/start.sh (iter-201 NEW): on timeout without healthy state → `devbox: container failed to reach healthy state within <N>s — check 'pnpm devbox:logs'` + exit 11. On success → `devbox: started (container keel-devbox)` + exit 0. MUST NOT block forever. MUST NOT auto-invoke `pnpm devbox:build` on image-missing (operator intent must be explicit).",
+        "Story 2.13 coupling (iter-201): SC-9 poll loop is stub-friendly — Story 2.13 defines the real healthcheck (dnsmasq + sshd liveness). Story 2.6 consumes Story 2.13's healthcheck via the same poll loop (no code change required at Story 2.13 landing — the poll already accepts `healthy` from a configured healthcheck; `running` remains the pre-Story-2.13 fallback). NFR18 healthcheck ready-state is consumed; SC-18 forbids Story 2.6 from defining the healthcheck itself.",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/start.sh` → OK. `docker compose config --quiet` (parse-smoke) → exit 0. `pnpm devbox:env:check` (start.sh pre-flight) exit 0 with seeded `.envrc`.",
+        "Live-smoke AC 3 runtime verification — `pnpm devbox:start` → container `keel-devbox` transitions to `healthy|running` state; healthcheck poll returns 0 within timeout; `docker compose ps devbox` shows container running — deferred to M4-Pro operator workstation per Story 2.4 SC-17 + Story 2.5 SC-13 backend-B precedent. DinD-B iteration env cannot safely `docker compose up -d` against a shared host daemon without risk of poisoning unrelated host projects. Copy-paste recipe in README § Host-side CLI § Verification (operator-workstation).",
+        "Adversarial AC-3 coverage delegated to iter-CR: Blind Hunter examines pre-flight sequence ordering (docker reachable → image exists → env-check → compose up → poll) + stub-friendly poll fallback logic (`.Health` vs `.Status` branch) + 30s starting grace vs strict rejection states; Edge Case Hunter probes healthcheck-undefined edge (pre-Story-2.13 bare-running accept) + container-already-running idempotence (compose up -d is naturally idempotent) + timeout-exceeded leave-running-for-debug behaviour + unhealthy-immediate-exit-11 pre-timeout; Acceptance Auditor verifies AC 3 verbatim match — `devbox:start` brings up via compose + healthcheck gates zero-exit."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "`pnpm devbox:stop` halts without destroying named volume; `devbox:restart` = stop+start; `devbox:clean` removes container+image but keeps named volume (confirm-before-volume-delete)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/stop.sh (iter-201 NEW): `docker compose -f \"${COMPOSE_FILE}\" stop devbox` per SC-10. Does NOT call `down` (which removes the container); `stop` keeps the container object around so `start` is a no-op-fast next time. Named volume `keel_home_dev` is naturally preserved (stop doesn't touch volumes — matches Story 2.5 NFR10 substrate-authoritative posture). Exit 0 on success.",
+        "packages/devbox/scripts/restart.sh (iter-201 NEW): invokes `stop.sh` then `start.sh` sequentially via absolute paths (`\"${SCRIPT_DIR}/stop.sh\"` + `\"${SCRIPT_DIR}/start.sh\"`) per SC-10. If stop fails, abort before start. Propagates start's exit code as final rc.",
+        "packages/devbox/scripts/clean.sh (iter-201 NEW): three-tier destructive-op gate per SC-11 — (1) no-flag default: `docker compose -f \"${COMPOSE_FILE}\" down --rmi local --remove-orphans` removes container + image (scoped to `keel-devbox:local` tag); leaves named volume `keel_home_dev` UNTOUCHED; safe under either backend; (2) `--with-volumes`: WARNING banner + explicit `[y/N]` prompt; on `y` only → `docker compose down --rmi local --volumes --remove-orphans`; auto-yes via `--yes` (CI-only path); (3) `--allow-broad-prune`: RESERVED no-op at 1.0 — declared in banner but guarded invocation falls back to scoped `down --rmi local`; emits `devbox clean: --allow-broad-prune is reserved; scoped cleanup is the 1.0 default`.",
+        "packages/devbox/scripts/clean.sh (iter-201 NEW): backend-B detection per SC-11 mirrors `benchmark.sh § detect_backend` (`docs/invariants/devbox-dind.md:41-47`) — `if [[ -f /.dockerenv ]] || docker info --format '{{.Name}}' 2>/dev/null | grep -Eq '^(docker-desktop|moby|linuxkit-)'; then BACKEND=B; fi`. Under backend B, `clean.sh --with-volumes` refuses the volume-destroy path WITHOUT additional `--force-backend-b` flag (prevents accidental destruction of a host-shared docker volume on socket-passthrough envs). Emits `devbox clean: backend B detected — volume destruction requires --force-backend-b acknowledgement`.",
+        "packages/devbox/docker-compose.yml (iter-201 UNTOUCHED): Story 2.5 named-volume contract preserved verbatim — `volumes: { keel_home_dev: {} }` top-level + service-level `type: volume, source: keel_home_dev, target: /home/dev` long-syntax. SC-18 forbids Story 2.6 from editing compose-shape; NFR10 substrate-authoritative posture guarantees `keel_home_dev` is the non-toggle-able home for Claude Code + gh tokens + shell history.",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/stop.sh` + `bash -n packages/devbox/scripts/restart.sh` + `bash -n packages/devbox/scripts/clean.sh` → all OK. Dispatcher smokes (Subtask 8.3): `clean.sh --unknown` → exit 2 + usage block; `clean.sh --help` → exit 0 + usage block.",
+        "Live-smoke AC 4 runtime verification — `pnpm devbox:stop` → container halted + `docker volume inspect keel-devbox_keel_home_dev` still exists; `pnpm devbox:restart` → stop + start chain; `pnpm devbox:clean` (default) → container removed + image removed + volume preserved (`docker volume ls | grep keel_home_dev` still present); `pnpm devbox:clean --with-volumes` → y/N prompt + on-y volume destroyed — deferred to M4-Pro operator workstation per SC-13 + Story 2.4 SC-17 + Story 2.5 SC-13 precedent.",
+        "Adversarial AC-4 coverage delegated to iter-CR: Blind Hunter examines `stop` vs `down` semantic difference (stop preserves container object for fast-restart; down removes it) + `restart.sh` two-phase rc propagation + clean three-tier flag matrix (default / --with-volumes / --allow-broad-prune) + backend-B gate interaction; Edge Case Hunter probes volume-persistence across stop+start cycles + container-not-running-at-stop-time idempotence (stop of stopped is OK) + double-prompt under --with-volumes+--yes (auto-yes bypasses prompt correctly); Acceptance Auditor verifies AC 4 verbatim match — stop preserves volume + restart = stop+start + clean keeps named volume with explicit confirmation."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": "`pnpm devbox:shell` opens interactive shell as `dev` user inside running container",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/shell.sh (iter-201 NEW): `docker exec -it --user dev -w /workspace \"${CONTAINER_NAME}\" bash -l` per SC-13. Explicit `--user dev` matches Story 2.5 non-root posture (Dockerfile `USER dev`; UID/GID 1000). `-w /workspace` starts in workspace root so operators don't land in `/home/dev`. `-l` login shell to source bashrc/profile. Pre-flight: container-running gate (exit 9 if stopped; emits `devbox: container 'keel-devbox' is not running — run 'pnpm devbox:start' first`).",
+        "packages/devbox/docker-compose.yml (iter-201 UNTOUCHED): Story 2.5 hardening posture preserved — `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` + `security_opt: [no-new-privileges:true]` + tmpfs `/tmp` + `/var/tmp` with `exec=false,suid=false` + named volume `keel_home_dev` for `/home/dev`. Shell sessions inherit this hardening — operator sees bash prompt as dev user under capability-bounded + NNP + noexec posture.",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/shell.sh` → OK. Dispatcher-level smoke not applicable (shell.sh takes no flags).",
+        "Live-smoke AC 5 runtime verification — `pnpm devbox:shell` → interactive bash prompt inside running `keel-devbox` container; `whoami` → `dev`; `id` → `uid=1000(dev) gid=1000(dev)`; `pwd` → `/workspace`; `bash --version` → GNU bash; ctrl+D exits cleanly with rc 0 — deferred to M4-Pro operator workstation per SC-13 backend-B live-smoke precedent. Copy-paste recipe in README § Host-side CLI § Verification (operator-workstation).",
+        "Adversarial AC-5 coverage delegated to iter-CR: Blind Hunter examines `docker exec -it --user dev -w /workspace` flag ordering + `bash -l` login-shell semantics + pre-flight container-running gate (exit 9 discipline) + interaction with Story 2.5 USER dev (no conflict: --user dev matches Dockerfile USER dev); Edge Case Hunter probes shell-exit-via-ctrl+D (rc 0) + shell-exit-via-command-rc-propagation + root-home-access-denied under dev user + attempted-sudo-blocked under NNP; Acceptance Auditor verifies AC 5 verbatim match — interactive shell as dev user inside running container."
+      ]
+    },
+    {
+      "id": "AC-6",
+      "title": "`pnpm devbox:attach` attaches to container stdout/stderr (Story 2.7 TUI target); supports `Ctrl+P Ctrl+Q` detach without killing container",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/attach.sh (iter-201 NEW): `docker attach --detach-keys='ctrl-p,ctrl-q' \"${CONTAINER_NAME}\"` per SC-13. `--detach-keys` pins Ctrl+P Ctrl+Q as the detach sequence (docker's default; making it explicit protects against future docker-default changes that might surprise operators mid-Ralph-iteration). `attach` returns the PID 1 process's stdio to the operator — this is the Ralph TUI in Story 2.7. Pre-flight: container-running gate (exit 9 if stopped).",
+        "Story 2.7 coupling (iter-201): Ralph auto-start TUI attach/detach via `pnpm ralph:build` + `pnpm ralph:plan` (Story 2.7 scope; backlog at iter-202) consumes `pnpm devbox:attach` as its canonical attach primitive. Detach-key sequence ctrl-p,ctrl-q is load-bearing — the sequence must NOT kill the container (which would lose Ralph state between iterations). SC-25 scope-boundary forbids Story 2.6 from shipping the Ralph TUI wiring itself; Story 2.7 owns that composition.",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/attach.sh` → OK. Dispatcher-level smoke not applicable (attach.sh takes no flags).",
+        "Live-smoke AC 6 runtime verification — `pnpm devbox:attach` → operator's terminal connected to container PID 1 stdout/stderr; `Ctrl+P Ctrl+Q` → clean detach; `docker compose ps devbox` post-detach → container still running (attach did NOT kill it); re-attach reconnects to same PID 1 — deferred to M4-Pro operator workstation per SC-13 backend-B live-smoke precedent.",
+        "Adversarial AC-6 coverage delegated to iter-CR: Blind Hunter examines `docker attach --detach-keys='ctrl-p,ctrl-q'` flag literal vs docker's default (explicit is safer) + pre-flight container-running gate (exit 9) + SIGINT-vs-detach behaviour (SIGINT kills the foreground process; detach-keys propagate a signal that docker interprets as detach only); Edge Case Hunter probes attach-to-non-pid-1-entrypoint (attach targets PID 1 via docker semantics), double-attach from two terminals (docker allows; behaviour is stream-multiplexing), detach-with-custom-keys-envvar (DOCKER_DETACH_KEYS interaction); Acceptance Auditor verifies AC 6 verbatim match — attach returns stdio + Ctrl+P Ctrl+Q detaches without killing."
+      ]
+    },
+    {
+      "id": "AC-7",
+      "title": "`pnpm devbox:status` prints container state + healthcheck; `devbox:logs` tails container stdout/stderr; `devbox:monitor` displays a live FR1a JSONL DNS-event tail (NOT docker stats — PRD `:494` authoritative)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/status.sh (iter-201 NEW): `docker compose -f \"${COMPOSE_FILE}\" ps --format table devbox` + explicit healthcheck extraction via `docker inspect --format '{{.State.Health.Status}}' \"${CONTAINER_NAME}\" 2>/dev/null || echo \"(no healthcheck configured)\"` per SC-15. Emits both to stdout. Exit 0 even if container is stopped (status-reporting is not itself an error); exit 9 only if the container object doesn't exist at all.",
+        "packages/devbox/scripts/logs.sh (iter-201 NEW): `docker compose -f \"${COMPOSE_FILE}\" logs -f --tail=100 devbox` per SC-15. Default follow-mode with 100-line backlog. Flags `--no-follow`, `--tail=<N>` forwarded to compose if supplied. Exit 0 on clean detach (SIGINT).",
+        "packages/devbox/scripts/monitor-host.sh (iter-201 NEW): host-side shim per SC-15 — `docker exec -it \"${CONTAINER_NAME}\" /workspace/packages/devbox/scripts/monitor.sh \"$@\"`. The in-container target is Story 2.3's pre-existing JSONL egress-log tailer at `packages/devbox/scripts/monitor.sh` (banner line 2 confirms: `\"packages/devbox/scripts/monitor.sh — Story 2.3 (AC 3 observability) — Operator-facing live tail of the JSONL egress query log.\"`). Story 2.6 does NOT rename, delete, or edit the in-container primitive — it adds the host-side shim ONLY.",
+        "SC-15 monitor-semantic pin (iter-201): `pnpm devbox:monitor` ships as the FR1a JSONL DNS-event tail per PRD `:494` (`\"Structured tail of allowed/blocked DNS events consuming the FR1a structured query-log (JSONL).\"`) + architecture `:1003` (`\"monitor.sh # JSONL tail (FR1a replacement for monitor-blocks.sh)\"`). Epics AC 7 \"cpu/memory/network\" phrasing is historical drift from the PRD and does NOT override the authoritative PRD + architecture definition — any future `docker stats`-style verb would be a separate story (out of scope at 1.0 per SC-25). Story v0.2 iter-199 AI-2 CRITICAL resolved this drift; v1.0 iter-201 landing implements the pin.",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/status.sh` + `bash -n logs.sh` + `bash -n monitor-host.sh` → all OK. Pre-flight for monitor-host.sh verifies in-container `monitor.sh` presence; failure exits 3 with `devbox monitor: in-container primitive missing — rebuild via 'pnpm devbox:build'`.",
+        "Live-smoke AC 7 runtime verification — `pnpm devbox:status` → compose ps output + healthcheck status line; `pnpm devbox:logs` → follow-mode tail of container stdout/stderr with 100-line backlog; `pnpm devbox:monitor` → JSONL event tail from `/workspace/logs/egress-queries.jsonl` (Story 2.3 bind-mount target) via `docker exec` into Story 2.3 monitor.sh — deferred to M4-Pro operator workstation per SC-13 backend-B live-smoke precedent.",
+        "Adversarial AC-7 coverage delegated to iter-CR: Blind Hunter examines `docker compose ps --format table` output shape + `docker inspect .State.Health.Status` null-handling branch + `logs -f --tail=100` flag forwarding + `monitor-host.sh` shim passthrough (no subcommand parser inside shim — SC-16 dual-source-of-truth-for-validation avoidance); Edge Case Hunter probes status-on-stopped-container (exit 0 per SC-15 status-reporting-not-error semantics) + logs-with-empty-container (no backlog; follow waits correctly) + monitor-host-against-pre-Story-2.3-container (exit 3 in-container primitive missing); Acceptance Auditor verifies AC 7 verbatim match — status prints state+healthcheck + logs tails stdout/stderr + monitor JSONL tail (per SC-15 monitor-semantic pin reconciling epics AC 7 drift)."
+      ]
+    },
+    {
+      "id": "AC-8",
+      "title": "`pnpm devbox:env:check` validates .envrc presence + every required `KEEL_DEVBOX_*` var; exits non-zero with missing-var report if any absent",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/env-check.sh (iter-201 NEW): algorithm per SC-14 — (1) `ENVRC_PATH=\"${DEVBOX_DIR}/../../.envrc\"` (repo-root .envrc); if not readable → exit 3 with `devbox env-check: .envrc not found at <path> — run 'direnv allow' or copy .envrc.example`; (2) parse `.envrc` line by line; for each `export KEEL_DEVBOX_<NAME>=…` or `KEEL_DEVBOX_<NAME>=…`, record var name + value; (3) REQUIRED_VARS constant = 15 active `.envrc.example` keys (regenerated at impl-time via `rg 'KEEL_DEVBOX_[A-Z_]+' packages/devbox/ .envrc.example | sort -u`; Task 1.4 Debug Log records final list); (4) AR-11 absorption: for TMPFS_TMP_MB + TMPFS_VARTMP_MB + TMPFS_LOGS_MB, additionally validate value shape via regex `^[1-9][0-9]*$` (reject 0, empty, negative, or non-numeric `\"2gb\"`); (5) emit stdout summary: `env-check: <N> of <M> required vars present; <K> value-shape violations`; (6) exit 0 iff every required var present AND every shape-validated var passes; otherwise exit 2.",
+        "packages/devbox/scripts/env-check.sh (iter-201 NEW): names-only stderr posture per SC-14 secrets-discipline — `env-check` NEVER echoes a var's value to stdout/stderr for credential-classed vars (pattern `*_TOKEN|*_SECRET|*_KEY|*_PASSWORD`). For shape-violated tmpfs-int vars, stderr MAY include the offending value (`env-check: KEEL_DEVBOX_TMPFS_TMP_MB='<value>' — expected positive integer MB count (no units)`) because these are non-credential shape assertions.",
+        "packages/devbox/scripts/start.sh (iter-201) env-check pre-flight integration: `start.sh` invokes `env-check.sh` as its OWN pre-flight unless `KEEL_DEVBOX_START_SKIP_ENV_CHECK=true` (operator escape hatch for CI scenarios with alternate env injection per SC-14).",
+        "AR-11 absorption (iter-201): env-check shape-validation for tmpfs-size knobs absorbs Story 2.5 CR AR-11 deferred-to-Story-2.6 action item. Task 1.4 regenerated authoritative `KEEL_DEVBOX_*` var list at impl-time: `rg -N --no-heading 'KEEL_DEVBOX_[A-Z_]+' packages/devbox/ | sort -u` yielded 18 var names across the codebase; `.envrc.example`'s active (uncommented) block documents 15; 2 are commented optional (`KEEL_DEVBOX_CONTAINER_NAME`, `KEEL_DEVBOX_WORKSPACE`); 1 is code-internal (`KEEL_DEVBOX_WORKSPACE_OWNER`). REQUIRED_VARS = 15 active `.envrc.example` keys; optional CONTAINER_NAME + WORKSPACE + START_HEALTHCHECK_TIMEOUT_S defaulted via bash `${VAR:-default}` in scripts.",
+        "Iteration-env substrate verification (iter-201) — Task 3.2 + Task 8.2 smokes PASSED: (a) `pnpm devbox:env:check` with NO `.envrc` present → exit 3 + stderr `devbox env-check: .envrc not found at …`; (b) `pnpm devbox:env:check` with seeded `.envrc` (copied from `.envrc.example`) → exit 0 + stdout `env-check: 15 of 15 required vars present; 0 value-shape violations`; (c) `pnpm devbox:env:check` with deliberately-bad tmpfs ints (`KEEL_DEVBOX_TMPFS_TMP_MB=2gb` + `KEEL_DEVBOX_TMPFS_VARTMP_MB=0`) → exit 2 + both violations reported by name on stderr. ALL THREE BRANCHES executed in iteration env — stronger runtime evidence than Story 2.5's zero-iteration-env-runtime-assertions posture.",
+        "Live-smoke AC 8 runtime verification — covered by iteration-env-safe smokes above (env-check is host-side; NOT docker-dependent). Additional operator-workstation smoke documented in README: `pnpm devbox:env:check` after `cp packages/devbox/.envrc.example .envrc && direnv allow` → exit 0 + success summary.",
+        "Adversarial AC-8 coverage delegated to iter-CR: Blind Hunter examines REQUIRED_VARS list correctness vs `.envrc.example` active block + `.envrc` parse regex (`^export\\s+KEEL_DEVBOX_` vs bare-assignment form) + names-only-secrets-discipline pattern match + tmpfs-int shape regex `^[1-9][0-9]*$`; Edge Case Hunter probes .envrc-with-commented-out-KEEL_DEVBOX-var (should report missing) + .envrc-with-blank-value (is PRESENT per SC-14) + .envrc-with-value-containing-# (comment-strip behaviour) + Unicode/non-ASCII var values + SECRETS-classed var with value — should be masked in stderr; Acceptance Auditor verifies AC 8 verbatim match — .envrc presence + every required KEEL_DEVBOX_* validated + non-zero exit with missing-var report on failure."
+      ]
+    },
+    {
+      "id": "AC-9",
+      "title": "`pnpm devbox:whitelist` invokes atomic-reload flow from Story 2.4",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/whitelist-host.sh (iter-201 NEW): thin shim per SC-16 — `docker exec -it \"${CONTAINER_NAME}\" /workspace/packages/devbox/scripts/whitelist.sh \"$@\"`. Arguments passthrough verbatim (including the `add|remove|list|sync` subcommand + domain argument). Pre-flight: container-running gate (exit 9 if stopped); does NOT auto-start the container (operator intent must be explicit — a `whitelist.sh add` that silently starts the container violates least-surprise).",
+        "Story 2.4 SC-12 scope-boundary satisfaction (iter-201): `whitelist-host.sh` is the EXACT `docker exec`-shim Story 2.4's SC-12 explicitly deferred to Story 2.6. Hyphen-suffix filename disambiguates from in-container `whitelist.sh` so a fork operator grepping `packages/devbox/scripts/whitelist*` immediately sees the two-file pattern (in-container primitive + host-side shim). DO NOT add a dispatch / subcommand parser inside `whitelist-host.sh` — it's pure passthrough; any CLI argument validation is the responsibility of the in-container `whitelist.sh` (avoids dual-source-of-truth-for-validation drift per SC-16).",
+        "packages/devbox/scripts/whitelist.sh (iter-201 UNTOUCHED): Story 2.4 in-container atomic-reload primitive preserved verbatim — SC-4 three-stage composer (baseline + fragments + local override) + atomic-replace via `mv` on same filesystem + file-lock coordination + dnsmasq/nftables reload via Story 2.3 reload-egress.sh. Exit-code passthrough: `whitelist.sh` exits 0/2/3/4/5/6/7; host-side shim propagates verbatim (SC-5 exit-code table codes 5-7 reserved for in-container primitive passthrough).",
+        "Story 2.4 SC-12 pnpm devbox:whitelist wiring (iter-174 ALREADY LIVE): repo-root package.json `devbox:whitelist` entry at iter-174 pointed to `packages/devbox/scripts/whitelist.sh`; Story 2.6 iter-201 UPDATES this entry to `./packages/devbox/scripts/whitelist-host.sh` (the host-side shim) per SC-3. Story 2.4 Dev-Agent-Record iter-174 anticipated this replacement (SC-12 explicitly deferred the host-side shim to Story 2.6).",
+        "Iteration-env substrate verification (iter-201): `bash -n packages/devbox/scripts/whitelist-host.sh` → OK. Dispatcher-level smoke not applicable — whitelist-host.sh is pure passthrough; any subcommand validation is in-container primitive's responsibility.",
+        "Live-smoke AC 9 runtime verification — `pnpm devbox:whitelist add example.com` → in-container `whitelist.sh add example.com` writes to `whitelist.local.txt` + composes whitelist + acquires lock + reloads dnsmasq+nftables atomically; `pnpm devbox:whitelist list` → source-attributed domain list (`D|F:<name>|L` prefixes); `pnpm devbox:whitelist sync` → recompose + reload without mutation — deferred to M4-Pro operator workstation per SC-13 + Story 2.4 SC-17 precedent.",
+        "Adversarial AC-9 coverage delegated to iter-CR: Blind Hunter examines shim passthrough correctness (`\"$@\"` argument forwarding; `docker exec -it` TTY posture) + container-running pre-flight + no-auto-start posture (operator intent must be explicit); Edge Case Hunter probes exit-code-passthrough (in-container 0/2/3/4/5/6/7 all propagate; host-side shim does NOT inject 8/9/10/11 except the container-running-gate 9) + stdout/stderr streaming correctness under `docker exec -it` + SIGINT propagation from host shell to in-container whitelist.sh; Acceptance Auditor verifies AC 9 verbatim match — `devbox:whitelist` invokes the Story 2.4 atomic-reload flow (via host-side shim → in-container primitive)."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 9,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 9,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 9, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-5", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-6", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-7", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-8", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-9", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — nine P2 ACs cover a user-facing-CLI class story (SECOND of its class after Story 2.4 iter-174 whitelist CLI; SIXTH Epic 2 delivery; bash CLI with 13-verb host-side surface + pnpm wiring + env validation + monitor-semantic reconciliation + AR absorption triad) with no live test runner at 1.0. All 9 ACs have STRONG substrate evidence verified LIVE at iter-201: 13 NEW bash scripts at packages/devbox/scripts/ (build, rebuild, start, stop, restart, clean, shell, attach, status, logs, monitor-host, whitelist-host, env-check) each 0755 + `set -euo pipefail` + self-rooted paths + banner + SC-5 exit-code table per SC-4; 13 NEW `devbox:*` pnpm entries in repo-root package.json between `keel-invariants:*` and `prepare` per SC-3; start.sh healthcheck poll stub-friendly per SC-9 (2s interval up to KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S default 120s; accepts healthy|running|starting<30s grace; rejects unhealthy|exited|dead|removing|paused → exit 11); clean.sh three-tier destructive-op gate per SC-11 (default scoped `down --rmi local` safe under either backend; --with-volumes prompts + under backend B requires --force-backend-b; --allow-broad-prune RESERVED no-op); env-check.sh per SC-14 + AR-11 (parses repo-root .envrc, validates 15 required KEEL_DEVBOX_* keys, shape-validates 3 tmpfs-MB knobs via regex `^[1-9][0-9]*$`; exit 0/2/3); start.sh calls env-check.sh pre-flight unless KEEL_DEVBOX_START_SKIP_ENV_CHECK=true; monitor-host.sh + whitelist-host.sh thin `docker exec` shims over Story 2.3 monitor.sh (FR1a JSONL tail per PRD `:494` + architecture `:1003` — NOT docker stats; SC-15 monitor-semantic pin resolving iter-199 AI-2 CRITICAL drift) + Story 2.4 whitelist.sh (atomic-reload in-container CLI); backend-B detection mirrors benchmark.sh § detect_backend per docs/invariants/devbox-dind.md; AR-10 operator-migration docs LANDED (SC-21 new README H3 § Operator migration with symptom detection + destructive recovery + safety rail); AR-11 env-check shape validation LANDED (SC-14 unconditional); AR-12 COMPOSE_PROJECT_NAME docs polish LANDED (SC-22 qualifier at README + invariant doc; sync-gate fired refreshing INV-devbox-homedev-named-volume contentHash f34cb62f… → 5e868749…); new README H2 ## Host-side CLI (Story 2.6) per SC-23 (FR1 summary + 13-row subcommand table + exit-code family table + .envrc integration + backend-B awareness + operator-workstation verification recipes + iteration-env-safe smokes recipe + cross-references); AGENTS.md H3 ### Host-side CLI (Story 2.6) per SC-24 (operational-only 5 bullets + cross-refs to Story 2.4 whitelist H3 + Story 2.5 hardening H3); INV-prek-prepare-lifecycle contentHash refreshed 87f37b45… → 5960e7c4… (package.json +13 entries); sync-gate 2× refresh + `dist/check.js` rebuild + `keel-invariants:check-all` exit 0. ITERATION-ENV-SAFE SMOKES ALL PASSED: `bash -n` × 13 scripts (syntax valid); `pnpm run | grep -E '^\\s+devbox:' | wc -l` → 13; `pnpm devbox:env:check` with NO .envrc → exit 3 + `.envrc not found`; seeded-.envrc → exit 0 + `15 of 15 required vars present`; bad-tmpfs-ints (TMP_MB=2gb, VARTMP_MB=0) → exit 2 + 2 shape violations named; clean.sh --unknown → exit 2 + usage; clean.sh --help → exit 0 + usage. STRONGER iteration-env substrate evidence than Story 2.5 (which had zero runtime assertions for some ACs) — Story 2.6 executes syntactically + semantically end-to-end for env-check + dispatcher + pnpm wiring without requiring docker lifecycle mutation. Per-AC lifecycle live smokes (AC 2-7 build/start/status/shell/logs/stop/restart/clean end-to-end) deferred to M4-Pro operator workstation per SC-13 + Story 2.4 SC-17 + Story 2.5 SC-13 backend-B live-smoke precedent (DinD-B iteration env cannot safely `docker compose up/down/start/stop` against a shared host daemon without risk of poisoning unrelated host projects).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.6 authors the user-facing-CLI substrate: 13 NEW bash scripts (packages/devbox/scripts/{build,rebuild,start,stop,restart,clean,shell,attach,status,logs,monitor-host,whitelist-host,env-check}.sh) + 6 modified files (repo-root package.json +13 devbox:* entries + packages/devbox/README.md new H3 § Operator migration + AR-12 qualifier + new H2 § Host-side CLI + AGENTS.md new H3 § Host-side CLI + docs/invariants/devbox-hardening.md AR-12 qualifier + packages/keel-invariants/src/invariants.manifest.ts 2× contentHash refresh + packages/keel-invariants/dist/check.js rebuild) per SC-25 scope boundary. Sync-gate 2× refresh GREEN: INV-prek-prepare-lifecycle (87f37b45… → 5960e7c4…; package.json +13 entries) + INV-devbox-homedev-named-volume (f34cb62f… → 5e868749…; hardening doc AR-12 qualifier). Downstream consumers: Story 2.7 Ralph auto-start TUI attach/detach via pnpm ralph:build + pnpm ralph:plan (consumes devbox:attach primitive with ctrl-p,ctrl-q detach-key semantics; SC-25 scope-boundary forbids Story 2.6 from shipping Ralph TUI wiring); Story 2.8 Claude Code OAuth wrapper via pnpm claude (consumes devbox:shell for interactive-shell-as-dev-user); Story 2.9 gh CLI OAuth wrapper via pnpm gh:auth (consumes devbox:shell); Story 2.10 prereq-check (consumes devbox:env:check); Story 2.11 shared-workspace mode orthogonal; Story 2.13 real healthcheck dnsmasq+sshd probe consumed by SC-9 start.sh poll loop (no Story 2.6 code change required — poll accepts `healthy` once Story 2.13 defines it); Story 2.17 ships packages/keel-invariants/src/check-devbox-compose-shape.ts (orthogonal to Story 2.6).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.6 test-runner landing (Epic 13 scope) + backend-A operator-workstation live lifecycle smokes will unlock per-AC runner-hosted probes: AC 2 (`pnpm devbox:build` + `pnpm devbox:rebuild` → `keel-devbox:local` image present + no-cache invalidates layers); AC 3 (`pnpm devbox:start` → container transitions to healthy|running; healthcheck poll returns 0 within timeout); AC 4 (`pnpm devbox:stop` preserves named volume; `pnpm devbox:restart` = stop+start; `pnpm devbox:clean` default preserves keel_home_dev; `--with-volumes` with [y/N] + backend-B --force-backend-b gate); AC 5 (`pnpm devbox:shell` → interactive bash as dev user @ /workspace); AC 6 (`pnpm devbox:attach` + ctrl-p,ctrl-q clean detach; container still running post-detach); AC 7 (`pnpm devbox:status` compose-ps+healthcheck lines; `pnpm devbox:logs` follow-mode tail; `pnpm devbox:monitor` JSONL event tail); AC 8 (covered by iteration-env-safe smokes — env-check is host-side not docker-dependent; additional operator-workstation smoke after direnv allow); AC 9 (`pnpm devbox:whitelist add <domain>` writes to whitelist.local.txt + composes + reloads; `pnpm devbox:whitelist list` source-attributed D|F:<name>|L prefixes; `pnpm devbox:whitelist sync` recompose+reload without mutation). None of these block Story 2.6 `review → done` transition under the WAIVED precedent — substrate evidence + iteration-env-safe smokes at iter-201 are complete for the in-iteration-executable portion of the story.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8", "AC-9"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
