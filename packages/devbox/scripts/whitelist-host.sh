@@ -34,4 +34,10 @@ if [[ "${state}" != "running" ]]; then
 	exit 9
 fi
 
-exec docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/whitelist.sh "$@"
+# AI-9 (Story 2.6 CR iter-213): `--user dev` pin matches shell.sh:39,42.
+# Image default USER is dev (Story 2.5 Dockerfile), so today this is an
+# explicit-pin not a posture change; guards against a fork's
+# docker-compose.override.yml flipping `user: root` and causing whitelist
+# mutations to write /run/keel-whitelist-mutate.lock + whitelist.local.txt
+# with root ownership — a subsequent `dev`-user mutation would then fail.
+exec docker exec -it --user dev "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/whitelist.sh "$@"
