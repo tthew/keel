@@ -5,6 +5,17 @@
 # stop.sh + start.sh in sequence. If stop fails, abort before start. Propagate
 # start's exit code (0 on healthy, 10/11/8 etc. per start.sh).
 #
+# Between stop + start, poll the OLD container's .State.Status until it has
+# actually reached `exited` (or the container object has been removed) before
+# invoking start.sh. `docker compose stop` returns when SIGTERM has been
+# delivered + grace has elapsed — NOT when the container has reached `exited`.
+# On a slow daemon the container may still be transitioning through
+# `removing`/`running` when stop.sh returns, and start.sh's own poll
+# (start.sh:74-89) would then match `running` against the DOOMED old container
+# and declare `started` prematurely. Poll is bounded by
+# KEEL_DEVBOX_RESTART_STOP_POLL_TIMEOUT_S (default 10s); on timeout, proceed
+# to start.sh regardless — start.sh has its own 120s healthcheck bound.
+#
 # Exit codes (SC-5):
 #   inherited from stop.sh (first) then start.sh (second).
 # ---------------------------------------------------------------------------
@@ -18,11 +29,48 @@ set -euo pipefail
 unset COMPOSE_PROJECT_NAME
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
+STOP_POLL_TIMEOUT_S="${KEEL_DEVBOX_RESTART_STOP_POLL_TIMEOUT_S:-10}"
 
 log() { printf 'restart: %s\n' "$*" >&2; }
 
 log "invoking stop.sh"
 "${SCRIPT_DIR}/stop.sh"
+
+# AI-11 (Story 2.6 CR iter-215): wait for the OLD container to actually reach
+# `exited` (or disappear) before start.sh runs. `docker compose stop` returns
+# after SIGTERM + grace, not after the daemon finishes transitioning the
+# container. Without this poll, start.sh's own state-machine can match
+# `running`/`removing` on the doomed container and return rc 0 against a
+# container about to die. `docker inspect` returns empty + non-zero when the
+# object no longer exists — we treat that as equivalent to `exited` (compose
+# has garbage-collected it). By this point `docker info` has already been
+# validated upstream (stop.sh:28), so an inspect failure here is overwhelmingly
+# "container gone", not a daemon outage.
+log "waiting for '${CONTAINER_NAME}' to exit (timeout ${STOP_POLL_TIMEOUT_S}s)"
+stop_deadline=$(( $(date +%s) + STOP_POLL_TIMEOUT_S ))
+while true; do
+	now=$(date +%s)
+	if [[ ${now} -ge ${stop_deadline} ]]; then
+		log "timed out waiting for exit — proceeding to start.sh anyway"
+		break
+	fi
+
+	status="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || true)"
+	case "${status}" in
+		exited|dead)
+			log "container is '${status}' — ready for start.sh"
+			break
+			;;
+		"")
+			log "container object gone — ready for start.sh"
+			break
+			;;
+		*)
+			sleep 0.5
+			;;
+	esac
+done
 
 log "invoking start.sh"
 exec "${SCRIPT_DIR}/start.sh"
