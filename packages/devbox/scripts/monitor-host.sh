@@ -11,7 +11,11 @@
 #
 # Exit codes (SC-5):
 #   0   clean detach (SIGINT from tail -F).
-#   3   in-container primitive missing — rebuild via `pnpm devbox:build`.
+#   3   in-container primitive missing from the host-side repo checkout.
+#       `monitor.sh` is bind-mounted from `packages/devbox/scripts/` (not
+#       baked into the image); `docker compose build` does NOT restore a
+#       missing repo file. Restore via `git checkout
+#       packages/devbox/scripts/monitor.sh` or re-clone.
 #   8   docker runtime unreachable.
 #   9   container not running — run `pnpm devbox:start` first.
 #   *   docker exec / tail error (propagated).
@@ -35,10 +39,11 @@ if [[ "${state}" != "running" ]]; then
 	exit 9
 fi
 
-# Pre-flight: in-container primitive present on host filesystem (bind-mounted
-# via the workspace mount).
+# Pre-flight: in-container primitive present on host filesystem. `monitor.sh`
+# is bind-mounted into the container via the workspace mount — a rebuild
+# (`pnpm devbox:build`) does NOT restore it; `git checkout` does.
 if [[ ! -f "${DEVBOX_DIR}/scripts/monitor.sh" ]]; then
-	log "in-container primitive 'monitor.sh' missing — rebuild via 'pnpm devbox:build'"
+	log "monitor.sh missing from packages/devbox/scripts/ — restore via 'git checkout packages/devbox/scripts/monitor.sh'"
 	exit 3
 fi
 
