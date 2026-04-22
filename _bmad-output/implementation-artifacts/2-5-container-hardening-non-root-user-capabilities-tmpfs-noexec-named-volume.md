@@ -1,0 +1,342 @@
+# Story 2.5: Container hardening (non-root user + capabilities + tmpfs noexec + named volume)
+
+Status: ready-for-dev
+
+<!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+
+## Story
+
+As a substrate maintainer,
+I want the devbox container hardened — non-root `dev` user, `cap_drop: [ALL]` preserving `NET_ADMIN` + `NET_RAW` (nftables) + `NET_BIND_SERVICE` (dnsmasq :53), `no-new-privileges`, tmpfs mounts with `noexec,nosuid`, named Docker volume for `/home/dev` —
+So that a runtime compromise faces meaningful layered barriers to escape or persistence (NFR7, NFR8/8a, NFR10).
+
+## Acceptance Criteria
+
+1. **Given** the Dockerfile from Story 2.1,
+   **When** the image is built,
+   **Then** a non-root `dev` user is created with a stable UID/GID
+   **And** the image `USER` directive switches to `dev` before the entrypoint runs.
+
+2. **Given** `docker-compose.yml`,
+   **When** I inspect it,
+   **Then** `cap_drop: [ALL]` is set
+   **And** `cap_add` lists only `NET_ADMIN` and `NET_RAW` (required by nftables in Story 2.3) plus `NET_BIND_SERVICE` (required by dnsmasq's bind to :53 under `cap_drop: [ALL]`, per SC-4)
+   **And** `security_opt: [no-new-privileges:true]` is set.
+
+3. **Given** tmpfs mounts in compose,
+   **When** I inspect them,
+   **Then** `/tmp` and `/var/tmp` are tmpfs-mounted with `noexec,nosuid` options
+   **And** the sizes are parameterised via `KEEL_DEVBOX_TMPFS_TMP_MB` and `KEEL_DEVBOX_TMPFS_VARTMP_MB` (published by Story 2.2 at `packages/devbox/.envrc.example:29-31`).
+
+4. **Given** `/home/dev` persistence,
+   **When** I inspect the compose volume definition,
+   **Then** a named Docker volume (`keel_home_dev`, per SC-6) is mounted at `/home/dev`
+   **And** no host bind-mount is used for `/home/dev` under any `KEEL_DEVBOX_*` setting
+   **And** this invariant is non-toggle-able (enforced by a compose-shape check in the invariants manifest — `INV-devbox-homedev-named-volume`, per SC-9).
+
+5. **Given** the hardening is in place,
+   **When** I attempt to execute a binary from `/tmp` inside the container,
+   **Then** execution fails with `noexec`
+   **And** any attempt to gain privileges via setuid binaries is blocked by `nosuid` + `no-new-privileges`.
+
+### Scope clarifications (pinned at draft, MUST be honored — not re-negotiable without Change Log entry)
+
+- **SC-1 (Dockerfile `dev` user shape, AC 1):** `RUN groupadd --gid 1000 dev && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev`. UID/GID `1000` matches the Linux first-human-user convention and maps cleanly to most non-root host UIDs on macOS+Apple-Silicon Docker Desktop. `--create-home` generates `/home/dev` pre-volume-mount so the directory exists in the image for Docker's auto-init-from-image behavior when the named volume is empty on first-boot (Docker semantics per [`docs.docker.com/storage/volumes/#populate-a-volume-using-a-container`](https://docs.docker.com/storage/volumes/#populate-a-volume-using-a-container)). Shell `/bin/bash` (not `/bin/sh`) — `bash` is already installed via `build-essential`/base image; `/bin/sh` is a symlink to `dash` on Ubuntu 24.04, which the existing entrypoint uses `#!/usr/bin/env bash` so operator-shell consistency matters. DO NOT use a higher UID (e.g. `1100`) — host-UID alignment minimises workspace-bind-mount permission friction (Story 2.1 CR AI-5 entrypoint chown rationale at `packages/devbox/entrypoint.sh:28-55`).
+
+- **SC-2 (Dockerfile `USER` directive placement, AC 1):** the `USER dev` directive in `packages/devbox/Dockerfile` MUST appear on its own line AFTER the `COPY entrypoint.sh` + `RUN chmod +x` lines (currently `packages/devbox/Dockerfile:228-229`) and BEFORE the `WORKDIR /workspace` line (currently `:231`). Placement rationale: the copy+chmod runs as root (image-build context has full caps); WORKDIR works under any user; ENTRYPOINT resolves USER at container-start time. Moving USER above the COPY line works but masks a future Dockerfile editor's intent that "everything below USER runs as dev at build time too" — keep USER close to ENTRYPOINT for readability. Additionally, ensure `RUN mkdir -p /workspace /home/dev/.claude ...` (currently `:225-226`) runs BEFORE `USER dev` so the mkdir happens under root (non-root cannot create `/workspace` at root of the image filesystem).
+
+- **SC-3 (image-build chown to `dev:dev`, AC 1 + AC 4):** add a `RUN chown -R dev:dev /home/dev` immediately after the existing `mkdir` block at `packages/devbox/Dockerfile:225-226`. This establishes `dev:dev` ownership of `/home/dev/.claude` + `/home/dev/.config/gh` in the image layer so Docker's auto-init-from-image behavior (AC 4) populates the named volume with correct ownership on first boot. DO NOT chown `/workspace` at image-build time — `/workspace` is a bind-mount target; the host mount overrides image ownership at runtime (Story 2.1's entrypoint.sh `:81` already handles runtime chown with best-effort failure tolerance; SC-7 below keeps that contract intact).
+
+- **SC-4 (`NET_BIND_SERVICE` addition to `cap_add`, AC 2 reconciliation — MUST READ):** AC 2 as drafted reads "cap_add lists only NET_ADMIN and NET_RAW (required by nftables in Story 2.3)." Under `cap_drop: [ALL]`, the container capability bounding set = `{NET_ADMIN, NET_RAW}`, which EXCLUDES `NET_BIND_SERVICE`. Linux kernel port-binding semantics require either effective UID 0 with `NET_BIND_SERVICE` in the bounding set, OR a non-root process with the file-cap. With `cap_drop: [ALL]` stripping `NET_BIND_SERVICE` even from the bounding set, **neither root nor non-root processes can bind port 53** — dnsmasq would fail at start-egress.sh invocation and the container would die (fail-closed, but also inoperable). **Resolution:** the AC 2 parenthetical "(required by nftables in Story 2.3)" is the RATIONALE for those two specific caps, not an exclusivity clause. Story 2.5 extends `cap_add` to **`[NET_ADMIN, NET_RAW, NET_BIND_SERVICE]`** — three narrow caps, each with a distinct substrate-operational rationale: `NET_ADMIN` (nftables rule load via netlink, Story 2.3 SC-6), `NET_RAW` (raw-socket probes dnsmasq may issue during health checks), `NET_BIND_SERVICE` (bind to <1024 for dnsmasq port 53). This is consistent with NFR7's intent ("only caps the substrate operationally needs"; architecture.md:73 / prd.md:1078 — "NET_ADMIN/NET_RAW-only kernel caps" was drafted before the cap-bounding-set port-bind interaction was fully accounted for). Story 2.5 reconciles the PRD/architecture text + the epic AC with the runtime requirement; the three-cap list is pinned in AC 2 above. NO other caps (`CAP_SYS_ADMIN`, `CAP_CHOWN`, etc.) are added — see SC-5 for the chown-failure tolerance the posture implies. Document the three-cap rationale in `docs/invariants/devbox-hardening.md` (SC-9) + `packages/devbox/README.md` (§ Hardening subsection, Task 8).
+
+- **SC-5 (runtime chown best-effort under dropped `CAP_CHOWN`, AC 1 + AC 4):** with `cap_drop: [ALL]` and without `CAP_CHOWN` in `cap_add`, entrypoint.sh's existing `chown` calls (workspace + /home/dev/.claude + /home/dev/.config/gh) WILL fail at runtime under the `dev` user — even under sudo (capability bounding set is container-wide, not per-user). Story 2.5 relies on: (a) image-build-time chown (SC-3) for `/home/dev/*` — named volume initializes from image with correct ownership; (b) host-side UID alignment for `/workspace` — Docker Desktop on macOS and Linux hosts with UID 1000 sees workspace files as dev-owned automatically via bind-mount UID passthrough; non-matching hosts get "read-only-ish" workspace with best-effort chown warnings but the container still starts (Story 2.1 entrypoint.sh `:80-85` existing pattern). The entrypoint's `chown` calls REMAIN (don't delete them) — they're harmless no-ops under most host configurations, useful when the container runs privileged during local debugging (`docker run --privileged`), and the existing "capture stderr + continue" posture means failures don't block container start. Update entrypoint.sh default `WORKSPACE_OWNER` to `dev:dev` (from `root:root` at `packages/devbox/entrypoint.sh:26`) so operator intent is declarative.
+
+- **SC-6 (named volume naming + compose top-level `volumes:` block, AC 4):** the named Docker volume is declared `keel_home_dev` at the **compose top level** (NOT service-scoped), producing a fully-qualified `keel-devbox_keel_home_dev` (or `<project-name>_keel_home_dev` per Compose project-namespace prefix convention). The service-level mount is `/home/dev`. No `driver_opts` — use the default `local` driver for portability across Docker Desktop (macOS, Linux), rootless Docker, and Podman-compat forks (SC-14). The name `keel_home_dev` is chosen: (a) matches the existing `keel-devbox` container name prefix; (b) underscore-only (Docker volume naming disallows most special chars — safe lowest-common-denominator); (c) intentionally NOT parameterized by any `KEEL_DEVBOX_*` knob — the invariant is explicitly non-toggle-able per AC 4 ("no host bind-mount is used for /home/dev under any KEEL_DEVBOX_* setting"). Future Stories 2.8 + 2.9 subscribe to this volume's `/home/dev/.claude/` + `/home/dev/.config/gh/` subpaths; they do NOT introduce separate volumes.
+
+- **SC-7 (entrypoint.sh WORKSPACE_OWNER default, SC-5 + AC 1):** change `WORKSPACE_OWNER="${KEEL_DEVBOX_WORKSPACE_OWNER:-root:root}"` at `packages/devbox/entrypoint.sh:26` to `WORKSPACE_OWNER="${KEEL_DEVBOX_WORKSPACE_OWNER:-dev:dev}"`. The existing CR-AI-5 (iter-133) input-shape validation regex at `:51` (`^[A-Za-z_][A-Za-z0-9_.+-]*:[A-Za-z_][A-Za-z0-9_.+-]*$`) already accepts `dev:dev` — no regex change needed. Comment update: the TODO at `:25` (`TODO(Story 2.5): replace root:root with dev:dev`) becomes the completed substrate reference.
+
+- **SC-8 (tmpfs stanza format + size semantics, AC 3):** use Compose's **service-level `tmpfs:` long syntax** for each of `/tmp` and `/var/tmp` — NOT the older short-form `tmpfs: ["/tmp"]` (which cannot specify size/options). Form:
+
+  ```yaml
+  tmpfs:
+    - /tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
+    - /var/tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
+  ```
+
+  Docker Compose passes `tmpfs` options through to the kernel's tmpfs mount; `exec=false` = `noexec`, `suid=false` = `nosuid` (Compose option-name convention). The `size=…m` suffix is MB (Compose parses `m`/`g` case-insensitively). `/var/log` is NOT tmpfs-mounted at Story 2.5 (NFR8 mentions it, but dnsmasq + nftables log files live under `/workspace/logs/` per Story 2.3 SC-17, which is the bind-mount); keeping `/var/log` as a normal image layer avoids invalidating dnsmasq-packaged log-dir initialization behavior. The `KEEL_DEVBOX_TMPFS_LOGS_MB` knob published by Story 2.2 at `packages/devbox/.envrc.example:31` remains inert at Story 2.5 (not consumed) — keep the knob in `.envrc.example` (no removal — Story 2.2 owns that file) and note the deferred-consumer status inline (Task 4.3 comment update).
+
+- **SC-9 (new invariant `INV-devbox-homedev-named-volume`, AC 4):** register a new manifest entry in `packages/keel-invariants/src/invariants.manifest.ts` whose `sourcePath` is a new doc `docs/invariants/devbox-hardening.md`. The doc consolidates FOUR sub-contracts (matching Story 2.3's SC-10 one-doc-one-contentHash precedent):
+
+  1. **Non-root `dev` user** — UID/GID 1000, `USER dev` in Dockerfile before ENTRYPOINT.
+  2. **Capability bounding set** — `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` (SC-4) + `security_opt: [no-new-privileges:true]`.
+  3. **tmpfs posture** — `/tmp` + `/var/tmp` with `noexec,nosuid`; sizes parameterized per NFR8a.
+  4. **`/home/dev` named volume** — `keel_home_dev` named volume, never a host bind-mount; non-toggle under `KEEL_DEVBOX_*`.
+
+  The invariant ID `INV-devbox-homedev-named-volume` is the load-bearing AC 4 rule (compose-shape check that the future consumer package `packages/keel-invariants/src/check-devbox-compose-shape.ts` — not landing at Story 2.5 itself, per SC-10) will enforce. The other three sub-contracts travel under the same `INV-devbox-homedev-named-volume` umbrella entry (single-contentHash-per-sourcePath discipline per Story 2.3 SC-10, re-confirmed at Story 2.4 SC-15). If a future story promotes any sub-contract to a separate invariant (e.g. `INV-devbox-capability-posture`), that's a manifest expansion + new `sourcePath` doc — NOT a Story 2.5 regression.
+
+- **SC-10 (runtime compose-shape check deferred to Story 2.17 or later, AC 4 scope):** AC 4's "non-toggle-able (enforced by a compose-shape check in the invariants manifest)" ships at Story 2.5 as: (a) the invariant ID + sourcePath doc + manifest entry (SC-9, SC-11, this story); (b) the PRINCIPLE that no `KEEL_DEVBOX_*` variable may toggle `/home/dev` to a bind-mount form (enforced at draft-review time by the SC-6 static-contract phrasing in `docker-compose.yml` — the `keel_home_dev` volume is unconditionally named-volume-form in the compose file's `volumes:` block). The ACTIVE RUNTIME CHECK (parsing `docker-compose.yml`, asserting the `volumes:` stanza, rejecting accidental bind-mount drift) lands at Story 2.17 "Hook + settings bypass-resistance (git-layer + manifest + S4 + halt)" OR at a dedicated check file under `packages/keel-invariants/src/check-devbox-compose-shape.ts` in Story 2.6 or later — Story 2.5 establishes the invariant surface but does NOT ship the TypeScript check. Rationale: the sync-gate's **static drift detection** (Story 1.9, FR43) already protects the sourcePath doc's contentHash; compose-shape parse-time validation is a distinct runtime concern with its own test matrix. Story 2.5 does add the H3 section `### Devbox hardening (Story 2.5)` to `INVARIANTS.md` (Task 7) + a manifest entry (Task 8) so the invariant ID is registered for cross-referencing even before the runtime check lands. This matches Story 2.3 SC-10's pattern where the invariant registration precedes the runtime check by several iterations.
+
+- **SC-11 (manifest entry contentHash protocol, AC 4 + SC-9):** follow the Story 2.3 iter-162 + Story 2.4 iter-182 pattern for contentHash capture — add the manifest entry with a placeholder `contentHash: '<64-hex from sync-gate>'`, then invoke the sync-gate runtime tooling (`pnpm keel-invariants:sync-gate` or equivalent per Story 1.9) which reports the expected hash; update the entry with the reported value; re-run to confirm zero drift. Do NOT hand-compute `sha256` — the walker's canonicalization may differ from naive file hashing (newline normalization, etc.). Anchor: backtick-wrapped `INV-devbox-homedev-named-volume` as it appears in `docs/invariants/devbox-hardening.md` — matches Story 2.3 SC-10 convention (walker finds literal anchors in the doc body, NOT H3 headers).
+
+- **SC-12 (NFR2 cold-start budget impact, NFR2 authority):** dev-user creation in the Dockerfile adds `groupadd` + `useradd` (~50 ms each during `docker build`). The hardening stanzas in compose (`cap_drop`, `cap_add`, `security_opt`, `tmpfs:`, `volumes:`) are enforced at container-start by the Docker daemon — constant-time kernel operations with no measurable cold-start impact. **Story 2.5 SHOULD NOT measurably change cold-start time.** If Story 2.17's compose-shape check adds an at-start validation (~10-50ms), that's a Story 2.17 budget concern, not Story 2.5. No benchmark re-run required at Story 2.5 closure (NFR2's M4-Pro authoritative measurement remains Story 2.1's iter-130 capture; Story 2.5's indicative DinD-B backend run goes in `packages/devbox/README.md § Benchmarks` flagged `host: DinD (cc-devbox, backend=B) — indicative` per `INV-devbox-dind-available` contract).
+
+- **SC-13 (AC 5 verification smoke — `/tmp` `noexec` + `no-new-privileges`):** AC 5 exercises TWO distinct kernel enforcement mechanisms; both SHOULD be smoked inside the hardened container. **Smoke A (`/tmp` noexec):** `docker exec keel-devbox sh -c 'echo "#!/bin/sh\necho hello" > /tmp/t.sh && chmod +x /tmp/t.sh && /tmp/t.sh'` — expect exit nonzero with `Permission denied` or `exec format error` (kernel's `noexec` mount flag). **Smoke B (`no-new-privileges`):** `docker exec keel-devbox sh -c 'ls -la /usr/bin/sudo; echo exit=$?'` — sudo binary exists but is unusable under `no-new-privileges:true` (setuid bit is honored by kernel ONLY if `no_new_privs` is 0; compose's `security_opt: [no-new-privileges:true]` sets it to 1). Expected: attempting `sudo something` inside the container returns a sudo error (sudo detects the posture and declines). **Backend-B live-smoke posture:** both smokes are operator-workstation-deferred per Story 2.4 SC-17 precedent (DinD-B cannot safely exercise `docker exec` sequences without poisoning the host's docker state under cap-dropped containers). Record the deferral in Debug Log References; the M4-Pro operator-workstation run is the authoritative AC 5 verification.
+
+- **SC-14 (Story 2.4 whitelist.sh compatibility, cross-story invariant):** Story 2.4's `whitelist.sh` (landed iter-183) creates files under `/run/` (mutation lock `/run/keel-whitelist-mutate.lock`, composed whitelist `/run/keel-whitelist.composed.txt`, previous snapshot `/run/keel-whitelist.previous.txt`) and expects `packages/devbox/whitelist.local.txt` to be writable. With Story 2.5's `user: dev`: (a) `/run/` inside the container is owned by root with 0755 perms — dev can READ but not WRITE. This BREAKS Story 2.4's `whitelist.sh add/remove/sync` flow. **Resolution:** entrypoint.sh's existing `mkdir -p /run` preflight (Story 2.3 `start-egress.sh:35`) must also `chown dev:dev /run` — but under `cap_drop: [ALL]` without `CAP_CHOWN`, this fails (SC-5). **Alternative resolution:** at image-build time, `RUN mkdir -p /run && chown dev:dev /run && chmod 0755 /run`. Then Docker's tmpfs auto-mount of `/run` at container-start is "on top of" the image layer but preserves the ownership from the image layer (Docker tmpfs + image-ownership inheritance). TODO: dev-story must verify this empirically — if tmpfs mounts zero out ownership, the fallback is to use a non-`/run/` path for whitelist state files (e.g., `/tmp/keel-state/`; but `/tmp` is tmpfs-`noexec` under Story 2.5 — fine, state files aren't executable). **Story 2.5 MUST NOT regress Story 2.4's whitelist.sh flow.** Task 5 includes a parity smoke for this. If relocation is required, Task 5.5 emits a focused `whitelist.sh` edit. ALSO: `packages/devbox/whitelist.local.txt` under the `/workspace` bind-mount inherits host UID — dev-under-UID-1000 may lack write permission on non-matching hosts; this is SC-5 known-limitation territory (accepted at 1.0; operator-workstation operator matches container UID).
+
+- **SC-15 (entrypoint.sh privilege-drop posture, AC 1 + AC 2):** with USER dev (AC 1), PID 1 (entrypoint.sh) runs as UID 1000 from container-start. The entrypoint.sh's existing egress-init flow (`/workspace/packages/devbox/scripts/start-egress.sh` invocation at `:106-111`) now runs as dev; start-egress.sh's dnsmasq launch + nftables rule load now run as dev. **Capability inheritance under USER dev:** with `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` (SC-4), these three caps are in the container's capability bounding set. For non-root `dev` to EXERCISE them, either (a) the binaries carry file caps (`setcap ... /usr/sbin/dnsmasq /usr/sbin/nft`) applied at image-build time, OR (b) Docker daemon's ambient-capabilities feature is enabled (`--cap-add` with non-root sets ambient caps on the initial process, inherited across exec). Docker daemon ≥20.10 grants ambient caps to `cap_add`'d processes under USER non-root by default (via `--security-opt no-new-privileges`, ambient is set to bounding ∩ inheritable). **Pin Option A (setcap) for defensive layering:** Dockerfile adds `RUN setcap cap_net_admin,cap_net_raw,cap_net_bind_service+eip /usr/sbin/dnsmasq && setcap cap_net_admin+eip /usr/sbin/nft` after the nftables+dnsmasq package install step (`packages/devbox/Dockerfile:37-83`). `+eip` = effective + inheritable + permitted — the belt-and-braces posture works under either Docker daemon ambient-cap behavior OR explicit exec-time file-cap inheritance (Linux kernel `CAP_EFFECTIVE` + file-cap semantics). Iptables-nft is also invoked by nftables; if start-egress.sh or reload-egress.sh invoke `/usr/sbin/iptables` or `/usr/sbin/iptables-nft`, include those in the setcap list. DO NOT setcap `/usr/bin/sudo` (AC 2 intent: no sudo-under-cap-dropped posture; dev can't sudo under no-new-privileges anyway per SC-13 smoke B). DO NOT rely on Docker's ambient-cap behavior alone — setcap makes the posture portable across Docker daemon versions and Podman-compat forks.
+
+- **SC-16 (AGENTS.md fork-time posture update, operator-readability):** add a new subsection under `## Devbox iteration environment` in `AGENTS.md` titled `### Container hardening (Story 2.5)` documenting: (a) non-root `dev` UID/GID 1000 posture; (b) cap-drop + three-cap-allow list with rationale per cap; (c) `no-new-privileges` + tmpfs noexec/nosuid posture; (d) named-volume `keel_home_dev` contract for `/home/dev` (non-toggle); (e) runtime-chown best-effort posture under dropped CAP_CHOWN (SC-5 known limitations). Companion to Story 2.4's existing `### Per-fork whitelist override (Story 2.4)` subsection.
+
+- **SC-17 (README.md hardening section, operator-readability):** add a new H2 section `## Hardening (Story 2.5)` to `packages/devbox/README.md` BELOW the existing § Egress policy section (Story 2.3/2.4). Document: AC 1-5 verbatim (operator-readable spec pin); the SC-4 three-cap rationale (dev-story carries this into the doc — not "why NET_BIND_SERVICE" alone but "why the bounding-set interaction makes this the minimum viable cap set"); the SC-14 whitelist.sh `/run` compatibility note (so operators understand why whitelist state files work under dev posture); a "Hardening verification" subsection with Smoke A + Smoke B from SC-13 as copy-paste operator commands.
+
+- **SC-18 (`.envrc.example` — NO knob edits; informative banner only):** Story 2.2 already published `KEEL_DEVBOX_TMPFS_TMP_MB=2048` + `KEEL_DEVBOX_TMPFS_VARTMP_MB=1024` + `KEEL_DEVBOX_TMPFS_LOGS_MB=500` at `packages/devbox/.envrc.example:29-31`. Story 2.5 DOES NOT edit `.envrc.example` (Story 2.2 owns the file); the only change is the inline comment at line 29-30 "Active Story 2.5" (already present — verify verbatim at task close). The `KEEL_DEVBOX_TMPFS_LOGS_MB` knob remains inert-at-Story-2.5 (SC-8); an inline comment UPDATE may note "(`LOGS_MB` knob not consumed at Story 2.5 — see SC-8)" — discretionary, not required.
+
+- **SC-19 (no scope creep — Story 2.5 delivers EXACTLY the hardening):** Story 2.5 MUST NOT touch: `scripts/whitelist.sh` (Story 2.4; except SC-14 compatibility edit if tmpfs-ownership empirics require relocation), `scripts/start-egress.sh` (Story 2.3; except if setcap requires an additional capability preflight check), `scripts/reload-egress.sh` (Story 2.3 primitive), `.envrc.example` body (Story 2.2 owns), `whitelist.default.txt` / `whitelist/*.txt` (Story 2.3/2.4), the `pnpm devbox:*` host-side CLI surface (Story 2.6), OAuth named-volume subpath populations (Stories 2.8 / 2.9), shared-workspace mode (Story 2.11), healthcheck (Story 2.13), PreToolUse hook scaffolding (Story 2.16), hook bypass-resistance (Story 2.17). Story 2.5 is the architectural-security class sibling of Story 2.3 (infrastructure-security): touches Dockerfile + docker-compose.yml + entrypoint.sh + new `docs/invariants/devbox-hardening.md` + `INVARIANTS.md` + `invariants.manifest.ts` + `packages/devbox/README.md` + `AGENTS.md`. Expected surgical-diff surface: ~8 files / ~100-150 patch lines.
+
+## Tasks / Subtasks
+
+- [ ] **Task 1 — Dockerfile: non-root `dev` user + image-build chown + USER directive + setcap** (AC 1, SC-1, SC-2, SC-3, SC-15) ~medium
+  - [ ] Subtask 1.1: add `RUN groupadd --gid 1000 dev && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev` as a new step between the existing `RUN mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh` block (`packages/devbox/Dockerfile:225-226`) and the `COPY entrypoint.sh` line (`:228`). Stable UID/GID 1000 per SC-1.
+  - [ ] Subtask 1.2: add `RUN chown -R dev:dev /home/dev` IMMEDIATELY after the useradd step. `/workspace` is NOT chowned at build time (SC-3 rationale).
+  - [ ] Subtask 1.3: add `RUN setcap cap_net_admin,cap_net_raw,cap_net_bind_service+eip /usr/sbin/dnsmasq && setcap cap_net_admin+eip /usr/sbin/nft` after the existing `RUN apt-get install -y ... dnsmasq nftables ...` block (`:37-83`). Verify the canonical paths: `which dnsmasq` → `/usr/sbin/dnsmasq`, `which nft` → `/usr/sbin/nft` on Ubuntu 24.04 (confirm at dev-story time). Also run setcap on `/usr/sbin/iptables` and `/usr/sbin/iptables-nft` IF start-egress.sh / reload-egress.sh invoke them (grep `packages/devbox/scripts/*.sh` at dev-story time — Story 2.3 uses `nft` directly per `reload-egress.sh`, so iptables likely unneeded; verify empirically).
+  - [ ] Subtask 1.4: add `USER dev` directive at `packages/devbox/Dockerfile` between the `RUN chmod +x /usr/local/bin/entrypoint.sh` line (`:229`) and the `WORKDIR /workspace` line (`:231`). Per SC-2 placement rationale.
+  - [ ] Subtask 1.5: add a pin-rationale comment header above the new user-creation block (~8 lines) citing SC-1 UID/GID choice + shell rationale + `--create-home` for Docker auto-init semantics.
+  - [ ] Subtask 1.6: add a pin-rationale comment header above the setcap block (~6 lines) citing SC-15 capability-inheritance posture + the three capabilities + belt-and-braces-with-ambient-cap-fallback rationale.
+
+- [ ] **Task 2 — docker-compose.yml: hardening stanzas (cap_drop + cap_add + security_opt + tmpfs + volumes)** (AC 2, AC 3, AC 4, SC-4, SC-6, SC-8) ~medium
+  - [ ] Subtask 2.1: extend the existing `cap_add:` block at `packages/devbox/docker-compose.yml:98-100`:
+    ```yaml
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE  # dnsmasq port 53 bind (SC-4)
+    ```
+    Order: `cap_drop` BEFORE `cap_add` (Docker Compose reads sequentially; the drop applies first, then adds — semantic clarity over syntactic requirement).
+  - [ ] Subtask 2.2: add `security_opt:` block immediately after the `cap_add` block:
+    ```yaml
+    security_opt:
+      - no-new-privileges:true
+    ```
+  - [ ] Subtask 2.3: add `tmpfs:` block after `security_opt:` (SC-8 long syntax):
+    ```yaml
+    tmpfs:
+      - /tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
+      - /var/tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
+    ```
+  - [ ] Subtask 2.4: extend the existing `volumes:` block at `:66-69` to add the named volume mount AFTER the workspace bind-mount (service-level):
+    ```yaml
+    volumes:
+      - type: bind
+        source: ${KEEL_DEVBOX_WORKSPACE:-../..}
+        target: /workspace
+      - type: volume
+        source: keel_home_dev
+        target: /home/dev
+    ```
+  - [ ] Subtask 2.5: add a top-level `volumes:` stanza at the end of the file (same indentation level as `services:`):
+    ```yaml
+    volumes:
+      keel_home_dev: {}  # Story 2.5 AC 4 / SC-6: named volume for /home/dev; never a host bind-mount.
+    ```
+    `{}` is explicit empty-options (use default `local` driver; no `driver_opts`). The inline comment is load-bearing for operator-readability.
+  - [ ] Subtask 2.6: remove the `# TODO(Story 2.5): …` markers at `:101-103` (they reference the work being landed). Preserve the `# TODO(Story 2.8 / 2.9): …`, `# TODO(Story 2.11): …`, `# TODO(Story 2.12): …`, `# TODO(Story 2.13): …` markers verbatim (unchanged).
+  - [ ] Subtask 2.7: refresh the comment header at `:1-25` — update the "Follow-up Epic 2 stories extend this file" checklist: `Story 2.5 : harden (non-root user, cap_drop, no-new-privileges, tmpfs noexec/nosuid).` → `Story 2.5 : harden (non-root user, cap_drop, no-new-privileges, tmpfs noexec/nosuid). LANDED iter-<current>.` Bracketed-iter convention matches `Story 2.2 : ... LANDED iter-148.` + `Story 2.3 : ... LANDED iter-<this>.` precedent.
+
+- [ ] **Task 3 — entrypoint.sh: WORKSPACE_OWNER default flip + TODO→done** (AC 1, SC-5, SC-7) ~small
+  - [ ] Subtask 3.1: edit `packages/devbox/entrypoint.sh:26` — change `WORKSPACE_OWNER="${KEEL_DEVBOX_WORKSPACE_OWNER:-root:root}"` to `WORKSPACE_OWNER="${KEEL_DEVBOX_WORKSPACE_OWNER:-dev:dev}"`.
+  - [ ] Subtask 3.2: edit `:25` — remove the `TODO(Story 2.5)` comment, replace with a completed-substrate reference like:
+    ```bash
+    # Default owner is dev:dev (Story 2.5 non-root posture); operator may override via
+    # KEEL_DEVBOX_WORKSPACE_OWNER for fork-specific UID-alignment workflows.
+    ```
+  - [ ] Subtask 3.3: edit `:9` (comment) — `(Story 2.5 replaces the root placeholder with a non-root dev user)` → `(landed at Story 2.5 — default owner is dev:dev)`. Preserve the surrounding context verbatim.
+  - [ ] Subtask 3.4: **DO NOT** remove the chown calls at `:81-84` + `:95-99`. They remain best-effort per SC-5 known-limitations — the existing stderr-capture posture already tolerates failure. No new error handling needed.
+
+- [ ] **Task 4 — `.envrc.example`: tmpfs-knob status update (optional / discretionary)** (SC-18, SC-8) ~small
+  - [ ] Subtask 4.1: verify the existing comment markers at `packages/devbox/.envrc.example:29-31` say "Active Story 2.5" in the `KEEL_DEVBOX_TMPFS_TMP_MB` + `KEEL_DEVBOX_TMPFS_VARTMP_MB` + `KEEL_DEVBOX_TMPFS_LOGS_MB` lines. If already verbatim ("Active Story 2.5 (tmpfs mount with noexec,nosuid). Story 2.2 publishes the knob only."), NO edit needed.
+  - [ ] Subtask 4.2: OPTIONAL — append a parenthetical to line 31 noting `LOGS_MB` is inert-at-Story-2.5 per SC-8: e.g., `/var/log tmpfs cap in MB. Active Story 2.5 (LOGS_MB knob deferred — /var/log not tmpfs-mounted at Story 2.5 per SC-8).` This is discretionary; Story 2.2 owns the file so the less-edit-is-better rule applies.
+
+- [ ] **Task 5 — Story 2.4 `whitelist.sh` `/run/` compatibility verification + conditional relocation** (SC-14, Story-2.4-compat) ~medium-large
+  - [ ] Subtask 5.1: at dev-story time, empirically verify whether Docker's tmpfs auto-mount of `/run/` preserves or zeros out the image-layer ownership of `/run/`. Quick smoke (in DinD-B iteration env): build image → start container with Story 2.5 compose → `docker exec keel-devbox ls -la /run/` → observe owner. If `/run/` is owned `dev:dev`, Story 2.4's whitelist.sh flow works unchanged (path through reload-egress.sh uses `flock` + file creation under `/run/`, all dev-writable).
+  - [ ] Subtask 5.2: IF `/run/` is owned `root:root` (tmpfs mount with default Docker semantics):
+    - [ ] Subtask 5.2a: evaluate fix options: (i) add `RUN mkdir -p /run && chown dev:dev /run` at image-build time — may not survive tmpfs auto-mount; (ii) relocate whitelist.sh state files to `/tmp/keel-state/` — tmpfs per SC-8 but `noexec,nosuid`; state files aren't executable so fine; (iii) invoke `mkdir /run/keel-state && chown dev:dev /run/keel-state` from start-egress.sh with best-effort fallback — entrypoint runs as dev so this fails unless capability posture allows.
+    - [ ] Subtask 5.2b: if (ii) selected, edit `packages/devbox/scripts/whitelist.sh` constants (`COMPOSED_WHITELIST`, `PREVIOUS_COMPOSED`, `MUTATE_LOCK`) to `/tmp/keel-state/keel-whitelist.composed.txt` / `.previous.txt` / mutation lock at same dir. Update `packages/devbox/scripts/start-egress.sh` `/run/keel-whitelist.composed.txt` + `/run/keel-egress-tailer.pid` + `/run/dnsmasq.pid` accordingly. Re-run Story 2.4 Task 10 live smokes (CLI subcommand verification) to confirm zero regression.
+  - [ ] Subtask 5.3: IF `/run/` is `dev:dev` (SC-14 happy path), no whitelist.sh edits required. Document the empirical finding in Debug Log References for future-Ralph confirmation.
+  - [ ] Subtask 5.4: add one positive smoke for whitelist.sh under dev-user posture — `docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh sync` (invoked as dev UID 1000) — verify exit 0 + diff summary emitted (sanity check of Story 2.4's flow under hardened posture). Backend-B live-smoke-deferred per Story 2.4 SC-17 precedent.
+  - [ ] Subtask 5.5: IF relocation was required, update AGENTS.md § Per-fork whitelist override section (Story 2.4) with a path-change note + update `packages/devbox/README.md` § Egress policy subsection with the new state-file paths.
+
+- [ ] **Task 6 — `docs/invariants/devbox-hardening.md` — new sourcePath doc** (AC 4, SC-9) ~medium
+  - [ ] Subtask 6.1: create `docs/invariants/devbox-hardening.md` matching the shape of `docs/invariants/devbox-egress.md` (authored at Story 2.3). Structure:
+    - H1: `# INV-devbox-homedev-named-volume — Container hardening contract`
+    - H2 `## Intent`: one paragraph on NFR7 + NFR8 + NFR10 motivation + threat model (runtime-compromise containment + no-host-escape posture).
+    - H2 `## Contract` with four H3 sub-contracts:
+      - `### Non-root dev user` (UID/GID 1000, `USER dev` before ENTRYPOINT; ~3 sentences)
+      - `### Capability bounding set` (cap_drop: ALL + cap_add: NET_ADMIN/NET_RAW/NET_BIND_SERVICE + security_opt: no-new-privileges; ~5 sentences + SC-4 three-cap rationale)
+      - `### tmpfs posture` (/tmp + /var/tmp with noexec,nosuid; sizes via NFR8a; ~3 sentences)
+      - `### /home/dev named volume` (keel_home_dev; non-toggle under KEEL_DEVBOX_*; ~5 sentences + SC-6 naming rationale + the "first-boot Docker auto-init from image" semantics)
+    - H2 `## Enforcement`: two H3 sub-sections:
+      - `### Static drift` (Story 1.9 sync-gate + this doc's contentHash in `invariants.manifest.ts`)
+      - `### Runtime compose-shape check` (DEFERRED to Story 2.17 / Story 2.6 — see Story 2.5 SC-10)
+    - H2 `## Verification`: copy-paste operator commands for Smoke A + Smoke B from SC-13.
+    - H2 `## Backend compatibility`: 1 paragraph noting DinD-B (host socket-passthrough per `INV-devbox-dind-available`) preserves hardening posture (daemon applies caps + security_opt at start regardless of backend). Live smokes operator-workstation-deferred per Story 2.4 SC-17 precedent.
+    - H2 `## Companion invariants`: one paragraph citing `INV-devbox-dind-available` + `INV-devbox-egress-contract` as the Epic-2 substrate-security trio.
+    - Anchor at END: the literal `\`INV-devbox-homedev-named-volume\`` backtick-wrapped ID — walker-findable anchor target (SC-11 + Story 2.3 SC-10 convention).
+  - [ ] Subtask 6.2: file length target ~100-150 lines, comparable to `docs/invariants/devbox-egress.md` (13 KB / ~250 lines). NO templated YAML / JSON — prose only.
+
+- [ ] **Task 7 — INVARIANTS.md index entry** (SC-9, SC-11) ~small
+  - [ ] Subtask 7.1: add a new H3 category section `### Devbox hardening (Story 2.5)` to `INVARIANTS.md` under § Invariants index, placed AFTER the existing `### Devbox egress (Story 2.3)` section (stories chronological).
+  - [ ] Subtask 7.2: under the new H3, emit a one-bullet entry matching the house style (per Story 2.3 iter-161 precedent at `INVARIANTS.md:22-25`): `- **\`INV-devbox-homedev-named-volume\`** — Non-root dev user + cap_drop/add (NET_ADMIN, NET_RAW, NET_BIND_SERVICE) + no-new-privileges + tmpfs noexec/nosuid + named volume for /home/dev. Source: \`docs/invariants/devbox-hardening.md\`.`
+
+- [ ] **Task 8 — `packages/keel-invariants/src/invariants.manifest.ts` entry + sync-gate contentHash** (AC 4, SC-9, SC-11) ~medium
+  - [ ] Subtask 8.1: add a new entry to the `raw: Invariant[]` array AFTER the existing `INV-devbox-egress-contract` entry (at `packages/keel-invariants/src/invariants.manifest.ts:256-263` — five-field shape per Story 2.3 iter-162 protocol):
+    ```ts
+    {
+      id: 'INV-devbox-homedev-named-volume',
+      description:
+        'Container hardening contract — non-root `dev` user (UID/GID 1000, USER directive before ENTRYPOINT) + capability bounding set (cap_drop: ALL; cap_add: NET_ADMIN, NET_RAW, NET_BIND_SERVICE per Story 2.5 SC-4 — nftables netlink + dnsmasq :53 bind + raw-socket probes) + security_opt: no-new-privileges:true + tmpfs posture (/tmp + /var/tmp with noexec,nosuid; sizes parameterised via NFR8a at KEEL_DEVBOX_TMPFS_{TMP,VARTMP}_MB per Story 2.2 .envrc.example) + /home/dev named volume (keel_home_dev, non-toggle under any KEEL_DEVBOX_* setting — never a host bind-mount). Runtime compose-shape check deferred to Story 2.17 / dedicated packages/keel-invariants/check-devbox-compose-shape.ts; Story 2.5 registers the substrate-invariant surface. Companion to INV-devbox-dind-available (fork-time Docker runtime) + INV-devbox-egress-contract (fail-closed egress) — the Epic-2 substrate-security trio.',
+      sourcePath: 'docs/invariants/devbox-hardening.md',
+      contentHash: '<64-hex from sync-gate>',
+      anchors: ['INV-devbox-homedev-named-volume'],
+    },
+    ```
+  - [ ] Subtask 8.2: invoke the sync-gate runtime tooling per Story 1.9 / Story 2.3 SC-11 protocol — `pnpm keel-invariants:sync-gate` (or whatever the Story 1.9 naming resolves to; grep `packages/keel-invariants/package.json` scripts at dev-story time). Capture the reported expected hash for `docs/invariants/devbox-hardening.md`.
+  - [ ] Subtask 8.3: replace `<64-hex from sync-gate>` with the reported value. Re-run sync-gate to confirm zero drift (pre-merge-fast gate passes).
+  - [ ] Subtask 8.4: verify the `typecheck` passes (`pnpm --filter @keel/keel-invariants typecheck`) — the manifest is a TypeScript source; new entry must satisfy `InvariantSchema` (5 fields; regex-validated `id`; path-shape check on `sourcePath`; 64-hex `contentHash`; `anchors` array non-empty).
+  - [ ] Subtask 8.5: verify unit-test suite if one exists (`pnpm --filter @keel/keel-invariants test` or equivalent) — manifest-parse smoke should exist from Story 1.8.
+
+- [ ] **Task 9 — `packages/devbox/README.md` § Hardening section** (AC 1–5, SC-17) ~medium
+  - [ ] Subtask 9.1: add a new H2 section `## Hardening (Story 2.5)` AFTER the existing `## Egress policy (Story 2.3)` section (Story 2.4 added a subsection under § Egress policy; Story 2.5 is a peer H2, not a subsection of Story 2.3).
+  - [ ] Subtask 9.2: content structure:
+    - § Intent — one paragraph on NFR7/8/10 + layered-barrier rationale.
+    - § Posture — bulleted summary of the four sub-contracts (user + caps + tmpfs + volume).
+    - § Capability rationale — SC-4 three-cap explanation in operator-readable terms (why NET_ADMIN, NET_RAW, NET_BIND_SERVICE; why not SYS_ADMIN or CHOWN).
+    - § Verification — copy-paste Smoke A + Smoke B from SC-13.
+    - § Known limitations — SC-5 runtime-chown best-effort under dropped CAP_CHOWN; host-UID alignment; SC-14 whitelist.sh empirical outcome (conditional on Task 5.1 result).
+  - [ ] Subtask 9.3: keep the section ≤ ~100 lines; defer the full invariant narrative to `docs/invariants/devbox-hardening.md` — README is operator-quickstart, invariant doc is authoritative spec.
+
+- [ ] **Task 10 — AGENTS.md § Container hardening (Story 2.5) subsection** (SC-16) ~small
+  - [ ] Subtask 10.1: add a new H3 subsection `### Container hardening (Story 2.5)` under the existing `## Devbox iteration environment` H2 section in `AGENTS.md`, placed AFTER the existing `### Per-fork whitelist override (Story 2.4)` H3 (stories chronological within the parent section).
+  - [ ] Subtask 10.2: content ~15-20 bulleted lines per SC-16 contents: UID/GID + three-cap + no-new-privileges + tmpfs posture + named-volume contract + runtime-chown best-effort + whitelist.sh compatibility (reference Task 5 outcome).
+
+- [ ] **Task 11 — Live smokes (AC 1–5 + SC-13 + SC-14 parity + capability-exercise)** (AC 1–5) ~medium
+  - [ ] Subtask 11.1: AC 1 smoke — `docker exec keel-devbox id` → expect `uid=1000(dev) gid=1000(dev) groups=1000(dev)`. Record.
+  - [ ] Subtask 11.2: AC 2 smoke — `docker exec keel-devbox sh -c 'capsh --print'` → expect `Bounding set =cap_net_bind_service,cap_net_raw,cap_net_admin` (only). Record. `security_opt` check: `docker inspect keel-devbox --format '{{ .HostConfig.SecurityOpt }}'` → expect `[no-new-privileges]`.
+  - [ ] Subtask 11.3: AC 3 smoke — `docker exec keel-devbox mount | grep /tmp` → expect `tmpfs on /tmp type tmpfs (rw,nosuid,nodev,noexec,relatime,size=...k)`; same for `/var/tmp`. Record.
+  - [ ] Subtask 11.4: AC 4 smoke — `docker inspect keel-devbox --format '{{ range .Mounts }}{{ .Type }} {{ .Source }} {{ .Destination }}\n{{ end }}'` → expect one `volume keel-devbox_keel_home_dev /home/dev` line (volume, not bind). `docker volume inspect keel-devbox_keel_home_dev` → expect `Driver: local`. Record.
+  - [ ] Subtask 11.5: AC 5 Smoke A (`/tmp` noexec, SC-13): `docker exec keel-devbox sh -c 'echo "#!/bin/sh\necho hello" > /tmp/t.sh && chmod +x /tmp/t.sh && /tmp/t.sh; echo exit=$?'` → expect nonzero exit with `Permission denied` or `exec format error`. Record.
+  - [ ] Subtask 11.6: AC 5 Smoke B (`no-new-privileges`, SC-13): `docker exec keel-devbox sudo --help; echo exit=$?` → expect sudo self-disables or returns error under no-new-privileges posture. Record.
+  - [ ] Subtask 11.7: Capability-exercise smoke (SC-15) — `docker exec keel-devbox nft list table inet keel_egress` → expect nftables ruleset loaded (Story 2.3 egress policy active under cap-dropped posture). `docker exec keel-devbox sh -c 'ss -tlnp | grep :53'` → expect dnsmasq listening on 127.0.0.1:53 (dnsmasq bound under cap_net_bind_service).
+  - [ ] Subtask 11.8: Story 2.4 whitelist.sh parity smoke (SC-14) — `docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh sync` → expect exit 0 + diff summary. Verify `/run/keel-whitelist.composed.txt` (or `/tmp/keel-state/keel-whitelist.composed.txt` if Task 5.2b relocated) exists + is dev-writable.
+  - [ ] Subtask 11.9: Backend-B operator-workstation-defer posture: all Subtasks 11.1–11.8 are documented in the story's Debug Log References as DEFERRED under DinD-B per Story 2.4 SC-17 precedent. Dev-story SHOULD attempt a dry build + container start in the DinD-B iteration env to confirm the compose file parses + container starts healthy — this verifies the happy path WITHOUT exercising the full cap-exercise test matrix. The operator-workstation run is authoritative for AC 5 + AC 2 bounding-set verification.
+
+- [ ] **Task 12 — Change Log v1.0 + sprint-status flip** (lifecycle hygiene) ~small
+  - [ ] Subtask 12.1: append a `### v1.0 — Story 2.5 landed` entry to this story file's Change Log section (created at dev-story time if missing).
+  - [ ] Subtask 12.2: flip `development_status: 2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: backlog → ready-for-dev` in `_bmad-output/implementation-artifacts/sprint-status.yaml` at `/bmad-create-story` invocation time (this story-creation iteration, Task 0; verify at task close). No epic-status change — Epic 2 is already `in-progress`.
+
+## Dev Notes
+
+**Relevant architecture patterns and constraints (from `_bmad-output/planning-artifacts/architecture.md`):**
+
+- **Container hardening posture** (line 73 + 542-548): non-root `dev` user (uid/gid ≠ 0); NOPASSWD sudo for substrate-internal ops (obsoleted at Story 2.5 — see SC-13 no-new-privileges disables sudo); NET_ADMIN/NET_RAW-only kernel caps (extended to NET_ADMIN/NET_RAW/NET_BIND_SERVICE at Story 2.5 per SC-4 reconciliation); `no-new-privileges`; noexec/nosuid tmpfs; fail-closed DNS (Story 2.3); named-volume auth persistence (Story 2.5); Apple-Silicon M4-Pro baseline.
+- **Authentication persistence** (line 546): `/home/dev/` is a named Docker volume (not a host bind-mount like upstream's `./dev-home:/home/dev:delegated`). Claude Code tokens live in `/home/dev/.claude/` (Story 2.8); `gh` tokens in `/home/dev/.config/gh/` (Story 2.9); shell history under `/home/dev/.local/share/{zsh,bash}/`. Named-volume choice decouples persistence from any specific host path. Enforced by `INV-devbox-homedev-named-volume` (Story 2.5 SC-9).
+- **NFR7** (prd.md:1078): non-root user (uid/gid ≠ 0); kernel capabilities limited to NET_ADMIN/NET_RAW (Story 2.5 SC-4 adds NET_BIND_SERVICE for port-53 bind under cap_drop:ALL — narrower than the pre-reconciliation prose suggests; no other cap added); `no-new-privileges`.
+- **NFR8 / NFR8a** (prd.md:1079-1080): tmpfs sizes parameterised via `.envrc` reference defaults (Story 2.2 publishes knobs at `.envrc.example:29-31`). `/var/log` is NOT tmpfs-mounted at Story 2.5 per SC-8.
+- **NFR10** (prd.md:1082): Claude Code + `gh` tokens persisted only inside devbox volume (`/home/dev/.claude/` + `/home/dev/.config/gh/`); host `~/.claude/` + `~/.config/gh/` never bind-mounted. Named Docker volume, not host bind-mount (upstream cc-devbox's `./dev-home:/home/dev:delegated` pattern is NOT retained).
+
+**Source tree components to touch (8 files, ~100-150 patch LOC):**
+
+```
+packages/devbox/
+├── Dockerfile                  # Task 1 — useradd + chown + setcap + USER directive (~10 new lines + 2 comment blocks)
+├── docker-compose.yml          # Task 2 — cap_drop/cap_add/security_opt/tmpfs/volumes stanzas (~15 new lines)
+├── entrypoint.sh               # Task 3 — WORKSPACE_OWNER default flip (1-line change + comment refresh)
+├── .envrc.example              # Task 4 — optional comment update (discretionary)
+├── README.md                   # Task 9 — new § Hardening (Story 2.5) H2 (~80 new lines)
+└── scripts/whitelist.sh        # Task 5 — conditional only if Task 5.1 empirics require relocation
+
+docs/invariants/
+└── devbox-hardening.md         # Task 6 — NEW sourcePath doc (~150 lines)
+
+packages/keel-invariants/src/
+└── invariants.manifest.ts      # Task 8 — new INV-devbox-homedev-named-volume entry (~10 new lines)
+
+INVARIANTS.md                    # Task 7 — new § Devbox hardening (Story 2.5) H3 + bullet (~4 new lines)
+AGENTS.md                        # Task 10 — new ### Container hardening (Story 2.5) H3 (~20 new lines)
+_bmad-output/implementation-artifacts/sprint-status.yaml  # Task 12.2 — 1-line enum flip
+```
+
+### Project Structure Notes
+
+- Alignment with unified project structure: Story 2.5 extends Story 2.1's devbox package structure (Dockerfile + compose + entrypoint) + Story 2.3's invariant-manifest-registration pattern (sourcePath doc + `INVARIANTS.md` H3 + `invariants.manifest.ts` entry + sync-gate contentHash) + Story 2.4's AGENTS.md + README.md fork-time-posture documentation pattern. Variances: NONE — Story 2.5 follows the canonical Epic-2 infrastructure-security story shape (Story 2.3 precedent: `INV-devbox-egress-contract` at `docs/invariants/devbox-egress.md` + Task 10.3/10.4 manifest + Task 11 README).
+- Detected conflicts: **AC 2 "cap_add lists only NET_ADMIN and NET_RAW" vs runtime port-53 bind requirement under cap_drop:[ALL]** — pinned as SC-4 three-cap reconciliation with explicit PRD NFR7 intent preservation. This is the ONE spec tension in the story; dev-story implements per SC-4, does NOT re-litigate. If an adversarial CR flags this as spec-drift, the answer is SC-4's reasoning verbatim + the docs/invariants/devbox-hardening.md § Capability bounding set sub-contract.
+
+### Previous story intelligence (Story 2.4 lessons)
+
+Story 2.4 (whitelist source-of-truth + `pnpm devbox:whitelist` CLI) completed iter-183 ZERO-PATCH CR re-run closure. Key lessons relevant to Story 2.5:
+
+- **Dual-composer byte-identity posture (Story 2.4 SC-14).** Not directly relevant to Story 2.5 (no composition algorithms touched) but establishes the Epic-2 precedent that cross-story state-propagation contracts MUST be smoke-tested at story close (Story 2.4 Task 7.4 parity harness). Story 2.5's equivalent is Task 11.8 Story-2.4-whitelist.sh parity smoke under dev-user posture.
+- **`/run/` tmpfs + dev-user writability** (iter-180 lesson): entrypoint-time `/run/` preflight is load-bearing for Story 2.3's egress state files + Story 2.4's whitelist state files. Story 2.5's USER dev posture interacts with `/run/` tmpfs auto-mount semantics in a way that MAY require empirical verification (SC-14 / Task 5.1). This is the only real spec-dependent empirical gate in Story 2.5.
+- **Fail-loud posture over swallow** (iter-179-181 lessons): Story 2.4 CR drain replaced three `|| true` silent-failure patterns (`chmod 0644 2>/dev/null || true`, `grep -Fxv ... || true`, `mv ${tempfile}`) with explicit rc-capture + fail-loud-with-diagnostic. Story 2.5's entrypoint.sh chown calls (Task 3.4 DO-NOT-REMOVE) retain the existing "capture stderr + continue" posture — this is CORRECT under the cap_drop:[ALL] runtime where CAP_CHOWN is absent and chown failures are EXPECTED not buggy; the existing pattern is already fail-loud-with-continue (emits to stderr but doesn't abort). SC-5 formalizes the "expected-failure under hardened posture" semantics.
+- **Surgical-Edit over broad rewrites** (iter-181-182 lessons): Story 2.4 CR drain used N surgical `Edit` calls (each 1-3 hunks) rather than broad multi-file rewrites. Story 2.5's Dockerfile + compose + entrypoint edits follow the same pattern — Task 1.1-1.6 = 6 surgical Dockerfile edits; Task 2.1-2.7 = 7 surgical compose edits; Task 3.1-3.4 = 4 surgical entrypoint edits. Each edit is independently verifiable.
+- **Invariant-manifest protocol fidelity** (Story 2.3 iter-161-162 + Story 2.4 iter-182 lessons): never hand-compute contentHash; always route through sync-gate tooling; manifest schema is five fields (no `name`); anchors are backtick-wrapped literal IDs, not H3 headers. Story 2.5 Task 8 follows this protocol verbatim.
+
+### Git intelligence summary
+
+Last 5 commits (as of story-creation iteration):
+
+```
+b2533b0 docs(devbox): iter-183 — Story 2.4 CR re-run closed ZERO-PATCH, fixes-pending → done
+84fff37 docs(devbox): iter-182 — Story 2.4 AI-5 README exit-code table completeness
+c0c795d fix(devbox): iter-181 — Story 2.4 AI-4 PID-predictable tempfile → mktemp
+2459f34 fix(devbox): iter-180 — Story 2.4 AI-3 chmod 0644, swallow → fail-loud
+ef524ac fix(devbox): iter-179 — Story 2.4 AI-2 grep rc-capture, swallow → exit 3
+```
+
+Story 2.5 belongs to the same epic branch `feat/epic-2-packaged-devbox`; PR #230 remains Draft until Story 2.17 closure. Commit scope `fix(devbox):` for single-concern CR drain edits; `feat(devbox):` for new-feature surface edits (expected scope for Story 2.5's primary implementation commits); `docs(devbox):` for docs-only edits (Change Log / sprint-status flips).
+
+### References
+
+- PRD NFR7 + NFR8 + NFR10 — [Source: `_bmad-output/planning-artifacts/prd.md:1078-1082`]
+- Epic 2 Story 2.5 ACs — [Source: `_bmad-output/planning-artifacts/epics.md:1301-1334`]
+- Epic 2 Implementation Notes (container hardening scope) — [Source: `_bmad-output/planning-artifacts/epics.md:1151`]
+- Architecture I5 §Devbox-Reference-Config — [Source: `_bmad-output/planning-artifacts/architecture.md:275-295`]
+- Architecture § Execution environment — [Source: `_bmad-output/planning-artifacts/architecture.md:73, 173, 542-548`]
+- `INV-devbox-dind-available` (fork-time Docker runtime) — [Source: `docs/invariants/devbox-dind.md` + `packages/keel-invariants/src/invariants.manifest.ts:249-255`]
+- `INV-devbox-egress-contract` (Story 2.3 fail-closed egress) — [Source: `docs/invariants/devbox-egress.md` + `packages/keel-invariants/src/invariants.manifest.ts:257-263`]
+- Story 2.1 Dockerfile + compose baseline — [Source: `packages/devbox/Dockerfile`, `packages/devbox/docker-compose.yml`, `packages/devbox/entrypoint.sh`]
+- Story 2.2 `.envrc.example` tmpfs knobs — [Source: `packages/devbox/.envrc.example:28-31`]
+- Story 2.3 egress scripts + capability usage — [Source: `packages/devbox/scripts/start-egress.sh`, `packages/devbox/scripts/reload-egress.sh`]
+- Story 2.4 whitelist.sh `/run/` state files — [Source: `packages/devbox/scripts/whitelist.sh:28-36` constants block]
+- Story 2.3 invariant registration precedent — [Source: `_bmad-output/implementation-artifacts/2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload.md` Tasks 10.3-10.5 + SC-10]
+- Story 2.4 SC-15 no-new-invariant precedent (consumer-only) — [Source: `_bmad-output/implementation-artifacts/2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli.md` SC-15]
+
+## Change Log
+
+| Version | Date       | Description                                                                                                        |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
+| v0.1    | 2026-04-22 | Story drafted at iter-184 via `/bmad-create-story`; 19 scope clarifications (SC-1..SC-19) + 12 Tasks + Dev Notes. |
+
+## Dev Agent Record
+
+### Agent Model Used
+
+claude-opus-4-7[1m] (Ralph loop iter-184)
+
+### Debug Log References
+
+_(populated by dev-story)_
+
+### Completion Notes List
+
+_(populated by dev-story)_
+
+### File List
+
+_(populated by dev-story)_
+
+## Review Findings
+
+_(populated by post-dev `/bmad-create-story (args: "review")` + `/bmad-code-review`)_
