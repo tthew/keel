@@ -598,6 +598,65 @@ If claude reports "not authenticated" — or Ralph's pre-push gate surfaces an a
 - `### Ralph loop (Story 2.7)` above — contrast: `ralph-build-host.sh` / `ralph-plan-host.sh` DO auto-start; `claude-host.sh` does NOT (SC-4).
 - Story 2.8 file `_bmad-output/implementation-artifacts/2-8-claude-code-oauth-via-pnpm-claude.md` — full spec, scope clarifications SC-1..SC-17, upstream-CLI carve-out.
 
+## gh CLI authentication (Story 2.9)
+
+`pnpm gh:auth` is the operator entry point for `gh auth login` inside the devbox (FR3, gh side). First invocation per fresh devbox triggers GitHub's OAuth device-code flow; the URL + one-time code surface on your host terminal and you complete the flow in a host browser. Tokens persist at `/home/dev/.config/gh/` inside the `keel_home_dev` named volume (Story 2.5 substrate), so subsequent invocations skip auth and survive `pnpm devbox:restart`. Ralph then uses the token for `gh push` / `gh pr view` / `gh pr checks` inside the container without re-auth.
+
+### Quick start
+
+```sh
+pnpm devbox:start                          # bring the container up first (no auto-start per SC-4)
+pnpm gh:auth                               # first run: follow the URL + one-time code in a host browser
+pnpm gh:auth --web                         # web-only OAuth flow
+pnpm gh:auth --hostname github.com         # explicit host (default is github.com)
+pnpm gh:auth --scopes "repo,workflow"      # custom OAuth scopes
+```
+
+Args passthrough is scoped to `gh auth login` only — the wrapper hardcodes the `auth login` subcommand. For general `gh` composition (`gh pr list`, `gh pr view`, etc.), use `pnpm devbox:shell` and invoke `gh` inside the shell.
+
+### First-run OAuth flow (AC 1, AC 2)
+
+1. `pnpm gh:auth` with no existing credentials invokes `gh auth login` inside `keel-devbox` under `docker exec -it --user dev -w /workspace`. The interactive prompt asks for the host (default `github.com`), protocol (HTTPS/SSH), and authentication method (web vs paste-token).
+2. Select the web-OAuth flow. `gh` prints `https://github.com/login/device` + a one-time code to your terminal.
+3. Open the URL in a host browser, complete GitHub OAuth, and paste the one-time code on the GitHub confirmation page.
+4. `gh` writes the token under `/home/dev/.config/gh/hosts.yml` (default location) inside the `keel_home_dev` named volume. The token is never bind-mounted to the host filesystem.
+
+### Persistence contract (AC 3)
+
+Tokens survive `pnpm devbox:restart`, `pnpm devbox:stop && pnpm devbox:start`, and host reboots — the `keel_home_dev` named volume persists across the container's lifecycle (Story 2.5 § Named volume `keel_home_dev`). Subsequent `gh pr view`, `git push`, and `gh pr checks` invocations reuse the token transparently. Re-running `pnpm gh:auth` on an already-authed devbox re-triggers the OAuth flow (overwrites the existing token).
+
+### Re-auth on expiry (AC 4)
+
+If `gh` reports `authentication required` / HTTP 401 — or Ralph's pre-push gate (Epic 3) surfaces a `gh not authed` failure — re-run `pnpm gh:auth`. The OAuth flow repeats and the new token overwrites the old entry under `/home/dev/.config/gh/`. No wrapper-side state tracking is required; the `gh` CLI owns the refresh semantics.
+
+### Ralph pre-push gate halt-able pointer (AC 4 second clause — Epic 3 scope)
+
+When Ralph's pre-push gate (Story 3.7) detects a gh-auth failure, it writes a halt sentinel `{"reason":"CI_BLOCKED","note":"gh not authed — run 'pnpm gh:auth'"}` per the closed halt-reason enum (PRD FR14k + `docs/invariants/ralph-execute.md` § Halt schema) rather than silently retrying. This prevents iterations from spinning against a non-advancing pushing contract. Story 2.9 pins the pointer-error surface + the invariant of how Ralph MUST respond; the halt-write itself is delivered by Epic 3.
+
+### Volume-delete reset
+
+`pnpm devbox:clean --with-volumes` wipes `/home/dev/.config/gh/` along with the entire `keel_home_dev` named volume — expected per NFR10 fresh-fork behaviour. After a volume-delete reset, `pnpm gh:auth` must be re-run to re-seed the token.
+
+### Pre-flight expectation
+
+`pnpm gh:auth` fails-closed with exit `9` if the container is not running — it does NOT auto-start the devbox (contrast `pnpm ralph:build`, which DOES auto-start per Story 2.7 SC-1; mirrors `pnpm claude` per Story 2.8 SC-4). Auth is a one-off operator gesture; auto-start would mask intent and add a 30–60s first-invocation delay. Run `pnpm devbox:start` first.
+
+### Exit codes (Story 2.6 uniform schema)
+
+| Code | Meaning                                                                                                          |
+| ---- | ---------------------------------------------------------------------------------------------------------------- |
+| `0`  | Clean exit — OAuth completed, or `gh`'s own clean exit.                                                          |
+| `8`  | Docker runtime unreachable — `docker info` failed. Hint: is the daemon running?                                  |
+| `9`  | Container not running — run `pnpm devbox:start` first (no auto-start per SC-4).                                  |
+| `*`  | `gh` or `docker exec` error — propagated unchanged (including OAuth timeout / cancellation / GitHub rate-limit). |
+
+### Cross-references
+
+- `AGENTS.md § gh CLI authentication` — agent-facing operational contract (never invoke `docker exec … gh auth login` directly; token persistence contract on `keel_home_dev`; Ralph halt-able re-auth path).
+- `### Host-side CLI (Story 2.6)` above — `shell.sh` / `attach.sh` interactive-exec primitives that `gh-auth-host.sh` mirrors via `claude-host.sh` intermediary.
+- `### Claude Code authentication (Story 2.8)` above — sibling auth-class verb; `gh-auth-host.sh` mirrors `claude-host.sh` verbatim with gh-specific substitutions.
+- Story 2.9 file `_bmad-output/implementation-artifacts/2-9-gh-cli-oauth-via-pnpm-gh-auth.md` — full spec, scope clarifications SC-1..SC-17, upstream-CLI + GitHub-OAuth-endpoint carve-out, AC 4 Epic 3 halt-able contract.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:

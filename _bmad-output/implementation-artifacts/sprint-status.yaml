@@ -33,6 +33,8 @@
 # last_updated: 2026-04-22 Story-2-8-review-iter-230 UTC
 # last_updated: 2026-04-22 Story-2-8-done-CR-closure-ZERO-PATCH-one-pass-iter-233 UTC
 # last_updated: 2026-04-22 Story-2-9-ready-for-dev-iter-234 UTC
+# last_updated: 2026-04-22 Story-2-9-in-progress-iter-237 UTC
+# last_updated: 2026-04-22 Story-2-9-review-iter-237 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -68,7 +70,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-22 Story-2-9-ready-for-dev-iter-234 UTC
+last_updated: 2026-04-22 Story-2-9-review-iter-237 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -103,7 +105,7 @@ development_status:
   2-6-host-side-pnpm-devbox-cli-surface: done
   2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan: done
   2-8-claude-code-oauth-via-pnpm-claude: done
-  2-9-gh-cli-oauth-via-pnpm-gh-auth: ready-for-dev
+  2-9-gh-cli-oauth-via-pnpm-gh-auth: review
   2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors: backlog
   2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared: backlog
   2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: backlog
