@@ -298,7 +298,8 @@ cmd_add() {
 	fi
 
 	# Atomic append: write tempfile adjacent to target, mv onto target (SC-9).
-	local tempfile="${WHITELIST_LOCAL}.tmp.$$"
+	local tempfile
+	tempfile="$(mktemp "${WHITELIST_LOCAL}.XXXXXX.tmp")"
 	# shellcheck disable=SC2064
 	trap "rm -f '${tempfile}'" EXIT
 
@@ -382,7 +383,8 @@ cmd_remove() {
 		exit 0
 	fi
 
-	local tempfile="${WHITELIST_LOCAL}.tmp.$$"
+	local tempfile
+	tempfile="$(mktemp "${WHITELIST_LOCAL}.XXXXXX.tmp")"
 	# shellcheck disable=SC2064
 	trap "rm -f '${tempfile}'" EXIT
 
