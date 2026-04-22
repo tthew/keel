@@ -3,21 +3,24 @@
 # Story 2.7 host-side wrapper — Ralph build mode
 #
 # Purpose: FR2 invocation path. Auto-starts the devbox if not running, then
-# attaches the operator terminal to the container's PID 1 stdio via
-# `docker attach --detach-keys='ctrl-p,ctrl-q'`. The in-container Ralph
-# runtime (Epic 3) consumes KEEL_RALPH_MODE to select PROMPT_<mode>.md.
+# launches the Ralph TUI inside the container via `docker exec -it … uv
+# run ralph.py build`. Story 2.7's original `docker attach` design assumed
+# Epic 3's in-container Ralph runtime ran as PID 1 — until Epic 3 lands,
+# PID 1 is `gosu dev sleep infinity` (the keepalive) and `docker attach`
+# would block on a sleeping process. `docker exec` runs ralph in an
+# operator-tty subprocess; SIGINT (Ctrl+C) terminates ralph cleanly while
+# the container keeps running for subsequent invocations.
 #
-# Ctrl+P Ctrl+Q detaches without killing the container (docker default,
-# pinned explicitly via --detach-keys to guard against future
-# docker-default changes; Story 2.6 attach.sh:39 precedent).
+# Extra arguments are passed through to ralph.py (e.g. `pnpm ralph:build
+# --iterations 5`, `pnpm ralph:build --worktree X`).
 #
 # Exit codes (Story 2.6 uniform schema):
-#   0   clean detach.
+#   0   ralph.py exited cleanly (loop completed or operator interrupted).
 #   8   docker runtime unreachable.
 #   9   container not running (post-auto-start fallback only).
 #   10  image not built (propagated from start.sh).
 #   11  healthcheck timeout (propagated from start.sh).
-#   *   docker attach error (propagated).
+#   *   docker exec or ralph.py exit code (propagated).
 
 set -euo pipefail
 
@@ -52,14 +55,16 @@ if [[ "${status}" != "running" ]]; then
     exit 9
   fi
 else
-  log "container '${CONTAINER_NAME}' already running; attaching directly (AC 2 skip-start)"
+  log "container '${CONTAINER_NAME}' already running; launching ralph directly (AC 2 skip-start)"
 fi
 
-# Mode signal: Epic 3's in-container Ralph runtime reads KEEL_RALPH_MODE
-# at startup to select .ralph/PROMPT_<mode>.md.
-export KEEL_RALPH_MODE="${RALPH_MODE}"
-
-log "attaching to ${CONTAINER_NAME} (mode: ${RALPH_MODE}; detach: Ctrl+P Ctrl+Q)"
-# No signal trapping — docker attach passes SIGINT/SIGTERM/SIGPIPE
-# directly to PID 1. Defensive trap handlers would break passthrough.
-exec docker attach --detach-keys='ctrl-p,ctrl-q' "${CONTAINER_NAME}"
+# Mode signal: Epic 3's in-container Ralph runtime will read KEEL_RALPH_MODE
+# to select .ralph/PROMPT_<mode>.md. Passed via `docker exec -e` so the
+# variable lands in the ralph.py process environment (NOT the container's
+# global env, which docker exec cannot mutate after container start).
+log "launching ralph TUI in ${CONTAINER_NAME} (mode: ${RALPH_MODE}; Ctrl+C to exit)"
+# No signal trapping — docker exec -it forwards SIGINT/SIGTERM directly
+# to ralph.py. Defensive trap handlers would break passthrough.
+exec docker exec -it --user dev -w /workspace \
+  -e "KEEL_RALPH_MODE=${RALPH_MODE}" \
+  "${CONTAINER_NAME}" uv run ralph.py "${RALPH_MODE}" "$@"
