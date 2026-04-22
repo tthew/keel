@@ -213,6 +213,25 @@ RUN npx --yes playwright@latest install-deps \
  && rm -rf /root/.npm /root/.cache/ms-playwright
 
 # ---------------------------------------------------------------------------
+# Story 2.5 setcap — defense-in-depth portability fallback for the three
+# substrate-operational capabilities. Under Docker ≥19.03 + `no-new-privileges:
+# true` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` with USER dev, the
+# load-bearing mechanism is Docker's ambient-capability propagation via
+# prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, ...) on PID 1 — ambient caps
+# survive exec() regardless of NNP (capabilities(7) kernel design). File
+# caps via `setcap +eip` are masked by NNP on exec (`F(effective)` bit
+# kernel-disabled), making this a harmless no-op on the primary path. It
+# provides a working fallback for runtimes without Docker's automated
+# ambient-cap handling (older Docker, some Podman-compat forks), which
+# would ALSO need to disable `no-new-privileges` for the file-caps to
+# activate — an explicit fork-time posture decision, not a substrate
+# concern. Sudo is intentionally NOT setcap'd (AC 2 intent: no sudo under
+# cap_drop + NNP; dev cannot sudo regardless per SC-13 Smoke B).
+# ---------------------------------------------------------------------------
+RUN setcap cap_net_admin,cap_net_raw,cap_net_bind_service+eip /usr/sbin/dnsmasq \
+ && setcap cap_net_admin+eip /usr/sbin/nft
+
+# ---------------------------------------------------------------------------
 # Workspace mount + named-volume directories.
 #
 # - `/workspace` is the compose bind-mount target (docker-compose.yml);
@@ -225,8 +244,28 @@ RUN npx --yes playwright@latest install-deps \
 RUN mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh \
  && chmod 0755 /workspace /home/dev /home/dev/.claude /home/dev/.config /home/dev/.config/gh
 
+# ---------------------------------------------------------------------------
+# Story 2.5 non-root `dev` user (AC 1, SC-1).
+#
+# UID/GID 1000 matches the Linux first-human-user convention and maps cleanly
+# to most non-root host UIDs on macOS + Apple-Silicon Docker Desktop. Stable
+# UID/GID is load-bearing for first-boot `keel_home_dev` named-volume
+# auto-init: Docker populates an empty volume from the image layer preserving
+# image ownership (docs.docker.com/storage/volumes/#populate-a-volume-using-a-
+# container), so /home/dev must exist + be dev-owned at image-build time.
+# Shell /bin/bash (not /bin/sh → dash on Ubuntu 24.04) for operator-shell
+# consistency with entrypoint.sh's `#!/usr/bin/env bash` shebang. Do NOT raise
+# UID — host-UID alignment minimises bind-mount chown friction under dropped
+# CAP_CHOWN (SC-5 known-limitation).
+# ---------------------------------------------------------------------------
+RUN groupadd --gid 1000 dev \
+ && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev \
+ && chown -R dev:dev /home/dev
+
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
+
+USER dev
 
 WORKDIR /workspace
 

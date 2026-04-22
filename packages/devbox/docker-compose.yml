@@ -13,8 +13,10 @@
 #                 and scripts under scripts/{start,reload,monitor,egress-log-tailer}.sh.
 #                 No sidecar service — dnsmasq is the in-container DNS authority
 #                 per AC 1 verbatim. LANDED iter-<this>.
-#   - Story 2.5 : harden (non-root user, cap_drop, no-new-privileges, tmpfs
-#                 noexec/nosuid).
+#   - Story 2.5 : harden (non-root user, cap_drop: [ALL] + three-cap narrow
+#                 list [NET_ADMIN, NET_RAW, NET_BIND_SERVICE], no-new-privileges,
+#                 tmpfs noexec/nosuid, named volume keel_home_dev for /home/dev).
+#                 LANDED iter-187.
 #   - Story 2.8 / 2.9 : OAuth named-volume mounts (/home/dev/.claude,
 #                        /home/dev/.config/gh) via `volumes:` top-level.
 #   - Story 2.11 : shared-workspace mode (`KEEL_DEVBOX_SHARED=true`).
@@ -62,11 +64,16 @@ services:
     # Per-fork workspace mount (default; Story 2.11 adds shared mode).
     # Parameterised via `KEEL_DEVBOX_WORKSPACE` so Story 2.11 flips the
     # path without rewriting the compose file — see Story 2.1 AC 3 scope
-    # clarification "workspace mount contract".
+    # clarification "workspace mount contract". Story 2.5 adds the named
+    # volume `keel_home_dev` for /home/dev persistence (AC 4; NFR10 — auth
+    # tokens live only inside the devbox volume, never host bind-mounts).
     volumes:
       - type: bind
         source: ${KEEL_DEVBOX_WORKSPACE:-../..}
         target: /workspace
+      - type: volume
+        source: keel_home_dev
+        target: /home/dev
     # Story 2.2: compute + shm limits parameterised via .envrc. Non-swarm
     # canonical form (service-level `cpus:` / `mem_limit:` / `shm_size:` —
     # NOT `deploy.resources.limits.*`, which Compose silently ignores outside
@@ -88,18 +95,45 @@ services:
       - '127.0.0.1:${KEEL_DEVBOX_PORT_API:-3001}:3001'
       - '127.0.0.1:${KEEL_DEVBOX_PORT_STORYBOOK:-6006}:6006'
       - '127.0.0.1:${KEEL_DEVBOX_PORT_VITE_HMR:-24679}:24679'
-    # Story 2.3: Linux capabilities required for in-container egress policy.
-    # NET_ADMIN lets nftables load rules via netlink; NET_RAW covers raw-socket
-    # probes dnsmasq may use. CAP_NET_BIND_SERVICE (port 53 bind) is implicit
-    # while the container still runs as root; once Story 2.5 adds `cap_drop:
-    # [ALL]` + `user: dev`, this list may need NET_BIND_SERVICE added and/or
-    # dnsmasq bound before the user switch. See Story 2.3 Dev Notes §
-    # User-account timeline for the Story 2.5 handoff decision.
+    # Story 2.5: Linux capability bounding set + security_opt (AC 2, SC-4).
+    # `cap_drop: [ALL]` strips every capability including those inherited from
+    # the executable's bounding set, producing a minimum-privilege posture.
+    # Three narrow caps are re-added explicitly:
+    #   - NET_ADMIN         : nftables rule-load via netlink (Story 2.3 egress)
+    #   - NET_RAW           : raw-socket probes dnsmasq may issue for health
+    #   - NET_BIND_SERVICE  : dnsmasq port 53 bind under cap_drop: [ALL] — the
+    #                         bounding set no longer grants :<1024 bind from
+    #                         root's implicit cap, so this must be explicit
+    #                         (SC-4 three-cap reconciliation — AC 2's "only
+    #                         NET_ADMIN/NET_RAW" drafted before the
+    #                         cap-bounding-set × port-bind interaction was
+    #                         surfaced; documented in docs/invariants/devbox-
+    #                         hardening.md § Capability bounding set).
+    # `security_opt: [no-new-privileges:true]` sets PR_SET_NO_NEW_PRIVS=1 on
+    # PID 1 — kernel masks file-cap F(effective) on exec + disables setuid
+    # bit elevation. Capability propagation under USER dev uses Docker ≥19.03
+    # ambient-cap propagation (prctl PR_CAP_AMBIENT_RAISE) which survives
+    # exec() regardless of NNP per capabilities(7) design — see SC-15 +
+    # docs/invariants/devbox-hardening.md § Capability bounding set.
+    cap_drop:
+      - ALL
     cap_add:
       - NET_ADMIN
       - NET_RAW
-    # TODO(Story 2.5): tmpfs mount stanzas consuming KEEL_DEVBOX_TMPFS_{TMP,VARTMP,LOGS}_MB with noexec,nosuid.
-    # TODO(Story 2.5): non-root hardening stanza: user: "dev", cap_drop: [ALL], security_opt: [no-new-privileges:true].
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    # Story 2.5 tmpfs posture (AC 3, SC-8). Long-syntax form parameterised
+    # via .envrc knobs published by Story 2.2 (.envrc.example:29-30). Compose
+    # translates `exec=false` → kernel `noexec` + `suid=false` → `nosuid`;
+    # size uses MB suffix. `/var/log` is intentionally NOT tmpfs-mounted at
+    # 1.0 (dnsmasq + nftables log files live under /workspace/logs/ per
+    # Story 2.3 SC-17; keeping /var/log as normal image layer avoids
+    # invalidating dnsmasq-packaged log-dir init). The KEEL_DEVBOX_TMPFS_LOGS_MB
+    # knob published by Story 2.2 remains inert at Story 2.5.
+    tmpfs:
+      - /tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
+      - /var/tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
     # TODO(Story 2.11): shared-workspace mode flip via KEEL_DEVBOX_SHARED=true.
     # TODO(Story 2.12): opt-in sshd + port 2222 publication via KEEL_DEVBOX_SSH=true.
     # TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.
@@ -107,3 +141,15 @@ services:
     restart: 'no'
     tty: true
     stdin_open: true
+
+# Story 2.5 AC 4 / SC-6: named volume for /home/dev. Non-toggle-able under any
+# KEEL_DEVBOX_* setting — the mount contract is substrate-authoritative per
+# INV-devbox-homedev-named-volume (docs/invariants/devbox-hardening.md). Default
+# `local` driver (no driver_opts) for portability across Docker Desktop + rootless
+# Docker + Podman-compat forks. The name `keel_home_dev` composes under the
+# compose project prefix to a fully-qualified volume name (e.g.
+# `keel-devbox_keel_home_dev`). Docker populates the empty volume from the image
+# layer's /home/dev ownership on first boot, per the useradd + chown -R dev:dev
+# step in Dockerfile (SC-3).
+volumes:
+  keel_home_dev: {}

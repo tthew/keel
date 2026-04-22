@@ -99,6 +99,12 @@ Fail-closed DNS (dnsmasq) + IPv4/IPv6 default-deny (nftables) + atomic reload co
 
 - **`INV-devbox-egress-contract`** — Fail-closed DNS + IPv4/IPv6 parity + atomic reload; JSONL query log schema is append-only stable. Source: `docs/invariants/devbox-egress.md`.
 
+### Devbox hardening (Story 2.5)
+
+Non-root `dev` user (UID/GID 1000) + capability bounding set (`cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]`) + `no-new-privileges:true` + tmpfs `/tmp` and `/var/tmp` with `noexec,nosuid` + named Docker volume `keel_home_dev` for `/home/dev` (non-toggle-able; never a host bind-mount under any `KEEL_DEVBOX_*` setting). Layered-barrier posture satisfying NFR7 + NFR8 + NFR8a + NFR10. Runtime compose-shape check deferred to Story 2.17 / `packages/keel-invariants/src/check-devbox-compose-shape.ts`; Story 2.5 registers the substrate-invariant surface.
+
+- **`INV-devbox-homedev-named-volume`** — Non-root dev user + cap_drop/add (NET_ADMIN, NET_RAW, NET_BIND_SERVICE) + no-new-privileges + tmpfs noexec/nosuid + named volume for /home/dev. Source: `docs/invariants/devbox-hardening.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

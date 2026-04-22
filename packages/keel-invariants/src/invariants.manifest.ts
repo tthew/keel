@@ -262,6 +262,14 @@ const raw: Invariant[] = [
     anchors: ['INV-devbox-egress-contract'],
   },
   {
+    id: 'INV-devbox-homedev-named-volume',
+    description:
+      'Container hardening contract — non-root `dev` user (UID/GID 1000, USER directive before ENTRYPOINT) + capability bounding set (cap_drop: ALL; cap_add: NET_ADMIN, NET_RAW, NET_BIND_SERVICE per Story 2.5 SC-4 — nftables netlink + dnsmasq :53 bind + raw-socket probes) + security_opt: no-new-privileges:true + tmpfs posture (/tmp + /var/tmp with noexec,nosuid; sizes parameterised via NFR8a at KEEL_DEVBOX_TMPFS_{TMP,VARTMP}_MB per Story 2.2 .envrc.example) + /home/dev named volume (keel_home_dev, non-toggle under any KEEL_DEVBOX_* setting — never a host bind-mount). Runtime compose-shape check deferred to Story 2.17 / dedicated packages/keel-invariants/src/check-devbox-compose-shape.ts; Story 2.5 registers the substrate-invariant surface. Companion to INV-devbox-dind-available (fork-time Docker runtime) + INV-devbox-egress-contract (fail-closed egress) — the Epic-2 substrate-security trio.',
+    sourcePath: 'docs/invariants/devbox-hardening.md',
+    contentHash: '5b2e95462566cc67fe2a575886b0d94cd28a796cd2cf9dce26480598524d67f4',
+    anchors: ['INV-devbox-homedev-named-volume'],
+  },
+  {
     id: 'INV-gitignored-secret-commit-deny',
     description:
       'Pre-commit hook refuses additions of .envrc, .envrc.local, and .secrets at any path. ' +

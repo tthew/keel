@@ -5,8 +5,9 @@
 # Narrowed surface (AC 2, AC 2-entrypoint-narrow). Every toolchain install
 # MUST happen at image-build time (Dockerfile); this script contains:
 #
-#   1. workspace ownership chown (Story 2.5 replaces the root placeholder
-#      with a non-root `dev` user);
+#   1. workspace ownership chown (landed at Story 2.5 — default owner is
+#      dev:dev; best-effort under cap_drop: [ALL] without CAP_CHOWN per
+#      docs/invariants/devbox-hardening.md § Capability bounding set);
 #   2. named-volume directory bring-up for /home/dev/.claude/ and
 #      /home/dev/.config/gh/ so Stories 2.8 / 2.9 OAuth mounts succeed on
 #      first boot even when the named volume is empty;
@@ -22,8 +23,17 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-# TODO(Story 2.5): replace `root:root` with the non-root `dev:dev` user.
-WORKSPACE_OWNER="${KEEL_DEVBOX_WORKSPACE_OWNER:-root:root}"
+# Default owner is dev:dev (Story 2.5 non-root posture per AC 1 + SC-7).
+# Operator may override via KEEL_DEVBOX_WORKSPACE_OWNER for fork-specific
+# UID-alignment workflows (e.g. enterprise AD-synced UIDs matching host
+# ownership). The chown calls below are best-effort under cap_drop: [ALL] —
+# without CAP_CHOWN in the bounding set, chown fails at runtime even under
+# sudo. The calls REMAIN: failure-tolerant via stderr capture + continue
+# (SC-5 expected-failure-under-hardened-posture); harmless no-ops on most
+# hosts where bind-mount UID passthrough already aligns /workspace with
+# dev UID 1000; useful when the container runs privileged for debugging
+# (`docker run --privileged`).
+WORKSPACE_OWNER="${KEEL_DEVBOX_WORKSPACE_OWNER:-dev:dev}"
 
 # Validate WORKSPACE_OWNER shape before passing to chown.
 #

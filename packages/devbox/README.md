@@ -293,6 +293,79 @@ Domain-syntax validation uses a strict LDH (letter-digit-hyphen) regex with a 25
 2. **Fail-open `/etc/resolv.conf` fallback to `8.8.8.8`** — upstream leaked queries to public DNS when dnsmasq was slow; Story 2.3 pins `resolv.conf` to `nameserver 127.0.0.1` only.
 3. **IPv6 default-deny gap** — upstream only blocked IPv4; Story 2.3 adds `address=/#/::` + `chain output_v6 { policy drop }` for full parity.
 
+## Hardening (Story 2.5)
+
+The devbox container is hardened against post-exploitation runtime compromise per NFR7 + NFR8 + NFR8a + NFR10. Machine-enforced by `INV-devbox-homedev-named-volume` (`docs/invariants/devbox-hardening.md`); runtime compose-shape check deferred to Story 2.17. Layered barriers:
+
+- **Non-root `dev` user** (UID/GID 1000) — `Dockerfile` creates the user with `groupadd --gid 1000 dev && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev`; `USER dev` directive switches before `ENTRYPOINT`. UID 1000 aligns with common host UIDs for bind-mount passthrough on macOS + Linux.
+- **Capability bounding set** — `docker-compose.yml` sets `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]`. Three narrow caps; see § Capability rationale below.
+- **`no-new-privileges:true`** — `security_opt: [no-new-privileges:true]` sets `PR_SET_NO_NEW_PRIVS=1` on PID 1; kernel masks file-cap `F(effective)` bits on exec + disables setuid privilege elevation.
+- **tmpfs `/tmp` + `/var/tmp` with `noexec,nosuid`** — long-syntax `tmpfs:` block consumes `KEEL_DEVBOX_TMPFS_TMP_MB` + `KEEL_DEVBOX_TMPFS_VARTMP_MB` knobs published by Story 2.2. `/var/log` intentionally NOT tmpfs-mounted (dnsmasq + nftables log files live under `/workspace/logs/` per Story 2.3).
+- **Named Docker volume `keel_home_dev` for `/home/dev`** — substrate-authoritative, non-toggle-able. No `KEEL_DEVBOX_*` setting can flip this to a host bind-mount. Claude Code tokens (Story 2.8), `gh` tokens (Story 2.9), shell history live only inside this volume. Upstream cc-devbox's `./dev-home:/home/dev:delegated` bind-mount pattern is intentionally NOT retained (NFR10).
+
+### Capability rationale
+
+`cap_drop: [ALL]` strips every kernel capability including those inherited from the executable's bounding set. Three caps are added explicitly:
+
+| Cap                | Why it's required                                                                                                                                                                                                                      |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NET_ADMIN`        | nftables rule load via netlink (Story 2.3 egress policy; `reload-egress.sh` invokes `nft -f <tempfile>`).                                                                                                                              |
+| `NET_RAW`          | raw-socket probes dnsmasq may issue for connectivity health.                                                                                                                                                                           |
+| `NET_BIND_SERVICE` | dnsmasq port 53 bind under `cap_drop: [ALL]`. The bounding set without this cap rejects `:<1024` bind from any process, root-equivalent or not. Adding it explicitly is the minimum viable posture under Story 2.5's cap-drop default. |
+
+Capabilities NOT added: `CAP_SYS_ADMIN` (no container-administration ops in substrate), `CAP_CHOWN` (entrypoint's runtime chown calls fail under dropped CAP_CHOWN — this is expected + tolerated via stderr-capture-and-continue; image-build-time chown seeds `/home/dev` ownership correctly for first-boot volume auto-init), `CAP_SYS_PTRACE` (no debugger substrate), and every other Linux cap. Under `PR_SET_NO_NEW_PRIVS=1` the capability propagation path is Docker ≥19.03's ambient-cap automation via `prctl(PR_CAP_AMBIENT_RAISE)`; `setcap +eip` on `/usr/sbin/dnsmasq` + `/usr/sbin/nft` in the `Dockerfile` remains as a portability fallback for older Docker or Podman-compat forks.
+
+### Verification
+
+Operator-workstation run (M4-Pro native Docker Desktop); DinD backend B is not authoritative for these smokes per the Backend compatibility section below.
+
+```sh
+# AC 1 — non-root dev user
+docker exec keel-devbox id
+# Expect: uid=1000(dev) gid=1000(dev) groups=1000(dev)
+
+# AC 2 — bounding set + no-new-privileges
+docker exec keel-devbox sh -c 'capsh --print'
+# Expect: Bounding set =cap_net_bind_service,cap_net_raw,cap_net_admin
+docker inspect keel-devbox --format '{{ .HostConfig.SecurityOpt }}'
+# Expect: [no-new-privileges]
+
+# AC 3 — tmpfs noexec,nosuid
+docker exec keel-devbox mount | grep /tmp
+# Expect two lines with 'nosuid,nodev,noexec' for /tmp + /var/tmp
+
+# AC 4 — named volume for /home/dev
+docker inspect keel-devbox --format '{{ range .Mounts }}{{ .Type }} {{ .Source }} {{ .Destination }}\n{{ end }}'
+# Expect a 'volume <project>_keel_home_dev /home/dev' line; no bind-mount for /home/dev
+docker volume inspect keel-devbox_keel_home_dev
+# Expect Driver: local, Scope: local
+
+# AC 5 Smoke A — /tmp noexec
+docker exec keel-devbox sh -c 'printf "#!/bin/sh\necho hello\n" > /tmp/t.sh && chmod +x /tmp/t.sh && /tmp/t.sh; echo exit=$?'
+# Expect nonzero exit: "Permission denied" or "exec format error"
+# Uses `printf` (not POSIX `echo`) so the shebang+body actually land on two lines.
+
+# AC 5 Smoke B — no-new-privileges blocks sudo
+docker exec keel-devbox sudo --help; echo exit=$?
+# Expect sudo-level refusal (NoNewPrivs:1 visible in /proc/self/status)
+
+# Capability-exercise smoke (nftables + dnsmasq functional under cap_drop)
+docker exec keel-devbox nft list table inet keel_egress
+# Expect: nftables ruleset loaded — confirms NET_ADMIN ambient-cap propagation
+docker exec keel-devbox sh -c 'ss -tlnp | grep :53'
+# Expect: dnsmasq on 127.0.0.1:53 — confirms NET_BIND_SERVICE ambient cap
+```
+
+### Known limitations
+
+- **Runtime chown failures are expected** under `cap_drop: [ALL]` (CAP_CHOWN is dropped). `entrypoint.sh`'s `chown` calls on `/workspace`, `/home/dev/.claude`, `/home/dev/.config/gh` emit stderr diagnostics but do NOT abort — image-build-time chown already seeded `/home/dev` correctly for named-volume auto-init, and `/workspace` ownership is driven by the host bind-mount's UID passthrough. Non-matching host UIDs (host user ≠ UID 1000) produce a "read-only-ish" workspace under dev; operators align their host UID with container UID 1000 for a seamless experience.
+- **Live-smoke matrix is operator-workstation-authoritative** under DinD backend B (host socket-passthrough). The DinD-B iteration environment cannot safely exercise `docker exec` sequences against cap-dropped containers — doing so risks poisoning the host's docker state. M4-Pro native Docker Desktop is the authoritative AC 5 + AC 2 bounding-set verification environment.
+- **Story 2.4 whitelist.sh compatibility** under USER dev + tmpfs `/run/` auto-mount: state files under `/run/` are dev-writable when Docker's tmpfs auto-mount preserves the image-layer ownership established by the Dockerfile. Empirical verification deferred to operator-workstation smoke (Task 11.8); happy path (SC-14 branch (i)) requires no code change. If the empirical outcome requires relocation, state files move to `/tmp/keel-state/` (still tmpfs but `noexec,nosuid` is fine — state files are not executable).
+
+### Backend compatibility
+
+Both DinD backends (A = true Docker-in-Docker, B = host socket-passthrough per `INV-devbox-dind-available`) preserve the hardening posture — the Docker daemon applies `cap_drop` + `cap_add` + `security_opt` + `tmpfs` + `volumes` at container-start regardless of which fronts the daemon. Under backend B only warm-only NFR2 measurement is autonomously safe; the same constraint applies to hardening live smokes. See `docs/invariants/devbox-hardening.md` § Backend compatibility.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:
