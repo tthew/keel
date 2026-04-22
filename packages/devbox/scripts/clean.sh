@@ -23,6 +23,18 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# AI-12 (Story 2.6 CR closure iter-217): operator-shell COMPOSE_PROJECT_NAME
+# export would redirect `docker compose down` at lines 113 + 140 away from the
+# canonical `name: keel-devbox` project label. Two collateral hazards (see
+# deferred-work.md § AR-20 iter-216 re-triage): (a) `--volumes` would target
+# `${CPN}_keel_home_dev` rather than the INV-devbox-homedev-named-volume-pinned
+# `keel-devbox_keel_home_dev`, silently leaving the real volume intact; (b)
+# `--remove-orphans` would remove any `${CPN}`-labelled container as collateral
+# damage against unrelated host projects (acute under backend B). Mirrors the
+# AI-8 iter-212 uniform `unset` pattern applied across start/stop/restart/
+# shell/attach/status/logs/monitor-host/whitelist-host.
+unset COMPOSE_PROJECT_NAME
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
