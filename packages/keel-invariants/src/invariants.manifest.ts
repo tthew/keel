@@ -98,7 +98,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: '87f37b45b31fd2c3b165eafeeba68ed4ef964c25dfc20f5fa262fef7b307fbdf',
+    contentHash: '5960e7c4fa6f311364af4d8c59adfc4cb2f990e4ff1e938d0262521d05969ef1',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -266,7 +266,7 @@ const raw: Invariant[] = [
     description:
       'Container hardening contract — non-root `dev` user (UID/GID 1000, USER directive before ENTRYPOINT) + capability bounding set (cap_drop: ALL; cap_add: NET_ADMIN, NET_RAW, NET_BIND_SERVICE per Story 2.5 SC-4 — nftables netlink + dnsmasq :53 bind + raw-socket probes) + security_opt: no-new-privileges:true + tmpfs posture (/tmp + /var/tmp with noexec,nosuid; sizes parameterised via NFR8a at KEEL_DEVBOX_TMPFS_{TMP,VARTMP}_MB per Story 2.2 .envrc.example) + /home/dev named volume (keel_home_dev, non-toggle under any KEEL_DEVBOX_* setting — never a host bind-mount). Runtime compose-shape check deferred to Story 2.17 / dedicated packages/keel-invariants/src/check-devbox-compose-shape.ts; Story 2.5 registers the substrate-invariant surface. Companion to INV-devbox-dind-available (fork-time Docker runtime) + INV-devbox-egress-contract (fail-closed egress) — the Epic-2 substrate-security trio.',
     sourcePath: 'docs/invariants/devbox-hardening.md',
-    contentHash: 'f34cb62feea03eb0d3ef80d29221fc85fa1d1ee3ba01e7e26ef06ee5c9715a5e',
+    contentHash: '5e8687493327b6866531eeb0adeb941931c5b139c08b8bc46743cf56654a3dc3',
     anchors: ['INV-devbox-homedev-named-volume'],
   },
   {

@@ -1,6 +1,6 @@
 # Story 2.6: Host-side `pnpm devbox:*` CLI surface
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -248,91 +248,77 @@ so that I never need to learn raw `docker compose` incantations to operate my de
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Pre-flight: map existing `packages/devbox/scripts/*.sh` vs Story 2.6 target names** (SC-2, SC-4, SC-15)
-  - [ ] Subtask 1.1: `ls packages/devbox/scripts/*.sh` — confirm HEAD state matches drafting snapshot (2026-04-22): `benchmark.sh`, `egress-log-tailer.sh`, `monitor.sh`, `reload-egress.sh`, `start-egress.sh`, `whitelist.sh`. If new scripts have been added by Stories 2.3-2.5 follow-ons between draft (iter-198) and impl, note the delta in Dev Agent Record.
-  - [ ] Subtask 1.2: verify `packages/devbox/scripts/monitor.sh` is the Story 2.3 in-container JSONL tailer (banner line 3 matches `packages/devbox/scripts/monitor.sh — Story 2.3`). If banner-confirmed, NO rename/edit is performed — Story 2.6 adds the NEW `monitor-host.sh` host-side shim per SC-2 + SC-15. If the file has drifted (contents changed since 2026-04-22 HEAD) or is absent, halt + escalate to operator (this is a cross-story regression signal, not a Story 2.6 repair path).
-  - [ ] Subtask 1.3: record the HEAD-confirmation result in Dev Agent Record § Debug Log References.
-  - [ ] Subtask 1.4: regenerate the authoritative `KEEL_DEVBOX_*` required-var list at Story 2.6 impl time via `rg -N --no-heading 'KEEL_DEVBOX_[A-Z_]+' packages/devbox/ .envrc.example 2>/dev/null | grep -oE 'KEEL_DEVBOX_[A-Z_]+' | sort -u`. Compare against SC-14 seed list; drift is expected (Story 2.2 tmpfs-size knobs + Story 2.5 container-name + Story 2.6 healthcheck-timeout MUST all appear). Record the final list as a constant in `env-check.sh`.
+- [x] **Task 1 — Pre-flight: map existing `packages/devbox/scripts/*.sh` vs Story 2.6 target names** (SC-2, SC-4, SC-15)
+  - [x] Subtask 1.1: `ls packages/devbox/scripts/*.sh` — confirm HEAD state matches drafting snapshot (2026-04-22): `benchmark.sh`, `egress-log-tailer.sh`, `monitor.sh`, `reload-egress.sh`, `start-egress.sh`, `whitelist.sh`. If new scripts have been added by Stories 2.3-2.5 follow-ons between draft (iter-198) and impl, note the delta in Dev Agent Record.
+  - [x] Subtask 1.2: verify `packages/devbox/scripts/monitor.sh` is the Story 2.3 in-container JSONL tailer (banner line 3 matches `packages/devbox/scripts/monitor.sh — Story 2.3`). If banner-confirmed, NO rename/edit is performed — Story 2.6 adds the NEW `monitor-host.sh` host-side shim per SC-2 + SC-15. If the file has drifted (contents changed since 2026-04-22 HEAD) or is absent, halt + escalate to operator (this is a cross-story regression signal, not a Story 2.6 repair path).
+  - [x] Subtask 1.3: record the HEAD-confirmation result in Dev Agent Record § Debug Log References.
+  - [x] Subtask 1.4: regenerate the authoritative `KEEL_DEVBOX_*` required-var list at Story 2.6 impl time via `rg -N --no-heading 'KEEL_DEVBOX_[A-Z_]+' packages/devbox/ .envrc.example 2>/dev/null | grep -oE 'KEEL_DEVBOX_[A-Z_]+' | sort -u`. Compare against SC-14 seed list; drift is expected (Story 2.2 tmpfs-size knobs + Story 2.5 container-name + Story 2.6 healthcheck-timeout MUST all appear). Record the final list as a constant in `env-check.sh`.
 
-- [ ] **Task 2 — Create 13 bash scripts under `packages/devbox/scripts/`** (SC-2, SC-4, SC-6, one file per verb; all AC)
-  - [ ] Subtask 2.1: `build.sh` per SC-8.
-  - [ ] Subtask 2.2: `rebuild.sh` per SC-8.
-  - [ ] Subtask 2.3: `start.sh` per SC-9 (healthcheck poll loop + exit-code 8/10/11 semantics).
-  - [ ] Subtask 2.4: `stop.sh` per SC-10.
-  - [ ] Subtask 2.5: `restart.sh` per SC-10 (delegates to `stop.sh` + `start.sh` via `"${SCRIPT_DIR}/..."`).
-  - [ ] Subtask 2.6: `clean.sh` per SC-11 (three-tier flag behavior + backend-B gate).
-  - [ ] Subtask 2.7: `shell.sh` per SC-13 (docker exec -it --user dev -w /workspace … bash -l).
-  - [ ] Subtask 2.8: `attach.sh` per SC-13 (docker attach --detach-keys=ctrl-p,ctrl-q).
-  - [ ] Subtask 2.9: `status.sh` per SC-15 (compose ps + docker inspect health).
-  - [ ] Subtask 2.10: `logs.sh` per SC-15 (compose logs -f --tail=100 + flag forwarding).
-  - [ ] Subtask 2.11: `monitor-host.sh` — host-side shim per SC-15: `docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/monitor.sh "$@"`. The in-container target is Story 2.3's JSONL egress-log tailer per PRD `:494` + architecture `:1003` (NOT `docker stats`). Pre-flight: container-running gate (exit 9 if stopped).
-  - [ ] Subtask 2.12: `whitelist-host.sh` per SC-16 (thin `docker exec … whitelist.sh "$@"` shim).
-  - [ ] Subtask 2.13: `env-check.sh` per SC-14 (parse .envrc + required-var presence + AR-11 shape validation for tmpfs-size ints).
-  - [ ] Subtask 2.14: `chmod 0755` on every new script file.
-  - [ ] Subtask 2.15: each script passes `bash -n <file>` (syntax check). Optional `shellcheck <file>` if available on operator workstation (no repo-wide shellcheck gate at 1.0 — matches Story 2.4 testing-standard precedent).
+- [x] **Task 2 — Create 13 bash scripts under `packages/devbox/scripts/`** (SC-2, SC-4, SC-6, one file per verb; all AC)
+  - [x] Subtask 2.1: `build.sh` per SC-8.
+  - [x] Subtask 2.2: `rebuild.sh` per SC-8.
+  - [x] Subtask 2.3: `start.sh` per SC-9 (healthcheck poll loop + exit-code 8/10/11 semantics).
+  - [x] Subtask 2.4: `stop.sh` per SC-10.
+  - [x] Subtask 2.5: `restart.sh` per SC-10 (delegates to `stop.sh` + `start.sh` via `"${SCRIPT_DIR}/..."`).
+  - [x] Subtask 2.6: `clean.sh` per SC-11 (three-tier flag behavior + backend-B gate).
+  - [x] Subtask 2.7: `shell.sh` per SC-13 (docker exec -it --user dev -w /workspace … bash -l).
+  - [x] Subtask 2.8: `attach.sh` per SC-13 (docker attach --detach-keys=ctrl-p,ctrl-q).
+  - [x] Subtask 2.9: `status.sh` per SC-15 (compose ps + docker inspect health).
+  - [x] Subtask 2.10: `logs.sh` per SC-15 (compose logs -f --tail=100 + flag forwarding).
+  - [x] Subtask 2.11: `monitor-host.sh` — host-side shim per SC-15: `docker exec -it "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/monitor.sh "$@"`. The in-container target is Story 2.3's JSONL egress-log tailer per PRD `:494` + architecture `:1003` (NOT `docker stats`). Pre-flight: container-running gate (exit 9 if stopped).
+  - [x] Subtask 2.12: `whitelist-host.sh` per SC-16 (thin `docker exec … whitelist.sh "$@"` shim).
+  - [x] Subtask 2.13: `env-check.sh` per SC-14 (parse .envrc + required-var presence + AR-11 shape validation for tmpfs-size ints).
+  - [x] Subtask 2.14: `chmod 0755` on every new script file.
+  - [x] Subtask 2.15: each script passes `bash -n <file>` (syntax check). Optional `shellcheck <file>` if available on operator workstation (no repo-wide shellcheck gate at 1.0 — matches Story 2.4 testing-standard precedent).
 
-- [ ] **Task 3 — Wire 13 pnpm script entries into repo-root `package.json`** (AC 1, SC-3)
-  - [ ] Subtask 3.1: edit `/workspace/ralph-bmad/.claude/worktrees/ralph/package.json` `"scripts"` block — insert the 13 `devbox:*` entries AFTER the `keel-invariants:*` block and BEFORE `"prepare"`.
-  - [ ] Subtask 3.2: verify `pnpm <script-name>` works end-to-end for at least `devbox:env:check` (the only script that runs fully on the host without requiring docker). Expect exit 0 if `.envrc` present + required vars set, exit 2 with missing-var report otherwise.
-  - [ ] Subtask 3.3: verify `pnpm <script-name>` for `devbox:build`, `devbox:status` — these are docker-operational but low-risk (build is idempotent; status is read-only). Operator-workstation-deferred if iteration env's docker backend cannot reach the image registry. Record outcome in Dev Agent Record.
-  - [ ] Subtask 3.4: run `pnpm -w run format:check` + `pnpm -w run lint` to ensure package.json edit doesn't trip prettier/ESLint. `pnpm typecheck` unaffected (bash scripts not typechecked).
+- [x] **Task 3 — Wire 13 pnpm script entries into repo-root `package.json`** (AC 1, SC-3)
+  - [x] Subtask 3.1: edit `/workspace/ralph-bmad/.claude/worktrees/ralph/package.json` `"scripts"` block — insert the 13 `devbox:*` entries AFTER the `keel-invariants:*` block and BEFORE `"prepare"`.
+  - [x] Subtask 3.2: verify `pnpm <script-name>` works end-to-end for at least `devbox:env:check` (the only script that runs fully on the host without requiring docker). Expect exit 0 if `.envrc` present + required vars set, exit 2 with missing-var report otherwise.
+  - [x] Subtask 3.3: verify `pnpm <script-name>` for `devbox:build`, `devbox:status` — these are docker-operational but low-risk (build is idempotent; status is read-only). Operator-workstation-deferred if iteration env's docker backend cannot reach the image registry. Record outcome in Dev Agent Record.
+  - [x] Subtask 3.4: run `pnpm -w run format:check` + `pnpm -w run lint` to ensure package.json edit doesn't trip prettier/ESLint. `pnpm typecheck` unaffected (bash scripts not typechecked).
 
-- [ ] **Task 4 — AR-10 operator-migration docs (pre-Story-2.5 named-volume recovery)** (SC-21)
-  - [ ] Subtask 4.1: add new H3 `### Operator migration (pre-Story-2.5 named-volume recovery)` under `## Hardening (Story 2.5)` H2 in `packages/devbox/README.md` with the content prescribed in SC-21 (symptom detection + recovery + safety rail + invariant cross-ref).
-  - [ ] Subtask 4.2: if Subtask 4.1 edits `docs/invariants/devbox-hardening.md` (OPTIONAL — only if the migration guidance is promoted to the invariant doc itself), run the SC-17 three-step contentHash sync-gate.
+- [x] **Task 4 — AR-10 operator-migration docs (pre-Story-2.5 named-volume recovery)** (SC-21)
+  - [x] Subtask 4.1: add new H3 `### Operator migration (pre-Story-2.5 named-volume recovery)` under `## Hardening (Story 2.5)` H2 in `packages/devbox/README.md` with the content prescribed in SC-21 (symptom detection + recovery + safety rail + invariant cross-ref).
+  - [x] Subtask 4.2: if Subtask 4.1 edits `docs/invariants/devbox-hardening.md` (OPTIONAL — only if the migration guidance is promoted to the invariant doc itself), run the SC-17 three-step contentHash sync-gate. *(NOT triggered — AR-10 migration docs live in README only; invariant doc was touched by AR-12 qualifier (Task 5) instead, which fired the sync-gate.)*
 
-- [ ] **Task 5 — AR-12 docs polish (COMPOSE_PROJECT_NAME override note)** (SC-22)
-  - [ ] Subtask 5.1: add the SC-22 single-sentence qualifier to `packages/devbox/README.md § Hardening § Verification`.
-  - [ ] Subtask 5.2: add the same qualifier to `docs/invariants/devbox-hardening.md § Verification`.
-  - [ ] Subtask 5.3: if Subtask 5.2 edits `docs/invariants/devbox-hardening.md`, run the SC-17 three-step contentHash sync-gate: `pnpm keel-invariants:check` (drift report) → update manifest → `pnpm --filter @keel/keel-invariants build` → `pnpm keel-invariants:check-all`.
+- [x] **Task 5 — AR-12 docs polish (COMPOSE_PROJECT_NAME override note)** (SC-22)
+  - [x] Subtask 5.1: add the SC-22 single-sentence qualifier to `packages/devbox/README.md § Hardening § Verification`.
+  - [x] Subtask 5.2: add the same qualifier to `docs/invariants/devbox-hardening.md § Verification`.
+  - [x] Subtask 5.3: if Subtask 5.2 edits `docs/invariants/devbox-hardening.md`, run the SC-17 three-step contentHash sync-gate: `pnpm keel-invariants:check` (drift report) → update manifest → `pnpm --filter @keel/keel-invariants build` → `pnpm keel-invariants:check-all`.
 
-- [ ] **Task 6 — README `## Host-side CLI (Story 2.6)` H2 section** (SC-23, AC 1)
-  - [ ] Subtask 6.1: add new H2 section to `packages/devbox/README.md` AFTER `## Hardening (Story 2.5)` H2.
-  - [ ] Subtask 6.2: include summary paragraph (FR1 citation) + 13-row subcommand table (Subcommand | Purpose | Exit codes) + exit-code table (0/2/3/4/5-7/8/9/10/11) + .envrc integration paragraph + backend-B awareness paragraph + operator-workstation verification recipes (Story 2.5 iter-187 precedent format).
-  - [ ] Subtask 6.3: cross-reference the Story 2.4 whitelist H3 section for `devbox:whitelist` operator workflow.
+- [x] **Task 6 — README `## Host-side CLI (Story 2.6)` H2 section** (SC-23, AC 1)
+  - [x] Subtask 6.1: add new H2 section to `packages/devbox/README.md` AFTER `## Hardening (Story 2.5)` H2.
+  - [x] Subtask 6.2: include summary paragraph (FR1 citation) + 13-row subcommand table (Subcommand | Purpose | Exit codes) + exit-code table (0/2/3/4/5-7/8/9/10/11) + .envrc integration paragraph + backend-B awareness paragraph + operator-workstation verification recipes (Story 2.5 iter-187 precedent format).
+  - [x] Subtask 6.3: cross-reference the Story 2.4 whitelist H3 section for `devbox:whitelist` operator workflow.
 
-- [ ] **Task 7 — AGENTS.md `### Host-side CLI (Story 2.6)` H3 anchor** (SC-24)
-  - [ ] Subtask 7.1: insert new H3 under `## Devbox iteration environment`, AFTER the existing `### Container hardening (Story 2.5)` H3.
-  - [ ] Subtask 7.2: terse bullets per SC-24 (pnpm is the only host surface, `env:check` pre-flight, `clean` named-volume gate, exit-code remediation hints, cross-references).
-  - [ ] Subtask 7.3: do NOT duplicate the README content — AGENTS.md is operational-only.
+- [x] **Task 7 — AGENTS.md `### Host-side CLI (Story 2.6)` H3 anchor** (SC-24)
+  - [x] Subtask 7.1: insert new H3 under `## Devbox iteration environment`, AFTER the existing `### Container hardening (Story 2.5)` H3.
+  - [x] Subtask 7.2: terse bullets per SC-24 (pnpm is the only host surface, `env:check` pre-flight, `clean` named-volume gate, exit-code remediation hints, cross-references).
+  - [x] Subtask 7.3: do NOT duplicate the README content — AGENTS.md is operational-only.
 
-- [ ] **Task 8 — Iteration-env-safe smokes (host-side script shape)** (AC 1, AC 8, Story 2.4 testing-approach precedent)
-  - [ ] Subtask 8.1: `bash -n packages/devbox/scripts/<each-new>.sh` — syntax-valid for all 13 scripts.
-  - [ ] Subtask 8.2: `pnpm devbox:env:check` with `.envrc` present → exit 0 (or 2 if `.envrc.example` is the only file and required vars missing). `pnpm devbox:env:check` with `.envrc` absent → exit 3 + `env-check: .envrc not found …` stderr.
-  - [ ] Subtask 8.3: dispatcher-level smokes for any script that takes subcommands (currently only `whitelist-host.sh` which is passthrough and `clean.sh` which takes flags): invoke with no args → exit 2 + usage block; invoke with unknown flag → exit 2.
-  - [ ] Subtask 8.4: compose-file-existence smoke: `test -f packages/devbox/docker-compose.yml` (trivial; guards against accidentally moving the compose file).
-  - [ ] Subtask 8.5: root-level pnpm wiring smoke: `pnpm run` (no args) lists all 13 `devbox:*` scripts in the output. Captures absence regressions.
-  - [ ] Subtask 8.6: record smokes as copy-paste recipes in `packages/devbox/README.md § Host-side CLI (Story 2.6) § Verification` (per SC-23 + Story 2.4 iter-174 precedent).
+- [x] **Task 8 — Iteration-env-safe smokes (host-side script shape)** (AC 1, AC 8, Story 2.4 testing-approach precedent)
+  - [x] Subtask 8.1: `bash -n packages/devbox/scripts/<each-new>.sh` — syntax-valid for all 13 scripts.
+  - [x] Subtask 8.2: `pnpm devbox:env:check` with `.envrc` present → exit 0 (or 2 if `.envrc.example` is the only file and required vars missing). `pnpm devbox:env:check` with `.envrc` absent → exit 3 + `env-check: .envrc not found …` stderr.
+  - [x] Subtask 8.3: dispatcher-level smokes for any script that takes subcommands (currently only `whitelist-host.sh` which is passthrough and `clean.sh` which takes flags): invoke with no args → exit 2 + usage block; invoke with unknown flag → exit 2.
+  - [x] Subtask 8.4: compose-file-existence smoke: `test -f packages/devbox/docker-compose.yml` (trivial; guards against accidentally moving the compose file).
+  - [x] Subtask 8.5: root-level pnpm wiring smoke: `pnpm run` (no args) lists all 13 `devbox:*` scripts in the output. Captures absence regressions.
+  - [x] Subtask 8.6: record smokes as copy-paste recipes in `packages/devbox/README.md § Host-side CLI (Story 2.6) § Verification` (per SC-23 + Story 2.4 iter-174 precedent).
 
-- [ ] **Task 9 — Operator-workstation full-lifecycle smoke (DEFERRED to operator — backend-B carve-out)** (AC 2, AC 3, AC 4, AC 5, AC 6, AC 7, SC-19, SC-20)
-  - [ ] Subtask 9.1: record the smoke recipe as copy-paste in README:
-    ```bash
-    pnpm devbox:env:check          # expect exit 0
-    pnpm devbox:build              # expect image 'keel-devbox:local' built
-    pnpm devbox:start              # expect 'devbox: started (container keel-devbox)' + exit 0
-    pnpm devbox:status             # expect container 'running' + healthcheck (if configured)
-    pnpm devbox:shell -c 'whoami && pwd && id'  # expect 'dev', '/workspace', 'uid=1000(dev) gid=1000(dev) …'
-    pnpm devbox:logs --no-follow --tail=50       # expect recent container logs
-    pnpm devbox:whitelist list                    # expect composed whitelist with source prefixes
-    pnpm devbox:stop               # expect container stopped, volume preserved
-    pnpm devbox:start              # expect idempotent re-start
-    pnpm devbox:clean              # expect container + image removed, volume preserved
-    docker volume inspect keel-devbox_keel_home_dev >/dev/null && echo "volume preserved ✓"
-    pnpm devbox:clean --with-volumes  # expect y/N prompt; answer N → no-op
-    ```
-  - [ ] Subtask 9.2: verify on M4-Pro native Docker Desktop (operator-workstation); DinD backend B in cc-devbox iteration env cannot safely exercise this (Story 2.5 iter-187 + Story 2.4 iter-174 precedent).
-  - [ ] Subtask 9.3: if any of Subtask 9.1's steps surface `/run/*: Permission denied` or `/etc/resolv.conf: EACCES`, trigger SC-19 / SC-20 escalation paths in the SAME iteration (do not defer to a follow-on story).
+- [x] **Task 9 — Operator-workstation full-lifecycle smoke (DEFERRED to operator — backend-B carve-out)** (AC 2, AC 3, AC 4, AC 5, AC 6, AC 7, SC-19, SC-20)
+  - [x] Subtask 9.1: record the smoke recipe as copy-paste in README (landed in `packages/devbox/README.md § Host-side CLI (Story 2.6) § Verification (operator-workstation)`).
+  - [x] Subtask 9.2: verify on M4-Pro native Docker Desktop (operator-workstation); DinD backend B in cc-devbox iteration env cannot safely exercise this (Story 2.5 iter-187 + Story 2.4 iter-174 precedent). *(Deferred to operator — recipe is in README.)*
+  - [x] Subtask 9.3: if any of Subtask 9.1's steps surface `/run/*: Permission denied` or `/etc/resolv.conf: EACCES`, trigger SC-19 / SC-20 escalation paths in the SAME iteration (do not defer to a follow-on story). *(Not triggered — live smoke deferred to operator workstation; AR-7 + AR-9 remain deferred per SC-19/SC-20 conditional gate. No evidence of breakage at impl-time; operator smoke will re-gate.)*
 
-- [ ] **Task 10 — Final quality gates + sprint-status flip** (Story 2.4 iter-174 precedent)
-  - [ ] Subtask 10.1: `pnpm -w run format:check` → clean.
-  - [ ] Subtask 10.2: `pnpm -w run lint` → clean for JS/TS (bash not linted at 1.0).
-  - [ ] Subtask 10.3: `pnpm --filter @keel/devbox typecheck` → clean (bash additions don't affect tsc).
-  - [ ] Subtask 10.4: `pnpm keel-invariants:check-all` → exit 0. If SC-17 sync-gate fired (Tasks 4–5 docs-invariant edits), confirm contentHash is in sync.
-  - [ ] Subtask 10.5: `docker compose -f packages/devbox/docker-compose.yml config --quiet` → exit 0 (parse-smoke; Story 2.5 iter-187 precedent; the compose file is untouched at Story 2.6, but the parse-smoke detects any transitive-env-var breakage).
+- [x] **Task 10 — Final quality gates + sprint-status flip** (Story 2.4 iter-174 precedent)
+  - [x] Subtask 10.1: `pnpm -w run format:check` → clean.
+  - [x] Subtask 10.2: `pnpm -w run lint` → clean for JS/TS (bash not linted at 1.0).
+  - [x] Subtask 10.3: `pnpm --filter @keel/devbox typecheck` → clean (bash additions don't affect tsc).
+  - [x] Subtask 10.4: `pnpm keel-invariants:check-all` → exit 0. If SC-17 sync-gate fired (Tasks 4–5 docs-invariant edits), confirm contentHash is in sync.
+  - [x] Subtask 10.5: `docker compose -f packages/devbox/docker-compose.yml config --quiet` → exit 0 (parse-smoke; Story 2.5 iter-187 precedent; the compose file is untouched at Story 2.6, but the parse-smoke detects any transitive-env-var breakage).
   - [x] Subtask 10.6a: flip sprint-status `development_status["2-6-host-side-pnpm-devbox-cli-surface"]` `backlog → ready-for-dev`. *(completed iter-198 draft; do NOT re-flip from `backlog` — current sprint-status row is already at `ready-for-dev`.)*
-  - [ ] Subtask 10.6b: flip sprint-status `ready-for-dev → in-progress` at dev-story commencement (dev-story skill auto-performs this; operator confirms after run).
-  - [ ] Subtask 10.6c: flip sprint-status `in-progress → review` at dev-story commit-time (dev-story skill auto-performs this on completion).
-  - [ ] Subtask 10.7: update Dev Agent Record + File List + Completion Notes.
+  - [x] Subtask 10.6b: flip sprint-status `ready-for-dev → in-progress` at dev-story commencement (dev-story skill auto-performs this; operator confirms after run). *(Single-iter landing — elided in favour of combined `ready-for-dev → review` flip per Story 2.4 iter-174 + Story 2.5 iter-187 precedent.)*
+  - [x] Subtask 10.6c: flip sprint-status `in-progress → review` at dev-story commit-time (dev-story skill auto-performs this on completion).
+  - [x] Subtask 10.7: update Dev Agent Record + File List + Completion Notes.
 
 ## Dev Notes
 
@@ -450,19 +436,67 @@ claude-opus-4-7[1m] (Ralph build-mode drafting context)
 
 ### Debug Log References
 
-_(populated by dev-story iteration)_
+- **Task 1.1 (HEAD state map):** `ls packages/devbox/scripts/` at impl-time confirmed the 6 expected scripts from the drafting snapshot — `benchmark.sh`, `egress-log-tailer.sh`, `monitor.sh`, `reload-egress.sh`, `start-egress.sh`, `whitelist.sh`. No inter-draft delta. Story 2.6 adds 13 new scripts without touching any of these 6.
+- **Task 1.2 (`monitor.sh` banner confirmation):** `head packages/devbox/scripts/monitor.sh` banner line 2 matches `packages/devbox/scripts/monitor.sh — Story 2.3 (AC 3 observability)` — confirmed as the in-container JSONL tailer. NO rename/edit; `monitor-host.sh` shim created as the NEW host-side surface per SC-2 + SC-15.
+- **Task 1.4 (regenerated `KEEL_DEVBOX_*` var list):** `rg -N --no-heading 'KEEL_DEVBOX_[A-Z_]+' packages/devbox/ | sort -u` yielded 18 var names across the codebase. `.envrc.example`'s active (uncommented) block documents 15; 2 are commented optional (`KEEL_DEVBOX_CONTAINER_NAME`, `KEEL_DEVBOX_WORKSPACE`); 1 is code-internal (`KEEL_DEVBOX_WORKSPACE_OWNER`). `env-check.sh` REQUIRED_VARS = the 15 active `.envrc.example` keys. Optional: `KEEL_DEVBOX_CONTAINER_NAME`, `KEEL_DEVBOX_WORKSPACE`, `KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S` (new Story 2.6 knob) — scripts default these via bash `${VAR:-default}`.
+- **Task 3.2 smoke:** `pnpm devbox:env:check` with no `.envrc` → exit 3 + `env-check: .envrc not found at …` stderr. `pnpm devbox:env:check` with seeded `.envrc` (copied from `.envrc.example`) → exit 0 + `env-check: 15 of 15 required vars present; 0 value-shape violations`. AR-11 shape-validation: `KEEL_DEVBOX_TMPFS_TMP_MB=2gb` + `KEEL_DEVBOX_TMPFS_VARTMP_MB=0` → exit 2 + both violations reported by name.
+- **Task 3.3 smoke:** `pnpm devbox:build` + `pnpm devbox:status` deferred to operator-workstation (backend-B iteration env per Story 2.4 iter-174 + Story 2.5 iter-187 precedent — lifecycle mutations against a shared host daemon risk poisoning unrelated projects). Recipes shipped in README § Host-side CLI § Verification (operator-workstation).
+- **Task 8.3 dispatcher smokes:** `./packages/devbox/scripts/clean.sh --unknown` → exit 2 + usage block. `./packages/devbox/scripts/clean.sh --help` → exit 0 + usage block.
+- **Task 8.5 pnpm wiring:** `pnpm run | grep -E '^\s+devbox:' | wc -l` → 13 (all 13 devbox:* scripts listed).
+- **Task 10 quality gates:** `format:check` ✓ (1 prettier auto-fix applied to `packages/devbox/README.md` after manual draft). `lint` ✓ (16 tasks). `typecheck` ✓ (16 tasks). `keel-invariants:check-all` ✓ (after 2× contentHash refresh via SC-17 sync-gate). `docker compose config --quiet` ✓.
+- **Sync-gate drift (expected):** package.json touched (+13 devbox:* entries) → `INV-prek-prepare-lifecycle` expected `87f37b45…` → actual `5960e7c4…`. hardening doc touched (AR-12 qualifier) → `INV-devbox-homedev-named-volume` expected `f34cb62f…` → actual `5e868749…`. Both hashes refreshed in `packages/keel-invariants/src/invariants.manifest.ts`; `dist/check.js` rebuilt; `keel-invariants:check-all` exit 0.
 
 ### Completion Notes List
 
-_(populated by dev-story iteration)_
+- **13-verb host-side CLI surface shipped** as 13 `packages/devbox/scripts/<verb>.sh` files (each `0755`, `#!/usr/bin/env bash`, `set -euo pipefail`, self-rooted paths, banner + exit-code table per SC-4 + SC-5). All 13 pass `bash -n` syntax.
+- **13 `pnpm devbox:*` entries** wired in repo-root `package.json` between `keel-invariants:*` and `prepare`. `pnpm run` lists all 13.
+- **Uniform exit-code family (SC-5):** `0` ok / `2` usage / `3` source unreadable / `4` mutation lock / `5–7` passthrough / `8` docker unreachable / `9` container not running / `10` image not built / `11` healthcheck timeout / `124` reserved for `timeout(1)`.
+- **`env-check.sh` (AC 8 + AR-11):** parses `.envrc` at repo root; validates 15 required `KEEL_DEVBOX_*` keys are present + 3 tmpfs-MB knobs (`TMPFS_TMP_MB`, `TMPFS_VARTMP_MB`, `TMPFS_LOGS_MB`) are positive integers. Names-only stderr for missing vars; values echoed only for the tmpfs-int shape class (never credentials). `start.sh` calls `env-check.sh` as its own pre-flight (escape: `KEEL_DEVBOX_START_SKIP_ENV_CHECK=true`).
+- **`start.sh` healthcheck poll:** polls `docker inspect` every 2s up to `${KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S:-120}`s; accepts `healthy`, bare `running` (pre-Story-2.13 posture), or `starting` (within 30s grace); rejects `unhealthy|exited|dead|removing|paused` immediately with exit 11 (container left running for debug).
+- **`clean.sh` three-tier destructive-op gate (SC-11):** default = container + image removed, `keel_home_dev` preserved (safe under either backend); `--with-volumes` gates on `[y/N]` prompt (or `--yes`); under backend B additionally requires `--force-backend-b` to prevent accidental destruction of a host-shared volume. `--allow-broad-prune` is RESERVED no-op at 1.0. Backend detection mirrors `benchmark.sh § detect_backend` per `docs/invariants/devbox-dind.md`.
+- **`monitor-host.sh` + `whitelist-host.sh`:** thin `docker exec` shims over Story 2.3 `monitor.sh` (FR1a JSONL DNS-event tail) + Story 2.4 `whitelist.sh` (in-container allow-list CLI). Zero in-container primitive edits; dual-source-of-truth-for-validation risk avoided.
+- **Monitor semantic reconciliation (SC-15):** `pnpm devbox:monitor` ships as the FR1a JSONL DNS-event tail per PRD `:494` + architecture `:1003` — NOT `docker stats`. Epics AC 7 "cpu/memory/network" phrasing is historical drift; the PRD is authoritative. Future `docker stats`-style verb would be a separate story.
+- **AR-10 absorption (SC-21) LANDED:** new H3 `### Operator migration (pre-Story-2.5 named-volume recovery)` in `packages/devbox/README.md` under `## Hardening (Story 2.5)` H2 — symptom detection (`docker run --rm -v keel-devbox_keel_home_dev:/mnt alpine stat -c '%u:%g' /mnt`) + destructive recovery path (`pnpm devbox:stop && docker volume rm … && pnpm devbox:start`) + safety rail + invariant cross-ref.
+- **AR-11 absorption (SC-14) LANDED:** env-check shape-validation for tmpfs-size knobs (positive integer regex `^[1-9][0-9]*$`; rejects `0`, empty, `"2gb"`, negative).
+- **AR-12 absorption (SC-22) LANDED:** one-sentence COMPOSE_PROJECT_NAME override qualifier added at top of `packages/devbox/README.md § Hardening § Verification` + `docs/invariants/devbox-hardening.md § Verification`. Sync-gate fired for the invariant doc edit — contentHash refreshed in manifest.
+- **README H2 § Host-side CLI (Story 2.6) LANDED (SC-23):** FR1 summary + 13-row subcommand table + exit-code family table + `.envrc` integration paragraph + backend-B awareness paragraph + operator-workstation verification recipe + iteration-env-safe smokes recipe + cross-references. Story 2.4 whitelist H3 cross-referenced.
+- **AGENTS.md H3 § Host-side CLI (Story 2.6) LANDED (SC-24):** 5 terse operational bullets (canonical invocation, env-check pre-flight, named-volume preservation, uniform exit codes, monitor semantic pin) + cross-refs to Story 2.4 whitelist H3 + Story 2.5 hardening H3. No README duplication.
+- **AR-7 (`/run` relocation) + AR-9 (`/etc/*` chown) NOT triggered:** conditional escalation paths per SC-19 + SC-20 remain deferred pending operator-workstation smoke outcome. Live-smoke for `pnpm devbox:start` + `pnpm devbox:whitelist sync` is documented in README as the gate; if the operator surfaces `/run/*: Permission denied` or `/etc/resolv.conf: EACCES`, the SC-19/SC-20 escalation path re-activates (same-iteration fix or follow-on story — operator decides).
+- **Invariant sync-gate 2× refresh (SC-17):** two contentHash refreshes fired this iteration: (1) `INV-prek-prepare-lifecycle` (package.json +13 devbox:* entries triggers expected drift); (2) `INV-devbox-homedev-named-volume` (AR-12 qualifier in `docs/invariants/devbox-hardening.md` — NFR10 substrate-authoritative invariant). Both manifest-update + `dist/check.js` rebuild + `keel-invariants:check-all` exit 0.
+- **Live smokes operator-workstation-deferred:** AC 2–7 live smokes (build, start, status, shell, logs, stop, restart, clean) documented as copy-paste recipes in README § Host-side CLI § Verification (operator-workstation). DinD backend B cannot safely exercise lifecycle-mutating smokes against a shared host daemon (Story 2.4 iter-174 + Story 2.5 iter-187 precedent). Iteration-env-safe smokes (bash -n syntax + pnpm wiring count + env-check with/without `.envrc` + dispatcher usage) all pass.
 
 ### File List
 
-_(populated by dev-story iteration — see Dev Notes § File List targets for expected surface)_
+New (13 scripts):
+
+- `packages/devbox/scripts/build.sh`
+- `packages/devbox/scripts/rebuild.sh`
+- `packages/devbox/scripts/start.sh`
+- `packages/devbox/scripts/stop.sh`
+- `packages/devbox/scripts/restart.sh`
+- `packages/devbox/scripts/clean.sh`
+- `packages/devbox/scripts/shell.sh`
+- `packages/devbox/scripts/attach.sh`
+- `packages/devbox/scripts/status.sh`
+- `packages/devbox/scripts/logs.sh`
+- `packages/devbox/scripts/monitor-host.sh` _(host-side shim; in-container `monitor.sh` unchanged)_
+- `packages/devbox/scripts/whitelist-host.sh` _(host-side shim; in-container `whitelist.sh` unchanged)_
+- `packages/devbox/scripts/env-check.sh`
+
+Modified:
+
+- `package.json` — 13 new `devbox:*` script entries inserted between `keel-invariants:*` block and `prepare` (SC-3).
+- `packages/devbox/README.md` — new H3 `### Operator migration (pre-Story-2.5 named-volume recovery)` inside `## Hardening (Story 2.5)` (SC-21 AR-10), AR-12 qualifier at top of `### Verification` (SC-22), new H2 `## Host-side CLI (Story 2.6)` before `## cc-devbox upstream provenance` (SC-23).
+- `AGENTS.md` — new H3 `### Host-side CLI (Story 2.6)` inside `## Devbox iteration environment` after `### Container hardening (Story 2.5)` (SC-24).
+- `docs/invariants/devbox-hardening.md` — AR-12 COMPOSE_PROJECT_NAME qualifier at top of `## Verification` (SC-22).
+- `packages/keel-invariants/src/invariants.manifest.ts` — contentHash refresh for `INV-prek-prepare-lifecycle` (`87f37b45…` → `5960e7c4…`, package.json edit) + `INV-devbox-homedev-named-volume` (`f34cb62f…` → `5e868749…`, hardening doc edit) via SC-17 sync-gate.
+- `packages/keel-invariants/dist/check.js` — regenerated via `pnpm --filter @keel/keel-invariants build` to pick up the new manifest hashes.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — `2-6-host-side-pnpm-devbox-cli-surface: ready-for-dev → review`; `last_updated` trail appended.
 
 ## Change Log
 
 | Version | Date | Iter | Who | Change |
 | --- | --- | --- | --- | --- |
+| v1.0 | 2026-04-22 | iter-201 | Ralph (dev-story) | Implementation landing. 13 host-side scripts created under `packages/devbox/scripts/` (build, rebuild, start, stop, restart, clean, shell, attach, status, logs, monitor-host, whitelist-host, env-check). 13 `devbox:*` entries wired in repo-root `package.json`. AR-10 operator-migration H3 + AR-12 COMPOSE_PROJECT_NAME qualifier landed in README + invariant doc (SC-22 sync-gate fired — `INV-devbox-homedev-named-volume` contentHash refreshed `f34cb62f…` → `5e868749…`; `INV-prek-prepare-lifecycle` contentHash refreshed `87f37b45…` → `5960e7c4…` due to package.json +13 entries). New README H2 `## Host-side CLI (Story 2.6)` (SC-23) + AGENTS.md H3 (SC-24). AR-7 + AR-9 escalation paths (SC-19/SC-20) NOT triggered — remain deferred pending operator-workstation smoke outcome; README + AGENTS.md document the escalation trigger. Live lifecycle smokes operator-workstation-deferred per Story 2.4 iter-174 + Story 2.5 iter-187 backend-B precedent; iteration-env-safe smokes (bash -n × 13; pnpm wiring × 13; env-check exit-3/exit-0/exit-2; dispatcher usage) all pass. Quality gates: format:check ✓, lint ✓, typecheck ✓, keel-invariants:check-all ✓ (after 2× sync-gate refresh), `docker compose config --quiet` ✓. Status `atdd-scaffolded → in-dev → review` single-iter landing. Sprint-status `ready-for-dev → review`. |
 | v0.2 | 2026-04-22 | iter-199 | Ralph (create-story review — pre-dev SM) | Pre-dev SM validation patches (AI-1..AI-8). **AI-1 CRITICAL:** SC-2 monitor-naming self-contradiction resolved — pinned `monitor-host.sh` per Story 2.4 `whitelist-host.sh` precedent; dropped the "rename existing monitor.sh to monitor-egress.sh" path (scope-creep). SC-2 13-verb table + SC-3 example-block + Task 1.2 + Task 2.11 + Dev Notes File List targets updated consistently. **AI-2 CRITICAL:** Epics AC 7 ("cpu/memory/network") vs PRD `:494` + architecture `:1003` ("JSONL DNS-event tail") semantic drift reconciled — SC-15 now cites PRD `:494` as authoritative, explicitly pinning `pnpm devbox:monitor` = FR1a JSONL tail (NOT `docker stats`). **AI-3 ENHANCEMENT:** Task 10.6 split into 10.6a (`backlog → ready-for-dev`, `[x]` completed-at-draft) + 10.6b (`ready-for-dev → in-progress`, dev-story start) + 10.6c (`in-progress → review`, dev-story commit) per iter-173 carry-forward rule (lifecycle-hygiene subtasks done at draft time marked `[x]` with annotation to avoid dev-agent re-flip). **AI-4 OPTIMIZATION:** SC-3 typo fix ("suffix suffix-resolved" → "`-host.sh`-suffix-resolved"). **AI-5..AI-8 OPTIMIZATION:** Task 1.2 simplification (HEAD state known; dropped (b)/(c) decision paths), Task 2.11 consistency, File List targets clarification, this Change Log entry. Story State `drafted → validated`. Sprint-status unchanged (stays `ready-for-dev`). |
 | v0.1 | 2026-04-22 | iter-198 | Ralph (create-story) | Initial draft — 13-verb host-side CLI surface, 25 scope clarifications, 10 tasks. Absorbs Story 2.5 CR DEFERs AR-10 (unconditional) + AR-11 (env-check shape validation, unconditional) + AR-12 (compose-project-name docs polish, unconditional); AR-7 `/run` relocation + AR-9 `/etc/*` chown conditional on operator-workstation smoke outcome per SC-19 + SC-20. Status drafted (sprint-status `backlog → ready-for-dev`). |

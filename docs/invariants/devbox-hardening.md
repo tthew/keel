@@ -84,6 +84,8 @@ Rejecting accidental bind-mount drift (e.g. an operator editing `docker-compose.
 
 ## Verification
 
+> **Note on compose-project-name overrides:** the verification commands below assume the pinned `name: keel-devbox` in `docker-compose.yml`. Operators who set `COMPOSE_PROJECT_NAME=<name>` or pass `-p <name>` to `docker compose` must substitute that project name in the volume FQN: `<name>_keel_home_dev` instead of `keel-devbox_keel_home_dev`. The substrate-authoritative named-volume contract (NFR10) is preserved regardless of project-name override — only the FQN prefix changes.
+
 Live-smoke matrix for AC 1–5. Operator-workstation-deferred under DinD backend B (host socket-passthrough) per Story 2.4 SC-17 precedent — running `docker exec` against a cap-dropped container from a DinD-B iteration environment can poison the host's docker state; the M4-Pro native-Docker Desktop run is authoritative for AC 5 + AC 2 bounding-set verification.
 
 ### AC 1 — Non-root dev user

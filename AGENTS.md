@@ -101,6 +101,16 @@ Codified as `INV-devbox-homedev-named-volume` (`docs/invariants/devbox-hardening
 - **Live smokes operator-workstation-deferred**: AC 1–5 + capability-exercise smokes run on M4-Pro native Docker Desktop. DinD backend B cannot safely exercise `docker exec` sequences against cap-dropped containers (risk of poisoning host docker state) — substrate CI + operator smoke handle AC verification together.
 - **Story 2.4 whitelist.sh compatibility**: state files under `/run/` require Docker's tmpfs auto-mount to preserve image-layer ownership under USER dev. Happy path (SC-14 branch (i)) requires no code change; empirical verification deferred to operator smoke.
 
+### Host-side CLI (Story 2.6)
+
+Canonical devbox invocation surface is `pnpm devbox:<verb>` at the repo root — 13 verbs (`build`, `rebuild`, `start`, `stop`, `restart`, `clean`, `shell`, `attach`, `status`, `logs`, `monitor`, `whitelist`, `env:check`). Never call `docker`, `docker compose`, or `docker exec` directly (FR1). Host-side scripts live under `packages/devbox/scripts/`; `monitor-host.sh` and `whitelist-host.sh` are thin shims that `docker exec` into Story 2.3 + Story 2.4 in-container primitives.
+
+- **Pre-flight:** `pnpm devbox:env:check` validates `.envrc` presence + every required `KEEL_DEVBOX_*` var + tmpfs-int shape. Fail-closed exit 2 on missing var or shape violation, exit 3 on `.envrc` absent. `pnpm devbox:start` runs env-check as its own pre-flight unless `KEEL_DEVBOX_START_SKIP_ENV_CHECK=true`.
+- **Named-volume preservation:** `pnpm devbox:clean` preserves `keel_home_dev` (NFR10) by default. `--with-volumes` gates on `[y/N]` prompt (or `--yes`); under backend B an additional `--force-backend-b` flag is required to prevent surprise destruction of a host-shared volume.
+- **Uniform exit codes:** `8` = docker unreachable (`docker info` failed; hint: is the daemon running?); `9` = container not running (hint: `pnpm devbox:start`); `10` = image not built (hint: `pnpm devbox:build`); `11` = `start` healthcheck timeout (container left running for `pnpm devbox:logs` debug). Codes `2`/`3`/`4`/`5–7` mirror Story 2.3/2.4's in-container primitives where the shim passes through.
+- **Monitor semantic:** `pnpm devbox:monitor` is the FR1a JSONL DNS-event tail (PRD `:494`, architecture `:1003`), NOT `docker stats`. Epics AC 7's "cpu/memory/network" phrasing is historical drift; PRD is authoritative.
+- **Cross-reference:** § Per-fork whitelist override (Story 2.4) for `pnpm devbox:whitelist` subcommand semantics; § Container hardening (Story 2.5) for the substrate contracts every host-side script composes on top of.
+
 ## Ralph loop
 
 - `ralph.py` is the TUI loop orchestrator. Run with `uv run ralph.py [build|plan] [N]`.

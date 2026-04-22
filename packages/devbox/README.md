@@ -317,6 +317,8 @@ Capabilities NOT added: `CAP_SYS_ADMIN` (no container-administration ops in subs
 
 ### Verification
 
+> **Note on compose-project-name overrides:** the verification commands below assume the pinned `name: keel-devbox` in `docker-compose.yml`. Operators who set `COMPOSE_PROJECT_NAME=<name>` or pass `-p <name>` to `docker compose` must substitute that project name in the volume FQN: `<name>_keel_home_dev` instead of `keel-devbox_keel_home_dev`. The substrate-authoritative named-volume contract (NFR10) is preserved regardless of project-name override — only the FQN prefix changes.
+
 Operator-workstation run (M4-Pro native Docker Desktop); DinD backend B is not authoritative for these smokes per the Backend compatibility section below.
 
 ```sh
@@ -372,6 +374,133 @@ docker exec keel-devbox sh -c 'ss -tlnp | grep :53'
 ### Backend compatibility
 
 Both DinD backends (A = true Docker-in-Docker, B = host socket-passthrough per `INV-devbox-dind-available`) preserve the hardening posture — the Docker daemon applies `cap_drop` + `cap_add` + `security_opt` + `tmpfs` + `volumes` at container-start regardless of which fronts the daemon. Under backend B only warm-only NFR2 measurement is autonomously safe; the same constraint applies to hardening live smokes. See `docs/invariants/devbox-hardening.md` § Backend compatibility.
+
+### Operator migration (pre-Story-2.5 named-volume recovery)
+
+Operators who ran an earlier `keel-devbox` build (before Story 2.5 landed the `USER dev` + `keel_home_dev` named-volume hardening) may have populated the volume under `root:root` ownership. Under the Story 2.5 `USER dev` posture, writes into `/home/dev/.claude` (Story 2.8) or `/home/dev/.config/gh` (Story 2.9) will silently fail EACCES against a root-owned volume, leaving auth-token persistence broken with no stderr signal.
+
+**Symptom detection:**
+
+```sh
+# Inspect volume options (first-boot auto-init metadata).
+docker volume inspect keel-devbox_keel_home_dev 2>/dev/null | jq -r '.[0].Options // "(none)"'
+
+# Inspect the volume's root ownership. The expected value after Story 2.5 is 1000:1000 (dev).
+docker run --rm -v keel-devbox_keel_home_dev:/mnt alpine stat -c '%u:%g' /mnt
+# Expect: 1000:1000 — if the output is 0:0, the volume was populated pre-Story-2.5 and needs recovery.
+```
+
+**Recovery (destructive — re-auth required):**
+
+```sh
+pnpm devbox:stop                                 # halt the container first
+docker volume rm keel-devbox_keel_home_dev       # destroy the root-owned volume
+pnpm devbox:start                                # fresh volume auto-populates under dev:dev
+# Operator re-runs:
+#   pnpm claude            # Story 2.8 re-login
+#   pnpm gh:auth           # Story 2.9 re-login
+```
+
+On the next `pnpm devbox:start`, Docker auto-populates the fresh empty volume from the image-layer ownership established by `Dockerfile`'s `chown -R dev:dev /home/dev` step — under the Story 2.5 `USER dev` posture, the volume lands at `dev:dev` (1000:1000).
+
+**Safety rail:** do NOT run `docker volume rm` without `pnpm devbox:stop` first — removing a mounted volume under the running container leaves the daemon state inconsistent.
+
+**Substrate rule:** `INV-devbox-homedev-named-volume` (`INVARIANTS.md`, `docs/invariants/devbox-hardening.md`) is authoritative. No `KEEL_DEVBOX_*` knob can flip `/home/dev` back to a host bind-mount; this migration is the once-per-fork recovery path for pre-Story-2.5 volumes.
+
+## Host-side CLI (Story 2.6)
+
+Every devbox interaction is a `pnpm devbox:*` subcommand. Operators never type `docker`, `docker compose`, or `docker exec` directly (FR1, `architecture.md:74`). The host-side shim scripts under `packages/devbox/scripts/` translate each `pnpm devbox:<verb>` into the right `docker compose` / `docker exec` invocation; a few verbs (`monitor`, `whitelist`) are thin shims over in-container primitives from Stories 2.3 + 2.4.
+
+### Subcommand surface
+
+| Subcommand              | Purpose                                                                                                        | Exit codes (beyond success)      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `pnpm devbox:build`     | `docker compose build devbox` (cached).                                                                        | `8`                              |
+| `pnpm devbox:rebuild`   | `docker compose build --no-cache devbox` (fresh).                                                              | `8`                              |
+| `pnpm devbox:start`     | `docker compose up -d` + healthcheck poll (timeout `KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S`, default 120s).   | `2`, `3`, `8`, `10`, `11`        |
+| `pnpm devbox:stop`      | `docker compose stop devbox` (container preserved; volume preserved).                                          | `8`                              |
+| `pnpm devbox:restart`   | `stop.sh` then `start.sh` in sequence.                                                                         | inherited                        |
+| `pnpm devbox:clean`     | `docker compose down --rmi local --remove-orphans`; `--with-volumes` gates on y/N + `--force-backend-b`.       | `2`, `8`                         |
+| `pnpm devbox:shell`     | `docker exec -it --user dev -w /workspace` bash login shell (extra args → `bash -l "$@"`).                     | `8`, `9`                         |
+| `pnpm devbox:attach`    | `docker attach --detach-keys='ctrl-p,ctrl-q'` — observe PID 1 stdio (Ralph TUI in Story 2.7).                  | `8`, `9`                         |
+| `pnpm devbox:status`    | `docker compose ps` + `docker inspect` healthcheck status.                                                     | `8`, `9`                         |
+| `pnpm devbox:logs`      | `docker compose logs -f --tail=100 devbox` (flags forwarded: `--no-follow`, `--tail=<N>`, `--since <ts>`).     | `8`                              |
+| `pnpm devbox:monitor`   | `docker exec` into Story 2.3's in-container `monitor.sh` — **FR1a JSONL DNS-event tail** (not `docker stats`). | `3`, `8`, `9`                    |
+| `pnpm devbox:whitelist` | `docker exec` into Story 2.4's `whitelist.sh` (subcommands: `add` / `remove` / `list` / `sync`).               | `2`, `3`, `4`, `5`–`7`, `8`, `9` |
+| `pnpm devbox:env:check` | Validate `.envrc` presence + every required `KEEL_DEVBOX_*` var + tmpfs-int shape.                             | `2`, `3`                         |
+
+### Exit-code family (uniform across devbox CLI)
+
+| Code    | Meaning                                                                                                            |
+| ------- | ------------------------------------------------------------------------------------------------------------------ |
+| `0`     | Success.                                                                                                           |
+| `2`     | Usage error / validation failure (missing arg, unknown flag, `env:check` missing required var or shape violation). |
+| `3`     | Source file unreadable (`.envrc` absent for `env-check`, in-container `monitor.sh` missing).                       |
+| `4`     | Mutation lock unavailable within timeout (Story 2.4 `whitelist.sh` passthrough).                                   |
+| `5`–`7` | Propagated verbatim from in-container primitives (`whitelist.sh` / `reload-egress.sh`).                            |
+| `8`     | Docker runtime unreachable — `docker info` failed. Stderr hint: `is the daemon running?`.                          |
+| `9`     | Container not running — `pnpm devbox:start` not yet called.                                                        |
+| `10`    | Image not built — `pnpm devbox:build` not yet called.                                                              |
+| `11`    | `start` healthcheck timeout. Container is left running for operator debugging via `pnpm devbox:logs`.              |
+| `124`   | Reserved for `timeout(1)`-wrapped invocations (operator-facing). Not used internally.                              |
+
+### `.envrc` integration
+
+`pnpm devbox:env:check` is the pre-flight for every devbox invocation. It parses `.envrc` at the repo root (gitignored; seed from `packages/devbox/.envrc.example` + `direnv allow`) and verifies:
+
+- Every required `KEEL_DEVBOX_*` variable is present (15 keys at 1.0 matching `.envrc.example`'s active block).
+- Tmpfs size knobs (`KEEL_DEVBOX_TMPFS_TMP_MB`, `KEEL_DEVBOX_TMPFS_VARTMP_MB`, `KEEL_DEVBOX_TMPFS_LOGS_MB`) are strictly positive integers (no units, no zero — AR-11 shape-validation absorption).
+
+Missing vars and shape violations are reported to stderr by name; values are echoed only for the tmpfs-int shape class (not a credential class). `pnpm devbox:start` calls `env-check` as its own pre-flight unless `KEEL_DEVBOX_START_SKIP_ENV_CHECK=true` is set (CI escape hatch for alternate env injection).
+
+### Backend-B awareness (`pnpm devbox:clean --with-volumes`)
+
+`pnpm devbox:clean` (no flag) removes only the container + local image; the `keel_home_dev` named volume (NFR10) is preserved. To destroy the volume, pass `--with-volumes` — the script prompts `[y/N]` (or consumes `--yes`). Under backend B (host socket-passthrough per `docs/invariants/devbox-dind.md § Backend contract`), an additional `--force-backend-b` acknowledgement is required because destroying `keel_home_dev` under a shared host daemon can surprise unrelated projects that share the compose prefix. See `packages/devbox/scripts/benchmark.sh § detect_backend` for the reference backend probe.
+
+### Verification (operator-workstation)
+
+Run on M4-Pro native Docker Desktop; DinD backend B in cc-devbox iteration environments cannot safely exercise the full lifecycle per Story 2.4 / Story 2.5 precedent.
+
+```sh
+pnpm devbox:env:check          # expect exit 0
+pnpm devbox:build              # expect image 'keel-devbox:local' built
+pnpm devbox:start              # expect 'start: started (container keel-devbox, state=…)' + exit 0
+pnpm devbox:status             # expect 'state: running' + healthcheck line
+pnpm devbox:shell -c 'whoami && pwd && id'
+# Expect: dev / /workspace / uid=1000(dev) gid=1000(dev) …
+pnpm devbox:logs --no-follow --tail=50
+pnpm devbox:whitelist list     # composed state with source prefixes (D/F:*/L)
+pnpm devbox:stop               # container stopped; volume preserved
+pnpm devbox:start              # idempotent re-start
+pnpm devbox:clean              # container + image removed; volume preserved
+docker volume inspect keel-devbox_keel_home_dev >/dev/null && echo "volume preserved ✓"
+pnpm devbox:clean --with-volumes  # expect y/N prompt; answer N → no-op (safe default)
+```
+
+### Iteration-env-safe smokes
+
+These run in backend-B iteration environments (no lifecycle mutation):
+
+```sh
+# Syntax validity of every script.
+for f in packages/devbox/scripts/{build,rebuild,start,stop,restart,clean,shell,attach,status,logs,monitor-host,whitelist-host,env-check}.sh; do bash -n "$f"; done
+
+# pnpm wiring regression check — expect 13 devbox:* entries.
+pnpm run 2>/dev/null | grep -E '^\s+devbox:' | wc -l   # expect 13
+
+# env-check with/without .envrc.
+pnpm devbox:env:check                                   # exit 3 if no .envrc; exit 0 with seeded .envrc
+
+# Dispatcher usage paths (no docker state mutation).
+./packages/devbox/scripts/clean.sh --unknown   # exit 2 + usage
+./packages/devbox/scripts/clean.sh --help      # exit 0 + usage
+```
+
+### Cross-references
+
+- `### Per-fork whitelist override (Story 2.4)` above — `pnpm devbox:whitelist <add|remove|list|sync>` subcommand semantics + substrate-additive composition rules.
+- `### Operator migration (pre-Story-2.5 named-volume recovery)` above — one-time recovery for volumes populated before Story 2.5's `USER dev` posture.
+- `docs/invariants/devbox-dind.md § Backend contract` — backend-A/B detection + destructive-op safety rule.
 
 ## cc-devbox upstream provenance
 
