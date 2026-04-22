@@ -3,7 +3,19 @@
 # Anthropic API allow-list fragment. Required for `claude -p` subprocess
 # (Ralph loop per Epic 3) + Claude Code CLI (@anthropic-ai/claude-code) +
 # Statsig feature-flag eval baked into Claude Code.
+#
+# `platform.claude.com` — Claude Code 2.x OAuth + account/billing endpoint
+# (replaces the inline auth.anthropic.com flow used by pre-2.0 Claude Code).
+# Without it, `pnpm claude` fails with `Failed to connect to
+# platform.claude.com: ECONNREFUSED` even after a successful host-browser
+# OAuth round-trip, because token validation + session refresh hit this
+# host. `claude.ai` covers the OAuth-redirect leg for fork-time browser
+# flows that route through the consumer site (some operators see the
+# redirect, some bypass it via the platform-direct path; whitelisting both
+# covers either).
 
 api.anthropic.com
+claude.ai
 console.anthropic.com
+platform.claude.com
 statsig.anthropic.com
