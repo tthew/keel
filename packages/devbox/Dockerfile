@@ -86,6 +86,7 @@ RUN apt-get update \
       libpango-1.0-0 \
       libcairo2 \
       libasound2t64 \
+      gosu \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
 
@@ -264,25 +265,69 @@ RUN mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh \
 # consistency with entrypoint.sh's `#!/usr/bin/env bash` shebang. Do NOT raise
 # UID — host-UID alignment minimises bind-mount chown friction under dropped
 # CAP_CHOWN (SC-5 known-limitation).
+#
+# Ubuntu 23.04+ base images ship a default `ubuntu` user at UID/GID 1000;
+# userdel + groupdel before our own groupadd/useradd reclaims the slot
+# cleanly and drops the default account's supplementary groups (sudo, adm,
+# cdrom, ...) that would otherwise contradict the Story 2.5 hardening
+# posture (SC-13: `dev` must not be in sudo).
 # ---------------------------------------------------------------------------
-RUN groupadd --gid 1000 dev \
+RUN userdel -r ubuntu 2>/dev/null || true \
+ && groupdel ubuntu 2>/dev/null || true \
+ && groupadd --gid 1000 dev \
  && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev \
  && chown -R dev:dev /home/dev
 
 # ---------------------------------------------------------------------------
-# Story 2.5 CR AI-2 — dnsmasq log-facility writable under USER dev.
+# dnsmasq log-facility pre-create.
 #
 # dnsmasq.conf's `log-facility=/var/log/dnsmasq.log` opens that file for
-# append at startup. Under `USER dev` (below) dnsmasq runs as UID 1000 and
-# `cap_drop: [ALL]` strips CAP_DAC_OVERRIDE, so it cannot create/append
-# files under the root-owned /var/log tree — dnsmasq would fatal-exit at
-# boot, reload-egress.sh would return 7, start-egress.sh would fail-close
-# and the container would never come up. Pre-create the file as dev-owned
-# so the open-for-append succeeds without chown'ing /var/log globally
-# (preserves dpkg/apt log ownership). egress-log-tailer.sh (Story 2.3)
-# tails this exact path — no tailer/script edits required.
+# append at startup. dnsmasq runs as root in the current "init-as-root,
+# CMD-as-dev" posture (entrypoint.sh + docker-compose.yml `user: "0:0"`),
+# so the file is pre-created root-owned mode 0644 — root can write its own
+# files without needing CAP_DAC_OVERRIDE (which is dropped by cap_drop:
+# [ALL]). egress-log-tailer.sh (Story 2.3) tails this path read-only; the
+# tailer runs as root for now and falls through to dev after the gosu drop
+# in entrypoint.sh — file mode 0644 lets dev read.
+#
+# Pre-creating the file is still load-bearing: even though root owns
+# /var/log and could create the file at first append, having the file
+# present at image-build time means egress-log-tailer.sh can `tail -F` it
+# from t=0 without a `--retry` race window.
+#
+# Historical note: Story 2.5 CR AI-2 (iter-129) pre-created this file as
+# dev-owned to support the "dnsmasq runs as USER dev" design that Story
+# 2.5 intended. Iter-238 reverted dnsmasq to root because Docker's
+# ambient-cap propagation does NOT cross USER directives under
+# no-new-privileges=1 (empirically verified — see entrypoint.sh + compose
+# header notes), so the dev-owned pre-create became wrong-owner.
 # ---------------------------------------------------------------------------
-RUN install -m 0644 -o dev -g dev /dev/null /var/log/dnsmasq.log
+RUN install -m 0644 -o root -g root /dev/null /var/log/dnsmasq.log
+
+# ---------------------------------------------------------------------------
+# /run writable by dev under USER dev + cap_drop: [ALL] (Story 2.3 deferred
+# AR-7 remediation, branch (a)).
+#
+# Story 2.3's start-egress.sh writes /run/keel-whitelist.composed.txt,
+# /run/keel-egress-tailer.pid, /run/dnsmasq.pid; whitelist.sh writes
+# /run/keel-whitelist-*. Under Story 2.5's USER dev + cap_drop: [ALL]
+# (CAP_DAC_OVERRIDE stripped), dev cannot write the root-owned /run unless
+# we relax the mode here.
+#
+# Sticky-bit world-writable (1777, same posture as /tmp) preserves the
+# existing /run/dbus + /run/dnsmasq subdirectory ownership while allowing
+# dev to create files at /run/ level. The sticky bit prevents dev from
+# deleting files owned by other UIDs (defence-in-depth — moot in the
+# single-user container, but harmless and matches the Linux convention
+# for shared-write directories).
+#
+# Empirical check: `mount | grep /run` inside the running container
+# returns no entry, confirming Docker does NOT auto-mount /run as tmpfs
+# (verified iter-238, Docker 29.2 + linux/arm64 base). The image-layer
+# chmod therefore survives container start, sidestepping the
+# "tmpfs-ownership-empirics uncertainty" the deferred AR-7 note flagged.
+# ---------------------------------------------------------------------------
+RUN chmod 1777 /run
 
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

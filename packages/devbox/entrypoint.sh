@@ -124,17 +124,26 @@ fi
 # preserves PID 1 for the supplied process so docker-compose signals
 # (SIGTERM / SIGINT) land on the service, not on bash.
 #
-# CR AI-5 (iter-133): empty-CMD fallback. `docker run keel-devbox:local`
-# without a CMD (operator probing the image) AND a compose service that
-# somehow reaches the entrypoint without a command would previously hit
-# `exec "$@"` with zero arguments — bash interprets `exec` with no command
-# as a no-op that returns to the caller, and because this is the last line
-# of the script `set -e` would let the container exit cleanly but with no
-# keepalive. Guard the empty case so the container stays alive for
-# iteration work. The compose file's CMD (`sleep infinity`) is the primary
-# path; this fallback is defence against direct `docker run` probing.
+# The entrypoint runs as root per docker-compose.yml `user: "0:0"` override
+# so that Story 2.3's privileged init (nftables rule load via nft, dnsmasq
+# launch on :53, /etc/resolv.conf pin, /run writes) executes with the
+# cap_add bounding set in the effective capability set. The operator-facing
+# CMD must run as the non-privileged `dev` user to honour Story 2.5 SC-1.
+# gosu (installed in the Dockerfile apt layer) invokes setuid()/setgid()
+# syscalls directly — NOT via a setuid binary — so no-new-privileges=1 does
+# NOT mask the transition. CAP_SETUID + CAP_SETGID in cap_add are what
+# actually authorise the syscalls under cap_drop: [ALL].
+#
+# Docker ≥19.03 ambient-cap propagation was the original Story 2.5 plan
+# (USER dev at image level + Docker auto-propagates cap_add to ambient set).
+# Empirically this does NOT work under no-new-privileges=1 on Docker 29.2 +
+# linux/arm64: CapAmb=0x0 for dev, so dev's nft + dnsmasq invocations fail
+# EPERM. The "init-as-root, run-as-dev" pattern here is the corrective.
+#
+# CR AI-5 (iter-133) empty-CMD fallback preserved: direct `docker run
+# keel-devbox:local` with no CMD must still drop to dev and stay alive.
 if [ "$#" -eq 0 ]; then
-  exec sleep infinity
+  exec gosu dev sleep infinity
 else
-  exec "$@"
+  exec gosu dev "$@"
 fi

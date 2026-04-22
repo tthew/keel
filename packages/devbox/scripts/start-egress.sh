@@ -40,25 +40,39 @@ mkdir -p /run
 mkdir -p /var/log
 
 # --- Step 2: pin /etc/resolv.conf to 127.0.0.1 only (SC-13) ---------------
-# Overwrite /etc/resolv.conf in place. Docker bind-mounts /etc/resolv.conf by
-# default, so `mv tempfile /etc/resolv.conf` (rename(2)) fails "Device or
-# resource busy" — rename cannot replace a bind-mount target. A direct
-# truncate-and-write via `>` updates the existing inode, which works
-# uniformly for regular files, symlinks, and bind-mounted files. The ~60-byte
-# payload is far under PIPE_BUF, so the single write(2) is kernel-atomic — no
-# half-written-resolver race window.
-if ! resolv_err=$( { printf 'nameserver 127.0.0.1\noptions edns0 single-request-reopen\n' > /etc/resolv.conf; } 2>&1 ); then
+# Two-tier posture: prefer Docker's compose-time `dns: [127.0.0.1]` injection
+# (docker-compose.yml § services.devbox.dns) so /etc/resolv.conf already says
+# `nameserver 127.0.0.1` BEFORE the entrypoint runs. This sidesteps the EACCES
+# collision under Story 2.5's USER dev + `cap_drop: [ALL]` (CAP_DAC_OVERRIDE
+# stripped → non-root cannot write root-owned bind-mounts). When the daemon
+# already wrote the canonical line, the in-script write becomes a no-op and we
+# continue. When it has NOT (operator overrode `dns:`, fork-time
+# hardened posture, or running under `docker run` without compose), attempt the
+# write — succeeds under root postures, surfaces FATAL with actionable
+# diagnostics under hardened postures.
+#
+# `options edns0 single-request-reopen` is the legacy second line that the
+# pre-compose-dns posture wrote alongside `nameserver 127.0.0.1`; we preserve
+# the verify-only path because Docker's `dns:` injection writes only the
+# nameserver line. Operators retuning to a non-loopback resolver lose the
+# `options` tweaks until they restore the in-script write path.
+canonical_resolver='nameserver 127.0.0.1'
+current_resolver="$(awk '/^nameserver[[:space:]]/ {print; exit}' /etc/resolv.conf 2>/dev/null || true)"
+if [[ "${current_resolver}" == "${canonical_resolver}" ]]; then
+	log "/etc/resolv.conf already pinned to 127.0.0.1 (compose dns: injection)"
+elif resolv_err=$( { printf 'nameserver 127.0.0.1\noptions edns0 single-request-reopen\n' > /etc/resolv.conf; } 2>&1 ); then
+	chmod 0644 /etc/resolv.conf 2>/dev/null || true
+	log "pinned /etc/resolv.conf to 127.0.0.1"
+else
 	# Distinguish chattr +i (operator-set) from other write failures so the
 	# operator gets an actionable remediation, not a generic errno.
 	if lsattr /etc/resolv.conf 2>/dev/null | head -n1 | awk '{print $1}' | grep -q 'i'; then
 		log "FATAL: /etc/resolv.conf has immutable attribute set (chattr +i); clear with 'chattr -i /etc/resolv.conf' before container restart"
 	else
-		log "FATAL: cannot write /etc/resolv.conf — ${resolv_err:-unknown error}"
+		log "FATAL: cannot write /etc/resolv.conf — ${resolv_err:-unknown error}; ensure docker-compose.yml has 'dns: [127.0.0.1]' so the daemon pre-pins the resolver before the hardened entrypoint runs"
 	fi
 	exit 1
 fi
-chmod 0644 /etc/resolv.conf
-log "pinned /etc/resolv.conf to 127.0.0.1"
 
 # --- Step 3: compose the baseline whitelist (SC-8) ------------------------
 # Concatenate default + every *.txt fragment in deterministic sorted order.
@@ -147,9 +161,14 @@ log "egress-log-tailer.sh launched (pid=${tailer_pid})"
 # crashed mid-init or wedged before dropping privileges would escape. Two
 # gates, both MUST pass within 5s:
 #
-#   (a) Pidfile non-empty AND pid is alive (`kill -0`). Verifies dnsmasq
-#       started cleanly enough to write its pidfile; pgrep-x caught process
-#       presence but not pidfile integrity.
+#   (a) Pidfile non-empty AND pid is alive (`[ -d /proc/<pid> ]`). Verifies
+#       dnsmasq started cleanly enough to write its pidfile; pgrep-x caught
+#       process presence but not pidfile integrity. The historical `kill -0`
+#       form was replaced because dnsmasq drops to user `nobody` after
+#       binding :53, and the probe runs as root under cap_drop: [ALL] which
+#       strips CAP_KILL — `kill -0 <nobody-pid>` returns EPERM and the probe
+#       false-negatives. `/proc/<pid>` directory existence is UID-agnostic
+#       and does not require any capability.
 #   (b) 127.0.0.1:53 accepts TCP connects. Confirms dnsmasq bound its
 #       listening socket per dnsmasq.conf's `listen-address=127.0.0.1,::1`
 #       + `bind-interfaces` + `port=53` directives — this is the SC-13
@@ -167,7 +186,7 @@ for attempt in 1 2 3 4 5; do
 		dnsmasq_probe_pid="$(cat "${DNSMASQ_PID_FILE}" 2>/dev/null || true)"
 	fi
 	if [[ -n "${dnsmasq_probe_pid}" ]] \
-		&& kill -0 "${dnsmasq_probe_pid}" 2>/dev/null \
+		&& [[ -d "/proc/${dnsmasq_probe_pid}" ]] \
 		&& timeout 1 bash -c '</dev/tcp/127.0.0.1/53' 2>/dev/null; then
 		dnsmasq_up=1
 		break

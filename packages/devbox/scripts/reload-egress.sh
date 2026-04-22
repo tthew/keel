@@ -109,25 +109,12 @@ if ! flock -x -w 10 200; then
 fi
 
 cleanup_files=()
-resolver_bootstrap_active=0
-
-restore_resolv_pin() {
-	# SC-13 pin: /etc/resolv.conf MUST be `nameserver 127.0.0.1` + edns0 option
-	# after every reload-egress.sh exit. Only rewrite when we mutated it — keep
-	# a no-op path so non-bootstrap reloads don't touch the file.
-	if [[ "${resolver_bootstrap_active}" -eq 1 ]]; then
-		printf 'nameserver 127.0.0.1\noptions edns0 single-request-reopen\n' > /etc/resolv.conf 2>/dev/null \
-			|| log "WARN: failed to restore /etc/resolv.conf pin to 127.0.0.1 (SC-13)"
-		chmod 0644 /etc/resolv.conf 2>/dev/null || true
-	fi
-}
 
 cleanup() {
 	local f
 	for f in "${cleanup_files[@]:-}"; do
 		[[ -n "${f}" && -e "${f}" ]] && rm -f "${f}" || true
 	done
-	restore_resolv_pin
 }
 trap cleanup EXIT
 
@@ -136,15 +123,25 @@ mapfile -t domains < <(awk 'NF { print }' "${whitelist_path}")
 domain_count="${#domains[@]}"
 log "composing rules for ${domain_count} domain(s); upstream=${UPSTREAM_RESOLVER}"
 
-# --- First-boot resolver bootstrap detour ---------------------------------
-# /etc/resolv.conf is pinned to 127.0.0.1 by start-egress.sh BEFORE the first
-# reload, but dnsmasq doesn't exist yet on that first call — routing getent
-# through 127.0.0.1:53 would hit no responder and every domain would be
-# marked "resolution failed" (fail-closed default → nothing in the allow-list).
-# Detect dnsmasq-not-running via pidfile + liveness probe and temporarily
-# repoint resolv.conf at ${UPSTREAM_RESOLVER} for the resolution phase only.
-# restore_resolv_pin() (registered in cleanup EXIT trap above) re-pins to
-# 127.0.0.1 on every exit path — including errors — so SC-13 holds.
+# --- Bootstrap detection + resolver selection -----------------------------
+# Historical posture (pre-hardening): temporarily rewrite /etc/resolv.conf to
+# route getent via ${UPSTREAM_RESOLVER} when dnsmasq isn't up yet, then trap-
+# restore the 127.0.0.1 pin on exit. Under Story 2.5's USER dev +
+# cap_drop: [ALL] (CAP_DAC_OVERRIDE stripped), dev cannot write the root-
+# owned /etc/resolv.conf bind-mount → the detour failed EACCES and every
+# domain was marked "resolution failed" (fail-closed default → nothing in
+# the allow-list → container was unreachable).
+#
+# Hardened posture: bypass /etc/resolv.conf entirely for bootstrap. `dig
+# @${UPSTREAM_RESOLVER} +short A/AAAA` accepts an explicit server and does
+# NOT read resolv.conf, so it resolves successfully under USER dev without
+# needing to mutate root-owned files. Once dnsmasq is running (subsequent
+# reloads), fall back to getent which goes through /etc/resolv.conf →
+# 127.0.0.1 → dnsmasq → upstream (SC-13 pin remains intact because Docker's
+# compose-time `dns: [127.0.0.1]` injection is now the load-bearing mechanism
+# instead of the in-script write). `dnsutils` (the bind9-dnsutils package
+# shipping dig) is already installed in the base Dockerfile apt list, so no
+# additional tooling required.
 dnsmasq_running=0
 if [[ -s "${DNSMASQ_PID_FILE}" ]]; then
 	dnsmasq_pid_probe="$(cat "${DNSMASQ_PID_FILE}" 2>/dev/null || true)"
@@ -153,34 +150,38 @@ if [[ -s "${DNSMASQ_PID_FILE}" ]]; then
 	fi
 fi
 
-if [[ "${dnsmasq_running}" -eq 0 ]]; then
-	resolver_bootstrap_active=1
-	printf 'nameserver %s\noptions edns0 single-request-reopen\n' "${UPSTREAM_RESOLVER}" > /etc/resolv.conf
-	chmod 0644 /etc/resolv.conf 2>/dev/null || true
-	log "bootstrap: dnsmasq not running — resolv.conf temporarily routed via upstream ${UPSTREAM_RESOLVER} (trap re-pins to 127.0.0.1 on exit)"
-fi
+# Resolver wrappers. When dnsmasq is up → getent (SC-13 resolv.conf pin
+# applies). When dnsmasq is down (first-boot) → dig with explicit upstream
+# (bypasses resolv.conf).
+resolve_ipv4() {
+	local d="$1"
+	if [[ "${dnsmasq_running}" -eq 1 ]]; then
+		getent ahostsv4 "${d}" 2>/dev/null | awk '{print $1}'
+	else
+		dig +short +tries=2 +time=3 "@${UPSTREAM_RESOLVER}" A "${d}" 2>/dev/null \
+			| awk '/^[0-9.]+$/ {print}'
+	fi
+}
+resolve_ipv6() {
+	local d="$1"
+	if [[ "${dnsmasq_running}" -eq 1 ]]; then
+		getent ahostsv6 "${d}" 2>/dev/null | awk '{print $1}'
+	else
+		dig +short +tries=2 +time=3 "@${UPSTREAM_RESOLVER}" AAAA "${d}" 2>/dev/null \
+			| awk '/^[0-9a-fA-F:]+$/ {print}'
+	fi
+}
 
 # --- Resolve domains → IPv4/IPv6 allow-rules ------------------------------
-# One getent call per family per domain. `getent ahostsv4 <domain>` prints
-# "<ip>    STREAM <domain>" lines (multiple on round-robin); `awk '{print $1}'
-# | sort -u` collapses to unique IPv4s. Same for `ahostsv6`. Skip domains
-# whose resolution fails (log but continue — fail-closed default still blocks
-# traffic because no accept rule is emitted).
-#
-# Capture `getent` exit status BEFORE piping to awk|sort. A single pipeline
-# `getent | awk | sort` is brittle here: awk and sort always succeed on the
-# empty stdout that a resolution failure produces, so without a separate
-# `if getent …; then …` check the WARN branch only fires when pipefail is
-# honoured across command substitution — and even then the failure signal
-# (DNS unresolvable vs. malformed output vs. awk/sort fault) is indistinguishable.
-# Splitting the call makes "real DNS failure → WARN branch" unconditional and
-# narrows the pipefail surface to the downstream cleanup where it belongs.
+# Uses resolve_ipv4 / resolve_ipv6 wrappers above. Failure = empty stdout →
+# no accept rule emitted → fail-closed default blocks traffic.
 nft_ipv4_rules=""
 nft_ipv6_rules=""
 
 for domain in "${domains[@]}"; do
-	if ipv4_raw="$(getent ahostsv4 "${domain}" 2>/dev/null)"; then
-		ipv4s="$(printf '%s' "${ipv4_raw}" | awk '{print $1}' | LC_ALL=C sort -u)"
+	ipv4_raw="$(resolve_ipv4 "${domain}")"
+	if [[ -n "${ipv4_raw}" ]]; then
+		ipv4s="$(printf '%s' "${ipv4_raw}" | LC_ALL=C sort -u)"
 		while IFS= read -r ip; do
 			[[ -z "${ip}" ]] && continue
 			nft_ipv4_rules+="		ip daddr ${ip} accept"$'\n'
@@ -188,8 +189,9 @@ for domain in "${domains[@]}"; do
 	else
 		log "WARN: ipv4 resolution failed for ${domain}; no accept rule emitted (fail-closed default applies)"
 	fi
-	if ipv6_raw="$(getent ahostsv6 "${domain}" 2>/dev/null)"; then
-		ipv6s="$(printf '%s' "${ipv6_raw}" | awk '{print $1}' | LC_ALL=C sort -u)"
+	ipv6_raw="$(resolve_ipv6 "${domain}")"
+	if [[ -n "${ipv6_raw}" ]]; then
+		ipv6s="$(printf '%s' "${ipv6_raw}" | LC_ALL=C sort -u)"
 		while IFS= read -r ip6; do
 			[[ -z "${ip6}" ]] && continue
 			nft_ipv6_rules+="		ip6 daddr ${ip6} accept"$'\n'
@@ -198,6 +200,20 @@ for domain in "${domains[@]}"; do
 		log "WARN: ipv6 resolution failed for ${domain}; no accept rule emitted (fail-closed default applies)"
 	fi
 done
+
+# --- Whitelist the upstream resolver IP itself ----------------------------
+# dnsmasq forwards every whitelisted-domain query to ${UPSTREAM_RESOLVER}:53,
+# but dnsmasq's outbound packet to the resolver is matched against the same
+# `output_v4` / `output_v6` chain — so without an explicit accept for the
+# resolver IP, the whole DNS path breaks and the script's per-domain
+# resolution loop above is moot (every getent / dig query downstream of the
+# first reload returns NXDOMAIN). Detect IPv4 vs IPv6 by shape (presence of
+# `:`) and inject the rule into the correct chain.
+if [[ "${UPSTREAM_RESOLVER}" == *:* ]]; then
+	nft_ipv6_rules+="		ip6 daddr ${UPSTREAM_RESOLVER} accept"$'\n'
+else
+	nft_ipv4_rules+="		ip daddr ${UPSTREAM_RESOLVER} accept"$'\n'
+fi
 
 ipv4_rule_count="$(printf '%s' "${nft_ipv4_rules}" | grep -c '^' || true)"
 ipv6_rule_count="$(printf '%s' "${nft_ipv6_rules}" | grep -c '^' || true)"

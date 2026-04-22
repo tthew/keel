@@ -137,19 +137,72 @@ services:
       - NET_ADMIN
       - NET_RAW
       - NET_BIND_SERVICE
+      # gosu's drop-from-root-to-dev at the end of entrypoint.sh requires
+      # setuid(2)/setgid(2) syscalls, which under cap_drop: [ALL] are gated on
+      # CAP_SETUID / CAP_SETGID even for root-owned processes (capabilities(7)
+      # bounding-set semantics). Re-adding these two caps is load-bearing for
+      # the "privileged root init → drop to dev for CMD" posture documented in
+      # entrypoint.sh + Dockerfile. gosu itself (NOT a setuid binary) invokes
+      # these syscalls directly as root before exec(), so no-new-privileges
+      # does NOT mask the drop.
+      - SETUID
+      - SETGID
+    # `user: "0:0"` overrides the image USER directive for the container's
+    # main process (entrypoint), so privileged init (nftables rule load,
+    # dnsmasq launch on :53, /etc/resolv.conf pin, /run chown) runs with the
+    # cap_add bounding set in the effective capability set. entrypoint.sh
+    # ends with `exec gosu dev "$@"` to drop to dev for the operator-facing
+    # process. docker-exec commands against the running container continue
+    # to default to the image USER (dev), so shell sessions land non-root.
+    # This is the canonical "init-as-root, run-as-non-root" Docker pattern,
+    # necessary here because Docker's auto-ambient-cap propagation does NOT
+    # cross the image-USER boundary under no-new-privileges=1 (empirically
+    # verified iter-238: CapAmb=0x0 under USER dev + NNP, regardless of
+    # cap_add setting). Story 2.5's original design assumed the propagation
+    # worked, but under Docker 29.2 + linux/arm64 it does not.
+    user: '0:0'
     security_opt:
       - no-new-privileges:true
-    # Story 2.5 tmpfs posture (AC 3, SC-8). Long-syntax form parameterised
-    # via .envrc knobs published by Story 2.2 (.envrc.example:29-30). Compose
-    # translates `exec=false` → kernel `noexec` + `suid=false` → `nosuid`;
-    # size uses MB suffix. `/var/log` is intentionally NOT tmpfs-mounted at
-    # 1.0 (dnsmasq + nftables log files live under /workspace/logs/ per
-    # Story 2.3 SC-17; keeping /var/log as normal image layer avoids
-    # invalidating dnsmasq-packaged log-dir init). The KEEL_DEVBOX_TMPFS_LOGS_MB
-    # knob published by Story 2.2 remains inert at Story 2.5.
+    # Pin /etc/resolv.conf to the in-container dnsmasq (127.0.0.1) at container
+    # create time so start-egress.sh does NOT need to overwrite it at boot.
+    # Under Story 2.5's USER dev + cap_drop: [ALL] (CAP_DAC_OVERRIDE stripped),
+    # dev cannot write the root-owned /etc/resolv.conf bind-mount; Docker's
+    # `dns:` directive populates the file BEFORE the entrypoint runs, sidestepping
+    # the EACCES collision between Story 2.3's write-then-pin posture and Story
+    # 2.5's hardened bounding set. Companion: start-egress.sh "verify-not-write"
+    # branch (still attempts the write for fork-time hardened postures that
+    # disable Docker's resolv.conf injection, but accepts the no-op when the
+    # daemon already wrote the canonical 127.0.0.1 line).
+    #
+    # `network_mode: bridge` is REQUIRED to make Docker honor the literal `dns:`
+    # value: under compose's default user-defined network, Docker injects its
+    # embedded DNS resolver (127.0.0.11) into resolv.conf and downgrades `dns:`
+    # to an upstream-forwarder hint, which leaves the EACCES collision in place.
+    # The default bridge has no embedded DNS, so `dns: [127.0.0.1]` becomes the
+    # literal `nameserver 127.0.0.1` line. We're a single-service compose so the
+    # loss of inter-container service-name DNS is moot. Story 2.11
+    # shared-workspace mode + Story 2.13 healthcheck dnsmasq → still single-
+    # service; if a future story adds a sidecar service, revisit this block.
+    network_mode: bridge
+    dns:
+      - 127.0.0.1
+    # Story 2.5 tmpfs posture (AC 3, SC-8). Parameterised via .envrc knobs
+    # published by Story 2.2 (.envrc.example:29-30); size uses MB suffix.
+    # Options are canonical kernel tmpfs mount flags (`mount(8)`): `noexec`
+    # masks MNT_NOEXEC so setuid/exec-bit scripts can't run, `nosuid` masks
+    # MNT_NOSUID so setuid binaries can't elevate. The older `exec=false,
+    # suid=false` Compose-style form was inconsistently handled by the
+    # daemon (Docker 29 rejects `suid=false` as "invalid tmpfs option"
+    # while accepting `exec=false`); using the kernel-native flag names
+    # avoids the asymmetry. `/var/log` is intentionally NOT tmpfs-mounted
+    # at 1.0 (dnsmasq + nftables log files live under /workspace/logs/
+    # per Story 2.3 SC-17; keeping /var/log as normal image layer avoids
+    # invalidating dnsmasq-packaged log-dir init). The
+    # KEEL_DEVBOX_TMPFS_LOGS_MB knob published by Story 2.2 remains inert
+    # at Story 2.5.
     tmpfs:
-      - /tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
-      - /var/tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
+      - /tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
+      - /var/tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
     # TODO(Story 2.11): shared-workspace mode flip via KEEL_DEVBOX_SHARED=true.
     # TODO(Story 2.12): opt-in sshd + port 2222 publication via KEEL_DEVBOX_SSH=true.
     # TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.
