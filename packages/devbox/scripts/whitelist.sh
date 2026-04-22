@@ -387,7 +387,15 @@ cmd_remove() {
 	trap "rm -f '${tempfile}'" EXIT
 
 	# `grep -Fxv` exits 1 if every line matched (file becomes empty); accept that.
-	grep -Fxv -- "${domain}" "${WHITELIST_LOCAL}" > "${tempfile}" || true
+	# rc≥2 means real I/O error (e.g. unreadable target) — fail-loud exit 3 per SC-11,
+	# not silent truncation. Matches the exit-3 posture of check_readable at lines 128-151.
+	local rc=0
+	grep -Fxv -- "${domain}" "${WHITELIST_LOCAL}" > "${tempfile}" || rc=$?
+	if (( rc > 1 )); then
+		log "ERROR: grep -Fxv failed reading ${WHITELIST_LOCAL} (rc=${rc})"
+		exec 201>&-
+		exit 3
+	fi
 	mv "${tempfile}" "${WHITELIST_LOCAL}"
 	chmod 0644 "${WHITELIST_LOCAL}"
 	trap - EXIT
