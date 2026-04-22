@@ -104,8 +104,19 @@ while IFS= read -r line; do
 	stripped="${line#"${line%%[![:space:]]*}"}"
 	# Skip blank + comments.
 	[[ -z "${stripped}" || "${stripped}" =~ ^# ]] && continue
-	# Strip leading `export`.
-	stripped="${stripped#export }"
+	# AI-13 iter-218 CR: strip leading `export` keyword + ANY following
+	# whitespace (tab, space, multi-space). The prior `${stripped#export }`
+	# single-literal-space strip missed tab-separated (`export<TAB>FOO=1`,
+	# editor tab-completion) and multi-space (`export  FOO=1`, prettier /
+	# tidy-formatter) variants; the subsequent `^KEEL_DEVBOX_[A-Z0-9_]+=`
+	# prefix-match regex then failed and the variable was silently skipped
+	# — reported as `missing` despite being present and well-formed.
+	# Guarded by `=~ ^export[[:space:]]` so bare (non-export-prefixed)
+	# lines are left untouched.
+	if [[ "${stripped}" =~ ^export[[:space:]] ]]; then
+		stripped="${stripped#export}"
+		stripped="${stripped#"${stripped%%[![:space:]]*}"}"
+	fi
 	# Require KEEL_DEVBOX_ prefix.
 	[[ "${stripped}" =~ ^KEEL_DEVBOX_[A-Z0-9_]+= ]] || continue
 	name="${stripped%%=*}"
