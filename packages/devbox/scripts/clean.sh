@@ -76,14 +76,34 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 # Backend detection (mirrors benchmark.sh § detect_backend per
-# devbox-dind.md:47).
+# devbox-dind.md:47). Fail-safe posture: when we cannot reliably prove
+# backend A, default B so destructive --with-volumes gates on explicit
+# --force-backend-b. The /.dockerenv → B arm IS over-inclusive for true
+# DinD (backend A) containers — that's intentional; true-DinD operators
+# accept one extra flag rather than let a Docker-Desktop-host operator
+# lose unrelated volumes on a silent probe failure. See AI-4 (Story 2.6
+# CR iter-204) + docs/invariants/devbox-dind.md § Safety rule.
 detect_backend() {
 	local daemon_name
 	daemon_name="$(docker info --format '{{.Name}}' 2>/dev/null || true)"
+	# Empty probe output → the `--format` call failed transiently between
+	# the `docker info` reachability check above (line 73) and here.
+	# Pre-AI-4 the case-statement fell through, `/.dockerenv` was absent
+	# on a native host, and we defaulted to A — the LESS-protective branch
+	# on a backend-B box. Fail-safe to B instead.
+	if [[ -z "${daemon_name}" ]]; then echo B; return; fi
+	# Well-known host-level identifiers → backend B.
 	case "${daemon_name}" in
 		docker-desktop|*-docker-desktop|moby|linuxkit-*) echo B; return ;;
 	esac
+	# Inside a container (/.dockerenv present): we cannot reliably
+	# distinguish an isolated nested dockerd (true backend A) from a
+	# host-socket passthrough (backend B) by this signal alone. Fail-safe
+	# to B; true-DinD operators override with --force-backend-b (same
+	# posture as benchmark.sh's --allow-broad-prune).
 	if [[ -f /.dockerenv ]]; then echo B; return; fi
+	# Native host, daemon_name set to non-well-known identifier (pure
+	# dockerd, lima, nerdctl, etc.) — backend A.
 	echo A
 }
 BACKEND="$(detect_backend)"
