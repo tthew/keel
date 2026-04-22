@@ -102,7 +102,14 @@ fi
 
 if [[ ${AUTO_YES} -eq 0 ]]; then
 	printf 'clean: this will DESTROY the keel_home_dev named volume (Claude Code + gh tokens LOST). Continue? [y/N] ' >&2
-	read -r answer
+	# Under `set -euo pipefail`, a bare `read -r answer` with closed stdin
+	# (non-TTY CI, EOF here-doc) returns non-zero → errexit aborts BEFORE the
+	# `case` arm below can print the friendly "aborted — no-op" message. Handle
+	# EOF explicitly so the abort path is reachable and exit 0 is preserved.
+	if ! IFS= read -r answer; then
+		log "no input — aborting (stdin closed / non-interactive); use --yes to auto-confirm"
+		exit 0
+	fi
 	case "${answer}" in
 		y|Y|yes|YES) ;;
 		*) log "aborted — no-op"; exit 0 ;;
