@@ -239,7 +239,7 @@ cmd_sync() {
 
 	# Atomic swap onto canonical composed-whitelist path (SC-9 same-fs rename).
 	mv "${tempfile}" "${COMPOSED_WHITELIST}"
-	chmod 0644 "${COMPOSED_WHITELIST}" 2>/dev/null || true
+	chmod 0644 "${COMPOSED_WHITELIST}"
 	# Tempfile consumed; clear the trap.
 	trap - EXIT
 
@@ -255,7 +255,7 @@ cmd_sync() {
 
 	# Snapshot for the next diff (SC-18).
 	cp -f "${COMPOSED_WHITELIST}" "${PREVIOUS_COMPOSED}"
-	chmod 0644 "${PREVIOUS_COMPOSED}" 2>/dev/null || true
+	chmod 0644 "${PREVIOUS_COMPOSED}"
 
 	# SC-7 stdout summary.
 	local domain_count
