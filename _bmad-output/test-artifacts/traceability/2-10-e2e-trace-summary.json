@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-23T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.10",
+    "label": "Prerequisite check (Docker runtime + Claude auth + gh auth) with pointer errors"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 5, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 5,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 5 P2 ACs; Epic-2-ships-envelope-composes-upstream-external-services class story (TENTH Epic 2 delivery; FIRST instance of the multi-external-service-composition class — composes on Docker Desktop + Stories 2.8 Anthropic OAuth + Story 2.9 GitHub OAuth + Story 2.5 Docker named-volume + Epic 3 Story 3.7 halt-write consumer — five external-service / substrate dependencies orchestrated by one shared primitive); TWENTIETH cumulative trace-WAIVED precedent; TWENTY-FIRST ATDD-skip-trace-WAIVED co-application pairing. Ground-(c) variant `external-service-owns-behavior-under-test` applied with multi-service composition (AC 1 Docker Desktop install + Docker Engine daemon-reachability; AC 2 Anthropic OAuth via Story 2.8 + Story 2.5 named-volume persistence; AC 3 GitHub OAuth via Story 2.9 + Story 2.5 named-volume persistence; AC 4 all-satisfied happy path composes all three; AC 5 composite fresh-fork + no-bypass posture).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.10 authors 2 NEW files (prereq-check.sh shared primitive + devbox-prereq-check.md authoritative doc) + 21 modified files per SC-11 17-shim-wire-in contract (15 block-swap + 2 prepend-only) + SC-17 read-only-on-prior-story-sections scope boundary. 30th manifest entry (`INV-devbox-prereq-check`) lands with sync-gate GREEN (contentHash `eb5b9db25e0afc77c4caf38c8bf60b37921a76df2ea030c91f66e848b0d8fe40`). Collateral `INV-prek-prepare-lifecycle` contentHash bumped (`d89072918e… → dc5ed31b8a…`) tracking the root `package.json` edit — whole-file content hash binds per Story 1.9 semantic; this discipline is the novel discovery of iter-248 and forecast-applicable to Stories 2.11..2.17 + Epic 3+ stories that add pnpm verbs.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork first-run verification unlocks at M4-Pro operator workstation backend-A: AC 1 Docker-missing install-URL requires live Docker Desktop absent state + host browser to reach install page; AC 2 Claude-missing pointer requires live Anthropic OAuth + `keel_home_dev` empty state (pre-`pnpm claude`); AC 3 gh-missing pointer requires live GitHub OAuth + `keel_home_dev` empty state (pre-`pnpm gh:auth`); AC 4 all-satisfied silent pass requires both tokens + Ralph TUI attach (Epic 3 scope for full TUI semantics; currently reduces to docker attach PID 1 sleep under Story 2.1 substrate); AC 5 composite fresh-fork walkthrough requires full fresh-machine state + sequential operator fix loop (install Docker → `pnpm devbox:start` → `pnpm claude` → `pnpm gh:auth` → `pnpm ralph:build`). No Story 2.10 code change required at any live-flow verification point — prereq-check.sh is stateless; Docker Desktop + upstream Claude Code CLI + upstream gh CLI + Stories 2.5/2.8/2.9 substrate + Epic 3 Story 3.7 consumer own all five behaviors. Iteration-env-safe smokes ALL 9 PASSED at iter-248 using workspace-based `.ralph-smoke/shim/` stub-docker harness per iter-223/230/237 LESSON (NOT `/tmp/` tmpfs noexec).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

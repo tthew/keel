@@ -1,0 +1,242 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-23T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.10",
+    "label": "Prerequisite check (Docker runtime + Claude auth + gh auth) with pointer errors"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "Docker-missing fails with install-pointer — `pnpm ralph:build` or any `pnpm devbox:*` command with Docker daemon unreachable fails with stderr pointer to `https://docs.docker.com/desktop/install/` (verbatim) and exits non-zero before starting/exec'ing into the devbox",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW ~120 LOC; 0755; shared primitive not `<verb>-host.sh` per SC-1): `#!/usr/bin/env bash` + `set -euo pipefail` + `unset COMPOSE_PROJECT_NAME` (SC-8 defensive-posture precedent inherited from Stories 2.6 AI-8/AI-12 + 2.7/2.8/2.9). `VOLUME_NAME=\"${KEEL_DEVBOX_COMPOSE_PROJECT:-keel-devbox}_keel_home_dev\"` (Story 2.2 envrc parameterisation consumed; SC-10). `PROBE_IMAGE=\"alpine:3.19\"` (SC-7 pin; manually Renovate-tracked at 1.0 per Story 1.15 default-docker-manager scope). `log()` stderr emitter. Arg parsing accepts `--tier1` / `--tier2` / default (tier2) / unknown (exit 2).",
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Tier 1 check — `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { log 'docker unreachable — is the daemon running?'; log 'install Docker Desktop: https://docs.docker.com/desktop/install/'; exit 8; }`. The URL `https://docs.docker.com/desktop/install/` appears verbatim per AC 1 requirement; tighter-variant `--format '{{.ServerVersion}}'` inherited from Stories 2.7/2.8/2.9 (catches reachable-but-broken-daemon states).",
+        "packages/devbox/scripts/ralph-build-host.sh + ralph-plan-host.sh (iter-248 Task 3 block-swap): each shim's former inline `docker info` block replaced by `\"${SCRIPT_DIR}/prereq-check.sh\" --tier2` — Tier 2 internally runs Tier 1 first, so AC 1 Docker-missing posture propagates exit 8 through ralph-*-host.sh unchanged.",
+        "packages/devbox/scripts/{build,rebuild,start,stop,clean,shell,attach,status,logs,monitor-host,whitelist-host,claude-host,gh-auth-host}.sh (iter-248 Task 4 block-swap — 13 shims): each shim's former inline `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { log ...; exit 8; }` block replaced by `\"${SCRIPT_DIR}/prereq-check.sh\" --tier1` — AC 1 install-URL pointer surfaces on any pnpm devbox verb + claude + gh:auth verb invocation.",
+        "packages/devbox/scripts/restart.sh (iter-248 Task 4 prepend-only): transitive-delegate shim with no prior inline `docker info` block; Story 2.10 prepends `\"${SCRIPT_DIR}/prereq-check.sh\" --tier1` for fail-fast visibility before `stop.sh` + `start.sh` transitive delegation.",
+        "packages/devbox/scripts/env-check.sh (iter-248 Task 4 prepend-only NEW gate): previously validated `.envrc` only with no Docker check; Story 2.10 adds `\"${SCRIPT_DIR}/prereq-check.sh\" --tier1` at the top so `pnpm devbox:env:check` also surfaces install-URL pointer on Docker-missing (AC 5 'any pnpm devbox:*' coverage extension).",
+        "package.json (iter-248 Task 2): `\"devbox:prereq:check\": \"./packages/devbox/scripts/prereq-check.sh\"` added between `devbox:env:check` and `ralph:build` — standalone verb for AC 5 operator-surface discoverability. `pnpm run` surface confirms entry.",
+        "docs/invariants/devbox-prereq-check.md (iter-248 Task 5 NEW 8-section authoritative doc hashed into manifest contentHash `eb5b9db25e0afc77c4caf38c8bf60b37921a76df2ea030c91f66e848b0d8fe40`): § Three-check contract enumerates Docker probe + exact stderr template `install Docker Desktop: https://docs.docker.com/desktop/install/` verbatim; § Exit-code schema pins `8` docker-unreachable; § Tier contract enumerates which shim gets which tier (17-shim table).",
+        "packages/keel-invariants/src/invariants.manifest.ts (iter-248 Task 5): `INV-devbox-prereq-check` registered as 30th manifest entry (from 29 baseline); five-field InvariantSchema-compliant per Story 2.3 iter-156 multi-faceted-contract LESSON. `pnpm keel-invariants:check` EXIT=0 verified post-landing (Story 1.9 sync-gate green).",
+        "INVARIANTS.md (iter-248 Task 5): anchor bullet `- **\\`INV-devbox-prereq-check\\`**` under new `### Devbox prerequisite check (Story 2.10)` H3; verbatim regex-compliant per `packages/keel-invariants/src/sync-gate.ts:24` `/^-\\s+\\*\\*\\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\\`\\*\\*/gm` (Story 1.9 iter-7 LESSON).",
+        "Iteration-env substrate verification (iter-248) — Smoke 1: Tier 1 + stub-docker `info --format` fail → `prereq-check.sh --tier1` exits 8 + stderr contains verbatim `install Docker Desktop: https://docs.docker.com/desktop/install/` (PASS). Workspace-based `<workspace>/.ralph-smoke/shim/docker` argv-driven stub keyed off `$KEEL_SMOKE_MODE=docker_down` per iter-223/230/237 LESSON (NOT `/tmp/` tmpfs noexec).",
+        "Iteration-env substrate verification (iter-248) — Smoke 2: Tier 1 + stub-docker `info --format` pass (mode=tier1_pass_no_volume) → `prereq-check.sh --tier1` exits 0 silent (PASS).",
+        "Iteration-env substrate verification (iter-248) — Smoke 7: No-arg default → Tier 2 dispatch path (AC 1 still reachable as Tier 2 runs Tier 1 first; docker-down under no-arg same exit 8 + same URL) (PASS).",
+        "Iteration-env substrate verification (iter-248) — Smoke 8: Unknown arg `--bogus` → usage message + exit 2 (argv-parse correctness; AC 1 not regressed) (PASS).",
+        "Iteration-env substrate verification (iter-248) — `bash -n` on all 18 edited/new scripts: clean (PASS).",
+        "Live-smoke AC 1 runtime verification — fork operator without Docker installed runs `pnpm ralph:build` or any `pnpm devbox:*` verb → stderr shows verbatim `[prereq-check] install Docker Desktop: https://docs.docker.com/desktop/install/` → exit 8 → deferred to M4-Pro operator workstation (fresh-fork first-run) per § Testing Standards ground-(c) variant `external-service-owns-behavior-under-test` (Docker Desktop install path owned by Docker Inc.; Story 2.4 SC-17 + Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 + Story 2.7 iter-223 + Stories 2.8/2.9 precedent cluster inherited).",
+        "Adversarial AC-1 coverage delegated to iter-CR (Story 2.10 CR opener): Blind Hunter examines Tier 1 branch (docker info exit path + stderr assembly + URL literal match); Edge Case Hunter probes docker-daemon socket-permission variants (daemon reachable-but-EACCES vs unreachable — both yield exit 8 via `docker info` non-zero); Acceptance Auditor verifies AC 1 verbatim match — URL string byte-exact appearance in stderr before exit."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "Claude-missing fails with auth-pointer (Ralph-gated) — `pnpm ralph:build|plan` detects missing Claude token by probing `/home/dev/.claude/` state inside `keel_home_dev` named volume and surfaces `\"Claude Code not authed — run 'pnpm claude' first\"`, exits non-zero before attaching to Ralph TUI",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Tier 2 Claude probe — `docker run --rm -v \"${VOLUME_NAME}\":/vol:ro \"${PROBE_IMAGE}\" test -e /vol/.claude/.credentials.json >/dev/null 2>&1` → exit 0 → `claude_present=1`; non-zero → `claude_present=0`. If `claude_present=0` → `log 'Claude Code not authed — run 'pnpm claude' first'` + `missing=1`. Claude pointer string appears verbatim per AC 2 requirement. `alpine:3.19` throwaway probe container mounts `keel_home_dev` read-only (no mutation; SC-15 no-content-inspection).",
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Tier 2 dispatch sequence — Tier 2 calls Tier 1 first (Docker reachability prerequisite). If Tier 1 fails → exit 8 (Claude probe never runs; AC 2 surface requires Docker reachable to probe). On Tier 1 pass, volume-inspect (`docker volume inspect \"${VOLUME_NAME}\"`); if absent → both tokens treated missing (AC 5 fresh-fork path); if present → run both probes.",
+        "packages/devbox/scripts/ralph-build-host.sh + ralph-plan-host.sh (iter-248 Task 3 block-swap): Tier 2 wire-in. AC 2 Ralph-gated pointer surfaces on `pnpm ralph:build` + `pnpm ralph:plan` invocation with Claude token missing. prereq-check exit 2 propagates through ralph-*-host.sh unchanged, BEFORE Story 2.7's auto-start + `docker attach` sequence (prereq-check-before-auto-start ordering deliberate per SC-11).",
+        "Story 2.8 substrate (iter-230 landed + operator-workstation-verified; UNTOUCHED at Story 2.10 iter-248): `packages/devbox/scripts/claude-host.sh` exec's `claude` inside devbox as UID 1000 (`dev`); first invocation triggers Anthropic OAuth; token writes under `/home/dev/.claude/.credentials.json` inside `keel_home_dev` named volume. Story 2.10 probes EXISTENCE of this path only (SC-3, SC-15 existence-not-validity posture).",
+        "docs/invariants/devbox-prereq-check.md (iter-248 Task 5 authoritative doc § Three-check contract): AC 2 Claude pointer string pinned verbatim; § Tier contract table lists `ralph-build-host.sh` + `ralph-plan-host.sh` as the two Tier 2 shims that surface AC 2; § No-partial-bypass pins no `--skip-claude` / `--force` / `KEEL_PREREQ_BYPASS` escape at 1.0 (AC 5 posture extension onto AC 2).",
+        "Iteration-env substrate verification (iter-248) — Smoke 3: Tier 2 + stub-docker volume-absent (fresh-fork first-run, mode=tier1_pass_no_volume) → composite stderr Claude-before-gh ordering + exit 2 (PASS). Assertion grep'd for verbatim `[prereq-check] Claude Code not authed — run 'pnpm claude' first`.",
+        "Iteration-env substrate verification (iter-248) — Smoke 6: Tier 2 + stub-docker gh-only present (mode=tier2_pass_gh_only) → Claude-missing pointer only + exit 2 (AC 2 isolation verified) (PASS).",
+        "Iteration-env substrate verification (iter-248) — Smoke 4: Tier 2 + stub-docker both tokens present (mode=tier2_pass_both) → exit 0 silent (negative path for AC 2 — Claude present means no pointer) (PASS).",
+        "Live-smoke AC 2 runtime verification — operator runs `pnpm ralph:build` without prior `pnpm claude` → stderr `[prereq-check] Claude Code not authed — run 'pnpm claude' first` → exit 2 → Ralph TUI NOT attached → deferred to M4-Pro operator workstation (fresh-fork first-run + Story 2.8 OAuth flow + Story 2.5 named-volume substrate) per § Testing Standards ground-(c). Substrate already verified at Story 2.8 iter-230 + Story 2.5 iter-188.",
+        "Adversarial AC-2 coverage delegated to iter-CR: Blind Hunter verifies wrapper's `alpine:3.19` probe mounts read-only (`:ro` flag) so volume content cannot mutate during probe; Edge Case Hunter probes probe-container teardown semantics (`--rm` flag ensures no dangling containers; alpine pull failure → docker propagates non-zero → exit 12 per SC-6 not exit 2); Acceptance Auditor verifies AC 2 verbatim match — probe targets `/home/dev/.claude/` per story AC 2 literal; pointer string byte-exact."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "gh-missing fails with auth-pointer (Ralph-gated) — `pnpm ralph:build|plan` detects missing gh token by probing `/home/dev/.config/gh/` state inside `keel_home_dev` named volume and surfaces `\"gh CLI not authed — run 'pnpm gh:auth' first\"`, exits non-zero before attaching to Ralph TUI",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Tier 2 gh probe — `docker run --rm -v \"${VOLUME_NAME}\":/vol:ro \"${PROBE_IMAGE}\" test -e /vol/.config/gh/hosts.yml >/dev/null 2>&1` → exit 0 → `gh_present=1`; non-zero → `gh_present=0`. If `gh_present=0` → `log 'gh CLI not authed — run 'pnpm gh:auth' first'` + `missing=1`. gh pointer string appears verbatim per AC 3 requirement.",
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Aggregation ordering — both probes run sequentially (Claude first, gh second); if both missing, both stderr lines emit in Claude-before-gh order per SC-5 (matches Story 2.8 → 2.9 landing order); single `exit 2` at end regardless of 1-or-2 missing. Single-line exit 2 ensures no partial bypass per AC 5.",
+        "packages/devbox/scripts/ralph-build-host.sh + ralph-plan-host.sh (iter-248 Task 3 block-swap): Tier 2 wire-in. AC 3 Ralph-gated pointer surfaces on `pnpm ralph:build` + `pnpm ralph:plan` invocation with gh token missing.",
+        "Story 2.9 substrate (iter-237/iter-244 landed + operator-workstation-verified; UNTOUCHED at Story 2.10 iter-248): `packages/devbox/scripts/gh-auth-host.sh` exec's `gh auth login` inside devbox as UID 1000 (`dev`); first invocation triggers GitHub OAuth device-code; token writes under `/home/dev/.config/gh/hosts.yml` inside `keel_home_dev` named volume. Story 2.10 probes EXISTENCE of this path only (SC-3, SC-15 existence-not-validity posture).",
+        "docs/invariants/devbox-prereq-check.md (iter-248 Task 5 authoritative doc § Three-check contract): AC 3 gh pointer string pinned verbatim; § Tier contract table lists `ralph-build-host.sh` + `ralph-plan-host.sh` as the two Tier 2 shims that surface AC 3.",
+        "Iteration-env substrate verification (iter-248) — Smoke 3: Tier 2 + stub-docker volume-absent → composite stderr includes verbatim `[prereq-check] gh CLI not authed — run 'pnpm gh:auth' first` AFTER Claude line + exit 2 (PASS). Assertion grep'd for ordering preservation.",
+        "Iteration-env substrate verification (iter-248) — Smoke 5: Tier 2 + stub-docker Claude-only present (mode=tier2_pass_claude_only) → gh-missing pointer only + exit 2 (AC 3 isolation verified) (PASS).",
+        "Iteration-env substrate verification (iter-248) — Smoke 4: Tier 2 + stub-docker both tokens present → exit 0 silent (negative path for AC 3 — gh present means no pointer) (PASS).",
+        "Live-smoke AC 3 runtime verification — operator with Claude authed but not gh runs `pnpm ralph:build` → stderr `[prereq-check] gh CLI not authed — run 'pnpm gh:auth' first` → exit 2 → Ralph TUI NOT attached → deferred to M4-Pro operator workstation per § Testing Standards ground-(c). Substrate already verified at Story 2.9 iter-237/244 + Story 2.5 iter-188.",
+        "Adversarial AC-3 coverage delegated to iter-CR: Blind Hunter verifies gh probe targets `hosts.yml` (not `config.yml` or other candidate filenames); Edge Case Hunter probes `gh auth logout`-reset state (token file removal — probe would correctly report missing); Acceptance Auditor verifies AC 3 verbatim match — probe targets `/home/dev/.config/gh/` per story AC 3 literal; pointer string byte-exact."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "All-satisfied passes silently and Ralph starts normally — with Docker running + Claude token present + gh token present, `pnpm ralph:build` prereq-check passes silently (no stderr spam; exit 0) and Ralph loop starts normally via Story 2.7's `docker attach` path",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Happy path — Tier 2 dispatch with Docker reachable + volume present + both probes exit 0 → `missing=0` → final `exit 0` with NO log calls (silent per AC 4). Wrapper emits zero stderr bytes on all-satisfied state; AC 4 'no stderr spam' verified by assertion.",
+        "packages/devbox/scripts/ralph-build-host.sh + ralph-plan-host.sh (iter-248 Task 3 block-swap): after `\"${SCRIPT_DIR}/prereq-check.sh\" --tier2` exits 0 silently, shim proceeds to Story 2.7's auto-start + `docker attach` sequence unchanged. Story 2.7 substrate owns Ralph TUI attach envelope (AC 4 'Ralph loop starts normally' semantic).",
+        "Story 2.7 substrate (iter-223 landed; UNTOUCHED at Story 2.10 iter-248): `ralph-build-host.sh` / `ralph-plan-host.sh` auto-start + `docker attach --detach-keys='ctrl-p,ctrl-q'` path. Story 2.10's prereq-check runs BEFORE this envelope per SC-14 scope carve-out (in-container Ralph TUI remains Epic 3 scope under current `CMD: [sleep, infinity]`).",
+        "Iteration-env substrate verification (iter-248) — Smoke 4: Tier 2 + stub-docker both tokens present (mode=tier2_pass_both) → exit 0 + zero stderr output (PASS). Assertion: `stderr_bytes=$(./prereq-check.sh --tier2 2>&1 >/dev/null | wc -c); [[ $stderr_bytes -eq 0 ]]`.",
+        "Iteration-env substrate verification (iter-248) — Smoke 2: Tier 1 + stub-docker info pass → exit 0 silent (AC 4 negative path baseline for docker-only verbs — Tier 1 silent-pass same as Tier 2 silent-pass) (PASS).",
+        "Live-smoke AC 4 runtime verification — operator with complete setup (Docker + prior `pnpm claude` + prior `pnpm gh:auth`) runs `pnpm ralph:build` → prereq-check exit 0 silent → `docker attach` to Ralph TUI → Ralph loop starts → deferred to M4-Pro operator workstation per § Testing Standards ground-(c). Full-stack substrate verified at Stories 2.5/2.7/2.8/2.9 + Epic 3 downstream consumer.",
+        "Adversarial AC-4 coverage delegated to iter-CR: Blind Hunter verifies no stray log calls on happy path (no leftover debug prints from dev iterations); Edge Case Hunter probes probe-image pull-on-first-run (alpine:3.19 not cached → Docker pulls → probe completes → exit 0; PROBE_IMAGE pull IS side-effect but not stderr spam per AC 4); Acceptance Auditor verifies AC 4 literal 'no stderr spam; exit 0' — wrapper emits zero bytes to stderr on all-pass path."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": "Fresh-fork first-run surfaces composite missing-item list; no partial bypass — on fresh-fork first-run (no previous devbox state), prereq-check surfaces the missing-item list as a single stderr message aggregating Docker/Claude/gh findings per tier contract, and exit-zero requires all three satisfied (no `--skip-claude` / `--force` bypass at 1.0)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Fresh-fork first-run branch — Tier 2 probe `docker volume inspect \"${VOLUME_NAME}\"`; if absent (no `pnpm devbox:start` has yet created the named volume), `volume_present=0` → both `claude_present` + `gh_present` stay 0 → both pointer lines emit to stderr → exit 2. Composite surface per AC 5 single-message aggregation (within Tier 2 phase; Tier 1 Docker-missing fails fast before Tier 2 reached per SC-5 contract).",
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): No-partial-bypass posture — no `--skip-claude` / `--force` / `--skip-gh` / `KEEL_PREREQ_BYPASS` env-var escape hatch at 1.0. Unknown-arg case → usage message + exit 2. Pinned in `docs/invariants/devbox-prereq-check.md § No-partial-bypass` as substrate-enforced; fork-level relaxation requires AMEND path (source-level PR against the doc + manifest contentHash bump).",
+        "packages/devbox/scripts/prereq-check.sh (iter-248 NEW): Tier 2 dispatch sequence composite — (1) Tier 1 Docker reachable check (fails fast per SC-5 if missing — Docker-missing aggregates alone as single Tier 1 error; Tier 2 cannot proceed without Docker); (2) volume-inspect; (3) Claude probe; (4) gh probe; (5) aggregate findings into Claude-before-gh ordering; (6) single exit 2 on any-missing vs exit 0 on all-present. Composite aggregation happens within Tier 2 only; Tier 1 is fail-fast.",
+        "docs/invariants/devbox-prereq-check.md (iter-248 Task 5 authoritative doc 8 H2 sections): § Fresh-fork first-run behavior narrates the volume-absent case (probe volume existence → if absent, treat as both tokens missing → aggregate composite stderr); § No-partial-bypass pins AC 5 clause verbatim — no bypass escape at 1.0; § Tier contract + § Exit-code schema jointly enforce composite message within Tier 2 only.",
+        "AGENTS.md § Prerequisite check (Story 2.10) (iter-248 Task 6): fresh-fork first-run operator sequence documented — when prereq-check exits 2 with composite pointers (fresh-fork scenario), agents queue `pnpm devbox:start` FIRST (to auto-init `keel_home_dev` named volume), then `pnpm claude`, then `pnpm gh:auth` — NOT token-install-order-agnostic. No-bypass posture pinned.",
+        "packages/devbox/README.md § Prerequisite check (Story 2.10) (iter-248 Task 6): fresh-fork first-run operator-facing walkthrough (5 steps): (1) operator installs Docker Desktop; (2) runs `pnpm devbox:start` to auto-init named volume; (3) runs `pnpm claude` OAuth flow; (4) runs `pnpm gh:auth` OAuth flow; (5) runs `pnpm ralph:build` which exits 0 silent + attaches to Ralph TUI.",
+        "Iteration-env substrate verification (iter-248) — Smoke 3: Tier 2 + stub-docker volume-absent (fresh-fork first-run simulation) → composite stderr with BOTH Claude-missing + gh-missing lines in Claude-before-gh order + exit 2 (PASS). Verifies AC 5 composite aggregation literally.",
+        "Iteration-env substrate verification (iter-248) — Smoke 8: Unknown arg `--bogus` → usage + exit 2 (AC 5 no-bypass verified — no `--skip-*` or `--force` arg reaches a happy-path bypass; unknown args are rejected, not silently ignored) (PASS).",
+        "Iteration-env substrate verification (iter-248) — Smoke 9: `pnpm run 2>&1 | grep -E 'devbox:prereq:check'` → 1 match (standalone verb surface for AC 5 operator-discoverability via `pnpm devbox:prereq:check` direct invocation) (PASS).",
+        "Live-smoke AC 5 runtime verification — fresh-fork operator on new machine with no devbox state runs `pnpm ralph:build` → stderr: composite lines `install Docker Desktop: <URL>` (Tier 1 fail first) → operator installs Docker + re-runs → stderr composite `Claude Code not authed ... gh CLI not authed ...` (Tier 2 volume-absent branch) → operator runs `pnpm devbox:start` + `pnpm claude` + `pnpm gh:auth` → re-runs → exit 0 silent → Ralph TUI attaches. Deferred to M4-Pro operator workstation per § Testing Standards ground-(c) full-stack fresh-fork first-run sequence.",
+        "Adversarial AC-5 coverage delegated to iter-CR: Blind Hunter verifies no hidden bypass env-var (`grep -ci 'skip\\|bypass\\|force' prereq-check.sh` → 0 substantive matches beyond usage/log text); Edge Case Hunter probes volume-present-but-empty-dir branch (volume inspect succeeds but `/vol/.claude/` empty → `test -e` returns non-zero → Claude treated missing — correct), probe-image-pull-failure-under-fail-closed-egress (alpine not in cache + egress blocks docker.io → `docker run` exits non-zero → propagates as exit 12 not exit 2; operator must add `docker.io` to egress whitelist or pre-pull image); Acceptance Auditor verifies AC 5 literal 'single stderr message aggregating Docker/Claude/gh findings' — verified via Smoke 3 composite capture + 'no partial bypass' verified via Smoke 8 unknown-arg rejection + absence-of-bypass-flag code audit."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 5, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-5", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — five P2 ACs covering an Epic-2-ships-envelope-composes-upstream-external-services class story (TENTH Epic 2 delivery; FIRST instance of the multi-external-service-composition class — distinct from Stories 2.8/2.9 single-OAuth-endpoint class): 1 NEW shared primitive (`packages/devbox/scripts/prereq-check.sh` ~120 LOC; shared primitive NOT `<verb>-host.sh` per SC-1) + 1 NEW standalone pnpm verb (`devbox:prereq:check`) + 17 shim wire-ins (15 block-swap + 2 prepend-only across the 17 pre-existing host-side shims at Story 2.9 landing) + 1 NEW `INV-devbox-prereq-check` manifest entry (30th entry from 29 baseline) + 1 NEW `docs/invariants/devbox-prereq-check.md` authoritative doc (8 H2 sections hashed into contentHash `eb5b9db25e0afc77c4caf38c8bf60b37921a76df2ea030c91f66e848b0d8fe40`) + 1 new INVARIANTS.md H3 section + 1 new README H2 + 1 new AGENTS.md H3. All 5 ACs have substrate evidence verified LIVE at iter-248: 9/9 stub-docker smokes PASS covering: (i) Tier 1 docker-down → exit 8 + verbatim install-URL; (ii) Tier 1 docker-up → exit 0 silent; (iii) Tier 2 volume-absent (fresh-fork first-run) → exit 2 + composite Claude-before-gh ordering; (iv) Tier 2 both tokens present → exit 0 silent; (v) Tier 2 Claude-only present → exit 2 + gh-missing pointer only; (vi) Tier 2 gh-only present → exit 2 + Claude-missing pointer only; (vii) No-arg default → Tier 2; (viii) Unknown arg → usage + exit 2; (ix) `pnpm run | grep devbox:prereq:check` → 1 match. All 5 ACs upstream-service + Docker-substrate + Epic-3-consumer-deferred under SC-2/SC-3 ground-(c) `external-service-owns-behavior-under-test` — full verification unlocks at M4-Pro operator workstation fresh-fork first-run sequence. TWENTIETH cumulative trace-WAIVED precedent (extending 19-precedent stack); TWENTY-FIRST ATDD-skip-trace-WAIVED co-application pairing.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.10 authors 2 NEW files + 21 modified files per SC-11 17-shim-wire-in contract + SC-17 read-only-on-prior-sections scope boundary: packages/devbox/scripts/prereq-check.sh (NEW shared primitive) + docs/invariants/devbox-prereq-check.md (NEW authoritative doc 8 H2 sections) + packages/keel-invariants/src/invariants.manifest.ts (+1 INV-devbox-prereq-check entry 30th; INV-prek-prepare-lifecycle contentHash bump collateral from package.json edit — whole-file content hash binds per Story 1.9 semantic) + INVARIANTS.md (+1 H3 section + 1 anchor bullet) + package.json (+1 `devbox:prereq:check` entry between `devbox:env:check` and `ralph:build`) + packages/devbox/README.md (+1 H2 sibling `## Prerequisite check (Story 2.10)` after Story 2.9 H2) + AGENTS.md (+1 H3 sibling `### Prerequisite check (Story 2.10)` after Story 2.9 H3 under § Devbox iteration environment) + 15 host-side shims block-swap (build/rebuild/start/stop/clean/shell/attach/status/logs/monitor-host/whitelist-host/claude-host/gh-auth-host/ralph-build-host/ralph-plan-host) + 2 host-side shims prepend-only (restart.sh transitive-delegate + env-check.sh NEW gate). Substrate contracts preserved verbatim per § Substrate contracts preserved: Story 2.1 Dockerfile + entrypoint.sh + CMD[sleep,infinity] UNTOUCHED; Story 2.2 .envrc parameterisation consumed (KEEL_DEVBOX_COMPOSE_PROJECT read for VOLUME_NAME derivation); Story 2.3 egress substrate orthogonal (alpine:3.19 pull traverses host Docker daemon's network namespace NOT devbox's per SC-4); Story 2.4 whitelist orthogonal; Story 2.5 hardening + named-volume posture LOAD-BEARING for AC 2/3/5 probes (NOT modified; read-only mount); Story 2.6 13 pnpm devbox verbs + shim pattern COMPOSED ON (15 shim wire-ins); Story 2.7 2-verb ralph surface COMPOSED ON (Tier 2 wire-in before auto-start); Story 2.8 claude-host.sh + /home/dev/.claude/.credentials.json token path COMPOSED ON (SC-15 no-content-inspection); Story 2.9 gh-auth-host.sh + /home/dev/.config/gh/hosts.yml token path COMPOSED ON (SC-15 no-content-inspection); Story 1.9 sync-gate GREEN after manifest + doc landing; Story 1.12 theme.py orthogonal; Story 1.15 Renovate docker manager consumed for alpine:3.19 pin manual-tracking carry-forward note. `INV-devbox-prereq-check` is first new manifest entry in Epic 2 (30th overall).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork first-run verification unlocks at M4-Pro operator workstation backend-A: AC 1 Docker-missing install-URL + AC 2 Claude-missing pointer + AC 3 gh-missing pointer + AC 4 all-satisfied silent pass + AC 5 composite fresh-fork first-run walkthrough all require live Docker Desktop install + live Stories 2.8/2.9 OAuth flows + host browser + real Anthropic + GitHub accounts + fresh `keel_home_dev` named volume state. AC 4 'Ralph loop starts normally' requires Epic 3 in-container TUI consumer (currently `CMD: [sleep, infinity]` under Story 2.1 substrate — AC 4 reduces to 'attach succeeds to PID 1 sleep' until Epic 3 materializes). AC 5 second element 'no partial bypass' verified by both substrate (no bypass flag exists) + spec-declared (`docs/invariants/devbox-prereq-check.md § No-partial-bypass`). No Story 2.10 code change required at any live-flow verification point — prereq-check.sh is stateless; upstream Docker Desktop + upstream Claude Code CLI + upstream gh CLI + Stories 2.5/2.8/2.9 substrate + Epic 3 Story 3.7 halt-write consumer own all five behaviors.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
