@@ -81,25 +81,40 @@ fi
 # non-existent volume because Docker would auto-create an empty volume as a
 # side-effect — unwanted at pre-flight time.
 volume_present=0
-if docker volume inspect "${VOLUME_NAME}" >/dev/null 2>&1; then
-  volume_present=1
-fi
+rc=0
+docker volume inspect "${VOLUME_NAME}" >/dev/null 2>&1 || rc=$?
+case "${rc}" in
+  0) volume_present=1 ;;
+  1) volume_present=0 ;;
+  *) log "docker daemon error during volume inspect (rc=${rc})"; exit 12 ;;
+esac
 
 claude_present=0
 gh_present=0
 
 if [[ "${volume_present}" -eq 1 ]]; then
   # Read-only mount of the named volume into a throwaway alpine probe.
-  # `test -e <path>` returns 0 iff the path exists; we discard stdout/stderr
-  # and rely on the exit code alone.
-  if docker run --rm -v "${VOLUME_NAME}":/vol:ro "${PROBE_IMAGE}" \
-        test -e /vol/.claude/.credentials.json >/dev/null 2>&1; then
-    claude_present=1
-  fi
-  if docker run --rm -v "${VOLUME_NAME}":/vol:ro "${PROBE_IMAGE}" \
-        test -e /vol/.config/gh/hosts.yml >/dev/null 2>&1; then
-    gh_present=1
-  fi
+  # `test -e <path>` returns 0 iff the path exists; rc=1 iff the probed
+  # path is missing (token not yet written). Any other rc is a docker-
+  # daemon / image-pull / exec failure and MUST surface as exit 12 rather
+  # than silently collapse to "not authed" — operator remediation for a
+  # daemon crash is different from remediation for a missing token.
+  rc=0
+  docker run --rm -v "${VOLUME_NAME}":/vol:ro "${PROBE_IMAGE}" \
+      test -e /vol/.claude/.credentials.json >/dev/null 2>&1 || rc=$?
+  case "${rc}" in
+    0) claude_present=1 ;;
+    1) claude_present=0 ;;
+    *) log "docker daemon error during Claude token probe (rc=${rc})"; exit 12 ;;
+  esac
+  rc=0
+  docker run --rm -v "${VOLUME_NAME}":/vol:ro "${PROBE_IMAGE}" \
+      test -e /vol/.config/gh/hosts.yml >/dev/null 2>&1 || rc=$?
+  case "${rc}" in
+    0) gh_present=1 ;;
+    1) gh_present=0 ;;
+    *) log "docker daemon error during gh token probe (rc=${rc})"; exit 12 ;;
+  esac
 fi
 
 # Aggregate findings into a composite stderr message (AC 5 + SC-5), Claude
