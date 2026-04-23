@@ -13,10 +13,10 @@
 
 ## BLOCKED
 
-- [ ] iter-249+250+251+252 push to `origin feat/epic-2-packaged-devbox` — REASON: SSH :22 to github.com timed out at iter-249/250/251; HTTPS GraphQL :443 timed out at iter-249/250/251; iter-252 GraphQL probe **RECOVERED** (`gh pr view 230 --json …` returned valid JSON at orient). SSH :22 not yet re-tested; step 5 push attempt will confirm. 5 commits locally on `feat/epic-2-packaged-devbox` (5 ahead of upstream): `aefb382` (iter-249 push-fail BLOCKED) + `d908d6f` (iter-249 trace-WAIVED) + `447bd84` (iter-250 post-dev SM) + `b701e97` (iter-251 CR) + iter-252 PATCH-1 commit pending.
-  - Attempted: push attempts at iter-249/250/251 all failed with SSH :22 timeout to github.com.
-  - Error/Issue: transient network / firewall egress issue to github.com from iter env; iter-252 shows partial recovery (HTTPS GraphQL back online).
-  - Next: iter-252 step 5 will attempt `git push`; if it succeeds, clear this BLOCKED entry on the next iter commit. If SSH still fails but HTTPS works, consider one-off `git remote set-url --push origin https://github.com/tthew/ralph-bmad.git` (Ralph SHOULD NOT autonomously reconfigure the remote beyond single-iter scope — queue as operator action if iter-253+ still stuck).
+- [ ] iter-249+250+251+252 push to `origin feat/epic-2-packaged-devbox` — REASON: SSH :22 to github.com STILL timing out at iter-252 step 5 push attempt (`ssh: connect to host github.com port 22: Connection timed out` — identical symptom to iter-249/250/251). HTTPS GraphQL :443 recovered at iter-252 orient (`gh pr view 230` returns valid JSON). SSH/HTTPS split: push traffic → SSH → BLOCKED; PR-probe queries → HTTPS → OK. 5 commits locally on `feat/epic-2-packaged-devbox` (5 ahead of upstream): `aefb382` (iter-249 push-fail) + `d908d6f` (iter-249 trace-WAIVED) + `447bd84` (iter-250 post-dev SM) + `b701e97` (iter-251 CR) + `1e67b84` (iter-252 PATCH-1).
+  - Attempted: push attempts at iter-249/250/251/252 all failed with SSH :22 timeout to github.com.
+  - Error/Issue: persistent egress block on SSH :22 to github.com from iter env across 4 consecutive iters; HTTPS :443 to api.github.com partially recovered but git push is hard-wired to the SSH remote URL.
+  - Next: iter-253 attempts push again at step 5 (bank on intermittent recovery). If iter-253+ still fails, escalate to operator — **recommended operator action**: one-off `git remote set-url --push origin https://github.com/tthew/ralph-bmad.git` on the host to unblock. Ralph SHOULD NOT autonomously reconfigure the remote URL (shared-state mutation beyond single-iter scope per § Executing actions with care). Commits are safe in local branch — no force-push, no amend, preserved intact across iter-249..252.
 
 ## ATDD Red Phase
 
