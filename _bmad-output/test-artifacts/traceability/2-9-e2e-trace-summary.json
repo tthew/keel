@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-23T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.9",
+    "label": "`gh` CLI OAuth via `pnpm gh:auth`"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-9-gh-cli-oauth-via-pnpm-gh-auth.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 4, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 4,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 4 P2 ACs; Epic-2-ships-envelope-upstream-CLI-ships-runtime class story (NINTH Epic 2 delivery; SECOND instance of class); NINETEENTH cumulative trace-WAIVED precedent; TWENTIETH ATDD-skip-trace-WAIVED co-application pairing. Hybrid ground-(a)-(b)-(c) variant-(iii) + ground-(c) variant `external-service-owns-behavior-under-test` for AC 1/2/3/4 (GitHub OAuth endpoint + apt-installed upstream `gh` CLI + Docker named-volume substrate + Epic 3 Story 3.7 halt-write consumer own the behaviors).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.9 authors 1 NEW host-side bash shim + 3 modified files per SC-17 scope boundary: packages/devbox/scripts/gh-auth-host.sh (iter-237: 70 lines; iter-239 retrofit: 82 lines; 0755; interactive-exec precedent from Story 2.7 ralph-build-host.sh + Story 2.8 claude-host.sh) + repo-root package.json (+1 `gh:auth` entry between `claude` and `prepare` per SC-3) + packages/devbox/README.md (+1 H2 § gh CLI authentication sibling of Story 2.8 H2) + AGENTS.md (+1 H3 § gh CLI authentication sibling of Story 2.8 H3 under § Devbox iteration environment). Sync-gate GREEN (no invariant contentHash drift). `INV-ralph-halt-reason-enum` consumed-not-modified for AC 4 Epic-3 consumer contract pin.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live-OAuth-flow verification unlocks at M4-Pro operator workstation backend-A: AC 1 URL + code surface + AC 2 token file write + AC 3 restart-survival + AC 4 re-auth-pointer all require live `gh` CLI reaching 7 whitelisted GitHub domains (api.github.com + github.com + raw.githubusercontent.com + objects.githubusercontent.com + codeload.github.com + ghcr.io + pkg-containers.githubusercontent.com already in Story 2.3/2.4 egress substrate via packages/devbox/whitelist/github.txt) + host browser + real GitHub account; AC 4 second-element Ralph halt-write branch requires Epic 3 Story 3.7 shipped (substrate-contract-only at Story 2.9; `INV-ralph-halt-reason-enum` `CI_BLOCKED` consumed-not-modified). Iteration-env-safe smokes ALL PASSED at iter-237 (bash -n × 1; pnpm wiring count 1; stub-docker info-fail → exit 8 + log; stub-docker not-running → exit 9 + log; stub-docker running → final exec args captured + exit 0; args-passthrough --web; no-TTY-gate verified). No Story 2.9 code change required at any live-flow verification point — wrapper is stateless; upstream `gh` CLI + Docker named-volume substrate + Epic 3 Story 3.7 consumer own all four behaviors.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-9-gh-cli-oauth-via-pnpm-gh-auth.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}
