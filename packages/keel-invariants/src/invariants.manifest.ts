@@ -98,7 +98,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: 'd89072918e7eae929255305213fcd834b27e6683c449bec7a814e466bba3b027',
+    contentHash: 'dc5ed31b8a4d44d79cf5c69d15df43d9279892f6292c3dbb61dc02f6f6b4ddc0',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -268,6 +268,14 @@ const raw: Invariant[] = [
     sourcePath: 'docs/invariants/devbox-hardening.md',
     contentHash: '2f9ca6f32f289273439d9b834a40156d106aa0fa655b5cb154d85ada8da7a368',
     anchors: ['INV-devbox-homedev-named-volume'],
+  },
+  {
+    id: 'INV-devbox-prereq-check',
+    description:
+      'Prerequisite check for Docker runtime + Claude Code auth + gh auth runs on every host-side shim invocation (pnpm devbox:* + pnpm ralph:* + pnpm claude + pnpm gh:auth) at pre-flight and as a standalone verb (pnpm devbox:prereq:check) per FR5 (Story 2.10). Three-check contract (Docker / Claude token / gh token) with tiered dispatch: Tier 1 (Docker only) gates every auth-capable or pre-auth shim (15 shims); Tier 2 (all three) gates ralph-build-host.sh + ralph-plan-host.sh + standalone invocation. Docker probe uses docker info --format {{.ServerVersion}}; token probes use docker run --rm -v <keel-devbox_keel_home_dev>:/vol:ro alpine:3.19 test -e </vol/.claude/.credentials.json|/.config/gh/hosts.yml> — existence only, not validity. Fresh-fork first-run (volume absent) treated as both tokens missing; no auto-create side-effect. Exit-code schema extends Story 2.6 uniform: 0 pass / 2 tokens missing (composite pointer list, Claude before gh, no partial bypass per AC 5) / 8 docker unreachable (install-URL pointer https://docs.docker.com/desktop/install/ verbatim per AC 1) / 12 other docker-daemon error. Alpine probe image (alpine:3.19) is pinned at 1.0 with manual Renovate tracking (docker regex-manager deferred to FR44 AMEND). No --skip-claude / --force / KEEL_PREREQ_BYPASS escape at 1.0 — fork-level relaxation requires AMEND against this doc. Epic 3 Story 3.7 consumes the contract for in-loop pre-push gate CI_BLOCKED halt writes (per INV-ralph-halt-reason-enum closed enum). Runtime source: packages/devbox/scripts/prereq-check.sh. Sync-gate-drift-detected (Story 1.9).',
+    sourcePath: 'docs/invariants/devbox-prereq-check.md',
+    contentHash: 'eb5b9db25e0afc77c4caf38c8bf60b37921a76df2ea030c91f66e848b0d8fe40',
+    anchors: ['INV-devbox-prereq-check'],
   },
   {
     id: 'INV-gitignored-secret-commit-deny',

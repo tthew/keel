@@ -105,6 +105,12 @@ Non-root `dev` user (UID/GID 1000) + capability bounding set (`cap_drop: [ALL]` 
 
 - **`INV-devbox-homedev-named-volume`** — Non-root dev user + cap_drop/add (NET_ADMIN, NET_RAW, NET_BIND_SERVICE) + no-new-privileges + tmpfs noexec/nosuid + named volume for /home/dev. Source: `docs/invariants/devbox-hardening.md`.
 
+### Devbox prerequisite check (Story 2.10)
+
+Prerequisite check for Docker runtime + Claude Code auth + gh auth that runs on every host-side shim invocation (`pnpm devbox:*`, `pnpm ralph:*`, `pnpm claude`, `pnpm gh:auth`) at pre-flight and as a standalone verb (`pnpm devbox:prereq:check`) per FR5. Three-check contract with tiered dispatch (Tier 1 = Docker only, gates 15 shims; Tier 2 = Docker + tokens, gates the two ralph wrappers + standalone verb). Token probes filesystem-based (`alpine:3.19` throwaway container, read-only mount of the `keel_home_dev` named volume, `test -e`); no content validity inspection (SC-15). Composite-message aggregation within Tier 2 per AC 5; no partial-bypass posture at 1.0. Exit-code schema extends Story 2.6 uniform with `2` = tokens missing, `12` = other docker-daemon error; `0`/`8` reused verbatim.
+
+- **`INV-devbox-prereq-check`** — Prerequisite check for Docker runtime + Claude + gh auth on every host-side shim invocation. Source: `docs/invariants/devbox-prereq-check.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

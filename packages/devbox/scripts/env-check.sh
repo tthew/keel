@@ -47,6 +47,14 @@ ENVRC_PATH="${REPO_ROOT}/.envrc"
 
 log() { printf 'env-check: %s\n' "$*" >&2; }
 
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# NEW gate for env-check.sh — no inline `docker info` existed previously
+# (env-check validated .envrc only). AC 5 "any `pnpm devbox:*` command"
+# fails fast with the Docker install-URL pointer before env-check's own
+# .envrc parse runs. Exit-code schema extends: env-check's own 2/3 remain;
+# 8 (docker unreachable) is now emitted via prereq-check.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
+
 # Required vars: union of `.envrc.example`'s active (uncommented) knobs at
 # 2026-04-22 HEAD (Story 2.2 + Story 2.5 + Story 2.3 contract). Commented
 # defaults (`KEEL_DEVBOX_CONTAINER_NAME`, `KEEL_DEVBOX_WORKSPACE`) and the

@@ -24,10 +24,9 @@ COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 
 log() { printf 'logs: %s\n' "$*" >&2; }
 
-if ! docker info >/dev/null 2>&1; then
-	log "docker unreachable — is the daemon running?"
-	exit 8
-fi
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Subsumes the former inline `docker info` probe.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 if [[ $# -eq 0 ]]; then
 	exec docker compose -f "${COMPOSE_FILE}" logs -f --tail=100 devbox

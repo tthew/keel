@@ -20,14 +20,14 @@ set -euo pipefail
 # break the `keel-devbox_keel_home_dev` volume path (INV-devbox-homedev-named-volume).
 unset COMPOSE_PROJECT_NAME
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 
 log() { printf 'attach: %s\n' "$*" >&2; }
 
-if ! docker info >/dev/null 2>&1; then
-	log "docker unreachable — is the daemon running?"
-	exit 8
-fi
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Subsumes the former inline `docker info` probe.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 state="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || true)"
 if [[ "${state}" != "running" ]]; then

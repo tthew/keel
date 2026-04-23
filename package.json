@@ -32,6 +32,7 @@
     "devbox:monitor": "./packages/devbox/scripts/monitor-host.sh",
     "devbox:whitelist": "./packages/devbox/scripts/whitelist-host.sh",
     "devbox:env:check": "./packages/devbox/scripts/env-check.sh",
+    "devbox:prereq:check": "./packages/devbox/scripts/prereq-check.sh",
     "ralph:build": "./packages/devbox/scripts/ralph-build-host.sh",
     "ralph:plan": "./packages/devbox/scripts/ralph-plan-host.sh",
     "claude": "./packages/devbox/scripts/claude-host.sh",

@@ -34,6 +34,14 @@ STOP_POLL_TIMEOUT_S="${KEEL_DEVBOX_RESTART_STOP_POLL_TIMEOUT_S:-10}"
 
 log() { printf 'restart: %s\n' "$*" >&2; }
 
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# restart.sh has no inline `docker info` of its own — it transitively
+# delegates reachability to stop.sh + start.sh (both of which carry the
+# prereq-check wire-in after Story 2.10). Explicit prepend here is for
+# fail-fast visibility (operator gets the install-URL pointer BEFORE
+# stop.sh's own prereq-check surfaces the same result).
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
+
 log "invoking stop.sh"
 "${SCRIPT_DIR}/stop.sh"
 

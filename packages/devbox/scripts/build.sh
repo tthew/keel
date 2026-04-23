@@ -19,10 +19,10 @@ COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 
 log() { printf 'build: %s\n' "$*" >&2; }
 
-if ! docker info >/dev/null 2>&1; then
-	log "docker unreachable — is the daemon running?"
-	exit 8
-fi
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Subsumes the former inline `docker info` probe; emits install-pointer on
+# exit 8. No token gating here — image build does not need tokens.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 log "docker compose build devbox (cached)"
 exec docker compose -f "${COMPOSE_FILE}" build devbox

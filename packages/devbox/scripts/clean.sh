@@ -82,10 +82,11 @@ if [[ ${ALLOW_BROAD_PRUNE} -eq 1 ]]; then
 	# Accept flag as no-op per SC-11.
 fi
 
-if ! docker info >/dev/null 2>&1; then
-	log "docker unreachable — is the daemon running?"
-	exit 8
-fi
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Subsumes the former inline `docker info` probe. The subsequent
+# `detect_backend` helper re-invokes `docker info` with a `--format`
+# template to extract `.Name`; that call is orthogonal to reachability.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 # Backend detection (mirrors benchmark.sh § detect_backend per
 # devbox-dind.md:47). Fail-safe posture: when we cannot reliably prove

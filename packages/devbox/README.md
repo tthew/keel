@@ -688,6 +688,83 @@ When Ralph's pre-push gate (Story 3.7) detects a gh-auth failure, it writes a ha
 - `### Claude Code authentication (Story 2.8)` above — sibling auth-class verb; `gh-auth-host.sh` mirrors `claude-host.sh` verbatim with gh-specific substitutions.
 - Story 2.9 file `_bmad-output/implementation-artifacts/2-9-gh-cli-oauth-via-pnpm-gh-auth.md` — full spec, scope clarifications SC-1..SC-17, upstream-CLI + GitHub-OAuth-endpoint carve-out, AC 4 Epic 3 halt-able contract.
 
+## Prerequisite check (Story 2.10)
+
+`pnpm devbox:prereq:check` verifies that Docker runtime + Claude Code auth + gh auth are all satisfied before a Ralph iteration starts. The primitive at `packages/devbox/scripts/prereq-check.sh` runs at pre-flight on every host-side shim invocation (`pnpm devbox:*`, `pnpm ralph:*`, `pnpm claude`, `pnpm gh:auth`) and as a standalone verb per FR5 — an operator cannot execute Ralph autonomously in a broken environment.
+
+```bash
+# Standalone invocation (Tier 2 default — all three checks)
+pnpm devbox:prereq:check
+
+# Docker-only (Tier 1 — useful in CI harnesses without a host browser)
+pnpm devbox:prereq:check -- --tier1
+```
+
+### Three-check contract
+
+In dependency order:
+
+1. **Docker runtime reachable** — `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1`. On failure: emits `[prereq-check] docker unreachable — is the daemon running?` followed by `[prereq-check] install Docker Desktop: https://docs.docker.com/desktop/install/` (verbatim per AC 1) and exits `8`.
+
+2. **Claude Code token present** (Tier 2 only) — probes `/home/dev/.claude/.credentials.json` inside the `keel_home_dev` named volume via a throwaway `alpine:3.19` container with a read-only mount. Existence only — validity is upstream `claude`'s concern. On missing: emits `[prereq-check] Claude Code not authed — run 'pnpm claude' first`.
+
+3. **gh CLI token present** (Tier 2 only) — probes `/home/dev/.config/gh/hosts.yml` identically. On missing: emits `[prereq-check] gh CLI not authed — run 'pnpm gh:auth' first`.
+
+Missing tokens under Tier 2 are aggregated into a single composite stderr message (Claude before gh per landing order); the primitive then exits `2`.
+
+### Tier contract
+
+| Invocation surface                           | Tier  | Why                                                       |
+| -------------------------------------------- | ----- | --------------------------------------------------------- |
+| Every `pnpm devbox:*` verb (13 shims)        | tier1 | Container mgmt — tokens not required at pre-flight.       |
+| `pnpm claude` + `pnpm gh:auth`               | tier1 | Auth-establishing verbs — Tier 2 would be circular.       |
+| `pnpm ralph:build` + `pnpm ralph:plan`       | tier2 | Ralph needs all three to run autonomously (FR5).          |
+| `pnpm devbox:prereq:check` (standalone verb) | tier2 | Operator wants the full check; `--tier1` overrides.       |
+
+### Fresh-fork first-run walkthrough
+
+On a fresh fork with no devbox state — no container has been started, the `keel_home_dev` named volume does not exist, no tokens are present — the first `pnpm ralph:build` surfaces a composite missing-item list per AC 5:
+
+```
+[prereq-check] Claude Code not authed — run 'pnpm claude' first
+[prereq-check] gh CLI not authed — run 'pnpm gh:auth' first
+```
+
+Operator recovery sequence:
+
+1. Install Docker Desktop (first `pnpm ralph:build` if Docker is also missing surfaces the install URL).
+2. `pnpm devbox:start` → container comes up; `keel_home_dev` auto-inits.
+3. `pnpm claude` → OAuth flow in host browser → Claude token persists in the named volume.
+4. `pnpm gh:auth` → OAuth flow in host browser → gh token persists in the named volume.
+5. `pnpm ralph:build` → all three checks pass silently → Ralph TUI attaches.
+
+### Exit codes
+
+| Code | Meaning                                                                                                                    |
+| ---- | -------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | All checks pass (silent; no stderr).                                                                                       |
+| `2`  | One or more tokens missing (composite pointer list emitted, Claude before gh) — OR unknown-arg usage error. Tier 2 only.   |
+| `8`  | Docker runtime unreachable — install-URL pointer emitted. Tier 1 + Tier 2.                                                 |
+| `12` | Other docker-daemon error (volume-inspect crash, alpine pull failure under fail-closed egress) — propagated via `docker`.  |
+
+Codes `9`/`10`/`11` (container not running / image not built / healthcheck timeout) are Story 2.6 + 2.7 downstream-of-prereq-check concerns.
+
+### No-bypass posture
+
+There is NO `--skip-claude`, `--force`, or `KEEL_PREREQ_BYPASS` escape at 1.0 (AC 5 no-partial-bypass). Operators with nuanced needs (CI harness without host browser, pre-seeded tokens outside OAuth) run `prereq-check.sh --tier1` directly and forgo the token probes — the tier argument is the only supported posture knob. Fork-level relaxation requires an AMEND path against `docs/invariants/devbox-prereq-check.md` (substrate-wide contract change).
+
+### Alpine probe image
+
+`alpine:3.19` is the pinned throwaway image used for read-only volume probes. Manually tracked at 1.0; shell-script image references are not auto-discovered by Renovate's default `docker` manager. All three source-of-truth sites (`prereq-check.sh`, `docs/invariants/devbox-prereq-check.md § Alpine probe image`, this section) must update in lockstep.
+
+### Cross-references
+
+- `AGENTS.md § Prerequisite check` — agent-facing operational contract (never invoke `prereq-check.sh` directly; halt-able CI_BLOCKED pointer for Epic 3 Story 3.7).
+- `INV-devbox-prereq-check` (`docs/invariants/devbox-prereq-check.md`) — machine-enforced three-check contract, tier enumeration, no-bypass clause, fresh-fork first-run spec.
+- `### Host-side CLI (Story 2.6)` above — 13 devbox verbs composing on the same Tier 1 gate.
+- `### Claude Code authentication (Story 2.8)` + `### gh CLI authentication (Story 2.9)` above — the two auth-establishing verbs that prereq-check Tier 2 probes.
+- Story 2.10 file `_bmad-output/implementation-artifacts/2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors.md` — full spec, 5 ACs + 6 tasks + 17 SCs.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:

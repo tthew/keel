@@ -33,10 +33,9 @@ source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 
 log() { printf 'shell: %s\n' "$*" >&2; }
 
-if ! docker info >/dev/null 2>&1; then
-	log "docker unreachable — is the daemon running?"
-	exit 8
-fi
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Subsumes the former inline `docker info` probe.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 state="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || true)"
 if [[ "${state}" != "running" ]]; then

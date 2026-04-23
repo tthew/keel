@@ -49,13 +49,11 @@ source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 
 log() { printf '[gh-auth] %s\n' "$*" >&2; }
 
-# Pre-flight 1: docker daemon reachable (exit 8 per Story 2.6 schema;
-# tighter `--format '{{.ServerVersion}}'` variant per Story 2.7 + 2.8
-# inheritance chain).
-if ! docker info --format '{{.ServerVersion}}' >/dev/null 2>&1; then
-  log "docker unreachable — is the daemon running?"
-  exit 8
-fi
+# Pre-flight 1: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Tier 1 (not Tier 2): `pnpm gh:auth` IS the auth-establishing verb for the
+# gh CLI — Tier 2 would be circular (require the token we're about to
+# create). Mirrors claude-host.sh Tier-1 posture.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 # Pre-flight 2: container is running. No auto-start — auth is a one-off
 # operator gesture, not a loop-entry gesture (SC-4; contrast

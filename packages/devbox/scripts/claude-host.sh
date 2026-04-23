@@ -46,11 +46,11 @@ source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 
 log() { printf '[claude] %s\n' "$*" >&2; }
 
-# Pre-flight 1: docker daemon reachable (exit 8 per Story 2.6 schema).
-if ! docker info --format '{{.ServerVersion}}' >/dev/null 2>&1; then
-  log "docker unreachable — is the daemon running?"
-  exit 8
-fi
+# Pre-flight 1: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Tier 1 (not Tier 2): `pnpm claude` IS the auth-establishing verb for
+# Claude Code — Tier 2 would be circular (require the token we're about to
+# create). Exit 8 propagates unchanged.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 # Pre-flight 2: container is running. No auto-start — auth is a one-off
 # operator gesture, not a loop-entry gesture (SC-4; contrast

@@ -26,10 +26,9 @@ CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 
 log() { printf 'status: %s\n' "$*" >&2; }
 
-if ! docker info >/dev/null 2>&1; then
-	log "docker unreachable — is the daemon running?"
-	exit 8
-fi
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Subsumes the former inline `docker info` probe.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 if ! docker inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
 	log "container '${CONTAINER_NAME}' does not exist — run 'pnpm devbox:start' first"

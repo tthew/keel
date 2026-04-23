@@ -46,11 +46,12 @@ source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 
 log() { printf '[ralph:%s] %s\n' "${RALPH_MODE}" "$*" >&2; }
 
-# Pre-flight: docker daemon reachable (exit 8 per Story 2.6 schema).
-if ! docker info --format '{{.ServerVersion}}' >/dev/null 2>&1; then
-  log "docker unreachable — is the daemon running?"
-  exit 8
-fi
+# Pre-flight: Story 2.10 Tier 2 prereq-check (Docker + Claude + gh tokens).
+# Subsumes the former inline `docker info` reachability probe; adds token
+# gating per FR5. Exit codes 8 (docker unreachable) / 2 (tokens missing) /
+# 12 (other docker-daemon error) propagate up unchanged — Ralph must not
+# attempt auto-start or `docker exec` against a broken environment.
+"${SCRIPT_DIR}/prereq-check.sh" --tier2
 
 # State inspect: container running? (Auto-start if not.)
 status="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || true)"

@@ -56,10 +56,10 @@ export KEEL_DEVBOX_REPO_NAME="${REPO_NAME}"
 
 log() { printf 'start: %s\n' "$*" >&2; }
 
-if ! docker info >/dev/null 2>&1; then
-	log "docker unreachable — is the daemon running?"
-	exit 8
-fi
+# Pre-flight: Story 2.10 Tier 1 prereq-check (Docker runtime reachable).
+# Subsumes the former inline `docker info` probe; emits install-pointer on
+# exit 8. Volume auto-inits later in start.sh; no token gating required.
+"${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 if ! docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
 	log "image '${IMAGE_TAG}' not built — run 'pnpm devbox:build'"
