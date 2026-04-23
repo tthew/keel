@@ -24,6 +24,7 @@
 #   8   docker runtime unreachable.
 #   9   container not running — run `pnpm devbox:start` first (no auto-start
 #       per SC-4; auth is a one-off, not a loop-entry gesture).
+#   12  bind-mount source mismatch — run `pnpm devbox:restart` (iter-239).
 #   *   gh or docker exec error (propagated — including gh non-zero on
 #       OAuth timeout / cancellation / GitHub rate-limit).
 # ---------------------------------------------------------------------------
@@ -35,10 +36,16 @@ set -euo pipefail
 # would redirect volume paths away from INV-devbox-homedev-named-volume.
 unset COMPOSE_PROJECT_NAME
 
-# SC-4 no-auto-start → no sub-invoke of start.sh → no need for SCRIPT_DIR
-# (contrast Story 2.7 ralph-build-host.sh:29+46 which DOES set + use it;
-# mirror Story 2.8 claude-host.sh posture).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
+
+# Resolve MAIN_REPO + REPO_NAME + CONTAINER_WORKDIR (iter-239 mount-path
+# mirroring).
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+# shellcheck source=lib/check-mount-source.sh
+source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 
 log() { printf '[gh-auth] %s\n' "$*" >&2; }
 
@@ -60,9 +67,15 @@ if [[ "${state}" != "running" ]]; then
   exit 9
 fi
 
+# Pre-flight 3: bind-mount source matches current main repo. Exits 12 on
+# mismatch with a `pnpm devbox:restart` hint.
+check_mount_source
+
 log "invoking gh auth login inside ${CONTAINER_NAME} (first run: complete OAuth in host browser; token persists at /home/dev/.config/gh/)"
 # No signal trapping — docker exec forwards SIGINT/SIGTERM/SIGPIPE to
 # gh's PID inside the container. Defensive trap handlers would break
 # passthrough (Story 2.1 iter-144 SIGPIPE precedent; Story 2.7 v1.1
 # PATCH 3; Story 2.8 SC-10).
-exec docker exec -it --user dev -w /workspace "${CONTAINER_NAME}" gh auth login "$@"
+exec docker exec -it --user dev -w "${CONTAINER_WORKDIR}" \
+  -e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
+  "${CONTAINER_NAME}" gh auth login "$@"

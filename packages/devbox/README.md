@@ -24,6 +24,36 @@ hardening, OAuth, lifecycle CLI, and healthchecks.
 | d   | Egress policy fix (dnsmasq + nftables + whitelist) | Story 2.3 / 2.4 | ~~deferred~~ _(Story 2.3 landed iter-158; Story 2.4 whitelist CLI still pending)_ |
 | e   | `pnpm devbox:*` lifecycle bridge                   | Story 2.6       | deferred                                                                          |
 
+## Mount-path mirroring (iter-239)
+
+The container's bind-mount target was repointed from `/workspace` to
+`/workspace/${KEEL_DEVBOX_REPO_NAME}` (default `ralph-bmad`) so container
+paths mirror the host repo layout: host
+`/Users/.../ralph-bmad/.claude/worktrees/<X>` ↔ container
+`/workspace/ralph-bmad/.claude/worktrees/<X>`. The bind source is always
+the **main repo** (computed by host wrappers via `git rev-parse
+--git-common-dir | dirname`), so the container sees the full repo +
+every worktree simultaneously regardless of where the operator invokes
+from.
+
+**Operator migration (one-time):**
+
+```sh
+git pull --ff-only origin feat/epic-2-packaged-devbox
+pnpm devbox:stop      # tears down old container with /workspace mount target
+pnpm devbox:start     # re-creates with /workspace/ralph-bmad target
+```
+
+Forks: set `KEEL_DEVBOX_REPO_NAME=<your-fork-name>` in `.envrc` before
+the restart to align the container subdir with your host directory
+layout. Otherwise the wrapper auto-derives `$(basename "$MAIN_REPO")`.
+
+The new exit code `12` (bind-mount source mismatch) fires when an
+operator runs a wrapper from a worktree whose main repo differs from
+the running container's bound source — common when worktree A starts
+the container and operator invokes from a different fork. Remediate:
+`pnpm devbox:restart`.
+
 ## Ubuntu 24.04 LTS pin rationale
 
 - LTS support runs through **April 2029**.
@@ -239,7 +269,7 @@ docker exec keel-devbox curl -m 3 -sSf https://example-unwhitelisted.invalid
 # Expect non-zero exit; stderr "Could not resolve host" / timeout.
 
 # JSONL schema round-trip (AC 3)
-docker exec keel-devbox tail -n 1 /workspace/logs/egress-queries.jsonl | jq -e '
+docker exec keel-devbox tail -n 1 /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/logs/egress-queries.jsonl | jq -e '
   has("timestamp") and has("query") and has("type") and
   has("result") and has("upstream") and has("client")'
 ```
@@ -248,10 +278,10 @@ docker exec keel-devbox tail -n 1 /workspace/logs/egress-queries.jsonl | jq -e '
 
 ```sh
 # Atomic reload against the composed whitelist (Story 2.4 later wraps this as `pnpm devbox:whitelist sync`):
-docker exec keel-devbox /workspace/packages/devbox/scripts/reload-egress.sh /run/keel-whitelist.composed.txt
+docker exec keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/packages/devbox/scripts/reload-egress.sh /run/keel-whitelist.composed.txt
 
 # Live-tail the JSONL query log:
-docker exec -it keel-devbox /workspace/packages/devbox/scripts/monitor.sh
+docker exec -it keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/packages/devbox/scripts/monitor.sh
 ```
 
 `reload-egress.sh` serialises concurrent reloads via `flock -x /run/keel-egress.lock` (10 s timeout → exit 4); applies the nftables ruleset via a single `nft -f <tempfile>` kernel transaction (failure → exit 5, previous ruleset stays active); reloads dnsmasq via `kill -HUP <pid>` (fallback `pkill -HUP dnsmasq`; failure → exit 7 — fallible seam per SC-5 residual risk).
@@ -273,16 +303,16 @@ In-container invocation paths (Story 2.6 later wraps these behind a host-side `p
 
 ```sh
 # Add a per-fork domain (auto-syncs)
-docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh add internal-registry.myfork.com
+docker exec keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/packages/devbox/scripts/whitelist.sh add internal-registry.myfork.com
 
 # Inspect composed state with source attribution
-docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh list
+docker exec keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/packages/devbox/scripts/whitelist.sh list
 
 # Remove a per-fork domain (auto-syncs)
-docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh remove internal-registry.myfork.com
+docker exec keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/packages/devbox/scripts/whitelist.sh remove internal-registry.myfork.com
 
 # Recompose + reload without changes (e.g., after hand-editing whitelist.local.txt)
-docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh sync
+docker exec keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/packages/devbox/scripts/whitelist.sh sync
 ```
 
 Domain-syntax validation uses a strict LDH (letter-digit-hyphen) regex with a 253-char total-length bound (RFC 1035). Underscores, leading/trailing hyphens, empty labels, slashes, embedded whitespace, and zero-width Unicode are rejected. IDN entries MUST be pre-punycode-encoded by the operator (1.0 scope; refinement deferred). Validation failure exits 2 WITHOUT invoking `reload-egress.sh` — previous policy stays active (AC 3 fail-closed).
@@ -300,7 +330,7 @@ The devbox container is hardened against post-exploitation runtime compromise pe
 - **Non-root `dev` user** (UID/GID 1000) — `Dockerfile` creates the user with `groupadd --gid 1000 dev && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev`; `USER dev` directive switches before `ENTRYPOINT`. UID 1000 aligns with common host UIDs for bind-mount passthrough on macOS + Linux.
 - **Capability bounding set** — `docker-compose.yml` sets `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]`. Three narrow caps; see § Capability rationale below.
 - **`no-new-privileges:true`** — `security_opt: [no-new-privileges:true]` sets `PR_SET_NO_NEW_PRIVS=1` on PID 1; kernel masks file-cap `F(effective)` bits on exec + disables setuid privilege elevation.
-- **tmpfs `/tmp` + `/var/tmp` with `noexec,nosuid`** — long-syntax `tmpfs:` block consumes `KEEL_DEVBOX_TMPFS_TMP_MB` + `KEEL_DEVBOX_TMPFS_VARTMP_MB` knobs published by Story 2.2. `/var/log` intentionally NOT tmpfs-mounted (dnsmasq + nftables log files live under `/workspace/logs/` per Story 2.3).
+- **tmpfs `/tmp` + `/var/tmp` with `noexec,nosuid`** — long-syntax `tmpfs:` block consumes `KEEL_DEVBOX_TMPFS_TMP_MB` + `KEEL_DEVBOX_TMPFS_VARTMP_MB` knobs published by Story 2.2. `/var/log` intentionally NOT tmpfs-mounted (dnsmasq + nftables log files live under `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/` per Story 2.3).
 - **Named Docker volume `keel_home_dev` for `/home/dev`** — substrate-authoritative, non-toggle-able. No `KEEL_DEVBOX_*` setting can flip this to a host bind-mount. Claude Code tokens (Story 2.8), `gh` tokens (Story 2.9), shell history live only inside this volume. Upstream cc-devbox's `./dev-home:/home/dev:delegated` bind-mount pattern is intentionally NOT retained (NFR10).
 
 ### Capability rationale
@@ -413,36 +443,37 @@ Every devbox interaction is a `pnpm devbox:*` subcommand. Operators never type `
 
 ### Subcommand surface
 
-| Subcommand              | Purpose                                                                                                        | Exit codes (beyond success)      |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| `pnpm devbox:build`     | `docker compose build devbox` (cached).                                                                        | `8`                              |
-| `pnpm devbox:rebuild`   | `docker compose build --no-cache devbox` (fresh).                                                              | `8`                              |
-| `pnpm devbox:start`     | `docker compose up -d` + healthcheck poll (timeout `KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S`, default 120s).   | `2`, `3`, `8`, `10`, `11`        |
-| `pnpm devbox:stop`      | `docker compose stop devbox` (container preserved; volume preserved).                                          | `8`                              |
-| `pnpm devbox:restart`   | `stop.sh` then `start.sh` in sequence.                                                                         | inherited                        |
-| `pnpm devbox:clean`     | `docker compose down --rmi local --remove-orphans`; `--with-volumes` gates on y/N + `--force-backend-b`.       | `2`, `8`                         |
-| `pnpm devbox:shell`     | `docker exec -it --user dev -w /workspace` bash login shell (extra args → `bash -l "$@"`).                     | `8`, `9`                         |
-| `pnpm devbox:attach`    | `docker attach --detach-keys='ctrl-p,ctrl-q'` — observe PID 1 stdio (Ralph TUI in Story 2.7).                  | `8`, `9`                         |
-| `pnpm devbox:status`    | `docker compose ps` + `docker inspect` healthcheck status.                                                     | `8`, `9`                         |
-| `pnpm devbox:logs`      | `docker compose logs -f --tail=100 devbox` (flags forwarded: `--no-follow`, `--tail=<N>`, `--since <ts>`).     | `8`                              |
-| `pnpm devbox:monitor`   | `docker exec` into Story 2.3's in-container `monitor.sh` — **FR1a JSONL DNS-event tail** (not `docker stats`). | `3`, `8`, `9`                    |
-| `pnpm devbox:whitelist` | `docker exec` into Story 2.4's `whitelist.sh` (subcommands: `add` / `remove` / `list` / `sync`).               | `2`, `3`, `4`, `5`–`7`, `8`, `9` |
-| `pnpm devbox:env:check` | Validate `.envrc` presence + every required `KEEL_DEVBOX_*` var + tmpfs-int shape.                             | `2`, `3`                         |
+| Subcommand              | Purpose                                                                                                                                 | Exit codes (beyond success)      |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| `pnpm devbox:build`     | `docker compose build devbox` (cached).                                                                                                 | `8`                              |
+| `pnpm devbox:rebuild`   | `docker compose build --no-cache devbox` (fresh).                                                                                       | `8`                              |
+| `pnpm devbox:start`     | `docker compose up -d` + healthcheck poll (timeout `KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S`, default 120s).                            | `2`, `3`, `8`, `10`, `11`        |
+| `pnpm devbox:stop`      | `docker compose stop devbox` (container preserved; volume preserved).                                                                   | `8`                              |
+| `pnpm devbox:restart`   | `stop.sh` then `start.sh` in sequence.                                                                                                  | inherited                        |
+| `pnpm devbox:clean`     | `docker compose down --rmi local --remove-orphans`; `--with-volumes` gates on y/N + `--force-backend-b`.                                | `2`, `8`                         |
+| `pnpm devbox:shell`     | `docker exec -it --user dev -w "$CONTAINER_WORKDIR"` bash login shell at the path mirroring the host cwd (extra args → `bash -l "$@"`). | `8`, `9`, `12`                   |
+| `pnpm devbox:attach`    | `docker attach --detach-keys='ctrl-p,ctrl-q'` — observe PID 1 stdio (Ralph TUI in Story 2.7).                                           | `8`, `9`                         |
+| `pnpm devbox:status`    | `docker compose ps` + `docker inspect` healthcheck status.                                                                              | `8`, `9`                         |
+| `pnpm devbox:logs`      | `docker compose logs -f --tail=100 devbox` (flags forwarded: `--no-follow`, `--tail=<N>`, `--since <ts>`).                              | `8`                              |
+| `pnpm devbox:monitor`   | `docker exec` into Story 2.3's in-container `monitor.sh` — **FR1a JSONL DNS-event tail** (not `docker stats`).                          | `3`, `8`, `9`                    |
+| `pnpm devbox:whitelist` | `docker exec` into Story 2.4's `whitelist.sh` (subcommands: `add` / `remove` / `list` / `sync`).                                        | `2`, `3`, `4`, `5`–`7`, `8`, `9` |
+| `pnpm devbox:env:check` | Validate `.envrc` presence + every required `KEEL_DEVBOX_*` var + tmpfs-int shape.                                                      | `2`, `3`                         |
 
 ### Exit-code family (uniform across devbox CLI)
 
-| Code    | Meaning                                                                                                            |
-| ------- | ------------------------------------------------------------------------------------------------------------------ |
-| `0`     | Success.                                                                                                           |
-| `2`     | Usage error / validation failure (missing arg, unknown flag, `env:check` missing required var or shape violation). |
-| `3`     | Source file unreadable (`.envrc` absent for `env-check`, in-container `monitor.sh` missing).                       |
-| `4`     | Mutation lock unavailable within timeout (Story 2.4 `whitelist.sh` passthrough).                                   |
-| `5`–`7` | Propagated verbatim from in-container primitives (`whitelist.sh` / `reload-egress.sh`).                            |
-| `8`     | Docker runtime unreachable — `docker info` failed. Stderr hint: `is the daemon running?`.                          |
-| `9`     | Container not running — `pnpm devbox:start` not yet called.                                                        |
-| `10`    | Image not built — `pnpm devbox:build` not yet called.                                                              |
-| `11`    | `start` healthcheck timeout. Container is left running for operator debugging via `pnpm devbox:logs`.              |
-| `124`   | Reserved for `timeout(1)`-wrapped invocations (operator-facing). Not used internally.                              |
+| Code    | Meaning                                                                                                                                                                                                                                             |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0`     | Success.                                                                                                                                                                                                                                            |
+| `2`     | Usage error / validation failure (missing arg, unknown flag, `env:check` missing required var or shape violation).                                                                                                                                  |
+| `3`     | Source file unreadable (`.envrc` absent for `env-check`, in-container `monitor.sh` missing).                                                                                                                                                        |
+| `4`     | Mutation lock unavailable within timeout (Story 2.4 `whitelist.sh` passthrough).                                                                                                                                                                    |
+| `5`–`7` | Propagated verbatim from in-container primitives (`whitelist.sh` / `reload-egress.sh`).                                                                                                                                                             |
+| `8`     | Docker runtime unreachable — `docker info` failed. Stderr hint: `is the daemon running?`.                                                                                                                                                           |
+| `9`     | Container not running — `pnpm devbox:start` not yet called.                                                                                                                                                                                         |
+| `10`    | Image not built — `pnpm devbox:build` not yet called.                                                                                                                                                                                               |
+| `11`    | `start` healthcheck timeout. Container is left running for operator debugging via `pnpm devbox:logs`.                                                                                                                                               |
+| `12`    | Bind-mount source mismatch (iter-239) — running container's `/workspace/<repo>` source ≠ current invocation's main repo. Common when worktree A started the container and operator invokes from a different fork. Remediate: `pnpm devbox:restart`. |
+| `124`   | Reserved for `timeout(1)`-wrapped invocations (operator-facing). Not used internally.                                                                                                                                                               |
 
 ### `.envrc` integration
 
@@ -562,7 +593,7 @@ pnpm claude -p "hello"  # one-shot prompt after the token is seeded
 
 ### First-run OAuth flow (AC 1, AC 2)
 
-1. `pnpm claude` with no existing token invokes `claude` inside `keel-devbox` under `docker exec -it --user dev -w /workspace`. The OAuth device-code flow prints a URL (and optionally a code) to your terminal.
+1. `pnpm claude` with no existing token invokes `claude` inside `keel-devbox` under `docker exec -it --user dev -w "$CONTAINER_WORKDIR"` (path mirrors host cwd, default `/workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}`). The OAuth device-code flow prints a URL (and optionally a code) to your terminal.
 2. Open the URL in a host browser, complete Anthropic OAuth, and — if prompted — paste the device code back into the page.
 3. `claude` writes the token file under `/home/dev/.claude/` inside the `keel_home_dev` named volume. The token is never bind-mounted to the host filesystem.
 
@@ -616,7 +647,7 @@ Args passthrough is scoped to `gh auth login` only — the wrapper hardcodes the
 
 ### First-run OAuth flow (AC 1, AC 2)
 
-1. `pnpm gh:auth` with no existing credentials invokes `gh auth login` inside `keel-devbox` under `docker exec -it --user dev -w /workspace`. The interactive prompt asks for the host (default `github.com`), protocol (HTTPS/SSH), and authentication method (web vs paste-token).
+1. `pnpm gh:auth` with no existing credentials invokes `gh auth login` inside `keel-devbox` under `docker exec -it --user dev -w "$CONTAINER_WORKDIR"` (path mirrors host cwd, default `/workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}`). The interactive prompt asks for the host (default `github.com`), protocol (HTTPS/SSH), and authentication method (web vs paste-token).
 2. Select the web-OAuth flow. `gh` prints `https://github.com/login/device` + a one-time code to your terminal.
 3. Open the URL in a host browser, complete GitHub OAuth, and paste the one-time code on the GitHub confirmation page.
 4. `gh` writes the token under `/home/dev/.config/gh/hosts.yml` (default location) inside the `keel_home_dev` named volume. The token is never bind-mounted to the host filesystem.

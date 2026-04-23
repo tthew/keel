@@ -4,8 +4,10 @@
 #
 # Background tailer launched from start-egress.sh via `nohup … &`. Tails
 # dnsmasq's native log file (/var/log/dnsmasq.log) and re-emits each DNS
-# query/response as a JSONL record to /workspace/logs/egress-queries.jsonl
+# query/response as a JSONL record to ${WORKSPACE_PATH}/logs/egress-queries.jsonl
 # per the SC-3 stable schema (consumed by Epic 4 FR37 security-evidence).
+# WORKSPACE_PATH = /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}; the env
+# var is propagated by docker-compose.yml § environment.
 #
 # Output schema (SC-3 verbatim — DO NOT reorder fields):
 #   {"timestamp":"<ISO8601Z>","query":"<domain>","type":"<DNS-type>",
@@ -20,7 +22,7 @@
 set -euo pipefail
 
 DNSMASQ_LOG="/var/log/dnsmasq.log"
-JSONL_OUT="/workspace/logs/egress-queries.jsonl"
+JSONL_OUT="/workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/logs/egress-queries.jsonl"
 ROTATE_BYTES=$((50 * 1024 * 1024))  # 50 MB, SC-4
 MAX_GENERATIONS=5                    # .1.gz .. .5.gz, SC-4
 

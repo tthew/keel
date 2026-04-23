@@ -20,6 +20,7 @@
 #   9   container not running (post-auto-start fallback only).
 #   10  image not built (propagated from start.sh).
 #   11  healthcheck timeout (propagated from start.sh).
+#   12  bind-mount source mismatch — run `pnpm devbox:restart` (iter-239).
 #   *   docker exec or ralph.py exit code (propagated).
 
 set -euo pipefail
@@ -32,6 +33,16 @@ unset COMPOSE_PROJECT_NAME
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 RALPH_MODE="build"
+
+# Resolve MAIN_REPO + REPO_NAME + CONTAINER_WORKDIR (iter-239 mount-path
+# mirroring): ralph.py inherits the worktree-aware cwd via -w, so its
+# `--worktree X` / `_main_repo_root()` resolution lands the correct
+# .ralph/ directory automatically.
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+# shellcheck source=lib/check-mount-source.sh
+source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 
 log() { printf '[ralph:%s] %s\n' "${RALPH_MODE}" "$*" >&2; }
 
@@ -58,13 +69,18 @@ else
   log "container '${CONTAINER_NAME}' already running; launching ralph directly (AC 2 skip-start)"
 fi
 
+# Pre-flight: bind-mount source matches current main repo. Exits 12 on
+# mismatch with a `pnpm devbox:restart` hint.
+check_mount_source
+
 # Mode signal: Epic 3's in-container Ralph runtime will read KEEL_RALPH_MODE
 # to select .ralph/PROMPT_<mode>.md. Passed via `docker exec -e` so the
 # variable lands in the ralph.py process environment (NOT the container's
 # global env, which docker exec cannot mutate after container start).
-log "launching ralph TUI in ${CONTAINER_NAME} (mode: ${RALPH_MODE}; Ctrl+C to exit)"
+log "launching ralph TUI in ${CONTAINER_NAME} (mode: ${RALPH_MODE}; cwd ${CONTAINER_WORKDIR}; Ctrl+C to exit)"
 # No signal trapping — docker exec -it forwards SIGINT/SIGTERM directly
 # to ralph.py. Defensive trap handlers would break passthrough.
-exec docker exec -it --user dev -w /workspace \
+exec docker exec -it --user dev -w "${CONTAINER_WORKDIR}" \
   -e "KEEL_RALPH_MODE=${RALPH_MODE}" \
+  -e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
   "${CONTAINER_NAME}" uv run ralph.py "${RALPH_MODE}" "$@"

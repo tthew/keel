@@ -7,11 +7,11 @@
 # Story 2.6 wraps this as `pnpm devbox:egress:monitor`.
 #
 # Usage (inside or outside the container):
-#   docker exec -it keel-devbox /workspace/packages/devbox/scripts/monitor.sh
+#   docker exec -it keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME}/packages/devbox/scripts/monitor.sh
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-JSONL_OUT="/workspace/logs/egress-queries.jsonl"
+JSONL_OUT="/workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/logs/egress-queries.jsonl"
 
 if [[ ! -f "${JSONL_OUT}" ]]; then
 	printf 'monitor: waiting for %s to appear…\n' "${JSONL_OUT}" >&2

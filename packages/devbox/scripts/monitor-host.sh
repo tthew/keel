@@ -18,6 +18,7 @@
 #       packages/devbox/scripts/monitor.sh` or re-clone.
 #   8   docker runtime unreachable.
 #   9   container not running — run `pnpm devbox:start` first.
+#   12  bind-mount source mismatch — run `pnpm devbox:restart` (iter-239).
 #   *   docker exec / tail error (propagated).
 # ---------------------------------------------------------------------------
 set -euo pipefail
@@ -31,6 +32,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+# shellcheck source=lib/check-mount-source.sh
+source "${SCRIPT_DIR}/lib/check-mount-source.sh"
+
 log() { printf 'monitor: %s\n' "$*" >&2; }
 
 if ! docker info >/dev/null 2>&1; then
@@ -43,6 +50,8 @@ if [[ "${state}" != "running" ]]; then
 	log "container '${CONTAINER_NAME}' is not running — run 'pnpm devbox:start' first"
 	exit 9
 fi
+
+check_mount_source
 
 # Pre-flight: in-container primitive present on host filesystem. `monitor.sh`
 # is bind-mounted into the container via the workspace mount — a rebuild
@@ -63,4 +72,9 @@ if [[ -t 0 ]]; then
 else
 	tty_flag="-i"
 fi
-exec docker exec "${tty_flag}" "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/monitor.sh "$@"
+# Pass KEEL_DEVBOX_REPO_NAME so monitor.sh can resolve JSONL_OUT correctly
+# without depending on the container's compose-injected env (defensive
+# parity with the other host wrappers).
+exec docker exec "${tty_flag}" \
+	-e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
+	"${CONTAINER_NAME}" "/workspace/${REPO_NAME}/packages/devbox/scripts/monitor.sh" "$@"

@@ -43,6 +43,17 @@ CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 IMAGE_TAG="${KEEL_DEVBOX_IMAGE_TAG:-keel-devbox:local}"
 HEALTHCHECK_TIMEOUT_S="${KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S:-120}"
 
+# Resolve main repo + repo name and export so docker-compose's
+# ${KEEL_DEVBOX_WORKSPACE} + ${KEEL_DEVBOX_REPO_NAME} interpolation pin
+# the bind source to the host main repo (regardless of where the operator
+# invokes from, including from any worktree) and the container subdir to
+# the per-fork name. iter-239 mount-path mirroring.
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+export KEEL_DEVBOX_WORKSPACE="${MAIN_REPO}"
+export KEEL_DEVBOX_REPO_NAME="${REPO_NAME}"
+
 log() { printf 'start: %s\n' "$*" >&2; }
 
 if ! docker info >/dev/null 2>&1; then

@@ -77,9 +77,17 @@ fi
 # because the name is unique and `/tmp` is cleared at boot.
 chown_err="$(mktemp -t chown.XXXXXX)"
 
-# Workspace mount — the compose bind maps the monorepo root to /workspace.
-# Ensure the directory is traversable even when the host mount arrives with
-# a different ownership (common on macOS + Apple Silicon Docker Desktop).
+# Workspace mount — the compose bind maps the host main repo to
+# /workspace/${KEEL_DEVBOX_REPO_NAME} (default `ralph-bmad`). The
+# container-side path mirrors the host directory layout so worktrees
+# appear as /workspace/<repo>/.claude/worktrees/<X>. KEEL_DEVBOX_REPO_NAME
+# is propagated into the container via docker-compose.yml § environment;
+# default fallback keeps the script viable when invoked outside compose
+# (e.g. `docker run keel-devbox:local` for image probing).
+#
+# Ensure the mount root is traversable even when the host bind arrives
+# with a different ownership (common on macOS + Apple Silicon Docker
+# Desktop).
 #
 # CR AI-5 (iter-133): replaces the iter-99 blanket `|| true` with narrower
 # handling — capture chown's stderr, re-emit on failure to the container's
@@ -87,8 +95,10 @@ chown_err="$(mktemp -t chown.XXXXXX)"
 # best-effort posture (the bind mount itself is the source of truth for
 # host-side ownership on backend B) while making unexpected failures
 # diagnosable instead of silently swallowed.
-if [[ -d /workspace ]]; then
-  if ! chown -- "${WORKSPACE_OWNER}" /workspace 2>"${chown_err}"; then
+WORKSPACE_PATH="/workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}"
+
+if [[ -d "${WORKSPACE_PATH}" ]]; then
+  if ! chown -- "${WORKSPACE_OWNER}" "${WORKSPACE_PATH}" 2>"${chown_err}"; then
     cat "${chown_err}" >&2 || true
   fi
   rm -f "${chown_err}"
@@ -111,12 +121,11 @@ done
 # Story 2.3: fail-closed egress policy (dnsmasq + nftables). Hard-fail if init
 # fails so the container cannot run without an active policy (NFR6; see
 # docs/invariants/devbox-egress.md § Intent). The script is bind-mounted via
-# /workspace so edits propagate without a rebuild; the absolute path is
-# stable because the compose bind-mount target is pinned at /workspace.
-if [ -x /workspace/packages/devbox/scripts/start-egress.sh ]; then
-  /workspace/packages/devbox/scripts/start-egress.sh
+# the workspace mount so edits propagate without a rebuild.
+if [ -x "${WORKSPACE_PATH}/packages/devbox/scripts/start-egress.sh" ]; then
+  "${WORKSPACE_PATH}/packages/devbox/scripts/start-egress.sh"
 else
-  echo "entrypoint: FATAL: start-egress.sh not executable; fail-closed posture requires egress init" >&2
+  echo "entrypoint: FATAL: start-egress.sh not executable at ${WORKSPACE_PATH}/packages/devbox/scripts/; fail-closed posture requires egress init" >&2
   exit 1
 fi
 

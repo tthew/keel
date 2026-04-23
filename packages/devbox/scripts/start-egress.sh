@@ -6,7 +6,7 @@
 # AFTER the Story 2.1 workspace chown + OAuth volume bring-up and BEFORE the
 # compose CMD `exec` (SC-11). Bootstraps the fail-closed egress posture:
 #
-#   1. Ensure /workspace/logs + /run are writable (SC-17).
+#   1. Ensure ${WORKSPACE_PATH}/logs + /run are writable (SC-17).
 #   2. Pin /etc/resolv.conf to 127.0.0.1 only (SC-13) — closes upstream
 #      cc-devbox's fail-open 8.8.8.8 fallback.
 #   3. Compose the static baseline whitelist (whitelist.default.txt +
@@ -31,10 +31,14 @@ COMPOSED_WHITELIST="/run/keel-whitelist.composed.txt"
 TAILER_PID_FILE="/run/keel-egress-tailer.pid"
 DNSMASQ_PID_FILE="/run/dnsmasq.pid"
 
+# Workspace path mirrors entrypoint.sh — KEEL_DEVBOX_REPO_NAME is
+# propagated by docker-compose.yml § environment (default `ralph-bmad`).
+WORKSPACE_PATH="/workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}"
+
 log() { printf 'start-egress: %s\n' "$*" >&2; }
 
 # --- Step 1: directory bring-up (SC-17) -----------------------------------
-mkdir -p /workspace/logs
+mkdir -p "${WORKSPACE_PATH}/logs"
 mkdir -p /run
 # /var/log exists in the base image; re-assert for dnsmasq log-facility.
 mkdir -p /var/log

@@ -41,11 +41,11 @@ Two service-level tmpfs mounts via Compose long-syntax:
 
 ```yaml
 tmpfs:
-  - /tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
-  - /var/tmp:exec=false,suid=false,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
+  - /tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
+  - /var/tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
 ```
 
-Compose `exec=false` → kernel `noexec`, `suid=false` → kernel `nosuid`. Sizes parameterised via Story 2.2's published `.envrc` knobs (`packages/devbox/.envrc.example:29-30`) per NFR8a retunability. `/var/log` is intentionally NOT tmpfs-mounted at 1.0 — dnsmasq + nftables log files live under `/workspace/logs/` per Story 2.3 SC-17 (the workspace bind-mount owns log persistence), and keeping `/var/log` as a normal image layer avoids invalidating dnsmasq-packaged log-dir initialization behavior. The `KEEL_DEVBOX_TMPFS_LOGS_MB` knob Story 2.2 published at `.envrc.example:31` remains inert at Story 2.5 and is NOT consumed by this contract.
+Options are canonical kernel tmpfs mount flags (`mount(8)`): `noexec` masks MNT_NOEXEC so setuid/exec-bit scripts cannot run, `nosuid` masks MNT_NOSUID so setuid binaries cannot elevate. Earlier drafts used the `exec=false,suid=false` Compose-style form; Docker 29 rejects `suid=false` ("invalid tmpfs option") while accepting `exec=false`, so iter-238 standardised on the kernel-native names to avoid the asymmetry. Sizes parameterised via Story 2.2's published `.envrc` knobs (`packages/devbox/.envrc.example:29-30`) per NFR8a retunability. `/var/log` is intentionally NOT tmpfs-mounted at 1.0 — dnsmasq + nftables log files live under `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/` per Story 2.3 SC-17 (the workspace bind-mount owns log persistence), and keeping `/var/log` as a normal image layer avoids invalidating dnsmasq-packaged log-dir initialization behavior. The `KEEL_DEVBOX_TMPFS_LOGS_MB` knob Story 2.2 published at `.envrc.example:31` remains inert at Story 2.5 and is NOT consumed by this contract.
 
 ### /home/dev named volume
 
@@ -76,7 +76,7 @@ Parsing `docker-compose.yml` at runtime (or at `pnpm devbox:start`), asserting:
 - `services.devbox.cap_drop` contains `ALL`.
 - `services.devbox.cap_add` is exactly `[NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` (unordered set equality).
 - `services.devbox.security_opt` contains `no-new-privileges:true`.
-- `services.devbox.tmpfs` contains two entries, both with `exec=false,suid=false`, paths `/tmp` and `/var/tmp`.
+- `services.devbox.tmpfs` contains two entries, both with `noexec,nosuid`, paths `/tmp` and `/var/tmp`.
 - `services.devbox.volumes` contains a `type: volume, source: keel_home_dev, target: /home/dev` entry.
 - Top-level `volumes:` declares `keel_home_dev` with no `driver_opts` that would rebind it to host.
 

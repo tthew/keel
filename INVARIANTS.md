@@ -95,7 +95,7 @@ Docker-in-Docker as a fork-time substrate requirement: every Ralph iteration env
 
 ### Devbox egress (Story 2.3)
 
-Fail-closed DNS (dnsmasq) + IPv4/IPv6 default-deny (nftables) + atomic reload consolidated into one substrate-authoritative invariant. Closes upstream cc-devbox's divergent-whitelist + fail-open-resolv.conf + IPv6-gap bugs. JSONL query log at `/workspace/logs/egress-queries.jsonl` with 6-field stable schema is the FR37 (Epic 4) security-evidence consumer contract.
+Fail-closed DNS (dnsmasq) + IPv4/IPv6 default-deny (nftables) + atomic reload consolidated into one substrate-authoritative invariant. Closes upstream cc-devbox's divergent-whitelist + fail-open-resolv.conf + IPv6-gap bugs. JSONL query log at `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl` with 6-field stable schema is the FR37 (Epic 4) security-evidence consumer contract.
 
 - **`INV-devbox-egress-contract`** — Fail-closed DNS + IPv4/IPv6 parity + atomic reload; JSONL query log schema is append-only stable. Source: `docs/invariants/devbox-egress.md`.
 

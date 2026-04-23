@@ -98,7 +98,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: '5960e7c4fa6f311364af4d8c59adfc4cb2f990e4ff1e938d0262521d05969ef1',
+    contentHash: 'd89072918e7eae929255305213fcd834b27e6683c449bec7a814e466bba3b027',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -258,7 +258,7 @@ const raw: Invariant[] = [
     description:
       'Fail-closed DNS (dnsmasq, default address=/#/ returns 0.0.0.0/::) + IPv4/IPv6 default-deny (nftables inet keel_egress table with output_v4 + output_v6 chains both `policy drop`) + atomic reload (flock + nft -f kernel transaction + dnsmasq SIGHUP). Closes upstream cc-devbox bugs: divergent whitelist tooling (single reload-egress.sh primitive), fail-open resolv.conf fallback to 8.8.8.8 (pinned to 127.0.0.1 only), IPv6 default-deny gap (both families covered). JSONL query log at /workspace/logs/egress-queries.jsonl with 6-field stable schema (timestamp/query/type/result/upstream/client) + 50 MB size-based rotation (5 gzip generations). Source consolidation: one contentHash-bound doc gates the three sub-contracts together so drift surfaces at a single sync-gate target (rationale: Story 2.2 iter-151 AR-2 allow-list asymmetry lesson — splitting contracts across manifest entries grew asymmetry risk).',
     sourcePath: 'docs/invariants/devbox-egress.md',
-    contentHash: 'cd1b5da113871ad5fc8b7321d2d0cb33dc87e99d9cb97a0d742eaacddfdee2d5',
+    contentHash: 'd04b02282eab4e5d1affa9f27646f6f88d1e41434afa00007015ebfbcbba7ff0',
     anchors: ['INV-devbox-egress-contract'],
   },
   {
@@ -266,7 +266,7 @@ const raw: Invariant[] = [
     description:
       'Container hardening contract — non-root `dev` user (UID/GID 1000, USER directive before ENTRYPOINT) + capability bounding set (cap_drop: ALL; cap_add: NET_ADMIN, NET_RAW, NET_BIND_SERVICE per Story 2.5 SC-4 — nftables netlink + dnsmasq :53 bind + raw-socket probes) + security_opt: no-new-privileges:true + tmpfs posture (/tmp + /var/tmp with noexec,nosuid; sizes parameterised via NFR8a at KEEL_DEVBOX_TMPFS_{TMP,VARTMP}_MB per Story 2.2 .envrc.example) + /home/dev named volume (keel_home_dev, non-toggle under any KEEL_DEVBOX_* setting — never a host bind-mount). Runtime compose-shape check deferred to Story 2.17 / dedicated packages/keel-invariants/src/check-devbox-compose-shape.ts; Story 2.5 registers the substrate-invariant surface. Companion to INV-devbox-dind-available (fork-time Docker runtime) + INV-devbox-egress-contract (fail-closed egress) — the Epic-2 substrate-security trio.',
     sourcePath: 'docs/invariants/devbox-hardening.md',
-    contentHash: '5e8687493327b6866531eeb0adeb941931c5b139c08b8bc46743cf56654a3dc3',
+    contentHash: '2f9ca6f32f289273439d9b834a40156d106aa0fa655b5cb154d85ada8da7a368',
     anchors: ['INV-devbox-homedev-named-volume'],
   },
   {

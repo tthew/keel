@@ -76,20 +76,53 @@ services:
     env_file:
       - path: ../../.envrc
         required: false
-    working_dir: /workspace
+    working_dir: /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}
     # Per-fork workspace mount (default; Story 2.11 adds shared mode).
-    # Parameterised via `KEEL_DEVBOX_WORKSPACE` so Story 2.11 flips the
-    # path without rewriting the compose file — see Story 2.1 AC 3 scope
-    # clarification "workspace mount contract". Story 2.5 adds the named
-    # volume `keel_home_dev` for /home/dev persistence (AC 4; NFR10 — auth
-    # tokens live only inside the devbox volume, never host bind-mounts).
+    #
+    # Mount semantics (iter-239):
+    #   - source: KEEL_DEVBOX_WORKSPACE is the host's main repo absolute
+    #     path. Set by host wrappers via `git rev-parse --git-common-dir
+    #     | dirname` (resolves to the same value from any worktree, since
+    #     git's common-dir is the main repo's `.git`). Default `../..`
+    #     preserves the pre-iter-239 behaviour for raw `docker compose
+    #     up` invocations from packages/devbox/, but `pnpm devbox:start`
+    #     and friends always export the absolute path.
+    #   - target: /workspace/${KEEL_DEVBOX_REPO_NAME} mirrors the host
+    #     directory layout in the container. Default repo name is
+    #     `ralph-bmad`; forks override KEEL_DEVBOX_REPO_NAME in `.envrc`
+    #     to match their host directory layout (host
+    #     /Users/.../<name> ↔ container /workspace/<name>). Worktrees
+    #     appear naturally as subdirectories at /workspace/<repo>/.claude/
+    #     worktrees/<X> because the bind source is the main repo (worktree
+    #     directories live under `.claude/worktrees/` in the host layout).
+    #   - working_dir: pinned to the same /workspace/${REPO_NAME} so
+    #     `docker exec` without `-w` lands at the repo root; host
+    #     wrappers compute per-invocation `-w` to mirror the operator's
+    #     host cwd.
+    #
+    # Story 2.11 forward-compat: shared-workspace mode flips
+    # KEEL_DEVBOX_WORKSPACE to a parent directory + KEEL_DEVBOX_REPO_NAME
+    # to that parent's basename, producing /workspace/Development/{ralph-
+    # bmad,fork-A,fork-B}/ in the container. No compose-file changes
+    # required.
+    #
+    # Story 2.5 adds the named volume `keel_home_dev` for /home/dev
+    # persistence (AC 4; NFR10 — auth tokens live only inside the devbox
+    # volume, never host bind-mounts).
     volumes:
       - type: bind
         source: ${KEEL_DEVBOX_WORKSPACE:-../..}
-        target: /workspace
+        target: /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}
       - type: volume
         source: keel_home_dev
         target: /home/dev
+    # Propagate KEEL_DEVBOX_REPO_NAME into the container so entrypoint.sh
+    # + start-egress.sh + egress-log-tailer.sh + monitor.sh can derive
+    # WORKSPACE_PATH at runtime. Compose's ${VAR} interpolation runs on
+    # the host at parse time; the container only sees variables explicitly
+    # propagated via `environment:` or `env_file:`.
+    environment:
+      KEEL_DEVBOX_REPO_NAME: ${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}
     # Story 2.2: compute + shm limits parameterised via .envrc. Non-swarm
     # canonical form (service-level `cpus:` / `mem_limit:` / `shm_size:` —
     # NOT `deploy.resources.limits.*`, which Compose silently ignores outside

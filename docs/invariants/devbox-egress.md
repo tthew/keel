@@ -32,7 +32,7 @@ Scripts (`packages/devbox/scripts/`):
 
 - `start-egress.sh` — one-shot bootstrap invoked from `entrypoint.sh`: pins `/etc/resolv.conf` to `127.0.0.1`, composes the baseline whitelist (`whitelist.default.txt` + `whitelist/*.txt` fragments), runs the first atomic reload, launches the JSONL tailer in background, verifies dnsmasq is serving.
 - `reload-egress.sh <composed-whitelist-path>` — atomic reload primitive; single arg is the composed whitelist file. `flock -x /run/keel-egress.lock` serialises concurrent reloads; `nft -f <tempfile>` applies the nftables transaction; `kill -HUP <dnsmasq-pid>` (fallback `pkill -HUP dnsmasq`) reloads dnsmasq without restart. Consumed by Story 2.4's user-facing `whitelist.sh sync` CLI.
-- `egress-log-tailer.sh` — background JSONL emitter. Tails `/var/log/dnsmasq.log` via `tail -Fn0`, parses each query/response line, emits one JSONL record per event to `/workspace/logs/egress-queries.jsonl`, rotates in-process at 50 MB (5 generations, gzip-compressed).
+- `egress-log-tailer.sh` — background JSONL emitter. Tails `/var/log/dnsmasq.log` via `tail -Fn0`, parses each query/response line, emits one JSONL record per event to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`, rotates in-process at 50 MB (5 generations, gzip-compressed).
 - `monitor.sh` — operator-facing live tail of the JSONL file via `jq -c`.
 
 Whitelist composition (static baseline at Story 2.3; per-fork override lands in Story 2.4):
@@ -47,7 +47,7 @@ Capability contract (`docker-compose.yml`):
 
 ## JSONL query log schema
 
-`/workspace/logs/egress-queries.jsonl` — one JSON object per line, UTF-8, LF-terminated. Field order is stable (append-only) so Epic 4's FR37 security-evidence consumer can hard-reference it:
+`/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl` — one JSON object per line, UTF-8, LF-terminated. Field order is stable (append-only) so Epic 4's FR37 security-evidence consumer can hard-reference it:
 
 ```json
 {"timestamp":"2026-04-21T12:34:56.789Z","query":"api.anthropic.com","type":"A","result":"allow","upstream":"1.1.1.1","client":"127.0.0.1"}
@@ -94,7 +94,7 @@ Backend-B iteration-env cannot exercise these smokes (kernel-nftables privilege 
   ```
 - **AC 3 (JSONL schema):**
   ```sh
-  docker exec keel-devbox tail -n 1 /workspace/logs/egress-queries.jsonl | jq -e '
+  docker exec keel-devbox tail -n 1 /workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl | jq -e '
     has("timestamp") and has("query") and has("type") and
     has("result") and has("upstream") and has("client")'
   ```
@@ -103,7 +103,7 @@ Backend-B iteration-env cannot exercise these smokes (kernel-nftables privilege 
   # In one shell, start a long-running connection through a whitelisted domain:
   docker exec keel-devbox curl -sS --keepalive-time 60 https://api.anthropic.com/v1/models &
   # In a second shell, reload the policy with the same composed whitelist:
-  docker exec keel-devbox /workspace/packages/devbox/scripts/reload-egress.sh /run/keel-whitelist.composed.txt
+  docker exec keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME}/packages/devbox/scripts/reload-egress.sh /run/keel-whitelist.composed.txt
   # Expect: reload exits 0 within 2s; the long-running curl does NOT break.
   ```
 - **AC 5 (fail-closed unwhitelisted curl):**
@@ -124,7 +124,7 @@ A fork that needs to weaken any of those three sub-contracts pursues the AMEND p
 - **`AGENTS.md` § Devbox iteration environment:** references `INV-devbox-egress-contract` when the egress policy is elaborated.
 - **`RALPH.md` § Signposts:** references this invariant to explain why Story 2.3's dev-story output lands in the canonical file layout + single-reload primitive + JSONL schema freeze.
 - **`_bmad-output/planning-artifacts/architecture.md` § S5:** references this invariant in the dual-layer belt-and-braces mechanism pin.
-- **Epic 4 FR37 security-evidence consumer:** reads `/workspace/logs/egress-queries.jsonl` + all `.N.gz` backups; hard-references the JSONL schema pinned in § JSONL query log schema above.
+- **Epic 4 FR37 security-evidence consumer:** reads `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl` + all `.N.gz` backups; hard-references the JSONL schema pinned in § JSONL query log schema above.
 - **Story 2.4 (`whitelist.sh` user-facing CLI):** invokes `packages/devbox/scripts/reload-egress.sh` with the composed whitelist argument.
 - **Story 2.5 (hardening):** re-evaluates `cap_add`/`cap_drop`/`user` posture against the capability contract in § Mechanism.
 - **Story 2.13 (healthcheck):** probes dnsmasq liveness as part of the compose healthcheck.

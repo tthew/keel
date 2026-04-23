@@ -11,6 +11,7 @@
 #   0/2/3/4/5/6/7  propagated verbatim from whitelist.sh.
 #   8              docker runtime unreachable.
 #   9              container not running — run `pnpm devbox:start` first.
+#   12             bind-mount source mismatch — run `pnpm devbox:restart` (iter-239).
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -19,7 +20,14 @@ set -euo pipefail
 # break the `keel-devbox_keel_home_dev` volume path (INV-devbox-homedev-named-volume).
 unset COMPOSE_PROJECT_NAME
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
+
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+# shellcheck source=lib/check-mount-source.sh
+source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 
 log() { printf 'whitelist: %s\n' "$*" >&2; }
 
@@ -33,6 +41,8 @@ if [[ "${state}" != "running" ]]; then
 	log "container '${CONTAINER_NAME}' is not running — run 'pnpm devbox:start' first"
 	exit 9
 fi
+
+check_mount_source
 
 # AI-9 (Story 2.6 CR iter-213): `--user dev` pin matches shell.sh:39,42.
 # Image default USER is dev (Story 2.5 Dockerfile), so today this is an
@@ -51,4 +61,6 @@ if [[ -t 0 ]]; then
 else
 	tty_flag="-i"
 fi
-exec docker exec "${tty_flag}" --user dev "${CONTAINER_NAME}" /workspace/packages/devbox/scripts/whitelist.sh "$@"
+exec docker exec "${tty_flag}" --user dev \
+	-e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
+	"${CONTAINER_NAME}" "/workspace/${REPO_NAME}/packages/devbox/scripts/whitelist.sh" "$@"
