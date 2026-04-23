@@ -13,7 +13,10 @@
 
 ## BLOCKED
 
-_(none)_
+- [ ] iter-249 push to `origin feat/epic-2-packaged-devbox` — REASON: SSH to github.com port 22 timed out twice in iter env (both foreground + background attempts; identical `ssh: connect to host github.com port 22: Connection timed out` error each time). Remote is `git@github.com:tthew/ralph-bmad` (SSH, not HTTPS).
+  - Attempted: `git push` (direct), retried once with background invocation — both exit 128 with connection-timeout.
+  - Error/Issue: transient network / firewall blocking outbound :22 to github.com from this iter env at 2026-04-23T22:15Z. Commit `d908d6f` is LOCALLY STAGED on `feat/epic-2-packaged-devbox` (1 ahead of upstream); no force-push, no amend — preserved intact for next iter.
+  - Next: next iteration picks up `docs(story-2-10): iter-249 — trace gate WAIVED, in-dev → traced, 20th cumulative precedent` as unpushed local commit per § Execute step 0h (check unpushed commits at orient) → push at step 5 alongside iter-250 commit. If SSH continues to fail, operator may need to investigate iter-env egress to github.com:22 or reconfigure remote to HTTPS; Ralph cannot autonomously reconfigure the remote URL (beyond single-iteration scope).
 
 ## ATDD Red Phase
 
