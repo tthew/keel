@@ -236,6 +236,17 @@ Any AMEND-path edit to sites 1 + 2 MUST re-sync sites 4 + 5 in the same PR; drif
 
 **Fork-hook exec-bit parity.** The same `0755` requirement applies to any fork-authored `.claude/hooks/block-secret-access.fork.sh` — the substrate hook invocation at § Fork extension uses the `-x` test (`[ -x .claude/hooks/block-secret-access.fork.sh ]`), which returns false on non-executable files. Forks authoring the fork-hook MUST set the exec bit (`chmod 0755`) at author time; `create-keel-app --include-fork-invariants` (Epic 15a AC 4; downstream fork-extension flag) inherits the same `--preserve-permissions` discipline.
 
+### CI visibility contract (Story 2.17 Task 9)
+
+Epic 14's CI dashboard panel (forthcoming; or nightly report — research-corpus terrain) surfaces a trend-line of hook-denial + S4-scan events from `security-evidence.json`:
+
+- `scans.hook_denials[]` — JSONL events aggregated from `${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl` per iteration (see § JSONL query log schema). Breakdown by `rule_id` across the three-member closed enum: `secret-access-denylist` / `hook-self-protection` / `install-boundary-protection` (the third rule-id introduced by Story 2.17 Task 7; see § L1 install-boundary rule).
+- `scans.prompt_injection.findings[]` — the three S4 rules (`s4-claude-hooks-tamper`, `s4-git-hooks-tamper`, `s4-skip-permissions-injection`) authored at § S4 prompt-injection scan rules. Severity breakdown; any `high` finding escalates `overall_severity_max = "high"` → commit blocked + Ralph halt `SECURITY_CRITICAL` per `INV-ralph-halt-reason-enum` (PRD FR14k closed enum).
+
+**Event-count trend contract.** The panel/report aggregates `hook_denials[]` by `iteration_id` over a rolling window (e.g. last 100 iterations). Baseline at 1.0 is "zero hook-denial events per iteration in healthy Ralph operation". Any non-zero count is a human-review trigger — unusually high bypass-attempt rate is a leading signal of Claude-prompt-injection attack or Ralph regression.
+
+**Epic 14 ownership.** Story 2.17 Task 9 PINS the contract (this section); Epic 14 implements the dashboard panel (or nightly report). No code delivered at Task 9 — contract-pin only. Parallel operator-facing forward-link at `packages/devbox/README.md § CI visibility forward-link`.
+
 ### Limitations + scope-carve-outs
 
 - **Anchor-delimited `hooks.PreToolUse` region in `.claude/settings.json` — delivered by Story 2.17 via `jq-subtree` sub-tree hashing.** See § Story 2.17 git-layer backstop table above.
