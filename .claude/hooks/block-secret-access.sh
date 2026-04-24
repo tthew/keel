@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook (Story 2.17 Task 7 L1 install-boundary extension; Task 8.4 settings.*.json forward-compat pattern)
+# .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook
+# Story 2.17 Task 7 (L1 install-boundary), Task 8 (settings-file patterns), Task 10.1 D-12..D-17 first batch.
 set -euo pipefail
 payload="$(cat)"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || printf '')"
 bash_command=""
+normalized=""
 file_path=""
 pattern=""
 grep_path=""
@@ -30,69 +32,127 @@ block() {
   log_block "$rule_id" "$match"
   exit 0
 }
+
+# D-15 — wrapper-command normalization. Strip outermost wrapper prefix (single level, up to 3 rounds)
+# to defeat `sudo cat /proc/self/environ`, `bash -c 'cat .envrc'`, `/usr/bin/rm .claude/hooks/foo`, etc.
+# Known residual gap: compound commands (`echo safe && rm protected`) evade. Defense-in-depth, not sole.
+if [ "$tool_name" = "Bash" ]; then
+  normalized="$bash_command"
+  for _ in 1 2 3; do
+    if [[ "$normalized" =~ ^(bash|sh)[[:space:]]+-c[[:space:]]+[\"\']?(.*)$ ]]; then
+      normalized="${BASH_REMATCH[2]}"
+    elif [[ "$normalized" =~ ^sudo[[:space:]]+(.*)$ ]]; then
+      normalized="${BASH_REMATCH[1]}"
+    elif [[ "$normalized" =~ ^(/usr/bin/|/bin/)(.*)$ ]]; then
+      normalized="${BASH_REMATCH[2]}"
+    elif [[ "$normalized" =~ ^xargs([[:space:]]+-[a-zA-Z]+)*[[:space:]]+(.*)$ ]]; then
+      normalized="${BASH_REMATCH[2]}"
+    elif [[ "$normalized" =~ ^eval[[:space:]]+[\"\']?(.*)$ ]]; then
+      normalized="${BASH_REMATCH[1]}"
+    elif [[ "$normalized" =~ ^env([[:space:]]+[A-Z_][A-Za-z0-9_]*=[^[:space:]]+)+[[:space:]]+(.*)$ ]]; then
+      normalized="${BASH_REMATCH[2]}"
+    elif [[ "$normalized" =~ ^\\(.*)$ ]]; then
+      normalized="${BASH_REMATCH[1]}"
+    else
+      # Do NOT strip interp-stdin (`python -c`, `node -e`, …) here — case globs below require
+      # the reader-verb prefix to match `python*-[ec]*.envrc*` etc. Stripping would lose that
+      # context and the Python source's `open('.envrc')` string would escape detection.
+      break
+    fi
+  done
+fi
+
 # Story 2.17 Task 7 — L1 install-boundary protection regex (shared by Edit|Write + Bash arms).
-# Protected substrate files under packages/keel-invariants/src/ that Ralph MUST NOT author.
 l1_path_re='packages/keel-invariants/src/(invariants\.manifest\.ts|sync-gate\.ts|manifest-reader\.ts|prek-hook-manifest\.ts|prompt-injection-rules/)'
+
+# D-17 — Read/Bash reader exemption for *.envrc.example / *.secrets.example / *.env.example
+# (schema-companion files, intentional documentation samples).
 case "$tool_name" in
   Read)
     case "$file_path" in
       *.envrc.example|*.secrets.example|*.env.example)
         printf '{"decision":"approve"}\n'; exit 0 ;;
     esac ;;
+  Bash)
+    # Reader-verb (D-12 readers + interp-stdin) against *.example companion files — approve.
+    example_read_re='^(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd|node|python|python3|perl|ruby|php)([[:space:]]+-[ec])?([[:space:]]+[^[:space:]]+)*[[:space:]]+[^[:space:]]*\.(envrc|secrets|env)\.example([[:space:]]|$)'
+    if [[ "$normalized" =~ $example_read_re ]]; then
+      printf '{"decision":"approve"}\n'; exit 0
+    fi ;;
 esac
+
 case "$tool_name" in
   Edit|Write)
-    # Story 2.17 Task 8.4 — settings-file patterns (exact, forward-compat .*.json, and nested under any prefix).
+    # Task 8.4 — settings-file patterns (exact, forward-compat .*.json, and nested under any prefix).
     case "$file_path" in
       .claude/settings.json|.claude/settings.local.json|.claude/settings.*.json|*/.claude/settings.json|*/.claude/settings.local.json|*/.claude/settings.*.json)
         block "hook-self-protection" "settings-file" ;;
       .claude/hooks/*|*/.claude/hooks/*) block "hook-self-protection" "hook-script-file" ;;
       .git/hooks/*|*/.git/hooks/*) block "hook-self-protection" "git-hook-file" ;;
     esac
-    # Story 2.17 Task 7 — L1 install-boundary Edit|Write denial.
+    # Task 7 — L1 install-boundary Edit|Write denial.
     if [[ "$file_path" =~ $l1_path_re ]]; then
       block "install-boundary-protection" "install-boundary-file"
     fi ;;
   Bash)
-    if [[ "$bash_command" =~ ^git[[:space:]]+(commit|push) ]] && [[ "$bash_command" == *--no-verify* ]]; then
+    # D-16 — git --no-verify broadened regex. Covers git env-prefix (A=1 B=2 git ...), absolute-path
+    # git, `-c` / `-C` pre-args (`git -c core.x=y commit ...`), all mutating subcommands.
+    # Wrapper-aware: also matches against $normalized (strips bash -c / sudo / etc.).
+    no_verify_re='^(([A-Z_]+=[^[:space:]]+[[:space:]]+)*)?(/usr/bin/|/bin/)?git([[:space:]]+-[cCp][[:space:]]+[^[:space:]]+)*[[:space:]]+(commit|push|merge|rebase|am|pull|cherry-pick|revert)[[:space:]].*--no-verify'
+    if [[ "$bash_command" =~ $no_verify_re ]] || [[ "$normalized" =~ $no_verify_re ]]; then
       block "hook-self-protection" "git-no-verify-bypass"
     fi
-    case "$bash_command" in
+    # D-14 — hook-self-protection mutation-verb coverage canonicalized. Each verb covers all three
+    # target classes (.claude/settings*, .claude/hooks/*, .git/hooks/*). Run against $normalized to
+    # catch wrapper-prefixed forms (sudo/bash -c/etc. stripped by D-15 normalization above).
+    case "$normalized" in
       rm*.claude/settings*|rm*.claude/hooks/*|rm*.git/hooks/*) block "hook-self-protection" "rm-against-protected" ;;
       mv*.claude/settings*|mv*.claude/hooks/*|mv*.git/hooks/*) block "hook-self-protection" "mv-against-protected" ;;
-      chmod*.claude/hooks/*|chmod*.git/hooks/*) block "hook-self-protection" "chmod-against-protected" ;;
-      tee*.claude/settings*|tee*.claude/hooks/*) block "hook-self-protection" "tee-against-protected" ;;
-      sed*-i*.claude/settings*|sed*-i*.claude/hooks/*) block "hook-self-protection" "sed-i-against-protected" ;;
-      echo*\>*.claude/settings*|echo*\>*.claude/hooks/*) block "hook-self-protection" "echo-redirect-against-protected" ;;
-      cp*.claude/settings*|cp*.claude/hooks/*) block "hook-self-protection" "cp-against-protected" ;;
+      chmod*.claude/settings*|chmod*.claude/hooks/*|chmod*.git/hooks/*) block "hook-self-protection" "chmod-against-protected" ;;
+      tee*.claude/settings*|tee*.claude/hooks/*|tee*.git/hooks/*) block "hook-self-protection" "tee-against-protected" ;;
+      sed*-i*.claude/settings*|sed*-i*.claude/hooks/*|sed*-i*.git/hooks/*) block "hook-self-protection" "sed-i-against-protected" ;;
+      echo*\>*.claude/settings*|echo*\>*.claude/hooks/*|echo*\>*.git/hooks/*) block "hook-self-protection" "echo-redirect-against-protected" ;;
+      cp*.claude/settings*|cp*.claude/hooks/*|cp*.git/hooks/*) block "hook-self-protection" "cp-against-protected" ;;
+      truncate*.claude/settings*|truncate*.claude/hooks/*|truncate*.git/hooks/*) block "hook-self-protection" "truncate-against-protected" ;;
+      dd*.claude/settings*|dd*.claude/hooks/*|dd*.git/hooks/*) block "hook-self-protection" "dd-against-protected" ;;
     esac
-    # Story 2.17 Task 7 — L1 install-boundary Bash mutation denial.
-    # Guard expensive regex matching behind the path-presence gate (short-circuit on non-L1 commands).
-    if [[ "$bash_command" =~ $l1_path_re ]]; then
-      if [[ "$bash_command" =~ (^|[[:space:]])(rm|mv|chmod|tee|cp|truncate|dd)[[:space:]] ]]; then
+    # find -delete / find -exec rm against protected paths (regex — free-form find args).
+    if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*(\.claude/settings|\.claude/hooks/?|\.git/hooks/?).*(-delete|-exec[[:space:]]+rm) ]]; then
+      block "hook-self-protection" "find-delete-against-protected"
+    fi
+    # Task 7 — L1 install-boundary Bash mutation denial. Path-presence gate short-circuits non-L1.
+    if [[ "$bash_command" =~ $l1_path_re || "$normalized" =~ $l1_path_re ]]; then
+      if [[ "$normalized" =~ (^|[[:space:]])(rm|mv|chmod|tee|cp|truncate|dd)[[:space:]] ]]; then
         block "install-boundary-protection" "mutation-verb-against-l1"
       fi
-      if [[ "$bash_command" =~ (^|[[:space:]])sed[[:space:]]+-i ]]; then
+      if [[ "$normalized" =~ (^|[[:space:]])sed[[:space:]]+-i ]]; then
         block "install-boundary-protection" "sed-i-against-l1"
       fi
-      if [[ "$bash_command" =~ (^|[[:space:]])echo.*\> ]]; then
+      if [[ "$normalized" =~ (^|[[:space:]])echo.*\> ]]; then
         block "install-boundary-protection" "echo-redirect-against-l1"
       fi
-      if [[ "$bash_command" =~ (^|[[:space:]])find[[:space:]].*-delete ]]; then
+      if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*-delete ]]; then
         block "install-boundary-protection" "find-delete-against-l1"
       fi
     fi ;;
 esac
+
+# D-13 — env|export|set word-boundary (regex replaces exact-match case). Catches `env`, `env `,
+# `env | sort`, `env -0`, `export`, `export -p`, `set`, `set -o posix`. Avoids false-positives on
+# `envsubst`, `envvar=x cmd`, `exportfs`, `setup.sh` (no word-boundary break after verb).
+# D-12 — reader verb expansion (14 readers × 5 path classes + interp-stdin with -[ec]).
 case "$tool_name" in
   Bash)
-    case "$bash_command" in
-      env|export|set) block "secret-access-denylist" "env-dump-bare" ;;
+    if [[ "$normalized" =~ ^(env|export|set)([[:space:]]|$) ]]; then
+      block "secret-access-denylist" "env-dump-bare"
+    fi
+    case "$normalized" in
       printenv*) block "secret-access-denylist" "printenv-idiom" ;;
-      cat*/proc/*/environ*) block "secret-access-denylist" "cat-proc-environ" ;;
-      cat*/home/dev/.claude/*|cat*/home/dev/.config/gh/*) block "secret-access-denylist" "cat-oauth-token" ;;
-      cat*.envrc*|cat*/.envrc*) block "secret-access-denylist" "cat-envrc-file" ;;
-      cat*.secrets*|cat*/.secrets*) block "secret-access-denylist" "cat-secrets-file" ;;
-      cat*.env|cat*.env.*|cat*/.env|cat*/.env.*) block "secret-access-denylist" "cat-env-file" ;;
+      cat*/proc/*/environ*|less*/proc/*/environ*|tail*/proc/*/environ*|head*/proc/*/environ*|bat*/proc/*/environ*|xxd*/proc/*/environ*|od*/proc/*/environ*|strings*/proc/*/environ*|more*/proc/*/environ*|grep*/proc/*/environ*|awk*/proc/*/environ*|sed*/proc/*/environ*|cp*/proc/*/environ*|dd*/proc/*/environ*|node*-[ec]*/proc/*/environ*|python*-[ec]*/proc/*/environ*|python3*-[ec]*/proc/*/environ*|perl*-[ec]*/proc/*/environ*|ruby*-[ec]*/proc/*/environ*|php*-[ec]*/proc/*/environ*) block "secret-access-denylist" "cat-proc-environ" ;;
+      cat*/home/dev/.claude/*|cat*/home/dev/.config/gh/*|less*/home/dev/.claude/*|less*/home/dev/.config/gh/*|tail*/home/dev/.claude/*|tail*/home/dev/.config/gh/*|head*/home/dev/.claude/*|head*/home/dev/.config/gh/*|bat*/home/dev/.claude/*|bat*/home/dev/.config/gh/*|xxd*/home/dev/.claude/*|xxd*/home/dev/.config/gh/*|od*/home/dev/.claude/*|od*/home/dev/.config/gh/*|strings*/home/dev/.claude/*|strings*/home/dev/.config/gh/*|more*/home/dev/.claude/*|more*/home/dev/.config/gh/*|grep*/home/dev/.claude/*|grep*/home/dev/.config/gh/*|awk*/home/dev/.claude/*|awk*/home/dev/.config/gh/*|sed*/home/dev/.claude/*|sed*/home/dev/.config/gh/*|cp*/home/dev/.claude/*|cp*/home/dev/.config/gh/*|dd*/home/dev/.claude/*|dd*/home/dev/.config/gh/*|node*-[ec]*/home/dev/.claude/*|node*-[ec]*/home/dev/.config/gh/*|python*-[ec]*/home/dev/.claude/*|python*-[ec]*/home/dev/.config/gh/*|python3*-[ec]*/home/dev/.claude/*|python3*-[ec]*/home/dev/.config/gh/*|perl*-[ec]*/home/dev/.claude/*|perl*-[ec]*/home/dev/.config/gh/*|ruby*-[ec]*/home/dev/.claude/*|ruby*-[ec]*/home/dev/.config/gh/*|php*-[ec]*/home/dev/.claude/*|php*-[ec]*/home/dev/.config/gh/*) block "secret-access-denylist" "cat-oauth-token" ;;
+      cat*.envrc*|cat*/.envrc*|less*.envrc*|less*/.envrc*|tail*.envrc*|tail*/.envrc*|head*.envrc*|head*/.envrc*|bat*.envrc*|bat*/.envrc*|xxd*.envrc*|xxd*/.envrc*|od*.envrc*|od*/.envrc*|strings*.envrc*|strings*/.envrc*|more*.envrc*|more*/.envrc*|grep*.envrc*|grep*/.envrc*|awk*.envrc*|awk*/.envrc*|sed*.envrc*|sed*/.envrc*|cp*.envrc*|cp*/.envrc*|dd*.envrc*|dd*/.envrc*|node*-[ec]*.envrc*|node*-[ec]*/.envrc*|python*-[ec]*.envrc*|python*-[ec]*/.envrc*|python3*-[ec]*.envrc*|python3*-[ec]*/.envrc*|perl*-[ec]*.envrc*|perl*-[ec]*/.envrc*|ruby*-[ec]*.envrc*|ruby*-[ec]*/.envrc*|php*-[ec]*.envrc*|php*-[ec]*/.envrc*) block "secret-access-denylist" "cat-envrc-file" ;;
+      cat*.secrets*|cat*/.secrets*|less*.secrets*|less*/.secrets*|tail*.secrets*|tail*/.secrets*|head*.secrets*|head*/.secrets*|bat*.secrets*|bat*/.secrets*|xxd*.secrets*|xxd*/.secrets*|od*.secrets*|od*/.secrets*|strings*.secrets*|strings*/.secrets*|more*.secrets*|more*/.secrets*|grep*.secrets*|grep*/.secrets*|awk*.secrets*|awk*/.secrets*|sed*.secrets*|sed*/.secrets*|cp*.secrets*|cp*/.secrets*|dd*.secrets*|dd*/.secrets*|node*-[ec]*.secrets*|node*-[ec]*/.secrets*|python*-[ec]*.secrets*|python*-[ec]*/.secrets*|python3*-[ec]*.secrets*|python3*-[ec]*/.secrets*|perl*-[ec]*.secrets*|perl*-[ec]*/.secrets*|ruby*-[ec]*.secrets*|ruby*-[ec]*/.secrets*|php*-[ec]*.secrets*|php*-[ec]*/.secrets*) block "secret-access-denylist" "cat-secrets-file" ;;
+      cat*.env|cat*.env.*|cat*/.env|cat*/.env.*|less*.env|less*.env.*|less*/.env|less*/.env.*|tail*.env|tail*.env.*|tail*/.env|tail*/.env.*|head*.env|head*.env.*|head*/.env|head*/.env.*|bat*.env|bat*.env.*|bat*/.env|bat*/.env.*|xxd*.env|xxd*.env.*|xxd*/.env|xxd*/.env.*|od*.env|od*.env.*|od*/.env|od*/.env.*|strings*.env|strings*.env.*|strings*/.env|strings*/.env.*|more*.env|more*.env.*|more*/.env|more*/.env.*|grep*.env|grep*.env.*|grep*/.env|grep*/.env.*|awk*.env|awk*.env.*|awk*/.env|awk*/.env.*|sed*.env|sed*.env.*|sed*/.env|sed*/.env.*|cp*.env|cp*.env.*|cp*/.env|cp*/.env.*|dd*.env|dd*.env.*|dd*/.env|dd*/.env.*|node*-[ec]*.env|node*-[ec]*.env.*|node*-[ec]*/.env|node*-[ec]*/.env.*|python*-[ec]*.env|python*-[ec]*.env.*|python*-[ec]*/.env|python*-[ec]*/.env.*|python3*-[ec]*.env|python3*-[ec]*.env.*|python3*-[ec]*/.env|python3*-[ec]*/.env.*|perl*-[ec]*.env|perl*-[ec]*.env.*|perl*-[ec]*/.env|perl*-[ec]*/.env.*|ruby*-[ec]*.env|ruby*-[ec]*.env.*|ruby*-[ec]*/.env|ruby*-[ec]*/.env.*|php*-[ec]*.env|php*-[ec]*.env.*|php*-[ec]*/.env|php*-[ec]*/.env.*) block "secret-access-denylist" "cat-env-file" ;;
     esac ;;
   Read)
     case "$file_path" in
