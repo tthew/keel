@@ -20,6 +20,7 @@
 #   - Story 2.8 / 2.9 : OAuth named-volume mounts (/home/dev/.claude,
 #                        /home/dev/.config/gh) via `volumes:` top-level.
 #   - Story 2.11 : shared-workspace mode (`KEEL_DEVBOX_SHARED=true`). LANDED iter-257.
+#   - Story 2.12 : opt-in sshd via KEEL_DEVBOX_SSH=true (port 2222, pubkey-only, host keys persisted in keel_home_dev). LANDED iter-268.
 #   - Story 2.13 : healthcheck (dnsmasq + sshd liveness).
 #
 # Story 2.1 only needs the file to parse and bring a container up so that the
@@ -134,6 +135,14 @@ services:
     # propagated via `environment:` or `env_file:`.
     environment:
       KEEL_DEVBOX_REPO_NAME: ${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}
+      # Story 2.12: propagate opt-in SSH signal into the container so
+      # entrypoint.sh's `${KEEL_DEVBOX_SSH:-false}` can gate the sshd-launch
+      # block. Compose's ${VAR} interpolation runs on the HOST at parse time;
+      # the container only sees vars in `environment:` or `env_file:`.
+      # Host-side normalisation happens in resolve_ssh_state() — at this
+      # propagation site the value is passed through verbatim (default `false`
+      # preserves the no-SSH posture when .envrc is absent).
+      KEEL_DEVBOX_SSH: ${KEEL_DEVBOX_SSH:-false}
     # Story 2.2: compute + shm limits parameterised via .envrc. Non-swarm
     # canonical form (service-level `cpus:` / `mem_limit:` / `shm_size:` —
     # NOT `deploy.resources.limits.*`, which Compose silently ignores outside
@@ -247,7 +256,6 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
       - /var/tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
-    # TODO(Story 2.12): opt-in sshd + port 2222 publication via KEEL_DEVBOX_SSH=true.
     # TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.
     # TODO(Story 2.8 / 2.9): named-volume mounts for OAuth tokens.
     restart: 'no'

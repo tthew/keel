@@ -76,6 +76,31 @@
 # See `docs/invariants/devbox-mode.md` (INV-devbox-mode) for the full
 # two-mode contract + mid-use-flip orphan-container warning semantics.
 #
+# Opt-in sshd state (Story 2.12). `resolve_ssh_state()` is a sibling function
+# invoked AFTER `resolve_mode_specific_state()` by every host-side shim that
+# composes the `docker compose -f` CLI. It reads `KEEL_DEVBOX_SSH` from the
+# process env (set by `.envrc` via direnv), normalises strictly to the literal
+# `true` (case-folded; any other value — `false`/`yes`/`1`/`on`/empty/unset —
+# fail-closes to no-SSH), and exports two values:
+#
+#   KEEL_DEVBOX_SSH_RESOLVED        = "true" | "false"  (canonical normalised)
+#   KEEL_DEVBOX_COMPOSE_FILE_SSH    = ""                 when no-SSH, OR
+#                                   = "${DEVBOX_DIR}/docker-compose.ssh.yml"
+#                                                        when opt-in SSH.
+#
+# Caller wiring idiom: every shim that invokes `docker compose -f
+# "${COMPOSE_FILE}"` extends the invocation with
+# `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}` —
+# the `${VAR:+…}` parameter-expansion form expands to `-f <path>` when non-
+# empty and to the empty string when empty, avoiding the iterable-word-
+# splitting hazard (RALPH.md 2026-04-21 AR-9). Shared mode (Story 2.11) does
+# NOT change this — the override composes regardless of mode (sshd is
+# per-container, not per-mode).
+#
+# See `docs/invariants/devbox-ssh.md` (INV-devbox-ssh) for the full contract
+# (loopback-bound port publication + opt-in sshd + pubkey-only + named-volume
+# persistence).
+#
 # `pwd -P` resolves macOS /var → /private/var so docker-inspect Source
 # values compare cleanly under the mount-source check (see
 # check-mount-source.sh).
@@ -200,4 +225,33 @@ resolve_mode_specific_state() {
 	KEEL_DEVBOX_COMPOSE_PROJECT="keel-devbox-shared"
 	KEEL_DEVBOX_CONTAINER_NAME_RESOLVED="keel-devbox-shared"
 	export KEEL_DEVBOX_COMPOSE_PROJECT KEEL_DEVBOX_CONTAINER_NAME_RESOLVED
+}
+
+resolve_ssh_state() {
+	# Story 2.12: opt-in sshd resolver. Strict `true`-only normalisation per
+	# SC-2 mirrors Story 2.11 `resolve_mode_specific_state()` idiom at :152 —
+	# forks MAY NOT extend the accepted-signal set. Any other value
+	# (`false`/`yes`/`1`/`on`/empty/unset/garbage) fail-closes to no-SSH.
+	local ssh
+	ssh="$(echo "${KEEL_DEVBOX_SSH:-false}" | tr '[:upper:]' '[:lower:]')"
+
+	if [[ "$ssh" != "true" ]]; then
+		KEEL_DEVBOX_SSH_RESOLVED="false"
+		KEEL_DEVBOX_COMPOSE_FILE_SSH=""
+		export KEEL_DEVBOX_SSH_RESOLVED KEEL_DEVBOX_COMPOSE_FILE_SSH
+		return 0
+	fi
+
+	# Compute the override-file absolute path from the lib's own location
+	# (packages/devbox/scripts/lib/main-repo-resolver.sh → ../.. = packages/
+	# devbox/). Keeps the resolver self-contained and independent of caller-
+	# set DEVBOX_DIR, while still honouring the source-of-truth layout
+	# contract.
+	local lib_dir devbox_dir
+	lib_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+	devbox_dir="$(cd "${lib_dir}/../.." && pwd -P)"
+
+	KEEL_DEVBOX_SSH_RESOLVED="true"
+	KEEL_DEVBOX_COMPOSE_FILE_SSH="${devbox_dir}/docker-compose.ssh.yml"
+	export KEEL_DEVBOX_SSH_RESOLVED KEEL_DEVBOX_COMPOSE_FILE_SSH
 }

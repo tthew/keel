@@ -844,6 +844,68 @@ Shared mode binds the PARENT directory of the fork root. Any other project under
 - `AGENTS.md § Per-fork vs shared devbox mode (Story 2.11)` — agent-facing guardrails.
 - Story 2.11 file `_bmad-output/implementation-artifacts/2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared.md` — full spec, 4 ACs + 6 tasks + 17 SCs.
 
+## Opt-in SSH (Story 2.12)
+
+Every devbox port is published loopback-bound (`127.0.0.1:<host>:<container>`); an optional sshd is provided behind `KEEL_DEVBOX_SSH=true` (pubkey-only, `127.0.0.1:2222`). Authoritative contract: `INV-devbox-ssh` (`docs/invariants/devbox-ssh.md`). Resolution lives in `packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state()`; every host-side compose-invoking shim (build/rebuild/start/stop/status/logs/clean/benchmark) sources it.
+
+- **Loopback-bound port publication invariant.** Every `ports:` mapping in `packages/devbox/docker-compose.yml` AND every sibling compose override MUST use the explicit `127.0.0.1:<host>:<container>` form. Bare `<host>:<container>` and `0.0.0.0:...` are forbidden — Docker silently binds bare-form to `0.0.0.0`. Downstream port additions (Story 2.13, Epic 6, ...) MUST honour this.
+- **SSH default = off.** `KEEL_DEVBOX_SSH=false` (or unset): sshd does not run; port 2222 is not published; `docker compose config` emits no `2222` line.
+- **SSH opt-in = strict-true normalisation.** Only `true` (any-case) enables opt-in. Any other value (`false`/`yes`/`on`/`1`/empty/garbage) fail-closes to no-SSH. Mirrors Story 2.11 `KEEL_DEVBOX_SHARED` idiom; forks MAY NOT extend the accepted-signal set.
+
+### .envrc snippet
+
+```bash
+# Default: no sshd, port 2222 not published
+export KEEL_DEVBOX_SSH=false
+
+# Opt in to pubkey-only sshd on 127.0.0.1:2222
+# export KEEL_DEVBOX_SSH=true
+```
+
+### Default no-SSH walkthrough
+
+1. Fresh fork; `.envrc` defaults (`KEEL_DEVBOX_SSH=false`).
+2. `pnpm devbox:start` creates container `keel-devbox`.
+3. `docker port keel-devbox` lists the 4 Story-2.2 ports; NO `2222/tcp` line.
+4. `pgrep sshd` inside `pnpm devbox:shell` returns no PIDs.
+
+### Opt-in sshd walkthrough
+
+1. Operator sets `KEEL_DEVBOX_SSH=true` in `.envrc`; `direnv allow`.
+2. `pnpm devbox:start` — the host-side resolver appends `-f docker-compose.ssh.yml` to the compose CLI. Entrypoint.sh's gated block runs: creates `/home/dev/.ssh/host_keys/` with mode `0700`, generates the ed25519 + rsa 4096 host-key pair atomically into a scratch dir, `mv -T`s into place, touches an empty `authorized_keys` (mode `0600`), then launches `gosu dev /usr/sbin/sshd -D` as a background process (PID 1 remains the `exec gosu dev "$@"` handoff).
+3. `docker port keel-devbox` lists `2222/tcp -> 127.0.0.1:2222`.
+4. `pgrep sshd` inside `pnpm devbox:shell` confirms sshd running as UID 1000 (`dev`).
+
+### Authorized-keys flow walkthrough
+
+1. `pnpm devbox:shell`.
+2. `cat ~/.ssh/authorized_keys` → empty at first boot.
+3. `echo 'ssh-ed25519 AAAAxxx user@host' >> ~/.ssh/authorized_keys`.
+4. Exit shell.
+5. From host: `ssh -p 2222 -i ~/.ssh/id_ed25519 dev@127.0.0.1`.
+
+The pubkey persists in the `keel_home_dev` named volume (Story 2.5 substrate; NFR10). Survives `pnpm devbox:stop && pnpm devbox:start` AND `pnpm devbox:rebuild` (image rebuild).
+
+### Mode-flip note
+
+Flipping `KEEL_DEVBOX_SSH` between `false` and `true` requires container teardown (`pnpm devbox:stop && pnpm devbox:start`) — entrypoint.sh reads the env var ONCE at container start. Mid-session env-var flips have no effect until restart.
+
+### External connection refusal
+
+Only `ssh -p 2222 dev@127.0.0.1` from the host succeeds (with a registered pubkey). LAN-sourced SSH attempts are refused at the Docker published-port layer under both `userland-proxy=true` (docker-proxy binds `127.0.0.1:2222` only) and `userland-proxy=false` (iptables DNAT scoped to loopback destination). Operator-workstation verification only — the DinD iteration env cannot exercise a non-loopback LAN peer meaningfully.
+
+Container-side sshd `ListenAddress` is INTENTIONALLY unset. Container-loopback is disjoint from host-loopback: packets arrive on container `eth0`, not `127.0.0.1` — binding sshd to `ListenAddress 127.0.0.1` would silently drop all inbound traffic under both userland-proxy modes. Single-layer host-side-publish confinement is the correct posture.
+
+### Cross-references
+
+- `INV-devbox-ssh` (`docs/invariants/devbox-ssh.md`) — machine-enforced contract (loopback-bound publication + opt-in sshd + pubkey-only + named-volume persistence + external refusal rationale).
+- `packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state()` — single resolution site.
+- `packages/devbox/docker-compose.ssh.yml` — compose override (single site publishing port 2222).
+- `packages/devbox/sshd/sshd_config` — baked hardened sshd config.
+- `packages/devbox/entrypoint.sh` — first-boot host-key-gen + sshd launch.
+- `AGENTS.md § Opt-in SSH (Story 2.12)` — agent-facing guardrails.
+- Story 2.12 file `_bmad-output/implementation-artifacts/2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd.md` — full spec, 5 ACs + 6 tasks + 14 SCs.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:

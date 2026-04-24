@@ -117,6 +117,12 @@ Per-fork vs shared devbox mode contract via `KEEL_DEVBOX_SHARED` in `.envrc` per
 
 - **`INV-devbox-mode`** — Per-fork vs shared devbox mode contract (`KEEL_DEVBOX_SHARED` branches compose project + container + volume + bind). Source: `docs/invariants/devbox-mode.md`.
 
+### Devbox SSH (Story 2.12)
+
+Opt-in sshd via `KEEL_DEVBOX_SSH=true` (pubkey-only, root-disabled, loopback-bound `127.0.0.1:2222`; host keys + `authorized_keys` persisted in the `keel_home_dev` named volume) + loopback-bound port publication invariant for ALL `ports:` mappings (no `0.0.0.0` / no bare-port bindings). Resolution via `packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state()`; single compose override at `packages/devbox/docker-compose.ssh.yml` publishes port 2222.
+
+- **`INV-devbox-ssh`** — Opt-in sshd + loopback-bound port publication contract (`KEEL_DEVBOX_SSH=true` opens 127.0.0.1:2222 pubkey-only; ALL ports must use 127.0.0.1:<host>:<container> form). Source: `docs/invariants/devbox-ssh.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

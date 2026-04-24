@@ -286,6 +286,14 @@ const raw: Invariant[] = [
     anchors: ['INV-devbox-prereq-check'],
   },
   {
+    id: 'INV-devbox-ssh',
+    description:
+      'Opt-in sshd via KEEL_DEVBOX_SSH=true — pubkey-only, root-disabled, loopback-bound 127.0.0.1:2222, host keys + authorized_keys persisted in keel_home_dev named volume; loopback-bound port publication invariant for ALL ports (no 0.0.0.0 / no bare-port bindings) (Story 2.12). Resolution via packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state(); compose override at packages/devbox/docker-compose.ssh.yml is the single site that publishes port 2222; entrypoint.sh first-boot atomic host-key-gen (ed25519 + rsa 4096) into the named volume. Single-layer host-side-publish confinement — container-side ListenAddress INTENTIONALLY unset because container-loopback is disjoint from host-loopback under both Docker userland-proxy modes. Strict true-only normalisation; forks MAY NOT extend the accepted-signal set or weaken pubkey-only / root-disabled / loopback-bound substrate defaults.',
+    sourcePath: 'docs/invariants/devbox-ssh.md',
+    contentHash: 'e1d693cb0ffa0c7c8d6966b8ce311c2e1daf13d83155d8a0b88028d96112a3c2',
+    anchors: ['INV-devbox-ssh'],
+  },
+  {
     id: 'INV-gitignored-secret-commit-deny',
     description:
       'Pre-commit hook refuses additions of .envrc, .envrc.local, and .secrets at any path. ' +

@@ -45,6 +45,8 @@
 # last_updated: 2026-04-24 Story-2-11-review-iter-257 UTC
 # last_updated: 2026-04-24 Story-2-11-done-CR-closure-ZERO-PATCH-PATCH-1-iter-264 UTC
 # last_updated: 2026-04-24 Story-2-12-ready-for-dev-iter-265 UTC
+# last_updated: 2026-04-24 Story-2-12-in-progress-iter-268 UTC
+# last_updated: 2026-04-24 Story-2-12-review-iter-268 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -80,7 +82,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-24 Story-2-12-ready-for-dev-iter-265 UTC
+last_updated: 2026-04-24 Story-2-12-review-iter-268 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -118,7 +120,7 @@ development_status:
   2-9-gh-cli-oauth-via-pnpm-gh-auth: done
   2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors: done
   2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared: done
-  2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: ready-for-dev
+  2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: review
   2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: backlog
   2-14-legacy-devbox-branch-retention-policy: backlog
   2-15-committed-claude-settings-json-with-deny-allow-permission-policies: backlog

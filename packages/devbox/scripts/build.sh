@@ -26,6 +26,7 @@ COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
 resolve_main_repo_and_workdir
 resolve_mode_specific_state
+resolve_ssh_state
 export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 
 log() { printf 'build: %s\n' "$*" >&2; }
@@ -36,4 +37,4 @@ log() { printf 'build: %s\n' "$*" >&2; }
 "${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 log "docker compose build devbox (cached)"
-exec docker compose -f "${COMPOSE_FILE}" build devbox
+exec docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} build devbox

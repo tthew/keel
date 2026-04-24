@@ -129,6 +129,53 @@ else
   exit 1
 fi
 
+# Story 2.12: opt-in sshd. KEEL_DEVBOX_SSH is normalised on the host by
+# resolve_ssh_state() before container start; here we honour the
+# container-side env var (propagated via docker-compose.yml § environment
+# by Task 4). Case-sensitive "true" match mirrors Story 2.11 shared-mode
+# entrypoint posture — normalisation already done host-side.
+if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
+  # Pre-creation runs as root (pre-gosu). Use gosu to create the tree
+  # with dev:dev ownership from t=0 so the subsequent keygen + sshd both
+  # run as dev without relying on CAP_CHOWN (Story 2.5 hardening).
+  gosu dev mkdir -p /home/dev/.ssh/host_keys
+  # Idempotent perm enforcement EVERY boot (not gated on existence).
+  # The named volume may have been inspected from host OR pre-populated
+  # with stray perms on upgrade; sshd's StrictModes (default yes) rejects
+  # any parent dir more permissive than 0700, silently. Enforce.
+  chmod 0700 /home/dev/.ssh /home/dev/.ssh/host_keys
+  # Atomic host-key generation: a mid-keygen container kill leaves a
+  # partial keypair which sshd refuses. Generate BOTH keys into a
+  # scratch dir then atomically mv into place. Guard on BOTH algorithms'
+  # final filenames — if either is missing, regenerate both.
+  if [[ ! -f /home/dev/.ssh/host_keys/ssh_host_ed25519_key ]] \
+     || [[ ! -f /home/dev/.ssh/host_keys/ssh_host_rsa_key ]]; then
+    gosu dev rm -rf /home/dev/.ssh/host_keys.tmp
+    gosu dev mkdir -p /home/dev/.ssh/host_keys.tmp
+    gosu dev ssh-keygen -q -t ed25519 -f /home/dev/.ssh/host_keys.tmp/ssh_host_ed25519_key -N "" < /dev/null
+    gosu dev ssh-keygen -q -t rsa -b 4096 -f /home/dev/.ssh/host_keys.tmp/ssh_host_rsa_key -N "" < /dev/null
+    gosu dev mv -T /home/dev/.ssh/host_keys.tmp /home/dev/.ssh/host_keys
+  fi
+  # Touch authorized_keys with 0600 every boot (idempotent). Empty file
+  # = no inbound auth; operator appends pubkeys via Task 6 flow (AC 5).
+  [[ -f /home/dev/.ssh/authorized_keys ]] || gosu dev touch /home/dev/.ssh/authorized_keys
+  chmod 0600 /home/dev/.ssh/authorized_keys
+  # Launch sshd as dev (port 2222 > 1024; NET_BIND_SERVICE not needed).
+  # -D = foreground; backgrounded with `&` because PID 1 is the `exec
+  # gosu dev "$@"` handoff below. Liveness verified post-spawn so a
+  # silent sshd startup failure does NOT leave the entrypoint proceeding
+  # with an un-started sshd + operator seeing port 2222 published +
+  # connections refusing (§ Dev Notes § Liveness verification contract).
+  gosu dev /usr/sbin/sshd -D -e 2>>/var/log/sshd.log &
+  SSHD_PID="$!"
+  sleep 0.5
+  if ! kill -0 "${SSHD_PID}" 2>/dev/null; then
+    echo "entrypoint: sshd failed to start; tail /var/log/sshd.log:" >&2
+    tail -n 20 /var/log/sshd.log >&2 || true
+    echo "entrypoint: sshd startup failure is NON-FATAL under Story 2.12 SC-10 (background process; PID 1 remains the exec handoff). Operator: pnpm devbox:logs keel-devbox + investigate." >&2
+  fi
+fi
+
 # Hand off to the compose CMD (defaults to `sleep infinity`). Using `exec`
 # preserves PID 1 for the supplied process so docker-compose signals
 # (SIGTERM / SIGINT) land on the service, not on bash.

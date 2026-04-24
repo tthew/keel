@@ -31,6 +31,7 @@ COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
 resolve_main_repo_and_workdir
 resolve_mode_specific_state
+resolve_ssh_state
 export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 
@@ -45,7 +46,7 @@ if ! docker inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
 	exit 9
 fi
 
-docker compose -f "${COMPOSE_FILE}" ps devbox || true
+docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} ps devbox || true
 
 health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}(no healthcheck configured){{end}}' "${CONTAINER_NAME}" 2>/dev/null || echo "(inspect failed)")"
 state="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || echo "unknown")"

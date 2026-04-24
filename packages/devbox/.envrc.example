@@ -37,7 +37,7 @@ KEEL_DEVBOX_PORT_STORYBOOK=6006      # Storybook (Epic 7 consumer).
 KEEL_DEVBOX_PORT_VITE_HMR=24679      # Vite HMR websocket (Storybook + local dev).
 
 # --- Toggles ---
-KEEL_DEVBOX_SSH=false                # Opt-in sshd + port 2222 publication. Active Story 2.12; Story 2.2 publishes the knob only.
+KEEL_DEVBOX_SSH=false                # false = no sshd (default); true = opt-in sshd + port 2222 publication. Active at Story 2.12 (landed iter-268). Resolver: packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state(). Compose override: packages/devbox/docker-compose.ssh.yml.
 KEEL_DEVBOX_SHARED=false             # false = per-fork mount (default); true = shared-workspace mount. Active at Story 2.11 (landed iter-257). Resolver: packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_mode_specific_state().
 
 # --- Egress policy (Story 2.3) ---

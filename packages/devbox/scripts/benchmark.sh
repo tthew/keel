@@ -50,6 +50,18 @@ DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 README_FILE="${DEVBOX_DIR}/README.md"
 
+# Story 2.12: resolve opt-in sshd state so sshd-enabled benchmarks measure the
+# opt-in posture (compose-override file included in every `docker compose`
+# invocation below). Sourcing the resolver here keeps benchmark.sh aligned
+# with the 7 other compose-invoking shims (build/rebuild/start/stop/status/
+# logs/clean). resolve_main_repo_and_workdir + resolve_mode_specific_state
+# are NOT called — benchmark.sh does not invoke `docker compose` against a
+# named project/container, so their exports are unused here; resolve_ssh_state
+# is self-contained (computes DEVBOX_DIR from the lib's own location).
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_ssh_state
+
 # --help|-h handling (iter-143 CR-re-run AR-5 = iter-138 findings F30 / E19).
 # Operators asking for usage previously fell through to the unknown-arg
 # `exit 2` branch; that contradicted the AI-4 UX-bundle posture (clear
@@ -208,7 +220,7 @@ compose_version="$(docker compose version --short 2>/dev/null || echo unknown)"
 # status would otherwise leak through.
 cleanup_on_exit() {
   local exit_code=$?
-  docker compose -f "${COMPOSE_FILE}" down >/dev/null 2>&1 || true
+  docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null 2>&1 || true
   exit "$exit_code"
 }
 trap cleanup_on_exit EXIT
@@ -221,21 +233,21 @@ if [[ $SKIP_COLD -eq 0 ]]; then
   echo "→ cold start: docker system prune -af --volumes (backend=$BACKEND)"
   docker system prune -af --volumes >/dev/null
   cold_start_ts="$(date +%s)"
-  docker compose -f "${COMPOSE_FILE}" up --build -d
+  docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} up --build -d
   cold_end_ts="$(date +%s)"
   cold_seconds=$(( cold_end_ts - cold_start_ts ))
-  docker compose -f "${COMPOSE_FILE}" down >/dev/null
+  docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null
 else
   cold_seconds="skipped"
 fi
 
 echo "→ warm start: docker compose down && up -d (backend=$BACKEND)"
-docker compose -f "${COMPOSE_FILE}" down >/dev/null 2>&1 || true
+docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null 2>&1 || true
 warm_start_ts="$(date +%s)"
-docker compose -f "${COMPOSE_FILE}" up -d
+docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} up -d
 warm_end_ts="$(date +%s)"
 warm_seconds=$(( warm_end_ts - warm_start_ts ))
-docker compose -f "${COMPOSE_FILE}" down >/dev/null
+docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null
 
 # Flag text branches on backend classification per the iter-128 CR AI-4
 # finding: backend A (no /.dockerenv; detect_backend only asserts A on a

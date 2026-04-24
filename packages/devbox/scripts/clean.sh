@@ -48,6 +48,7 @@ COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
 resolve_main_repo_and_workdir
 resolve_mode_specific_state
+resolve_ssh_state
 export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 
 log() { printf 'clean: %s\n' "$*" >&2; }
@@ -134,7 +135,7 @@ BACKEND="$(detect_backend)"
 
 if [[ ${WITH_VOLUMES} -eq 0 ]]; then
 	log "docker compose down --rmi local --remove-orphans (volume keel_home_dev preserved)"
-	exec docker compose -f "${COMPOSE_FILE}" down --rmi local --remove-orphans
+	exec docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down --rmi local --remove-orphans
 fi
 
 # --with-volumes path: guard rails (SC-11).
@@ -161,4 +162,4 @@ if [[ ${AUTO_YES} -eq 0 ]]; then
 fi
 
 log "docker compose down --rmi local --volumes --remove-orphans (DESTRUCTIVE)"
-exec docker compose -f "${COMPOSE_FILE}" down --rmi local --volumes --remove-orphans
+exec docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down --rmi local --volumes --remove-orphans

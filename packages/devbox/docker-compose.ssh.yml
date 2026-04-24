@@ -1,0 +1,19 @@
+# packages/devbox/docker-compose.ssh.yml — Story 2.12
+# Compose override: adds loopback-bound port 2222 publication for opt-in sshd.
+# Included by host-side shims when KEEL_DEVBOX_SSH=true via
+# packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state(),
+# which exports KEEL_DEVBOX_COMPOSE_FILE_SSH as the absolute path to this
+# file. Shim sites thread the override via
+# `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}`.
+# NEVER edit the base docker-compose.yml ports block to add 2222 — this file
+# is the SINGLE site that publishes 2222 (INV-devbox-ssh § No-SSH default
+# contract).
+#
+# Compose v2 multi-file merge: services.<svc>.ports is a sequence-typed key
+# that CONCATENATES across -f files (compose-spec.io § Merge/override);
+# base file's 4 Story-2.2 ports + this override's 1 SSH port = 5 total;
+# no duplicate-2222 risk because the base file does not publish 2222.
+services:
+  devbox:
+    ports:
+      - '127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222'

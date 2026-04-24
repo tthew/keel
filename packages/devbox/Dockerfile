@@ -63,6 +63,7 @@ RUN apt-get update \
       nftables \
       netcat-openbsd \
       openssh-client \
+      openssh-server \
       vim \
       less \
       locales \
@@ -249,8 +250,19 @@ RUN setcap cap_net_admin,cap_net_raw,cap_net_bind_service+eip /usr/sbin/dnsmasq 
 #   adds the non-root `dev` user. Story 2.1 pre-creates the directories so
 #   entrypoint.sh's chown succeeds regardless of whether the volume is empty.
 # ---------------------------------------------------------------------------
-RUN mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh \
- && chmod 0755 /workspace /home/dev /home/dev/.claude /home/dev/.config /home/dev/.config/gh
+RUN mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh /home/dev/.ssh /home/dev/.ssh/host_keys \
+ && chmod 0755 /workspace /home/dev /home/dev/.claude /home/dev/.config /home/dev/.config/gh \
+ && chmod 0700 /home/dev/.ssh /home/dev/.ssh/host_keys
+
+# Story 2.12: bake the hardened sshd_config at image-build time. Mirrors the
+# Story 2.3 template-directory convention (packages/devbox/dnsmasq/ +
+# packages/devbox/nftables/). Runtime entrypoint.sh MUST NOT modify this
+# file (Story 2.1 AC 2 forbidden-runtime-install posture). /etc/ssh/sshd_config
+# ownership stays root:root 0644 — sshd does not require a more restrictive
+# perm on its own config, and chown under cap_drop: [ALL] would fail anyway.
+COPY sshd/sshd_config /etc/ssh/sshd_config
+RUN chown root:root /etc/ssh/sshd_config \
+ && chmod 0644 /etc/ssh/sshd_config
 
 # ---------------------------------------------------------------------------
 # Story 2.5 non-root `dev` user (AC 1, SC-1).
