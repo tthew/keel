@@ -1,0 +1,147 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-24T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.12",
+    "label": "Loopback-bound port publication + opt-in KEEL_DEVBOX_SSH sshd"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "description": "Loopback-bound port publication — every `ports:` mapping uses `127.0.0.1:<host>:<container>` form; no `0.0.0.0:...` and no bare `<host>:<container>` (Docker silently binds bare form to 0.0.0.0). Pinned as substrate invariant; Story 2.2 landed the four Story-2.2 publish ports loopback-bound at iter-148; Story 2.12 pins the posture as `INV-devbox-ssh` so future story edits cannot regress it.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-268 impl-time smokes: js-yaml parse of packages/devbox/docker-compose.yml asserts services.devbox.ports = 4 Story-2.2 entries, every entry `127.0.0.1:...` loopback-bound form (not 0.0.0.0, not bare). js-yaml parse of packages/devbox/docker-compose.ssh.yml asserts services.devbox.ports = 1 entry `'127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222'`. Manifest sync-gate binds `docs/invariants/devbox-ssh.md § Loopback-bound port publication contract` via contentHash e1d693cb0ffa0c7c8d6966b8ce311c2e1daf13d83155d8a0b88028d96112a3c2. Not wired as automated regression — no test runner at Epic 2 substrate stage."
+    },
+    {
+      "id": "AC-2",
+      "description": "Default — `KEEL_DEVBOX_SSH=false` — sshd does NOT run AND port 2222 is NOT published AND `docker compose … config` emits NO `127.0.0.1:2222:2222` line. The four Story 2.2 publish ports remain unaffected.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-268 impl-time smokes: `resolve_ssh_state()` normalisation probe covers the default-false posture — KEEL_DEVBOX_SSH unset → KEEL_DEVBOX_SSH_RESOLVED=false + KEEL_DEVBOX_COMPOSE_FILE_SSH empty string (verified in debug log; 5/9 normalisation cases are default-false inputs: false/yes/1/on/empty/unset/garbage all → empty override path); the `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f …}` conditional expansion leaves the base `-f docker-compose.yml` unadorned under unset. entrypoint.sh's `${KEEL_DEVBOX_SSH:-false} == \"true\"` gate evaluates false under unset → no sshd launch branch executes. Live `docker compose config … | grep 2222` emit + `pgrep sshd` inside container operator-workstation-deferred per Story 2.5 iter-186 posture (DinD backend B cannot exercise meaningfully)."
+    },
+    {
+      "id": "AC-3",
+      "description": "Opt-in — `KEEL_DEVBOX_SSH=true` — sshd runs, pubkey-only, port 2222 loopback-bound via published-port confinement, host keys persisted in named volume. `docker port keel-devbox` lists `2222/tcp -> 127.0.0.1:2222` AND `docker compose … config` emits the loopback-bound `127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222` line. Password/challenge/kbd auth disabled, PubkeyAuthentication yes, PermitRootLogin no, AllowUsers dev, host keys at /home/dev/.ssh/host_keys/ssh_host_{ed25519,rsa}_key first-boot-generated via explicit `-t ed25519` + `-t rsa -b 4096` invocations wrapped in atomic scratch-dir + mv -T.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-268 impl-time smokes: `resolve_ssh_state()` normalisation probe covers the opt-in posture — KEEL_DEVBOX_SSH=true/TrUe/TRUE → KEEL_DEVBOX_SSH_RESOLVED=true + KEEL_DEVBOX_COMPOSE_FILE_SSH=/workspace/ralph-bmad/packages/devbox/docker-compose.ssh.yml (3/9 cases). `pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check` GREEN post manifest rebuild with INV-devbox-ssh registered (32nd entry); contentHash sha256 match against docs/invariants/devbox-ssh.md. `bash -n` syntax-check clean on entrypoint.sh (atomic keygen block + liveness check) + main-repo-resolver.sh (resolve_ssh_state function) + 8 compose-invoking shims (15 call sites threaded). js-yaml parse of sshd_config baked contents (Port 2222; PermitRootLogin no; PasswordAuthentication no; ChallengeResponseAuthentication no; KbdInteractiveAuthentication no; PubkeyAuthentication yes; AllowUsers dev; HostKey paths in named volume; no ListenAddress intentionally per container-loopback ≠ host-loopback rationale). Live `docker port` emit + `pgrep sshd` + `ssh -p 2222 dev@127.0.0.1` success operator-workstation-deferred per Story 2.5 iter-186 posture."
+    },
+    {
+      "id": "AC-4",
+      "description": "External (non-loopback) connection refusal. Given sshd is enabled, when an external client attempts to connect (e.g., `ssh -p 2222 dev@<host-LAN-IP>` from a peer machine on the host's LAN), the connection is refused at the Docker published-port layer (the `127.0.0.1:2222:2222` mapping binds the host socket exclusively to the 127.0.0.1 host-loopback interface — under userland-proxy=true mode, docker-proxy only listens on 127.0.0.1:2222; under userland-proxy=false mode, Docker's iptables DOCKER chain DNAT rules are scoped to the loopback destination; both modes refuse LAN-sourced traffic) AND only `ssh -p 2222 dev@127.0.0.1` from the Docker-daemon host with a registered pubkey succeeds. Defence-in-depth via container-side `ListenAddress 127.0.0.1` is intentionally NOT used — container-loopback ≠ host-loopback under Docker userland-proxy; binding there would silently drop all inbound traffic in both modes.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Operator-workstation-deferred by AC contract + Story 2.5 iter-186 substrate-smoke posture. DinD backend B cannot exercise non-loopback LAN clients meaningfully (iteration env is a container with host-socket passthrough; has no LAN peer). Substrate-verification: `docker-compose.ssh.yml` is the SINGLE site publishing port 2222 (SC-3); base docker-compose.yml contains NO 2222 entry (js-yaml parse asserted at iter-268); `127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222` host-binding form is verified correct at the YAML layer; Docker's loopback-bind semantics are framework-owned (upstream Docker CLI contract); sshd_config intentionally omits `ListenAddress` line (verified by grep); invariant doc § External (non-loopback) connection refusal pins the single-layer host-side-publish rationale for future story-edits. Substrate-smoke matrix covers the YAML shape + resolver + invariant doc; live non-loopback LAN client refusal + live 127.0.0.1 client success require real Docker daemon + real SSH client + real peer machine — operator-workstation-only backend-A per § Testing Standards story-file-declared posture."
+    },
+    {
+      "id": "AC-5",
+      "description": "Operator authorized-keys flow — pubkey written to `/home/dev/.ssh/authorized_keys` inside named volume; persists across restarts + image rebuilds. Given a fork operator wants to add their pubkey, when they follow the documented flow in `packages/devbox/README.md § Opt-in SSH (Story 2.12)`, then the pubkey is appended to `/home/dev/.ssh/authorized_keys` inside the `keel_home_dev` named volume (Story 2.5 substrate; persists across container restarts + image rebuilds; tokens never bind-mounted to host per NFR10) AND a subsequent `ssh -p 2222 dev@127.0.0.1 -i <matching-private-key>` succeeds AND the pubkey survives `pnpm devbox:stop && pnpm devbox:start` AND survives `pnpm devbox:rebuild` (image rebuild).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Operator-workstation-deferred by AC contract + Story 2.5 iter-186 substrate-smoke posture. DinD backend B cannot exercise the full pubkey flow meaningfully (requires real SSH client + real private key + real Docker daemon + full named-volume lifecycle including image rebuild). Substrate-verification: entrypoint.sh conditional block idempotently touches `authorized_keys` with mode 0600 every boot under opt-in branch (bash -n clean; read inspection confirms `[[ -f ... ]] || gosu dev touch ...` + `chmod 0600 authorized_keys` pattern); named-volume dir /home/dev/.ssh pre-created in Dockerfile at mode 0700 owner dev:dev (verified by Dockerfile grep); the `keel_home_dev` named volume contract inherited unchanged from Story 2.5 substrate per INV-devbox-homedev-named-volume (30th-now-31st manifest entry; 32nd is INV-devbox-ssh Story 2.12); README § Opt-in SSH § Authorized-keys flow walkthrough documents the from-inside-container-shell `echo 'ssh-ed25519 AAAA...' >> ~/.ssh/authorized_keys` flow; AGENTS.md § Opt-in SSH pins the agent guardrail prohibiting auto-modification from outside the container. Full live pubkey-auth flow + restart-persistence + rebuild-persistence are operator-workstation-only backend-A per § Testing Standards story-file-declared posture."
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 5, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-5", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 5 P2 ACs; Epic-2-substrate-sshd-opt-in-compose-override class story (TWELFTH Epic 2 delivery; FIRST compose-override-file + long-running-background-daemon-in-entrypoint + stateful-first-boot-named-volume-init class — distinct from Stories 2.1-2.11 single-file-compose-pattern extensions); TWENTY-SECOND cumulative trace-WAIVED precedent (ELEVENTH Epic 2; extends Story 2.11 iter-258 twenty-first precedent); TWENTY-THIRD ATDD-skip-trace-WAIVED co-application pairing (extends iter-267 ATDD-skip grounds (c)+(ii)+(iii) at Story 2.12 sibling pairing). Ground-(a)+(b)+(c) hybrid conjunction: (a) substrate-verification covers AC 1 + AC 2 + AC 3 at the substrate layer via 5 iter-268 impl-time smokes — (i) sha256sum contentHash match against docs/invariants/devbox-ssh.md; (ii) pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check GREEN post manifest rebuild (manifest entry count 31 → 32 with INV-devbox-ssh registered); (iii) bash -n clean on 10 modified shell scripts; (iv) resolve_ssh_state normalisation smoke 9/9 green across the full true/TrUe/TRUE/false/yes/1/on/empty/unset/garbage matrix; (v) js-yaml parse + shape assertion on both compose files (base 4 loopback-bound ports unchanged + override 1 loopback-bound sshd port + KEEL_DEVBOX_SSH env propagation). (b) no test runner wired at Story 2.12 substrate stage — recursive probe at iter-269 for vitest.config.*/jest.config.*/playwright.config.*/cypress.config.*/pyproject.toml/go.mod/Gemfile/Cargo.toml returns zero matches; tests/ directory present only under .claude/skills/*/scripts/tests/ (BMad skill internals, not application tests). (c) HYBRID variant-(ii) operator-workstation-deferred-AC-completion for ACs 4-5 (live non-loopback LAN peer refusal requires peer machine; live full pubkey-auth flow requires real SSH client + Docker daemon + named-volume lifecycle including image rebuild) + forthcoming /bmad-code-review (args: \"2\") adversarial envelope as designated backstop for substrate-correctness of the operator-workstation-deferred ACs. Partial-waive alternative considered at IP forecast — WAIVE-with-grounds (partial) for ACs 4-5 explicit + ACs 1-3 substrate-covered — elected full-waive per 23rd-cumulative-pairing consistency rule + coverage_basis=acceptance_criteria mechanical-matrix-absent at substrate stage (partial-waive vocabulary does not exist in the Phase-1 matrix JSON schema).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.12 authors 4 NEW files (packages/devbox/sshd/sshd_config; packages/devbox/docker-compose.ssh.yml; docs/invariants/devbox-ssh.md — contentHash e1d693cb0ffa0c7c8d6966b8ce311c2e1daf13d83155d8a0b88028d96112a3c2; Change Log v1.2 entry in story file) + 14 modified files per iter-268 Dev Agent Record: (1) packages/devbox/Dockerfile — openssh-server added to apt layer L66, /home/dev/.ssh/host_keys pre-created mode 0700 at L253-256, sshd_config COPY'd to /etc/ssh/sshd_config L263-267 chmod 0644 chown root:root; (2) packages/devbox/docker-compose.yml — KEEL_DEVBOX_SSH env propagation L138-145, TODO marker removal L259, Story 2.12 LANDED roadmap line L24; (3) packages/devbox/entrypoint.sh — conditional sshd-launch block L132-177 with first-boot atomic ed25519 + rsa 4096 host-key generation via scratch-tmpdir + mv -T; (4) packages/devbox/scripts/lib/main-repo-resolver.sh — resolve_ssh_state() function appended L229-260 with strict-true-only normalisation; (5-12) 8 compose-invoking shims threaded with conditional-expansion override across 15 call sites (build 1 + rebuild 1 + start 1 + stop 1 + status 1 + logs 2 + clean 2 + benchmark 6); (13) packages/keel-invariants/src/invariants.manifest.ts — INV-devbox-ssh registered as 32nd manifest entry at :288-297; (14) INVARIANTS.md — H3 Devbox SSH section + anchor bullet inserted between Story 2.11 Devbox mode and Story 2.2 Gitignored-secret commit-deny H3s; (15) packages/devbox/README.md — H2 Opt-in SSH (Story 2.12) sibling-append between Story 2.11 H2 and cc-devbox upstream provenance H2; (16) AGENTS.md — H3 Opt-in SSH (Story 2.12) sibling-append between Story 2.11 H3 and Ralph loop H2; (17) packages/devbox/.envrc.example — L40 past-tense SC-15 comment update with resolver + compose-override pointers; (18) _bmad-output/implementation-artifacts/sprint-status.yaml — row flipped thrice (backlog → ready-for-dev → in-progress → review). 32nd manifest entry lands with sync-gate GREEN after pnpm --filter @keel/keel-invariants build rebuild (iter-257 NOVEL LESSON reaffirmed at iter-268: manifest rebuild MUST precede sync-gate verification after adding a new InvariantSchema entry).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork first-run verification unlocks at M4-Pro operator workstation backend-A: AC 1 loopback-bound invariant requires live `docker compose -f docker-compose.yml -f docker-compose.ssh.yml config | grep -E '\"published\":' verification emitting four 127.0.0.1:* Story-2.2 ports + one 127.0.0.1:2222 Story-2.12 port; AC 2 no-SSH default requires `KEEL_DEVBOX_SSH=false docker compose -f docker-compose.yml config | grep 2222` returning zero matches + `pgrep sshd` inside `pnpm devbox:shell` returning no PIDs + `docker port keel-devbox` listing no 2222/tcp entry; AC 3 opt-in sshd requires `KEEL_DEVBOX_SSH=true docker compose -f docker-compose.yml -f docker-compose.ssh.yml config | grep '127\\.0\\.0\\.1:2222:2222'` returning ≥1 match + `docker port keel-devbox` listing `2222/tcp -> 127.0.0.1:2222` + first-boot-generated host keys in /home/dev/.ssh/host_keys/ + pkgrep sshd returning sshd PID as dev UID 1000; AC 4 external connection refusal requires a real peer machine on the host's LAN attempting `ssh -p 2222 dev@<host-LAN-IP>` and receiving connection-refused + the Docker-daemon host itself successfully reaching `ssh -p 2222 dev@127.0.0.1` with a registered pubkey; AC 5 authorized-keys flow requires the full operator walkthrough — pnpm devbox:shell → echo pubkey >> ~/.ssh/authorized_keys → exit shell → ssh from host with matching private key success → pnpm devbox:stop && pnpm devbox:start → re-verify ssh still succeeds → pnpm devbox:rebuild → re-verify ssh still succeeds (pubkey persists through image rebuild). No Story 2.12 code change required at any live-flow verification point — resolver + compose-override + entrypoint are stateless branches on env vars + file existence. Iteration-env-safe smokes ALL 5 PASSED at iter-268 via (i) direct sourcing of main-repo-resolver.sh + resolve_ssh_state() invocation under synthetic KEEL_DEVBOX_SSH values; (ii) `sha256sum` + `pnpm keel-invariants:check` post-rebuild sync-gate; (iii) `bash -n` syntax scan; (iv) js-yaml parse + shape assertion on both compose files; (v) content-grep assertions on sshd_config + entrypoint.sh + resolver function. Live docker port + pgrep sshd + LAN peer refusal + pubkey-auth full flow + image-rebuild persistence are backend-A-only operator-workstation-deferred per § Testing Standards ground-(c) (Docker daemon + Docker published-port layer + real SSH client + real peer machine + real image-rebuild lifecycle own the behaviours; DinD-B iteration env's host-socket passthrough cannot safely exercise them).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
