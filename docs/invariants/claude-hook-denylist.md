@@ -87,7 +87,7 @@ Doc + anchor:
 
 - `docs/invariants/claude-hook-denylist.md` (this file) — `contentHash`-bound source (Story 1.9 sync-gate).
 - `INVARIANTS.md § Claude PreToolUse hooks (Story 2.16)` H3 — human-readable anchor + bullet pointing at this doc.
-- `packages/keel-invariants/src/invariants.manifest.ts` — manifest entry (35th) binding `INV-claude-hook-secret-denylist` to this doc's contentHash.
+- `packages/keel-invariants/src/invariants.manifest.ts` — five manifest entries binding the hook script + this doc + `.claude/settings.json` sub-tree + `.git/hooks/` enumeration + `.git/hooks/` names+shebangs hash (Story 2.17 split + additions; 39 entries total).
 
 ### Fork extension
 
@@ -115,15 +115,48 @@ Sites (1) + (2) + (3) + (6) + (7) form the 5-site byte-identity lockstep (substr
 
 POSIX-sh-only (no `jq`) fallback is OUT OF SCOPE for Story 2.16 at 1.0. Forks that remove `jq` (against substrate convention) self-amend via the AMEND path.
 
+### Pre-install discipline (iter-305 NOVEL LESSON; Story 2.17 Task 12)
+
+Claude Code 2.1.116 empirically treats `hooks.PreToolUse` block-parse-failure as **block-with-stdout-suppression** (contrary to upstream docs suggesting "fail-open"). A syntax error in the registered hook bricks the `Bash`/`Read`/`Edit`/`Write`/`Grep`/`Glob` tool surfaces. Recovery requires a Monitor-based Python escape-hatch (observed at Story 2.16 iter-305 incident — hook self-immolation rendered a running agent unable to invoke Bash-backed tools until the hook was re-parsed cleanly).
+
+**Pre-install `bash -n` dispatch is MANDATORY** before committing any `.claude/hooks/*.sh` change. Machine-enforcement: `packages/keel-invariants/src/check-claude-hook-syntax.ts` (wired via `pnpm keel-invariants:claude-hook-syntax` in `.pre-commit-config.yaml`) shells out to `bash -n` (and conditionally `dash -n`) against every file under `.claude/hooks/`.
+
+**Shebang-aware dispatch (Story 2.17 Task 12.1 NOVEL FINDING).** The substrate hook at `.claude/hooks/block-secret-access.sh` uses `#!/usr/bin/env bash` with bash-specific constructs (`[[ ... ]]`, `=~` regex-match) that `dash -n` intentionally rejects. A blanket `bash -n && dash -n` on the bash hook would force a POSIX-sh rewrite — out-of-scope for the hook's bypass-resistance ACs. The gate therefore **dispatches on shebang**:
+
+| First line of `.claude/hooks/<name>.sh`         | Syntax checks run                                     |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| `#!/usr/bin/env bash` / `#!/bin/bash`           | `bash -n` only                                        |
+| `#!/usr/bin/env sh` / `#!/bin/sh`               | `bash -n` + `dash -n` (strict POSIX compliance check) |
+| Missing / other (e.g. `#!/usr/bin/env python`)  | `bash -n` only (conservative default)                 |
+
+Extension rule: a fork-authored `.claude/hooks/block-secret-access.fork.sh` with `#!/bin/sh` shebang IS held to the strict `dash -n` bar — forks that want dash-rejected constructs author with `#!/usr/bin/env bash` shebang instead. The dispatch preserves the spirit of iter-305's "catch syntax errors before registration" lesson without requiring substrate-hook POSIX-rewrite.
+
+### Story 2.17 git-layer backstop (landed incrementally)
+
+Story 2.17 expands the content-hash surface from "this invariant doc only" (the Story 2.16 baseline) to **three substrate artefacts + one invariant-doc sibling**. The Story 1.9 pre-merge sync-gate walks every entry; out-of-band tampering (edits that evade the in-session hook via a non-Claude editor, a race, or a novel bypass) fails the gate.
+
+| Manifest entry                             | `sourcePath`                                                 | `hashScope`                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `INV-claude-hook-secret-denylist`          | `.claude/hooks/block-secret-access.sh`                       | absent (whole-file sha256)                                                                       |
+| `INV-claude-hook-secret-denylist-doc`      | `docs/invariants/claude-hook-denylist.md` (this file)        | absent (whole-file sha256)                                                                       |
+| `INV-claude-settings-deny-rules`           | `.claude/settings.json`                                      | `jq-subtree` over `{deny: .permissions.deny \| sort, hooks: .hooks.PreToolUse \| sort_by(.matcher)}` |
+| `INV-git-hooks-preservation-enumeration`   | `packages/keel-invariants/src/prek-hook-manifest.ts`         | absent (whole-file sha256 of the `EXPECTED_HOOKS` enumerator)                                    |
+| `INV-git-hooks-preservation`               | `packages/keel-invariants/src/prek-hook-manifest.ts`         | `names-and-shebangs` (walks `.git/hooks/` for each enumerated name, hashes `sort(name\tshebang)`)|
+
+The former-Story-2.16 entry `INV-claude-hook-secret-denylist` previously pointed at this invariant doc; Story 2.17 **repoints** it to the hook script itself (the substrate enforcement layer — the thing a bypass attempt would actually mutate) and adds `INV-claude-hook-secret-denylist-doc` to preserve the invariant-doc drift protection. Option B (repoint + split) per Story 2.17 Task 4.1 rationale; the ID-continuity + git-blame lineage of the existing entry is preserved.
+
+The `jq-subtree` filter covers BOTH substrate-authoritative sub-trees of `.claude/settings.json`: `.permissions.deny[]` (Story 2.15 NFR5a baseline — forks MAY NOT weaken) AND `.hooks.PreToolUse[]` (hook registration — nulling disables Story 2.16's hook firing entirely). Canonicalisation via `sort` + `sort_by(.matcher)` normalises authoring-order drift; `// []` defaults preserve the hash contract if a fork accidentally removes either key. Fork-additive edits to `.permissions.allow`, `.hooks.PostToolUse`, `.hooks.UserPromptSubmit` do NOT change the hash.
+
+The `names-and-shebangs` variant exists because `.git/hooks/` is regenerated by `prek install` on fresh clone and the byte-bodies drift across prek upgrades + `.pre-commit-config.yaml` changes. Hashing `sort(name\tshebang-line)` over the enumerated hook set (`commit-msg` + `pre-commit` at Story 2.17 landing) pins the contract "these hooks exist AND their shebangs conform to pattern" without binding to byte-level drift. Missing hooks emit `git-hook-missing` drift; shebang-pattern mismatches emit `git-hook-shebang-mismatch`.
+
 ### Limitations + scope-carve-outs
 
-- **Bypass-resistance backstop — deferred to Story 2.17.** Story 2.17 expands the manifest entry + `contentHash` binding to cover `.claude/settings.json` (`hooks` block region) + `.claude/hooks/**` + `.git/hooks/**` — the pre-merge invariant sync-gate (Story 1.9 substrate) then catches out-of-band tampering (edits that evade the in-session hook via a non-Claude editor). Story 2.16 baseline `contentHash` covers this invariant doc only.
-- **Anchor-delimited `hooks.PreToolUse` region in `.claude/settings.json` — deferred to Story 2.17.** Allows forks to extend the hook registration without triggering drift.
+- **Anchor-delimited `hooks.PreToolUse` region in `.claude/settings.json` — delivered by Story 2.17 via `jq-subtree` sub-tree hashing.** See § Story 2.17 git-layer backstop table above.
 - **S4 prompt-injection scan rules for `.claude/hooks/**` + `.claude/settings*.json` diffs — deferred to Epic 4 + Story 2.17.** Pre-commit scanner tier wiring.
 - **Halt-write logic — deferred to Epic 3 Story 3.7.** The in-loop pre-push gate reads the JSONL + counts + writes `${RALPH_BASE_DIR}/halt` with `SECURITY_CRITICAL`. Story 2.16 ships the threshold value + JSONL schema (the contract Story 3.7 inherits).
 - **Epic 4 FR37 security-evidence consumer — deferred to Story 4.13.** Consumes JSONL → `scans.hook_denials[]`. Story 2.16 ships the JSONL schema (the contract Story 4.13 inherits).
 - **Iteration-id env-var standard — deferred to Epic 3.** Epic 3 standardises `RALPH_ITER_ID` env var propagation. Story 2.16 reads `${RALPH_ITER_ID:-unknown}` and tolerates absence (logs as `iteration_id: "unknown"`).
-- **`.git/hooks/**` content-hash — deferred to Story 2.17.** `INV-git-hooks-preservation` (per `epics.md:1735`) references `packages/keel-invariants/src/prek-hook-manifest.ts`. Story 2.16 does NOT pre-create that file.
+- **`.git/hooks/**` content-hash — delivered by Story 2.17 via `names-and-shebangs` hashing.** `INV-git-hooks-preservation` references `packages/keel-invariants/src/prek-hook-manifest.ts` (the enumerator file); the gate walks `.git/hooks/<name>` for each enumerated hook and hashes `sort(name\tshebang)`.
 - **Live `claude` subprocess smoke-tests — operator-workstation-deferred.** Behavioural verification of "hook actually fires from inside a `claude` session blocking a real tool call" requires a live `claude` subprocess against a fixture repo. Story 2.16 ships impl-time fixture-fixture smokes (Task 1 verification gates) which exercise the hook script in isolation; the in-session integration is operator-smoke-class per the Story 2.13/2.15 live-smokes precedent.
 - **Operator-workstation secrets not in scope.** `Read(~/.ssh/**)` + `Read(~/.aws/credentials)` are operator-workstation paths that live outside the devbox (NFR10 forbids host `.ssh/` bind-mount; `.aws/credentials` is not mounted by substrate compose). Inside the devbox, the sandbox + `keel_home_dev` named-volume isolation make those read-denies no-ops. Deferred to Story 2.17 bypass-resistance close-out (operators who DO bind-mount host `.ssh/` or `.aws/` against substrate advice self-amend).
 

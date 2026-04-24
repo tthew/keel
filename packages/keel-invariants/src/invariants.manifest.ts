@@ -365,10 +365,51 @@ const raw: Invariant[] = [
     id: 'INV-claude-hook-secret-denylist',
     description:
       // eslint-disable-next-line keel-invariants/no-verify-bypass -- substrate description enumerates the token it blocks; this is a doc-reference, not an invocation
-      'Claude Code PreToolUse hook at .claude/hooks/block-secret-access.sh registered via .claude/settings.json hooks.PreToolUse block for six agent-reachable tool surfaces (Bash, Read, Edit, Write, Grep, Glob). Two denylists pinned: secret-access-denylist (Bash/Read/Grep/Glob patterns for .envrc*, **/.env*, .secrets*, /home/dev/.claude/**, /home/dev/.config/gh/**, /proc/*/environ + env-dump idioms) + hook-self-protection (Edit/Write on .claude/settings*.json, .claude/hooks/**, .git/hooks/** + Bash mutations against those paths + git --no-verify bypass). Hook decision-shape: stdout JSON {"decision":"block","reason":"<rule-id>","match":"<matched-pattern>"} where rule-id ∈ {secret-access-denylist, hook-self-protection}; exits 0 always (Claude Code PreToolUse contract — non-zero = hook error fails open). Each block appends to ${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl with schema {timestamp, iteration_id, tool, args_redacted, rule_id, match}; log skipped outside Ralph iteration. Halt-threshold N=3 hook-self-protection blocks per iteration pinned in .ralph/config.toml [hooks].self_protection_halt_threshold; Epic 3 Story 3.7 wires the SECURITY_CRITICAL halt-write per INV-ralph-halt-reason-enum closed enum. Fork-extension path: .claude/hooks/block-secret-access.fork.sh invoked LAST after substrate denylist clears (forks MAY add additional patterns to block; MAY NOT unblock substrate-denied patterns). 5-site byte-identity lockstep on substrate amendment (substrate hook + substrate settings.json hooks block + invariant doc + seed hook + seed settings.json hooks block) + 2-site metadata coordination (manifest contentHash + INVARIANTS.md anchor) = 7-site AMEND coordination. Story 2.17 adds content-hash bypass-resistance covering hook script + settings.json hooks block + .git/hooks/**.',
-    sourcePath: 'docs/invariants/claude-hook-denylist.md',
-    contentHash: '85f8a539c0850f1c52ed825c6a8a904d72c6d42c0c7a87eb9f14617bc51cd7e1',
+      'Claude Code PreToolUse hook at .claude/hooks/block-secret-access.sh — substrate enforcement script (Story 2.16 landed; Story 2.17 Task 4 repoints this entry sourcePath from the invariant doc to the hook script itself, elevating the hook body to whole-file contentHash drift-protection at the git layer). Two denylists pinned inside the script: secret-access-denylist (Bash/Read/Grep/Glob patterns for .envrc*, **/.env*, .secrets*, /home/dev/.claude/**, /home/dev/.config/gh/**, /proc/*/environ + env-dump idioms) + hook-self-protection (Edit/Write on .claude/settings*.json, .claude/hooks/**, .git/hooks/** + Bash mutations against those paths + git --no-verify bypass). Hook decision-shape: stdout JSON {"decision":"block","reason":"<rule-id>","match":"<matched-pattern>"} where rule-id ∈ {secret-access-denylist, hook-self-protection}; exits 0 always (Claude Code PreToolUse contract — non-zero = hook error fails open). Each block appends to ${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl with schema {timestamp, iteration_id, tool, args_redacted, rule_id, match}; log skipped outside Ralph iteration. Halt-threshold N=3 hook-self-protection blocks per iteration pinned in .ralph/config.toml [hooks].self_protection_halt_threshold; Epic 3 Story 3.7 wires the SECURITY_CRITICAL halt-write per INV-ralph-halt-reason-enum closed enum. Invariant-doc drift protection now carried by sibling entry INV-claude-hook-secret-denylist-doc (Story 2.17 Task 4 split). Fork-extension path: .claude/hooks/block-secret-access.fork.sh invoked LAST after substrate denylist clears (forks MAY add additional patterns to block; MAY NOT unblock substrate-denied patterns). 7-site AMEND coordination documented at docs/invariants/claude-hook-denylist.md § Fork extension § AMEND path.',
+    sourcePath: '.claude/hooks/block-secret-access.sh',
+    contentHash: 'eb5f2d3af5fdd82d0f80d62d9e3f3528c1dffc5b7683074347ebc80d27368b8c',
     anchors: ['INV-claude-hook-secret-denylist'],
+  },
+  {
+    id: 'INV-claude-hook-secret-denylist-doc',
+    description:
+      'Invariant-doc drift protection for docs/invariants/claude-hook-denylist.md — the contract description carrying the hook-denylist narrative, decision-shape, JSONL schema, halt-threshold pin, source-files index, fork-extension path, limitations, and Story 2.17 git-layer backstop table. Story 2.17 Task 4 split: the former INV-claude-hook-secret-denylist sourcePath (this doc) is now covered here, while the ID INV-claude-hook-secret-denylist itself is repointed to the hook script per the Option B rationale at story Task 4.1 (preserves ID lineage; splits doc protection into a -doc sibling). Whole-file sha256; drift-detected by Story 1.9 pre-merge sync-gate.',
+    sourcePath: 'docs/invariants/claude-hook-denylist.md',
+    contentHash: '118d956c229d48835d035ab3572b45ee4f076454ff8c206a6615396b488d9330',
+    anchors: ['INV-claude-hook-secret-denylist-doc'],
+  },
+  {
+    id: 'INV-claude-settings-deny-rules',
+    description:
+      'Substrate-authoritative sub-tree of .claude/settings.json covering the NFR5a non-toggle-able deny rules (.permissions.deny[]; Story 2.15 baseline — 13 entries at Story 2.17 landing) + the Story 2.16 hook registration (.hooks.PreToolUse[] — 6 matchers at Story 2.17 landing). hashScope is jq-subtree with filter "{deny: (.permissions.deny // [] | sort), hooks: (.hooks.PreToolUse // [] | sort_by(.matcher))}" — canonicalises authoring-order drift via sort + sort_by(.matcher); // [] defaults preserve the hash contract if a fork accidentally removes either key entirely (sync-gate then sees a well-defined "empty sub-tree" hash and flags drift). Fork-additive edits to .permissions.allow[] (fork-specific allow rules) + .hooks.PostToolUse[] / .hooks.UserPromptSubmit[] (fork-extension slots) do NOT change this hash — the filter ignores them. Any mutation or removal inside the two substrate-authoritative sub-trees flips the content-hash-mismatch drift kind at Story 1.9 pre-merge sync-gate. Story 2.17 Task 2.',
+    sourcePath: '.claude/settings.json',
+    contentHash: 'c33844c4eccb853bb8d11860cebd6c7681bb1a9396b9d973f42f4d5ec557137b',
+    anchors: ['INV-claude-settings-deny-rules'],
+    hashScope: {
+      kind: 'jq-subtree',
+      filter:
+        '{deny: (.permissions.deny // [] | sort), hooks: (.hooks.PreToolUse // [] | sort_by(.matcher))}',
+    },
+  },
+  {
+    id: 'INV-git-hooks-preservation-enumeration',
+    description:
+      'Enumeration of prek-installed hook names + shebang patterns at packages/keel-invariants/src/prek-hook-manifest.ts — exports "readonly ExpectedHook[]" consumed by the sync-gate names-and-shebangs walker. Whole-file sha256 catches out-of-band edits to the enumeration (e.g. a PR removing pre-commit from EXPECTED_HOOKS to relax the preservation contract). Sibling to INV-git-hooks-preservation which uses the SAME sourcePath but a names-and-shebangs hashScope that derives its content from walking .git/hooks/; the two entries share sourcePath legitimately because they have distinct hashScope canonical forms (the manifest schema superRefine permits this — see invariants.manifest.ts duplicate-sourcePath comment). Adding or removing an entry in prek-hook-manifest.ts is an AMEND-path change touching this manifest + INVARIANTS.md anchor + .pre-commit-config.yaml alignment in lockstep. Story 2.17 Task 3.3.',
+    sourcePath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
+    contentHash: 'e5ff4a32ae91a3322712889aa8bb3af1bc098ee0975cf8aef181d27afadfc35d',
+    anchors: ['INV-git-hooks-preservation-enumeration'],
+  },
+  {
+    id: 'INV-git-hooks-preservation',
+    description:
+      'Preservation contract for prek-installed .git/hooks/ — the EXPECTED_HOOKS set at packages/keel-invariants/src/prek-hook-manifest.ts (commit-msg + pre-commit at Story 2.17 landing) MUST exist on disk AND their shebang lines MUST match the conservative regex pinned in that file. hashScope is names-and-shebangs with enumeratorPath = sourcePath (by convention): the walker imports EXPECTED_HOOKS, walks .git/hooks/<name> for each, and hashes sort(name + "\\t" + first-line) joined by newlines. Missing files surface as git-hook-missing drift; shebang-pattern mismatches surface as git-hook-shebang-mismatch. sourcePath acts as the manifest-entry anchor ONLY under this hashScope.kind — the actual hashed content is derived from the walked .git/hooks/ directory (not sourcePath itself), because .git/hooks/ is not git-tracked and would fail readSourceFile on fresh clone pre-prek-install. Sibling to INV-git-hooks-preservation-enumeration which hashes sourcePath whole-file (distinct hashScope; legitimate sourcePath sharing). Story 2.17 Task 3.2.',
+    sourcePath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
+    contentHash: 'cb27263d10effe72e828e241223536eba0ea6a5c0866a39a05efeeeb41d6e829',
+    anchors: ['INV-git-hooks-preservation'],
+    hashScope: {
+      kind: 'names-and-shebangs',
+      enumeratorPath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
+    },
   },
 ];
 

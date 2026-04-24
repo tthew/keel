@@ -91,10 +91,17 @@ export async function computeNamesAndShebangsHash(
 
 // Load `EXPECTED_HOOKS` from an enumerator module. Enumerator exports
 // `readonly { name: string; shebangPattern: RegExp }[]`.
+// Convention (Story 2.17 Dev Notes § sourcePath semantics): enumeratorPath points at the TS
+// source file (acts as the drift-protection anchor). At runtime we load from the compiled dist
+// artefact — the .ts → .js / src/ → dist/ translation is the minimum needed to make Node's
+// dynamic import work against a TypeScript-authored enumerator. Non-.ts paths import as-is.
 export async function loadExpectedHooks(
   absEnumeratorPath: string,
 ): Promise<readonly ExpectedHook[]> {
-  const moduleUrl = pathToFileURL(absEnumeratorPath).href;
+  const loadPath = absEnumeratorPath.endsWith('.ts')
+    ? absEnumeratorPath.replace(/\/src\//, '/dist/').replace(/\.ts$/, '.js')
+    : absEnumeratorPath;
+  const moduleUrl = pathToFileURL(loadPath).href;
   const mod = (await import(moduleUrl)) as { EXPECTED_HOOKS?: readonly ExpectedHook[] };
   if (!mod.EXPECTED_HOOKS || !Array.isArray(mod.EXPECTED_HOOKS)) {
     throw new Error(`enumerator ${absEnumeratorPath} missing EXPECTED_HOOKS export`);
