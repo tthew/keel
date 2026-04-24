@@ -13,10 +13,7 @@
 
 ## BLOCKED
 
-- [ ] iter-258 step-5 push — NEEDS RETRY. Prior iter-257 push FAILED with SSH :22 timeout (RC=124); 4 unpushed commits accumulated (iter-256 × 2 + iter-257-dev-story-landing + iter-257-post-push-fail BLOCKED-state update). iter-258 orient probe `timeout 15 git ls-remote origin HEAD` → RC=124 — SSH :22 still unresponsive at iter-258 orient. Expecting 5 unpushed commits after iter-258 trace-gate commit lands.
-  - Attempted: orient probe `git ls-remote origin HEAD` 15s timeout → RC=124 (iter-258 orient).
-  - Error/Issue: SSH :22 egress to github.com `140.82.121.{3,4,5,6}:22` intermittently timed out across iter-219..258; iter-255 saw a brief recovery window; iter-256..258 re-blocked. HTTPS :443 correlates (iter-256 `gh pr checks 230` also timed out). Suggests upstream network-path issue from iter-env to github.com ASN rather than port-specific egress block. PR #230 has no CI configured so HTTPS timeout is not a CI gate.
-  - Next: iter-258 step-5 retries SSH :22 push with all 5 unpushed commits. If still timing out, 5 commits carry forward; next iter retries per iter-249..257 carry-forward recovery-banking pattern. Commits are safe in local branch — no force-push, no amend, preserved intact. When SSH :22 recovers, `git push` flushes all unpushed commits in a single round-trip with no conflict.
+_(none — iter-258 step-5 push RECOVERED. SSH :22 egress to github.com recovered between iter-258 orient probe (RC=124, 15s timeout) and iter-258 step-5 push (RC=0, 90s timeout). All 5 previously-banked commits flushed in a single round-trip: `aa17c03..9e634b8 feat/epic-2-packaged-devbox → feat/epic-2-packaged-devbox`. Recovery-banking pattern (iter-249..257 carry-forward) held — commits preserved intact across 3 blocked iters with no conflict at recovery. Post-push noise: GitHub reports 2 moderate-severity Dependabot vulnerabilities on default branch (unrelated to Epic 2 work; tracked at https://github.com/tthew/ralph-bmad/security/dependabot). PR #230 still has no CI configured (statusCheckRollup: []); HTTPS :443 gate not applicable.)_
 
 ## ATDD Red Phase
 
