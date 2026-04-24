@@ -14,7 +14,10 @@
 
 ## BLOCKED
 
-_(none — iter-268 is dev-story landing recovery; uncommitted state from prior-iter-268-crash found on-disk and verified coherent; sync-gate + resolver smokes + syntax green; commit + push forthcoming.)_
+- [ ] POST-PUSH SSH :22 CARRY-FORWARD — `12a5ebc` (RALPH.md SSH keepalive lesson) unpushed; dev-story landing commit `f631bf8` already at origin (f98aacf..f631bf8 landed on third-attempt keepalive push). Three subsequent push attempts for `12a5ebc` failed: two returned exit 0 with empty output (stall-before-flush), one returned "Connection timed out port 22" exit 128. Lesson commit is non-critical (Ralph journal only; no impl surface). Per iter-263 asymmetric-recovery LESSON, SSH :22 and HTTPS :443 recover independently — carry forward to next iter; `12a5ebc` flushes automatically when SSH :22 recovers (typically 1-3 iters per iter-249..263 pattern).
+  - Attempted: `timeout 60 git push`, `timeout 120 git push`, `GIT_SSH_COMMAND=...ServerAliveInterval=15 timeout 240 git push -v` — last attempt returned explicit `ssh: connect to host github.com port 22: Connection timed out`.
+  - Error/Issue: transient SSH :22 network timeout; `ssh -T git@github.com` auth probe was clean during first push window but flaked after `f631bf8` landed.
+  - Next: iter-269 orient attempts push first per iter-263 recovery rule; if SSH :22 clean, `12a5ebc` auto-flushes as part of iter-269's normal step-5 push cycle. Do NOT re-write the lesson in RALPH.md — the commit is idempotent and will land on first push-success in a subsequent iter.
 
 ## ATDD Red Phase
 
