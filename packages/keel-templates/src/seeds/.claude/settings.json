@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(.envrc*)",
+      "Read(**/.env*)",
+      "Read(.secrets*)",
+      "Read(/home/dev/.claude/**)",
+      "Read(/home/dev/.config/gh/**)",
+      "Bash(env)",
+      "Bash(env:*)",
+      "Bash(printenv*)",
+      "Bash(cat .envrc*)",
+      "Bash(cat **/.env*)",
+      "Bash(cat /proc/*/environ*)",
+      "Grep(**/.env*)",
+      "Glob(**/.env*)"
+    ],
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(git status)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(ls *)",
+      "Bash(tsc *)"
+    ]
+  }
+}

@@ -1011,6 +1011,44 @@ The branch is retired by Story 15b.1's `scripts/major-cut.sh` at the 1.0 cut rit
 
 `INV-devbox-legacy-branch-retention` (`docs/invariants/devbox-legacy-branch-retention.md`) pins the branch-creation contract, cherry-pick workflow (manual, minimal-drift), triage path (canary-then-bisect), sunset criteria (M4 checkpoint), retirement gate (Story 15b.1 execution), and fork-extension rules.
 
+## Claude Code settings policy (Story 2.15)
+
+`.claude/settings.json` at the repo root ships the substrate-authoritative Claude Code permission policy (Story 2.15). The committed file declares `permissions.deny` baseline for secret paths + env-dump idioms + OAuth-token paths (13 entries), plus `permissions.allow` positive list for common dev commands (6 entries — `Bash(pnpm *)`, `Bash(git status)`, `Bash(git diff*)`, `Bash(git log*)`, `Bash(ls *)`, `Bash(tsc *)`). Fork operators extend via the honour system (see `AGENTS.md § Claude Code settings policy (Story 2.15)`); they MAY add deny/allow rules but MUST NOT remove or weaken substrate-owned deny rules.
+
+### Quick-start
+
+View the policy:
+
+```sh
+cat .claude/settings.json | jq .permissions
+```
+
+Extend with fork-specific rules (edit the committed file directly if fork-scoped; route through FR44 AMEND at `docs/invariants/fork.md § Amendment-vs-fork decision` if the change should propagate to every fork):
+
+```sh
+# Fork-specific add (example): deny a fork-only secret-file pattern
+jq '.permissions.deny += ["Read(fork-specific-secret.yaml)"]' .claude/settings.json > .tmp.json && mv .tmp.json .claude/settings.json
+```
+
+Personal preferences — extend `allow` in the gitignored local-override file (never committed):
+
+```sh
+# .claude/settings.local.json — your local extension (not tracked)
+echo '{"permissions":{"allow":["Bash(my-local-tool *)"]}}' > .claude/settings.local.json
+```
+
+Claude Code's permission resolution is **`deny` wins over `allow`** — a local `allow` for a pattern that matches a substrate `deny` is silently ignored. The honour system: do not attempt to weaken the substrate deny list locally.
+
+### Ralph-path caveat
+
+Ralph iterations run `claude -p --dangerously-skip-permissions` per NFR5 — `.claude/settings.json` is advisory for that path. Story 2.16's PreToolUse hook at `.claude/hooks/block-secret-access.sh` (not yet landed) completes the Ralph-path defense by catching denied tool calls regardless of permission mode. Until Story 2.16 lands, Ralph's secret-access defense is the devbox sandbox egress controls (Story 2.3 + Story 2.4) + operator diff review of committed iteration diffs.
+
+### Machine-enforced contract (forward-ref)
+
+Story 2.17 lands the content-hash backstop via `INV-claude-hook-secret-denylist` covering `.claude/settings.json` + `.claude/hooks/**` + `.git/hooks/**` (pre-merge invariant sync gate; Story 1.9 substrate). Out-of-band tampering (edits that evade the in-session hook) fails the gate. Story 2.15's baseline `.claude/settings.json` becomes the content-hashed substrate-authoritative baseline at Story 2.17 landing.
+
+See `AGENTS.md § Claude Code settings policy (Story 2.15)` for the full fork-extension contract + honour-system details + cross-references to § Container hardening (Story 2.5) + § Claude Code authentication (Story 2.8) + § gh CLI authentication (Story 2.9) for the OAuth-token paths covered by the deny list.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:
