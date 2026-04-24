@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook
-# Story 2.17 Task 7 (L1 install-boundary), Task 8 (settings-file patterns), Task 10.1 D-12..D-24.
+# Story 2.17 Task 7 (L1 install-boundary), Task 8 (settings-file patterns), Task 10.1 D-12..D-30.
 set -euo pipefail
 # D-19 — case-insensitive pattern matching across case/regex blocks (defense-in-depth on mixed-case
 # FS bypass: e.g. `cat .ENVRC`, `/HOME/DEV/.claude/...`). Restored before fork-hook invocation.
@@ -14,15 +14,18 @@ pattern=""
 search_path=""
 case "$tool_name" in
   Bash) bash_command="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null || printf '')" ;;
-  Read|Edit|Write) file_path="$(printf '%s' "$payload" | jq -r '.tool_input.file_path // empty' 2>/dev/null || printf '')" ;;
+  # D-25 — MultiEdit + NotebookEdit matchers added at .claude/settings.json hooks.PreToolUse.
+  # MultiEdit uses .tool_input.file_path (parallel to Edit); NotebookEdit uses .tool_input.notebook_path.
+  Read|Edit|Write|MultiEdit) file_path="$(printf '%s' "$payload" | jq -r '.tool_input.file_path // empty' 2>/dev/null || printf '')" ;;
+  NotebookEdit) file_path="$(printf '%s' "$payload" | jq -r '.tool_input.notebook_path // empty' 2>/dev/null || printf '')" ;;
   Grep) pattern="$(printf '%s' "$payload" | jq -r '.tool_input.pattern // empty' 2>/dev/null || printf '')"
         search_path="$(printf '%s' "$payload" | jq -r '.tool_input.path // empty' 2>/dev/null || printf '')" ;;
   Glob) pattern="$(printf '%s' "$payload" | jq -r '.tool_input.pattern // empty' 2>/dev/null || printf '')"
         # D-20 — Glob tool also exposes `.tool_input.path`; previously only Grep's path was read.
         search_path="$(printf '%s' "$payload" | jq -r '.tool_input.path // empty' 2>/dev/null || printf '')" ;;
 esac
-# D-22 — resolve symlink target for Read/Edit/Write file paths; exemption-guard below blocks
-# `decoy.envrc.example → /home/dev/.claude/.credentials.json` bypass attempts.
+# D-22 — resolve symlink target for Read/Edit/Write/MultiEdit/NotebookEdit file paths; exemption-guard
+# below blocks `decoy.envrc.example → /home/dev/.claude/.credentials.json` bypass attempts.
 resolved_file_path=""
 if [ -n "$file_path" ]; then
   resolved_file_path="$(readlink -f "$file_path" 2>/dev/null || printf '%s' "$file_path")"
@@ -94,7 +97,7 @@ case "$tool_name" in
     case "$file_path" in
       *.envrc.example|*.secrets.example|*.env.example)
         case "$resolved_file_path" in
-          /home/dev/.claude/*|/home/dev/.config/gh/*|*/home/dev/.claude/*|*/home/dev/.config/gh/*|/proc/*/environ|*/proc/*/environ)
+          /home/dev/.claude/*|/home/dev/.config/gh/*|*/home/dev/.claude/*|*/home/dev/.config/gh/*|/home/dev/.ssh/*|*/home/dev/.ssh/*|/proc/*/environ|*/proc/*/environ)
             block "secret-access-denylist" "symlink-example-to-secret-dir" ;;
         esac
         printf '{"decision":"approve"}\n'; exit 0 ;;
@@ -107,7 +110,7 @@ case "$tool_name" in
       example_arg="${BASH_REMATCH[4]}"
       example_resolved="$(readlink -f "$example_arg" 2>/dev/null || printf '%s' "$example_arg")"
       case "$example_resolved" in
-        /home/dev/.claude/*|/home/dev/.config/gh/*|*/home/dev/.claude/*|*/home/dev/.config/gh/*|/proc/*/environ|*/proc/*/environ)
+        /home/dev/.claude/*|/home/dev/.config/gh/*|*/home/dev/.claude/*|*/home/dev/.config/gh/*|/home/dev/.ssh/*|*/home/dev/.ssh/*|/proc/*/environ|*/proc/*/environ)
           block "secret-access-denylist" "symlink-example-to-secret-dir" ;;
       esac
       printf '{"decision":"approve"}\n'; exit 0
@@ -115,7 +118,10 @@ case "$tool_name" in
 esac
 
 case "$tool_name" in
-  Edit|Write)
+  # D-25 — MultiEdit + NotebookEdit share Edit|Write hook-self-protection + L1 install-boundary gating.
+  # MultiEdit writes multiple edits to one file (file_path parallel to Edit).
+  # NotebookEdit writes a notebook cell (notebook_path, already extracted into file_path above).
+  Edit|Write|MultiEdit|NotebookEdit)
     # Task 8.4 — settings-file patterns (exact, forward-compat .*.json, and nested under any prefix).
     case "$file_path" in
       .claude/settings.json|.claude/settings.local.json|.claude/settings.*.json|*/.claude/settings.json|*/.claude/settings.local.json|*/.claude/settings.*.json)
@@ -174,6 +180,8 @@ esac
 # `env | sort`, `env -0`, `export`, `export -p`, `set`, `set -o posix`. Avoids false-positives on
 # `envsubst`, `envvar=x cmd`, `exportfs`, `setup.sh` (no word-boundary break after verb).
 # D-12 — reader verb expansion (14 readers × 5 path classes + interp-stdin with -[ec]).
+# D-28 — tilde-form (~/.claude, ~/.config/gh, ~/.ssh) + /home/dev/.ssh parallel patterns; hook sees
+# pre-expansion text, so tilde-form is an active bypass surface in agent paths.
 case "$tool_name" in
   Bash)
     if [[ "$normalized" =~ ^(env|export|set)([[:space:]]|$) ]]; then
@@ -182,7 +190,8 @@ case "$tool_name" in
     case "$normalized" in
       printenv*) block "secret-access-denylist" "printenv-idiom" ;;
       cat*/proc/*/environ*|less*/proc/*/environ*|tail*/proc/*/environ*|head*/proc/*/environ*|bat*/proc/*/environ*|xxd*/proc/*/environ*|od*/proc/*/environ*|strings*/proc/*/environ*|more*/proc/*/environ*|grep*/proc/*/environ*|awk*/proc/*/environ*|sed*/proc/*/environ*|cp*/proc/*/environ*|dd*/proc/*/environ*|node*-[ec]*/proc/*/environ*|python*-[ec]*/proc/*/environ*|python3*-[ec]*/proc/*/environ*|perl*-[ec]*/proc/*/environ*|ruby*-[ec]*/proc/*/environ*|php*-[ec]*/proc/*/environ*) block "secret-access-denylist" "cat-proc-environ" ;;
-      cat*/home/dev/.claude/*|cat*/home/dev/.config/gh/*|less*/home/dev/.claude/*|less*/home/dev/.config/gh/*|tail*/home/dev/.claude/*|tail*/home/dev/.config/gh/*|head*/home/dev/.claude/*|head*/home/dev/.config/gh/*|bat*/home/dev/.claude/*|bat*/home/dev/.config/gh/*|xxd*/home/dev/.claude/*|xxd*/home/dev/.config/gh/*|od*/home/dev/.claude/*|od*/home/dev/.config/gh/*|strings*/home/dev/.claude/*|strings*/home/dev/.config/gh/*|more*/home/dev/.claude/*|more*/home/dev/.config/gh/*|grep*/home/dev/.claude/*|grep*/home/dev/.config/gh/*|awk*/home/dev/.claude/*|awk*/home/dev/.config/gh/*|sed*/home/dev/.claude/*|sed*/home/dev/.config/gh/*|cp*/home/dev/.claude/*|cp*/home/dev/.config/gh/*|dd*/home/dev/.claude/*|dd*/home/dev/.config/gh/*|node*-[ec]*/home/dev/.claude/*|node*-[ec]*/home/dev/.config/gh/*|python*-[ec]*/home/dev/.claude/*|python*-[ec]*/home/dev/.config/gh/*|python3*-[ec]*/home/dev/.claude/*|python3*-[ec]*/home/dev/.config/gh/*|perl*-[ec]*/home/dev/.claude/*|perl*-[ec]*/home/dev/.config/gh/*|ruby*-[ec]*/home/dev/.claude/*|ruby*-[ec]*/home/dev/.config/gh/*|php*-[ec]*/home/dev/.claude/*|php*-[ec]*/home/dev/.config/gh/*) block "secret-access-denylist" "cat-oauth-token" ;;
+      cat*/home/dev/.claude/*|cat*/home/dev/.config/gh/*|cat*~/.claude/*|cat*~/.config/gh/*|less*/home/dev/.claude/*|less*/home/dev/.config/gh/*|less*~/.claude/*|less*~/.config/gh/*|tail*/home/dev/.claude/*|tail*/home/dev/.config/gh/*|tail*~/.claude/*|tail*~/.config/gh/*|head*/home/dev/.claude/*|head*/home/dev/.config/gh/*|head*~/.claude/*|head*~/.config/gh/*|bat*/home/dev/.claude/*|bat*/home/dev/.config/gh/*|bat*~/.claude/*|bat*~/.config/gh/*|xxd*/home/dev/.claude/*|xxd*/home/dev/.config/gh/*|xxd*~/.claude/*|xxd*~/.config/gh/*|od*/home/dev/.claude/*|od*/home/dev/.config/gh/*|od*~/.claude/*|od*~/.config/gh/*|strings*/home/dev/.claude/*|strings*/home/dev/.config/gh/*|strings*~/.claude/*|strings*~/.config/gh/*|more*/home/dev/.claude/*|more*/home/dev/.config/gh/*|more*~/.claude/*|more*~/.config/gh/*|grep*/home/dev/.claude/*|grep*/home/dev/.config/gh/*|grep*~/.claude/*|grep*~/.config/gh/*|awk*/home/dev/.claude/*|awk*/home/dev/.config/gh/*|awk*~/.claude/*|awk*~/.config/gh/*|sed*/home/dev/.claude/*|sed*/home/dev/.config/gh/*|sed*~/.claude/*|sed*~/.config/gh/*|cp*/home/dev/.claude/*|cp*/home/dev/.config/gh/*|cp*~/.claude/*|cp*~/.config/gh/*|dd*/home/dev/.claude/*|dd*/home/dev/.config/gh/*|dd*~/.claude/*|dd*~/.config/gh/*|node*-[ec]*/home/dev/.claude/*|node*-[ec]*/home/dev/.config/gh/*|node*-[ec]*~/.claude/*|node*-[ec]*~/.config/gh/*|python*-[ec]*/home/dev/.claude/*|python*-[ec]*/home/dev/.config/gh/*|python*-[ec]*~/.claude/*|python*-[ec]*~/.config/gh/*|python3*-[ec]*/home/dev/.claude/*|python3*-[ec]*/home/dev/.config/gh/*|python3*-[ec]*~/.claude/*|python3*-[ec]*~/.config/gh/*|perl*-[ec]*/home/dev/.claude/*|perl*-[ec]*/home/dev/.config/gh/*|perl*-[ec]*~/.claude/*|perl*-[ec]*~/.config/gh/*|ruby*-[ec]*/home/dev/.claude/*|ruby*-[ec]*/home/dev/.config/gh/*|ruby*-[ec]*~/.claude/*|ruby*-[ec]*~/.config/gh/*|php*-[ec]*/home/dev/.claude/*|php*-[ec]*/home/dev/.config/gh/*|php*-[ec]*~/.claude/*|php*-[ec]*~/.config/gh/*) block "secret-access-denylist" "cat-oauth-token" ;;
+      cat*/home/dev/.ssh/*|cat*~/.ssh/*|less*/home/dev/.ssh/*|less*~/.ssh/*|tail*/home/dev/.ssh/*|tail*~/.ssh/*|head*/home/dev/.ssh/*|head*~/.ssh/*|bat*/home/dev/.ssh/*|bat*~/.ssh/*|xxd*/home/dev/.ssh/*|xxd*~/.ssh/*|od*/home/dev/.ssh/*|od*~/.ssh/*|strings*/home/dev/.ssh/*|strings*~/.ssh/*|more*/home/dev/.ssh/*|more*~/.ssh/*|grep*/home/dev/.ssh/*|grep*~/.ssh/*|awk*/home/dev/.ssh/*|awk*~/.ssh/*|sed*/home/dev/.ssh/*|sed*~/.ssh/*|cp*/home/dev/.ssh/*|cp*~/.ssh/*|dd*/home/dev/.ssh/*|dd*~/.ssh/*|node*-[ec]*/home/dev/.ssh/*|node*-[ec]*~/.ssh/*|python*-[ec]*/home/dev/.ssh/*|python*-[ec]*~/.ssh/*|python3*-[ec]*/home/dev/.ssh/*|python3*-[ec]*~/.ssh/*|perl*-[ec]*/home/dev/.ssh/*|perl*-[ec]*~/.ssh/*|ruby*-[ec]*/home/dev/.ssh/*|ruby*-[ec]*~/.ssh/*|php*-[ec]*/home/dev/.ssh/*|php*-[ec]*~/.ssh/*) block "secret-access-denylist" "cat-ssh-key" ;;
       cat*.envrc*|cat*/.envrc*|less*.envrc*|less*/.envrc*|tail*.envrc*|tail*/.envrc*|head*.envrc*|head*/.envrc*|bat*.envrc*|bat*/.envrc*|xxd*.envrc*|xxd*/.envrc*|od*.envrc*|od*/.envrc*|strings*.envrc*|strings*/.envrc*|more*.envrc*|more*/.envrc*|grep*.envrc*|grep*/.envrc*|awk*.envrc*|awk*/.envrc*|sed*.envrc*|sed*/.envrc*|cp*.envrc*|cp*/.envrc*|dd*.envrc*|dd*/.envrc*|node*-[ec]*.envrc*|node*-[ec]*/.envrc*|python*-[ec]*.envrc*|python*-[ec]*/.envrc*|python3*-[ec]*.envrc*|python3*-[ec]*/.envrc*|perl*-[ec]*.envrc*|perl*-[ec]*/.envrc*|ruby*-[ec]*.envrc*|ruby*-[ec]*/.envrc*|php*-[ec]*.envrc*|php*-[ec]*/.envrc*) block "secret-access-denylist" "cat-envrc-file" ;;
       cat*.secrets*|cat*/.secrets*|less*.secrets*|less*/.secrets*|tail*.secrets*|tail*/.secrets*|head*.secrets*|head*/.secrets*|bat*.secrets*|bat*/.secrets*|xxd*.secrets*|xxd*/.secrets*|od*.secrets*|od*/.secrets*|strings*.secrets*|strings*/.secrets*|more*.secrets*|more*/.secrets*|grep*.secrets*|grep*/.secrets*|awk*.secrets*|awk*/.secrets*|sed*.secrets*|sed*/.secrets*|cp*.secrets*|cp*/.secrets*|dd*.secrets*|dd*/.secrets*|node*-[ec]*.secrets*|node*-[ec]*/.secrets*|python*-[ec]*.secrets*|python*-[ec]*/.secrets*|python3*-[ec]*.secrets*|python3*-[ec]*/.secrets*|perl*-[ec]*.secrets*|perl*-[ec]*/.secrets*|ruby*-[ec]*.secrets*|ruby*-[ec]*/.secrets*|php*-[ec]*.secrets*|php*-[ec]*/.secrets*) block "secret-access-denylist" "cat-secrets-file" ;;
       cat*.env|cat*.env.*|cat*/.env|cat*/.env.*|less*.env|less*.env.*|less*/.env|less*/.env.*|tail*.env|tail*.env.*|tail*/.env|tail*/.env.*|head*.env|head*.env.*|head*/.env|head*/.env.*|bat*.env|bat*.env.*|bat*/.env|bat*/.env.*|xxd*.env|xxd*.env.*|xxd*/.env|xxd*/.env.*|od*.env|od*.env.*|od*/.env|od*/.env.*|strings*.env|strings*.env.*|strings*/.env|strings*/.env.*|more*.env|more*.env.*|more*/.env|more*/.env.*|grep*.env|grep*.env.*|grep*/.env|grep*/.env.*|awk*.env|awk*.env.*|awk*/.env|awk*/.env.*|sed*.env|sed*.env.*|sed*/.env|sed*/.env.*|cp*.env|cp*.env.*|cp*/.env|cp*/.env.*|dd*.env|dd*.env.*|dd*/.env|dd*/.env.*|node*-[ec]*.env|node*-[ec]*.env.*|node*-[ec]*/.env|node*-[ec]*/.env.*|python*-[ec]*.env|python*-[ec]*.env.*|python*-[ec]*/.env|python*-[ec]*/.env.*|python3*-[ec]*.env|python3*-[ec]*.env.*|python3*-[ec]*/.env|python3*-[ec]*/.env.*|perl*-[ec]*.env|perl*-[ec]*.env.*|perl*-[ec]*/.env|perl*-[ec]*/.env.*|ruby*-[ec]*.env|ruby*-[ec]*.env.*|ruby*-[ec]*/.env|ruby*-[ec]*/.env.*|php*-[ec]*.env|php*-[ec]*.env.*|php*-[ec]*/.env|php*-[ec]*/.env.*) block "secret-access-denylist" "cat-env-file" ;;
@@ -190,16 +199,24 @@ case "$tool_name" in
   Read)
     # D-22 — evaluate resolved path against secret-dir denies first (catches symlink-to-oauth-token
     # bypass where file_path itself looks benign but symlink target is in a secret directory).
+    # D-28 — /home/dev/.ssh/ resolved parallel.
     case "$resolved_file_path" in
       /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "read-resolved-to-oauth-token" ;;
+      /home/dev/.ssh/*) block "secret-access-denylist" "read-resolved-to-ssh-key" ;;
       /proc/*/environ|*/proc/*/environ) block "secret-access-denylist" "read-resolved-to-proc-environ" ;;
     esac
     case "$file_path" in
       /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "read-oauth-token" ;;
+      # D-28 — tilde-form read paths (hook sees pre-expansion text).
+      \~/.claude/*|\~/.config/gh/*) block "secret-access-denylist" "read-oauth-token-tilde" ;;
+      /home/dev/.ssh/*|\~/.ssh/*) block "secret-access-denylist" "read-ssh-key" ;;
       /proc/*/environ|*/proc/*/environ) block "secret-access-denylist" "read-proc-environ" ;;
       *.envrc|*.envrc.*|*/.envrc|*/.envrc.*) block "secret-access-denylist" "read-envrc-file" ;;
       *.env|*.env.*|*/.env|*/.env.*) block "secret-access-denylist" "read-env-file" ;;
       *.secrets|*.secrets.*|*/.secrets|*/.secrets.*) block "secret-access-denylist" "read-secrets-file" ;;
+      # D-30 — secret-file patterns (parallel to Story 2.15 iter-316 permissions-layer landing).
+      id_rsa|*/id_rsa|id_ed25519|*/id_ed25519|id_ecdsa|*/id_ecdsa|*.pem|*.key|credentials.json|*/credentials.json|.pgpass|*/.pgpass|.npmrc|*/.npmrc|.pypirc|*/.pypirc|*.p12|*.pfx|*.crt)
+        block "secret-access-denylist" "read-secret-file" ;;
     esac ;;
   Grep|Glob)
     # D-18 — narrow patterns to specific secret-file name forms. Carve-out first for *.example
@@ -217,9 +234,29 @@ esac
 
 # D-19 — restore default case-sensitive matching before invoking fork hook (clean child env).
 shopt -u nocasematch
-if [ -x .claude/hooks/block-secret-access.fork.sh ]; then
-  printf '%s' "$payload" | .claude/hooks/block-secret-access.fork.sh
-  exit "$?"
+
+# D-26 — anchor fork-hook path to substrate hook's own directory (cwd-independence); fork-hook
+# lives next to the substrate hook regardless of which cwd the Claude Code runtime spawns from.
+# D-27 — fork-hook contract enforcement: parse stdout as JSON {decision, reason?, match?};
+# validate shape; fail-closed on nonzero exit OR invalid JSON with a substrate-emitted block.
+fork_hook_path="$(dirname "${BASH_SOURCE[0]}")/block-secret-access.fork.sh"
+if [ -x "$fork_hook_path" ]; then
+  fork_output=""
+  fork_exit=0
+  fork_output="$(printf '%s' "$payload" | "$fork_hook_path" 2>/dev/null)" || fork_exit=$?
+  if [ "$fork_exit" -ne 0 ]; then
+    block "fork-hook-contract-violation" "nonzero-exit"
+  fi
+  if ! printf '%s' "$fork_output" | jq -e 'type == "object" and ((.decision == "approve") or (.decision == "block" and ((.reason // "") | length) > 0))' >/dev/null 2>&1; then
+    block "fork-hook-contract-violation" "invalid-json-shape"
+  fi
+  if printf '%s' "$fork_output" | jq -e '.decision == "block"' >/dev/null 2>&1; then
+    fork_reason="$(printf '%s' "$fork_output" | jq -r '.reason // ""')"
+    fork_match="$(printf '%s' "$fork_output" | jq -r '.match // ""')"
+    log_block "fork-hook:$fork_reason" "$fork_match"
+  fi
+  printf '%s\n' "$fork_output"
+  exit 0
 fi
 printf '{"decision":"approve"}\n'
 exit 0

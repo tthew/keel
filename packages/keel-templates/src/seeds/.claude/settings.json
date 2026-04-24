@@ -66,6 +66,18 @@
         ]
       },
       {
+        "matcher": "MultiEdit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
         "matcher": "Grep",
         "hooks": [
           { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
