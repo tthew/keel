@@ -12,7 +12,7 @@
 
 ## BLOCKED
 
-_(empty — iter-340 trace landed cleanly. Trace artifact trio landed at `_bmad-output/test-artifacts/traceability/2-17-{slug}.md|e2e-trace-summary.json|gate-decision.json`. Pre-push gates GREEN: typecheck 16/16 cached + lint 16/16 cached + format:check clean + `pnpm --filter @keel/keel-invariants test` 7/7 GREEN + `bash fixtures/hooks/run-all.sh` 74/74 GREEN. Story 2.17 Story State `in-dev → traced`. iter-339 forecast confirmed: WAIVED.)_
+_(iter-340 trace landed cleanly at commit `055f8e1` — but **push to remote FAILED at step-5** with `ssh: connect to host github.com port 22: Connection timed out` on both initial push + one retry; per Ralph rules step 5 "If push fails, document in IP and exit cleanly" — commit carries to next iter; iter-341 step-5 will retry the push first thing per `git log @{u}..` showing 1 unpushed commit. Pre-push gates GREEN: typecheck 16/16 cached + lint 16/16 cached + format:check clean + commitlint passed + `pnpm --filter @keel/keel-invariants test` 7/7 GREEN + `bash fixtures/hooks/run-all.sh` 74/74 GREEN. Story 2.17 Story State `in-dev → traced`. iter-339 forecast confirmed: WAIVED. Trace artifact trio at `_bmad-output/test-artifacts/traceability/2-17-{slug}.md|e2e-trace-summary.json|gate-decision.json`.)_
 
 ## ATDD Red Phase
 
