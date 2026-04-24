@@ -29,8 +29,18 @@ set -euo pipefail
 unset COMPOSE_PROJECT_NAME
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 STOP_POLL_TIMEOUT_S="${KEEL_DEVBOX_RESTART_STOP_POLL_TIMEOUT_S:-10}"
+
+# Resolve main repo + mode-specific state (Story 2.11: per-fork vs shared via
+# KEEL_DEVBOX_SHARED). Transitive delegates stop.sh + start.sh each invoke
+# the resolver independently; prepend here for fail-fast inspect consistency
+# on the OLD-container exit-poll below.
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 
 log() { printf 'restart: %s\n' "$*" >&2; }
 

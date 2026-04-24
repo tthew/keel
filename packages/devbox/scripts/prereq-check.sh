@@ -47,6 +47,21 @@ set -euo pipefail
 # `keel-devbox_keel_home_dev` path.
 unset COMPOSE_PROJECT_NAME
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Resolve main repo + mode-specific state (Story 2.11: per-fork vs shared via
+# KEEL_DEVBOX_SHARED). Under standalone invocation (`pnpm devbox:prereq:check`
+# from operator shell) direnv-exported KEEL_DEVBOX_SHARED is the authoritative
+# mode signal; the internal resolver promotes it to KEEL_DEVBOX_COMPOSE_PROJECT
+# so VOLUME_NAME below reads the correct mode-aware value. Under subprocess
+# invocation (outer shim already ran the resolver), re-running here is
+# idempotent (same inputs, same exports).
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+
 VOLUME_NAME="${KEEL_DEVBOX_COMPOSE_PROJECT:-keel-devbox}_keel_home_dev"
 PROBE_IMAGE="alpine:3.19"  # SC-7: manually version-tracked; Renovate docker regex-manager deferred.
 

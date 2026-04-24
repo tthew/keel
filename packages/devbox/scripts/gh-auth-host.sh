@@ -37,13 +37,15 @@ set -euo pipefail
 unset COMPOSE_PROJECT_NAME
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 
 # Resolve MAIN_REPO + REPO_NAME + CONTAINER_WORKDIR (iter-239 mount-path
-# mirroring).
+# mirroring) + mode-specific state (Story 2.11: per-fork vs shared).
 # shellcheck source=lib/main-repo-resolver.sh
 source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
 resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 # shellcheck source=lib/check-mount-source.sh
 source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 

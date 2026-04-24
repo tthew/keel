@@ -22,7 +22,17 @@ unset COMPOSE_PROJECT_NAME
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
-CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
+
+# Resolve main repo + mode-specific state (Story 2.11: per-fork vs shared via
+# KEEL_DEVBOX_SHARED). Without mode resolution, `docker inspect` + `docker
+# compose ps` under shared mode would target the wrong project/container — a
+# correctness regression on mode-flipped operator shells.
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 
 log() { printf 'status: %s\n' "$*" >&2; }
 

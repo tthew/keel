@@ -765,6 +765,85 @@ There is NO `--skip-claude`, `--force`, or `KEEL_PREREQ_BYPASS` escape at 1.0 (A
 - `### Claude Code authentication (Story 2.8)` + `### gh CLI authentication (Story 2.9)` above — the two auth-establishing verbs that prereq-check Tier 2 probes.
 - Story 2.10 file `_bmad-output/implementation-artifacts/2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors.md` — full spec, 5 ACs + 6 tasks + 17 SCs.
 
+## Per-fork vs shared devbox mode (Story 2.11)
+
+`KEEL_DEVBOX_SHARED` in the repo-root `.envrc` branches the devbox between two modes per FR4:
+
+- **Per-fork mode (default; `KEEL_DEVBOX_SHARED=false` or unset).** Each fork gets its own container (`keel-devbox`) + its own named volume (`keel-devbox_keel_home_dev`). The bind source is the fork root; the container target is `/workspace/<fork-basename>/`. Strict isolation — two forks cannot share state.
+- **Shared mode (`KEEL_DEVBOX_SHARED=true`).** Fork A and fork B (both opting in) share a single container (`keel-devbox-shared`) + single volume (`keel-devbox-shared_keel_home_dev`). The bind source flips to the PARENT directory of the fork root (matches upstream cc-devbox's `/Users/tthew/Development:/workspace:delegated` pattern); both forks land at `/workspace/<parent>/<fork-basename>/` inside the container. N=1 dogfood convenience — NOT a production-grade multi-tenancy substrate.
+
+Authoritative contract: `INV-devbox-mode` (`docs/invariants/devbox-mode.md`). Resolution lives in `packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_mode_specific_state()`; every host-side shim under `packages/devbox/scripts/*.sh` sources it.
+
+### .envrc snippet
+
+```bash
+# Default: per-fork mode (strict isolation)
+export KEEL_DEVBOX_SHARED=false
+
+# Opt in to shared mode (single container across forks under a common parent)
+# export KEEL_DEVBOX_SHARED=true
+```
+
+### Default per-fork walkthrough
+
+1. Fresh fork at `~/Development/my-fork/`; `.envrc` defaults (or `KEEL_DEVBOX_SHARED=false`).
+2. `pnpm devbox:start` creates container `keel-devbox` + volume `keel-devbox_keel_home_dev`.
+3. `pnpm devbox:shell` lands at `/workspace/my-fork/` inside the container.
+4. A second fork at `~/Development/other-fork/` running `pnpm devbox:start` collides on the `keel-devbox` container name — second fork sets `KEEL_DEVBOX_CONTAINER_NAME=other-fork-devbox` in its own `.envrc` to opt into a per-fork container identity (Story 2.1 collision path).
+
+### Shared-mode walkthrough
+
+1. Operator has two forks under `~/Development/`: `ralph-bmad` and `other-fork`.
+2. Each fork's `.envrc` sets `KEEL_DEVBOX_SHARED=true`.
+3. First `pnpm devbox:start` (from `ralph-bmad`) creates shared container `keel-devbox-shared` with bind source `~/Development` and target `/workspace/Development`.
+4. `pnpm devbox:start` from `other-fork` detects the existing container via `docker inspect` and is a no-op.
+5. `pnpm devbox:shell` from `ralph-bmad` lands at `/workspace/Development/ralph-bmad/`; `pnpm devbox:shell` from `other-fork` lands at `/workspace/Development/other-fork/`.
+
+### Mid-use flip
+
+Flipping `KEEL_DEVBOX_SHARED` mid-use leaves the OTHER mode's container (and its named volume) orphaned. `pnpm devbox:env:check` probes for the orphan and surfaces a single-line stderr warning pointing at `pnpm devbox:clean`. The warning is informational — env-check's exit code is unchanged.
+
+Three-site-lockstep with `packages/devbox/scripts/env-check.sh` emit site and `docs/invariants/devbox-mode.md § Mid-use flip warning` — the exact warning strings are:
+
+**Case A — current mode shared, orphan is per-fork-mode container:**
+
+```
+env-check: warning: orphaned per-fork-mode container 'keel-devbox' detected from a previous KEEL_DEVBOX_SHARED=false session; run 'pnpm devbox:clean' (after re-flipping .envrc to KEEL_DEVBOX_SHARED=false if needed) or 'docker rm -f keel-devbox' to remove it. See packages/devbox/README.md § Per-fork vs shared mode § Mid-use flip.
+```
+
+**Case B — current mode per-fork, orphan is shared-mode container:**
+
+```
+env-check: warning: orphaned shared-mode container 'keel-devbox-shared' detected from a previous KEEL_DEVBOX_SHARED=true session; run 'pnpm devbox:clean' (after re-flipping .envrc to KEEL_DEVBOX_SHARED=true if needed) or 'docker rm -f keel-devbox-shared' to remove it. See packages/devbox/README.md § Per-fork vs shared mode § Mid-use flip.
+```
+
+Operator remediation flow:
+
+1. Optionally re-flip `.envrc` to the orphan's mode.
+2. Run `pnpm devbox:clean` to tear down the orphan (the named volume is preserved by default; `--with-volumes` scopes to the current mode's volume).
+3. Re-flip `.envrc` back to the desired mode.
+4. Re-run `pnpm devbox:start`.
+
+### Concurrency doctrine
+
+Shared mode is **single-operator-at-a-time by convention, NOT by Docker enforcement**:
+
+- The container runs exactly one Ralph TUI PID 1 at a time. Concurrent `docker attach` clients against the same running container share stdin/stdout, producing interleaved TUI input/output corruption — NOT an automatic detach-the-first behaviour.
+- Operators coordinate out-of-band (one Ralph operator at a time).
+- Non-Ralph operations (`pnpm devbox:shell`, `pnpm claude`, `pnpm gh:auth`) use `docker exec` which spawns independent PIDs — parallel-safe across forks; each session lands at its own `/workspace/<parent>/<fork>/` path.
+- Operators needing TRUE parallel Ralph across forks MUST revert to per-fork mode (each fork gets its own container + TUI PID 1).
+
+### Shared-mode bind scope
+
+Shared mode binds the PARENT directory of the fork root. Any other project under that parent becomes container-visible. This is BY DESIGN (matches upstream cc-devbox's pattern). Operators must understand that shared mode extends the bind source's blast radius beyond the fork root.
+
+### Cross-reference
+
+- `docs/invariants/devbox-mode.md` — machine-enforced contract (`INV-devbox-mode`).
+- `packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_mode_specific_state()` — single resolution site.
+- `AGENTS.md § Per-fork vs shared devbox mode (Story 2.11)` — agent-facing guardrails.
+- Story 2.11 file `_bmad-output/implementation-artifacts/2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared.md` — full spec, 4 ACs + 6 tasks + 17 SCs.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:

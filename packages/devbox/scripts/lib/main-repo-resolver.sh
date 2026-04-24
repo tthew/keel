@@ -32,6 +32,44 @@
 #   2. KEEL_DEVBOX_REPO_ROOT env override (operator escape hatch)
 #   3. ${SCRIPT_DIR}/../../.. (tarball forks without .git)
 #
+# Mode-specific state (Story 2.11). `resolve_mode_specific_state()` is a
+# sibling function invoked AFTER `resolve_main_repo_and_workdir()` by every
+# host-side shim. It reads `KEEL_DEVBOX_SHARED` from the process env (set
+# by `.envrc` via direnv) and branches resolver state between two modes:
+#
+#   per-fork mode (default; KEEL_DEVBOX_SHARED != "true"):
+#     WORKTREE_ROOT / MAIN_REPO / REPO_NAME / CONTAINER_WORKDIR =
+#       whatever resolve_main_repo_and_workdir() computed.
+#     KEEL_DEVBOX_COMPOSE_PROJECT         = "keel-devbox"
+#     KEEL_DEVBOX_CONTAINER_NAME_RESOLVED = "${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
+#                                           (preserves Story 2.1's operator
+#                                           override path).
+#
+#   shared mode (KEEL_DEVBOX_SHARED = "true" after case-fold):
+#     WORKTREE_ROOT / MAIN_REPO           = $(dirname "$MAIN_REPO") — the
+#                                           parent directory of the fork root.
+#     REPO_NAME                           = basename of the parent dir
+#                                           (or KEEL_DEVBOX_REPO_NAME override).
+#     CONTAINER_WORKDIR                   = re-derived against the new
+#                                           WORKTREE_ROOT so the caller lands
+#                                           at /workspace/<parent>/<fork>/
+#                                           <relative-subpath> (SC-12).
+#     KEEL_DEVBOX_COMPOSE_PROJECT         = "keel-devbox-shared"
+#     KEEL_DEVBOX_CONTAINER_NAME_RESOLVED = "keel-devbox-shared" — shared mode
+#                                           HARDCODES this; operator's
+#                                           KEEL_DEVBOX_CONTAINER_NAME setting
+#                                           is intentionally ignored so fork A
+#                                           and fork B attach to the SAME
+#                                           container (AC 2).
+#
+# Normalisation: `${KEEL_DEVBOX_SHARED:-false}` is lowercased and compared
+# to the literal string "true". Anything else (false, 0, no, empty, unset)
+# resolves to per-fork mode. `TRUE` / `True` / `true` all route to shared
+# (operator-typo-tolerant); everything else fails safely to per-fork.
+#
+# See `docs/invariants/devbox-mode.md` (INV-devbox-mode) for the full
+# two-mode contract + mid-use-flip orphan-container warning semantics.
+#
 # `pwd -P` resolves macOS /var → /private/var so docker-inspect Source
 # values compare cleanly under the mount-source check (see
 # check-mount-source.sh).
@@ -97,4 +135,59 @@ resolve_main_repo_and_workdir() {
 			;;
 	esac
 	export CONTAINER_WORKDIR
+}
+
+resolve_mode_specific_state() {
+	# Read + normalise the mode signal. Default-substitution keeps this
+	# safe under `set -u` (every shim enforces it). Non-`true` values
+	# fail-closed to per-fork — the safe posture — per § Dev Notes
+	# § `set -euo pipefail` discipline.
+	local shared
+	shared="$(echo "${KEEL_DEVBOX_SHARED:-false}" | tr '[:upper:]' '[:lower:]')"
+
+	if [[ "$shared" != "true" ]]; then
+		# Per-fork mode (default). WORKTREE_ROOT / MAIN_REPO / REPO_NAME /
+		# CONTAINER_WORKDIR stay as resolve_main_repo_and_workdir() set them.
+		KEEL_DEVBOX_COMPOSE_PROJECT="keel-devbox"
+		KEEL_DEVBOX_CONTAINER_NAME_RESOLVED="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
+		export KEEL_DEVBOX_COMPOSE_PROJECT KEEL_DEVBOX_CONTAINER_NAME_RESOLVED
+		return 0
+	fi
+
+	# Shared mode. Flip WORKTREE_ROOT / MAIN_REPO / REPO_NAME to the parent
+	# directory; re-derive CONTAINER_WORKDIR against the new WORKTREE_ROOT.
+	local shared_parent shared_parent_name
+	shared_parent="$(dirname "$MAIN_REPO")"
+	shared_parent_name="$(basename "$shared_parent")"
+	MAIN_REPO="$shared_parent"
+	WORKTREE_ROOT="$shared_parent"
+	REPO_NAME="${KEEL_DEVBOX_REPO_NAME:-$shared_parent_name}"
+	export MAIN_REPO WORKTREE_ROOT REPO_NAME
+
+	# Re-derive CONTAINER_WORKDIR against the NEW WORKTREE_ROOT. Do NOT
+	# call back into resolve_main_repo_and_workdir — that would overwrite
+	# MAIN_REPO back to the per-fork value. Inline case-block mirrors
+	# resolve_main_repo_and_workdir's L86-98 shape.
+	local pwd_real
+	pwd_real="$(cd "$PWD" && pwd -P)"
+	case "$pwd_real" in
+		"$WORKTREE_ROOT")
+			CONTAINER_WORKDIR="/workspace/$REPO_NAME"
+			;;
+		"$WORKTREE_ROOT"/*)
+			CONTAINER_WORKDIR="/workspace/$REPO_NAME/${pwd_real#"$WORKTREE_ROOT"/}"
+			;;
+		# Else: leave CONTAINER_WORKDIR at the per-fork value from the
+		# prior resolver run — safe default when caller's $PWD is outside
+		# the shared-mode parent (rare edge case).
+	esac
+	export CONTAINER_WORKDIR
+
+	# Shared mode hardcodes the container name regardless of operator
+	# KEEL_DEVBOX_CONTAINER_NAME — AC 2 requires fork A and fork B to
+	# attach to the SAME container; an operator-specific override would
+	# silently break that.
+	KEEL_DEVBOX_COMPOSE_PROJECT="keel-devbox-shared"
+	KEEL_DEVBOX_CONTAINER_NAME_RESOLVED="keel-devbox-shared"
+	export KEEL_DEVBOX_COMPOSE_PROJECT KEEL_DEVBOX_CONTAINER_NAME_RESOLVED
 }

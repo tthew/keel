@@ -191,4 +191,45 @@ if [[ ${#missing[@]} -gt 0 || ${#shape_violations[@]} -gt 0 ]]; then
 	exit 2
 fi
 
+# Story 2.11 AC 3: orphaned cross-mode container probe. After baseline
+# validation passes, reconcile process env with parsed .envrc (authoritative
+# signal is the file content — operator's `direnv allow` may lag a fresh
+# `.envrc` edit), invoke the resolver to derive KEEL_DEVBOX_COMPOSE_PROJECT +
+# the current container name, then probe the OTHER-mode's container. If
+# present, emit a single stderr warning line pointing at `pnpm devbox:clean`.
+# Warning-only posture — exit code unchanged (SC-5).
+export KEEL_DEVBOX_SHARED="${parsed[KEEL_DEVBOX_SHARED]:-false}"
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+
+if [[ "${parsed[KEEL_DEVBOX_SHARED]}" == "true" ]]; then
+	OTHER_MODE="per-fork"
+	OTHER_CONTAINER="keel-devbox"
+	OTHER_BOOL="false"
+else
+	OTHER_MODE="shared"
+	OTHER_CONTAINER="keel-devbox-shared"
+	OTHER_BOOL="true"
+fi
+
+# Capture-rc pattern per Story 2.10 PATCH-1 LESSON (`set -e` + `if cmd; then`
+# rc-suppression). rc=0 → container exists; rc=1 → absent; rc>1 → daemon
+# error (Tier 1 prereq-check already cleared basic reachability — treat as
+# transient, silently skip the warning rather than fail the command).
+rc=0
+docker inspect "${OTHER_CONTAINER}" >/dev/null 2>&1 || rc=$?
+case "${rc}" in
+	0)
+		# Three-site verbatim lockstep: env-check.sh emit (here) +
+		# `docs/invariants/devbox-mode.md § Mid-use flip warning` +
+		# `packages/devbox/README.md § Per-fork vs shared mode § Mid-use flip`.
+		log "warning: orphaned ${OTHER_MODE}-mode container '${OTHER_CONTAINER}' detected from a previous KEEL_DEVBOX_SHARED=${OTHER_BOOL} session; run 'pnpm devbox:clean' (after re-flipping .envrc to KEEL_DEVBOX_SHARED=${OTHER_BOOL} if needed) or 'docker rm -f ${OTHER_CONTAINER}' to remove it. See packages/devbox/README.md § Per-fork vs shared mode § Mid-use flip."
+		;;
+	1) : ;;
+	*) : ;;
+esac
+
 exit 0

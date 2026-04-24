@@ -111,6 +111,12 @@ Prerequisite check for Docker runtime + Claude Code auth + gh auth that runs on 
 
 - **`INV-devbox-prereq-check`** — Prerequisite check for Docker runtime + Claude + gh auth on every host-side shim invocation. Source: `docs/invariants/devbox-prereq-check.md`.
 
+### Devbox mode (Story 2.11)
+
+Per-fork vs shared devbox mode contract via `KEEL_DEVBOX_SHARED` in `.envrc` per FR4. Per-fork mode (default) binds the fork root as a single-container single-volume posture (`keel-devbox` + `keel-devbox_keel_home_dev`); shared mode (`KEEL_DEVBOX_SHARED=true`) binds the parent directory and locks in a hardcoded `keel-devbox-shared` container + `keel-devbox-shared_keel_home_dev` volume so two forks attach to the same container. Resolution lives in `packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_mode_specific_state()`, invoked by every host-side shim after `resolve_main_repo_and_workdir`. Mid-use flip between modes surfaces a warning-only stderr line via `env-check.sh` pointing at `pnpm devbox:clean`. Shared-mode concurrency is single-operator-at-a-time by convention (not Docker-enforced); operators needing true-parallel Ralph across forks revert to per-fork mode.
+
+- **`INV-devbox-mode`** — Per-fork vs shared devbox mode contract (`KEEL_DEVBOX_SHARED` branches compose project + container + volume + bind). Source: `docs/invariants/devbox-mode.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

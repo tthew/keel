@@ -1,6 +1,6 @@
 # Story 2.11: Per-fork vs shared devbox mode (`KEEL_DEVBOX_SHARED`)
 
-Status: ready-for-dev <!-- Ralph-internal `Story State` = `atdd-scaffolded` after `/bmad-testarch-atdd` skip-with-grounds-(c)+(ii)+(iii) at iter-256 (Story 2.5 iter-186 precedent; 21st-cumulative FR14n ATDD-skip; ZERO-PATCH — IP+RALPH.md only, no Change Log entry per precedent). Prior: `validated` after pre-dev `/bmad-create-story (args: "review")` gate at iter-255 (Change Log v1.1). Sprint-row `ready-for-dev` unchanged (sprint-status does not distinguish atdd-scaffolded vs validated). -->
+Status: review <!-- Ralph-internal `Story State` = `in-dev` after `/bmad-dev-story` landing at iter-257 (Change Log v1.2). All 6 Tasks marked [x]; 4 ACs satisfied; File List populated; sprint-row flipped `ready-for-dev → in-progress` then `in-progress → review`. Next iter: `/bmad-testarch-trace` (in-dev → traced OR trace-fixes-pending). -->
 
 <!-- Note: Validation is optional. Run `/bmad-create-story (args: "review")` for pre-dev quality check before `/bmad-testarch-atdd` / `/bmad-dev-story`. -->
 
@@ -22,7 +22,7 @@ So that I can choose between strict isolation per fork and a shared long-running
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1: Extend `packages/devbox/scripts/lib/main-repo-resolver.sh` with `resolve_mode_specific_state()`** (AC 1, AC 2, AC 4)
+- [x] **Task 1: Extend `packages/devbox/scripts/lib/main-repo-resolver.sh` with `resolve_mode_specific_state()`** (AC 1, AC 2, AC 4)
   - [ ] Add new sourced function `resolve_mode_specific_state()` that runs AFTER `resolve_main_repo_and_workdir()` (existing function; same file). Callers invoke both in sequence: `resolve_main_repo_and_workdir; resolve_mode_specific_state`.
   - [ ] Read `KEEL_DEVBOX_SHARED` from the process env (operator's `.envrc` is sourced by direnv OR by host-wrapper's pre-flight; value is one of `true` / `false` / unset-treated-as-false per `.envrc.example:41`).
   - [ ] Normalise: `SHARED=$(echo "${KEEL_DEVBOX_SHARED:-false}" | tr '[:upper:]' '[:lower:]')`; accept exactly `"true"` as shared-mode signal; any other value (`false`, `0`, `no`, `False`, empty, unset) resolves to per-fork mode. This normalisation is deliberate — operator typo `KEEL_DEVBOX_SHARED=TRUE` (uppercase) vs `True` (titlecase) MUST route to shared mode; everything else defaults to the safe per-fork posture (fail-closed doctrine).
@@ -40,14 +40,14 @@ So that I can choose between strict isolation per fork and a shared long-running
   - [ ] Under `set -u` (every shim enforces it), unset `KEEL_DEVBOX_SHARED` access with default-substitution (`${KEEL_DEVBOX_SHARED:-false}`) MUST NOT trip set-u. Validate via bash lint smoke.
   - [ ] Header comment block updates: amend the existing `WORKTREE_ROOT / REPO_NAME / CONTAINER_WORKDIR` doc-block (`lib/main-repo-resolver.sh:9-28`) with a NEW `Mode-specific state (Story 2.11)` paragraph enumerating the two modes and the four resolver outputs (`KEEL_DEVBOX_COMPOSE_PROJECT`, `KEEL_DEVBOX_CONTAINER_NAME_RESOLVED`, mode-adjusted `WORKTREE_ROOT`, mode-adjusted `REPO_NAME`).
 
-- [ ] **Task 2: Parameterise `packages/devbox/docker-compose.yml` top-level `name:` + propagate compose-project to container** (AC 1, AC 2)
+- [x] **Task 2: Parameterise `packages/devbox/docker-compose.yml` top-level `name:` + propagate compose-project to container** (AC 1, AC 2)
   - [ ] Edit `docker-compose.yml:39` — change `name: keel-devbox` to `name: ${KEEL_DEVBOX_COMPOSE_PROJECT:-keel-devbox}`. This is the ONLY compose-file edit Story 2.11 makes. All other interpolations (`KEEL_DEVBOX_WORKSPACE`, `KEEL_DEVBOX_REPO_NAME`, `KEEL_DEVBOX_CONTAINER_NAME`) are already parameterised by Stories 2.1/2.2 + iter-239 mount-path mirroring.
   - [ ] The existing `container_name: ${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}` at `docker-compose.yml:54` composes on top: host wrappers set `KEEL_DEVBOX_CONTAINER_NAME=keel-devbox-shared` in shared mode (via resolver's `KEEL_DEVBOX_CONTAINER_NAME_RESOLVED` export + an `export KEEL_DEVBOX_CONTAINER_NAME="$KEEL_DEVBOX_CONTAINER_NAME_RESOLVED"` shim-side export — see Task 3).
   - [ ] Amend the Story-roadmap comment (`docker-compose.yml:22`) from `Story 2.11 : shared-workspace mode (KEEL_DEVBOX_SHARED=true).` to a past-tense landed note: `Story 2.11 : shared-workspace mode (KEEL_DEVBOX_SHARED=true). LANDED iter-<this>.` matching Stories 2.2 / 2.3 / 2.5 landed-note pattern.
   - [ ] Remove the `TODO(Story 2.11)` marker at `docker-compose.yml:239` (now resolved).
   - [ ] Amend the workspace-mount doc-block (`docker-compose.yml:80-107`) to reflect the landed shared-mode contract: the paragraph starting `Story 2.11 forward-compat: shared-workspace mode flips…` (L103-107) becomes past-tense `Story 2.11 shared-workspace mode: flips KEEL_DEVBOX_WORKSPACE to the parent directory + KEEL_DEVBOX_REPO_NAME to that parent's basename, producing /workspace/Development/{ralph-bmad,fork-A,fork-B}/ in the container. Resolution lives in lib/main-repo-resolver.sh § resolve_mode_specific_state().`
 
-- [ ] **Task 3: Wire `resolve_mode_specific_state()` into all 18 host-side shims + export `KEEL_DEVBOX_CONTAINER_NAME` for compose interpolation** (AC 1, AC 2, AC 4)
+- [x] **Task 3: Wire `resolve_mode_specific_state()` into all 18 host-side shims + export `KEEL_DEVBOX_CONTAINER_NAME` for compose interpolation** (AC 1, AC 2, AC 4)
   - [ ] Affected shims (18 total host-side; `ls packages/devbox/scripts/*.sh` minus 6 container-side: `benchmark.sh`, `egress-log-tailer.sh`, `monitor.sh`, `reload-egress.sh`, `start-egress.sh`, `whitelist.sh`). Two sub-categories:
     - **Already source `lib/main-repo-resolver.sh` — 8 shims** (APPEND `resolve_mode_specific_state` + the `export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"` line after the existing `resolve_main_repo_and_workdir` call): `start.sh`, `shell.sh`, `monitor-host.sh`, `whitelist-host.sh`, `claude-host.sh`, `gh-auth-host.sh`, `ralph-build-host.sh`, `ralph-plan-host.sh`.
     - **Do NOT currently source the resolver — 10 shims** (ADD a NEW block near the top — after `set -euo pipefail` + `SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)` and BEFORE any `docker compose` / `docker inspect` / `docker exec` / `docker rm` / `docker logs` invocation): `build.sh`, `rebuild.sh`, `stop.sh`, `restart.sh`, `clean.sh`, `attach.sh`, `status.sh`, `logs.sh`, `env-check.sh`, `prereq-check.sh`. New block shape: `source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"; resolve_main_repo_and_workdir; resolve_mode_specific_state; export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"`.
@@ -62,7 +62,7 @@ So that I can choose between strict isolation per fork and a shared long-running
   - [ ] **`restart.sh` special case:** `restart.sh` transitively delegates to `stop.sh` + `start.sh`, both of which will have resolver invocations. `restart.sh` itself still prepends resolver invocation for fail-fast consistency (Story 2.10 AI-14 precedent: `restart.sh` gets its own prereq-check despite transitive coverage).
   - [ ] **`env-check.sh` special case:** env-check does NOT need resolver output for its own `.envrc` validation (it reads `.envrc` as a file, not from env). BUT env-check DOES need resolver output for Task 4's AC 3 orphan-container probe. Invoke resolver after the `.envrc` parse + before the orphan probe.
 
-- [ ] **Task 4: Extend `env-check.sh` with AC 3 orphan-container warning** (AC 3)
+- [x] **Task 4: Extend `env-check.sh` with AC 3 orphan-container warning** (AC 3)
   - [ ] After the existing env-var validation passes (L162 onwards), **reconcile process env with parsed `.envrc` BEFORE invoking resolver** — `export KEEL_DEVBOX_SHARED="${parsed[KEEL_DEVBOX_SHARED]:-false}"` (authoritative signal is the file content, because operator's `direnv allow` may lag `.envrc` edits; mirroring this value into the process env ensures the resolver's `${KEEL_DEVBOX_SHARED:-false}` read lands at the file-content truth). Then invoke `resolve_main_repo_and_workdir + resolve_mode_specific_state` (Task 1 functions). This reconciliation is specific to env-check; other shims do NOT re-export from parsed state (they trust direnv to have exported `.envrc` values into the process env before the shim runs).
   - [ ] Determine current mode: `CURRENT_MODE=$([[ "${parsed[KEEL_DEVBOX_SHARED]}" == "true" ]] && echo shared || echo per-fork)`. Respect the `.envrc` value parsed in the earlier loop (which the prior bullet has already re-exported into the process env). The resolver's `KEEL_DEVBOX_COMPOSE_PROJECT` + `KEEL_DEVBOX_CONTAINER_NAME_RESOLVED` now agree with `CURRENT_MODE`.
   - [ ] Compute the OTHER-mode's container name: if current is per-fork, `OTHER_CONTAINER="keel-devbox-shared"`; if current is shared, `OTHER_CONTAINER="keel-devbox"`.
@@ -74,7 +74,7 @@ So that I can choose between strict isolation per fork and a shared long-running
   - [ ] If `docker inspect` rc>1 (daemon error beyond reachability — rare; Tier 1 prereq-check already cleared basic reachability via `docker info`), silently skip the warning. Do NOT exit non-zero on orphan-probe failure — env-check's primary contract is `.envrc` validation; the orphan warning is a secondary convenience.
   - [ ] **Shape lockstep:** the exact warning string above is pinned here + MUST appear verbatim in `docs/invariants/devbox-mode.md § Mid-use flip warning` (Task 5) + `packages/devbox/README.md § Per-fork vs shared mode § Mid-use flip` (Task 6). Three-site drift hazard per Story 2.10 DEFER-4 — deferred substrate-lockstep lint enforcement — convention-enforced at 1.0.
 
-- [ ] **Task 5: Register `INV-devbox-mode` + author `docs/invariants/devbox-mode.md`** (AC 1–4 machine-enforced contract)
+- [x] **Task 5: Register `INV-devbox-mode` + author `docs/invariants/devbox-mode.md`** (AC 1–4 machine-enforced contract)
   - [ ] Add new entry to `packages/keel-invariants/src/invariants.manifest.ts`:
     - `id: 'INV-devbox-mode'`
     - `description: 'Per-fork vs shared devbox mode contract — KEEL_DEVBOX_SHARED flag branches compose project name, container name, bind source, and named volume between keel-devbox (per-fork, default) and keel-devbox-shared (shared) with orphaned-container warning on mid-use flip (Story 2.11).'`
@@ -95,7 +95,7 @@ So that I can choose between strict isolation per fork and a shared long-running
   - [ ] Append entry to `INVARIANTS.md` under the devbox section (after `INV-devbox-prereq-check` — Story 2.10 anchor bullet) as: `- **\`INV-devbox-mode\`** — Per-fork vs shared devbox mode contract (`KEEL_DEVBOX_SHARED` branches compose project + container + volume + bind). Source: \`docs/invariants/devbox-mode.md\`.` Index-only, no body (`INVARIANTS.md` is an agent-readable index per FR42).
   - [ ] Dev-agent guardrail: anchor bullet MUST match verbatim regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` per `packages/keel-invariants/src/sync-gate.ts:24` (Story 1.9 sync-gate). Lowercase-after-`INV-` prefix is MANDATORY (Story 1.9 iter-7 LESSON).
 
-- [ ] **Task 6: Operator + agent documentation** (AC 1–4 comprehension)
+- [x] **Task 6: Operator + agent documentation** (AC 1–4 comprehension)
   - [ ] **`packages/devbox/README.md`** — append new H2 `## Per-fork vs shared devbox mode (Story 2.11)` AFTER the existing `## Prerequisite check (Story 2.10)` H2 and BEFORE `## cc-devbox upstream provenance`. Content:
     - (a) Two-mode enumeration with the exact contract from `docs/invariants/devbox-mode.md § Per-fork mode contract` + `§ Shared mode contract`.
     - (b) `.envrc` snippet showing `KEEL_DEVBOX_SHARED=false` (default) and `KEEL_DEVBOX_SHARED=true` (opt-in).
@@ -225,21 +225,90 @@ Consequences:
 
 ### Agent Model Used
 
-_(filled by `/bmad-dev-story` at dev-story landing; canonical form e.g. `claude-opus-4-7[1m] via bmad-agent-dev subagent`)_
+claude-opus-4-7[1m] orchestrating `/bmad-dev-story` skill directly (Ralph build loop iter-257).
 
 ### Debug Log References
 
-_(filled by dev-story)_
+- Resolver functional smoke (iter-257): six test cases (`perfork`, `shared`, `TRUE`/uppercase, `yeah`/garbage-defaults-per-fork, per-fork with operator override, shared-with-override-IGNORED) all pass with expected `KEEL_DEVBOX_COMPOSE_PROJECT` + `KEEL_DEVBOX_CONTAINER_NAME_RESOLVED` + mode-adjusted `WORKTREE_ROOT` / `REPO_NAME` / `CONTAINER_WORKDIR`. Confirmed shared mode correctly ignores `KEEL_DEVBOX_CONTAINER_NAME=my-fork-devbox` operator override (SC-4).
+- Bash `-n` syntax check on all 18 edited shims: clean.
+- `pnpm keel-invariants:check` (Story 1.9 sync-gate): `{"status":"drift",...,"removed-from-docs-only","INV-devbox-mode"}` on first run (stale `dist/check.js` pre-rebuild); after `pnpm --filter @keel/keel-invariants build` → clean (no output / exit 0). Confirms manifest entry + `docs/invariants/devbox-mode.md` + `INVARIANTS.md` anchor three-site lockstep.
+- Docker-runtime smokes (shared-mode `docker compose config` YAML assertion; orphan-container probe stderr-grep) operator-workstation-deferred — iteration env has no `docker` on PATH (subagent shell, not the cc-devbox container). AC verification via Story 2.5 iter-186 substrate-smoke posture: functional correctness covered by resolver smokes + sync-gate pass + static bash-syntax check; live-Docker runs land with operator workstation.
 
 ### Completion Notes List
 
-_(filled by dev-story)_
+- Task 1 — `resolve_mode_specific_state()` added to `packages/devbox/scripts/lib/main-repo-resolver.sh` alongside pre-existing `resolve_main_repo_and_workdir()`. Header doc-block extended with a `Mode-specific state (Story 2.11)` paragraph enumerating both modes + the four resolver outputs. Case-fold normalisation (`tr '[:upper:]' '[:lower:]'`) routes `TRUE` / `True` / `true` to shared; all other values fall through to the safe per-fork default (fail-closed doctrine).
+- Task 2 — `docker-compose.yml:43` top-level `name:` parameterised to `${KEEL_DEVBOX_COMPOSE_PROJECT:-keel-devbox}`. Comment-block updates: Story 2.11 roadmap line marked `LANDED iter-257`; `TODO(Story 2.11)` marker removed; workspace-mount doc-block forward-compat paragraph rewritten past-tense with pointer to `resolve_mode_specific_state()`.
+- Task 3 — 18 host-side shims wired. 8 already-sourcing shims (`gh-auth-host.sh`, `claude-host.sh`, `whitelist-host.sh`, `monitor-host.sh`, `shell.sh`, `ralph-build-host.sh`, `ralph-plan-host.sh`, `start.sh`) amended to add `resolve_mode_specific_state` + `export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"` + switch inline `CONTAINER_NAME=` to consume resolver output. 10 non-sourcing shims (`attach.sh`, `build.sh`, `clean.sh`, `logs.sh`, `rebuild.sh`, `restart.sh`, `status.sh`, `stop.sh`, `env-check.sh`, `prereq-check.sh`) add the NEW `source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"; resolve_main_repo_and_workdir; resolve_mode_specific_state; export KEEL_DEVBOX_CONTAINER_NAME=…` block; three (`attach.sh`, `status.sh`, `restart.sh`) also switch their inline CONTAINER_NAME= to resolver output.
+- Task 4 — `env-check.sh` extended with AC 3 orphan-container warning after the existing shape-validation exit-2 path (placed before final `exit 0`). Reconciliation: `export KEEL_DEVBOX_SHARED="${parsed[KEEL_DEVBOX_SHARED]:-false}"` runs BEFORE the resolver invocation so direnv-lag doesn't drift from file-content truth. `docker inspect` rc captured via canonical `rc=0; cmd || rc=$?; case "${rc}" in …` pattern (Story 2.10 PATCH-1 LESSON — avoids `set -e` + `if cmd; then` rc-suppression). Both Case A + Case B warning renderings pinned verbatim in env-check.sh log() output + three-site-lockstep with `docs/invariants/devbox-mode.md § Mid-use flip warning` + `packages/devbox/README.md § Per-fork vs shared mode § Mid-use flip`.
+- Task 5 — `INV-devbox-mode` registered in `packages/keel-invariants/src/invariants.manifest.ts` immediately before `INV-devbox-prereq-check` (chronological Story 2.11 after 2.10); InvariantSchema five-field compliance verified (`id` / `description` / `sourcePath` / `contentHash` / `anchors` with no `name` field, bare `INV-devbox-mode` anchor string, 64-char lowercase hex `contentHash=4ddc4eea3a3f28cde90a1c7944f14d52a18aa1a0a214d9a45050aea1ec313cf2`). `docs/invariants/devbox-mode.md` authored with eight H2 sections (Mode signal / Per-fork mode contract / Shared mode contract / Resolver contract / Concurrency decision / Mid-use flip warning / Named volume relationship / Invariant stability). `INVARIANTS.md` anchor bullet added under new `### Devbox mode (Story 2.11)` H3 after `### Devbox prerequisite check (Story 2.10)` — regex-compliant per `sync-gate.ts:24`. `pnpm keel-invariants:check` passes after rebuild.
+- Task 6 — `packages/devbox/README.md` appended new `## Per-fork vs shared devbox mode (Story 2.11)` H2 AFTER `## Prerequisite check (Story 2.10)` and BEFORE `## cc-devbox upstream provenance` (SC-17 sibling append — no prior-story sections modified). Content: mode enumeration + `.envrc` snippet + three walkthroughs (default per-fork, shared-mode, mid-use-flip) + both verbatim warning renderings + concurrency doctrine + shared-mode bind scope + cross-references. `AGENTS.md` appended new `### Per-fork vs shared devbox mode (Story 2.11)` H3 AFTER `### Prerequisite check (Story 2.10)` under `## Devbox iteration environment` — mode contract one-liner + resolver citation + concurrency decision + two agent guardrails (mid-Ralph-loop flips + attach semantics) + mid-use flip orphan warning + cross-references. `packages/devbox/.envrc.example:41` comment updated past-tense per SC-15. `.envrc.example:48-49` comments unchanged (OPTIONAL per pre-dev review).
+- **4 ACs satisfied:**
+  - AC 1 (per-fork default isolation): per-fork mode resolver output + compose interpolation produces `keel-devbox` container + `keel-devbox_keel_home_dev` volume + fork-root bind source. Two forks trigger container name collision without per-fork `KEEL_DEVBOX_CONTAINER_NAME` override (Story 2.1 path preserved).
+  - AC 2 (shared-mode attach + parent-dir bind): shared mode resolver flips `WORKTREE_ROOT` + `REPO_NAME` to parent directory; compose `name:` + `container_name:` interpolation both resolve to `keel-devbox-shared`. Fork B's `pnpm devbox:start` will detect existing shared container via existing `docker inspect` branch in `start.sh`. Parent-dir bind matches architecture.md:547 pattern.
+  - AC 3 (mid-use flip warning): `env-check.sh` orphan-container probe implemented per Task 4 with Case A + Case B verbatim renderings. Warning-only posture (exit code schema preserved).
+  - AC 4 (concurrency decision): doc-only via `docs/invariants/devbox-mode.md § Concurrency decision` + `packages/devbox/README.md § Concurrency doctrine` + `AGENTS.md § Per-fork vs shared devbox mode § Concurrency decision`. Dev-agent guardrail "do NOT implement second-attach-auto-detaches-first" pinned in all three sites.
+- **17 SCs pinned** (source-verified):
+  - SC-1 (INV-devbox-homedev-named-volume preserved) — unqualified `keel_home_dev` name unchanged; only compose-project prefix varies.
+  - SC-2 (resolver single-site) — `resolve_mode_specific_state()` is the only site deciding mode.
+  - SC-3 (compose-project single-source) — `KEEL_DEVBOX_COMPOSE_PROJECT` set in resolver, consumed by `docker-compose.yml:51 name:` + `prereq-check.sh:VOLUME_NAME` (three sites, one source).
+  - SC-4 (shared-mode container-name opinionation) — shared mode hardcodes `keel-devbox-shared`; operator override IGNORED (smoke verified).
+  - SC-5 (exit-code preservation) — env-check schema 0/2/3/8 unchanged; orphan warning is stderr-only.
+  - SC-6 (named-volume mode-scoped clean) — `clean.sh` operates on resolver-derived compose project → `--with-volumes` scoped to current mode's volume only.
+  - SC-7 (parent-dir bind scope documentation) — README § Shared-mode bind scope + INV doc § Shared mode contract.
+  - SC-8 (warning string three-site lockstep) — env-check.sh + INV doc § Mid-use flip warning + README § Mid-use flip all carry verbatim Case A + Case B.
+  - SC-9 (no PRD amendment) — FR4 at prd.md:930 + architecture.md:547 verbatim matches Story 2.11.
+  - SC-10 (no CI impact) — substrate CI (sync-gate + prek) exercises the manifest via existing Story 1.9 harness; no new jobs.
+  - SC-11 (mode-detection ordering) — every shim invokes `resolve_main_repo_and_workdir` FIRST then `resolve_mode_specific_state` SECOND.
+  - SC-12 (operator-interactive affordances) — shared-mode `CONTAINER_WORKDIR` re-derives against new `WORKTREE_ROOT`; each fork's `pnpm devbox:shell` lands at its own `/workspace/<parent>/<fork>/` subpath.
+  - SC-13 (compose-config smoke reproducible) — operator workstation can run `KEEL_DEVBOX_SHARED=true pnpm devbox:start` against live Docker to verify; subagent env defers.
+  - SC-14 (three-tier resolver fallback preserved) — `resolve_main_repo_and_workdir` unchanged.
+  - SC-15 (.envrc.example comment update) — past-tense landed-iter-257 + resolver pointer.
+  - SC-16 (architecture/PRD contract alignment) — no architecture drift.
+  - SC-17 (close-out scope carve-out) — README + AGENTS.md appended sibling sections only; no prior-story edits.
 
 ### File List
 
-_(filled by dev-story — anticipated list per Tasks 1-6: `packages/devbox/scripts/lib/main-repo-resolver.sh` (edit), `packages/devbox/docker-compose.yml` (edit), `packages/devbox/scripts/*.sh` (18 edits), `packages/devbox/scripts/env-check.sh` (edit — also in the 18), `packages/keel-invariants/src/invariants.manifest.ts` (edit), `docs/invariants/devbox-mode.md` (new), `INVARIANTS.md` (edit — append anchor bullet), `packages/devbox/README.md` (edit — append H2), `AGENTS.md` (edit — append H3), `packages/devbox/.envrc.example` (edit — comment update per SC-15))._
+- `packages/devbox/scripts/lib/main-repo-resolver.sh` (edit — add `resolve_mode_specific_state()` + header doc-block)
+- `packages/devbox/docker-compose.yml` (edit — parameterise `name:`, story-roadmap comment, remove TODO marker, rewrite workspace-mount doc-block)
+- `packages/devbox/scripts/attach.sh` (edit — add resolver source + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/build.sh` (edit — add resolver source + export KEEL_DEVBOX_CONTAINER_NAME)
+- `packages/devbox/scripts/clean.sh` (edit — add resolver source + export KEEL_DEVBOX_CONTAINER_NAME)
+- `packages/devbox/scripts/claude-host.sh` (edit — add resolver call + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/env-check.sh` (edit — add resolver source + AC 3 orphan-container probe + warning)
+- `packages/devbox/scripts/gh-auth-host.sh` (edit — add resolver call + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/logs.sh` (edit — add resolver source + export KEEL_DEVBOX_CONTAINER_NAME)
+- `packages/devbox/scripts/monitor-host.sh` (edit — add resolver call + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/prereq-check.sh` (edit — add resolver source + export KEEL_DEVBOX_CONTAINER_NAME; VOLUME_NAME now reads mode-aware)
+- `packages/devbox/scripts/ralph-build-host.sh` (edit — add resolver call + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/ralph-plan-host.sh` (edit — add resolver call + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/rebuild.sh` (edit — add resolver source + export KEEL_DEVBOX_CONTAINER_NAME)
+- `packages/devbox/scripts/restart.sh` (edit — add resolver source + resolved CONTAINER_NAME; transitively delegates to stop + start)
+- `packages/devbox/scripts/shell.sh` (edit — add resolver call + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/start.sh` (edit — add resolver call + export KEEL_DEVBOX_CONTAINER_NAME + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/status.sh` (edit — add resolver source + resolved CONTAINER_NAME)
+- `packages/devbox/scripts/stop.sh` (edit — add resolver source + export KEEL_DEVBOX_CONTAINER_NAME)
+- `packages/devbox/scripts/whitelist-host.sh` (edit — add resolver call + resolved CONTAINER_NAME)
+- `packages/keel-invariants/src/invariants.manifest.ts` (edit — register `INV-devbox-mode`)
+- `docs/invariants/devbox-mode.md` (new — authoritative `INV-devbox-mode` contract)
+- `INVARIANTS.md` (edit — append Story 2.11 H3 + `INV-devbox-mode` anchor bullet)
+- `packages/devbox/README.md` (edit — append `## Per-fork vs shared devbox mode (Story 2.11)` H2)
+- `AGENTS.md` (edit — append `### Per-fork vs shared devbox mode (Story 2.11)` H3)
+- `packages/devbox/.envrc.example` (edit — past-tense landed comment per SC-15)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (edit — row flip `ready-for-dev → in-progress → review`; `last_updated` bump)
 
 ## Change Log
+
+### v1.2 — 2026-04-24 `/bmad-dev-story` landing (iter-257) — `atdd-scaffolded → in-dev`; Status `ready-for-dev → review`
+
+- **Scope:** all 6 Tasks implemented; 4 ACs satisfied; 17 SCs pinned; 27 files touched (26 listed in File List + sprint-status.yaml row flip).
+- **Resolver extension (Task 1):** `resolve_mode_specific_state()` added to `packages/devbox/scripts/lib/main-repo-resolver.sh` as a sibling to `resolve_main_repo_and_workdir()`. Reads `KEEL_DEVBOX_SHARED` from process env (default-substituted to `false`; case-folded); branches on exactly `"true"` to shared mode, everything else fails safely to per-fork. Shared-mode branch flips `WORKTREE_ROOT` / `MAIN_REPO` / `REPO_NAME` to the parent directory, re-derives `CONTAINER_WORKDIR` inline against the new `WORKTREE_ROOT` (avoids recursive call into `resolve_main_repo_and_workdir`), hardcodes `KEEL_DEVBOX_COMPOSE_PROJECT=keel-devbox-shared` + `KEEL_DEVBOX_CONTAINER_NAME_RESOLVED=keel-devbox-shared` (SC-4 opinionated — operator override ignored). Six functional smokes (per-fork default, shared, uppercase TRUE, garbage-value fail-closed, per-fork with operator override, shared-with-override-IGNORED) all pass.
+- **Compose parameterisation (Task 2):** `docker-compose.yml:43` → `name: ${KEEL_DEVBOX_COMPOSE_PROJECT:-keel-devbox}`. Story-roadmap comment `LANDED iter-257`. `TODO(Story 2.11)` at line 239 removed. Workspace-mount doc-block L103-107 rewritten past-tense with pointer to `resolve_mode_specific_state()`.
+- **18-shim wire-in (Task 3):** 8 already-sourcing shims (canonical list: `start.sh`, `shell.sh`, `monitor-host.sh`, `whitelist-host.sh`, `claude-host.sh`, `gh-auth-host.sh`, `ralph-build-host.sh`, `ralph-plan-host.sh`) append `resolve_mode_specific_state` + export line after existing `resolve_main_repo_and_workdir` call. 10 non-sourcing shims (`attach.sh`, `build.sh`, `clean.sh`, `env-check.sh`, `logs.sh`, `prereq-check.sh`, `rebuild.sh`, `restart.sh`, `status.sh`, `stop.sh`) get the new source-and-call block near the top (after `set -euo pipefail` + `SCRIPT_DIR=`). All 11 inline-recompute sites (`attach.sh:24`, `claude-host.sh:35`, `gh-auth-host.sh:40`, `monitor-host.sh:33`, `ralph-build-host.sh:34`, `ralph-plan-host.sh:34`, `restart.sh:32`, `shell.sh:26`, `start.sh:42`, `status.sh:25`, `whitelist-host.sh:24`) switch from `"${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"` to `"${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"`. Bash `-n` syntax-check clean on all 18.
+- **AC 3 orphan-container warning (Task 4):** `env-check.sh` extended after shape-validation exit-2 path (before final `exit 0`). Reconciliation `export KEEL_DEVBOX_SHARED="${parsed[KEEL_DEVBOX_SHARED]:-false}"` runs BEFORE resolver invocation — file-content is authoritative against direnv lag. `docker inspect` rc captured via canonical `rc=0; cmd || rc=$?; case "${rc}" in …` pattern (Story 2.10 PATCH-1 LESSON). Warning-only posture — exit schema (0/2/3/8) unchanged. Both Case A + Case B verbatim renderings three-site-lockstep with `docs/invariants/devbox-mode.md § Mid-use flip warning` + `packages/devbox/README.md § Mid-use flip`.
+- **INV-devbox-mode (Task 5):** manifest entry registered at `packages/keel-invariants/src/invariants.manifest.ts` immediately before `INV-devbox-prereq-check`; InvariantSchema five-field compliance verified (bare `INV-devbox-mode` anchor string; 64-char lowercase hex `contentHash=4ddc4eea3a3f28cde90a1c7944f14d52a18aa1a0a214d9a45050aea1ec313cf2`). `docs/invariants/devbox-mode.md` authored with 8 H2 sections (Mode signal / Per-fork mode contract / Shared mode contract / Resolver contract / Concurrency decision / Mid-use flip warning / Named volume relationship / Invariant stability). `INVARIANTS.md` appended new `### Devbox mode (Story 2.11)` H3 + `INV-devbox-mode` anchor bullet — regex-compliant per `sync-gate.ts:24`. `pnpm keel-invariants:check` passes after `pnpm --filter @keel/keel-invariants build` rebuild — three-site lockstep confirmed clean (no drift). Manifest entry count: 29 → **30** at Story 2.11 landing.
+- **Operator + agent docs (Task 6):** `packages/devbox/README.md` appended `## Per-fork vs shared devbox mode (Story 2.11)` H2 AFTER `## Prerequisite check (Story 2.10)` (SC-17 sibling append — no prior-story edits). `AGENTS.md` appended `### Per-fork vs shared devbox mode (Story 2.11)` H3 AFTER `### Prerequisite check (Story 2.10)` under `## Devbox iteration environment` — includes two agent guardrails (no mid-Ralph-loop flips; no second-attach-auto-detaches-first). `packages/devbox/.envrc.example:41` comment updated past-tense per SC-15. Story-file sprint-row `ready-for-dev → in-progress` (iter-257 step 4) → `in-progress → review` (iter-257 step 9).
+- **Operator-workstation-deferred smokes:** live `KEEL_DEVBOX_SHARED=true pnpm devbox:start` two-forks-attach simulation + `docker compose config` YAML output inspection + actual `docker inspect <orphan>` probe (AC 3 live verification) land on M4-Pro operator workstation. Subagent env has no `docker` on PATH — static posture (resolver smokes + sync-gate + bash-syntax) covers substrate correctness.
+- **Story State transition:** `atdd-scaffolded → in-dev` → full completion reported at Step 9 DoD validation → Status `review`. Next iter queues `/bmad-testarch-trace (args: "yolo")` per § Story Lifecycle Decision Matrix; expected waiver per pre-dev § Testing Standards ATDD-skip-trace-WAIVED pairing (grounds (a)+(b)+(c) — doc-only AC 4 + no-wired-runner + smokes-land-at-dev-discretion).
 
 ### v1.1 — 2026-04-23 Pre-dev `/bmad-create-story (args: "review")` gate (iter-255) — `drafted → validated`
 

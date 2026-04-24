@@ -38,7 +38,7 @@ KEEL_DEVBOX_PORT_VITE_HMR=24679      # Vite HMR websocket (Storybook + local dev
 
 # --- Toggles ---
 KEEL_DEVBOX_SSH=false                # Opt-in sshd + port 2222 publication. Active Story 2.12; Story 2.2 publishes the knob only.
-KEEL_DEVBOX_SHARED=false             # false = per-fork mount (default); true = shared-workspace mount. Active Story 2.11; Story 2.2 publishes the knob only.
+KEEL_DEVBOX_SHARED=false             # false = per-fork mount (default); true = shared-workspace mount. Active at Story 2.11 (landed iter-257). Resolver: packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_mode_specific_state().
 
 # --- Egress policy (Story 2.3) ---
 KEEL_DEVBOX_DNS_UPSTREAM=1.1.1.1     # Upstream resolver for whitelisted domains. Cloudflare default; operator may retune to corporate resolver. Consumed by packages/devbox/scripts/reload-egress.sh.

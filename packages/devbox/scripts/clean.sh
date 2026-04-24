@@ -39,6 +39,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
 
+# Resolve main repo + mode-specific state (Story 2.11: per-fork vs shared via
+# KEEL_DEVBOX_SHARED). Without mode resolution, `docker compose down` under
+# shared mode would target `keel-devbox` (per-fork default) — destroying the
+# wrong project or leaving the shared container intact. SC-6 scopes
+# --with-volumes to CURRENT mode's volume only.
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+
 log() { printf 'clean: %s\n' "$*" >&2; }
 
 usage() {

@@ -31,16 +31,19 @@ set -euo pipefail
 unset COMPOSE_PROJECT_NAME
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 RALPH_MODE="plan"
 
 # Resolve MAIN_REPO + REPO_NAME + CONTAINER_WORKDIR (iter-239 mount-path
 # mirroring): ralph.py inherits the worktree-aware cwd via -w, so its
 # `--worktree X` / `_main_repo_root()` resolution lands the correct
-# .ralph/ directory automatically.
+# .ralph/ directory automatically. Story 2.11 adds mode-specific state
+# (per-fork vs shared via KEEL_DEVBOX_SHARED).
 # shellcheck source=lib/main-repo-resolver.sh
 source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
 resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 # shellcheck source=lib/check-mount-source.sh
 source "${SCRIPT_DIR}/lib/check-mount-source.sh"
 

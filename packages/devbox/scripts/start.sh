@@ -39,7 +39,6 @@ unset COMPOSE_PROJECT_NAME
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEVBOX_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 COMPOSE_FILE="${DEVBOX_DIR}/docker-compose.yml"
-CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
 IMAGE_TAG="${KEEL_DEVBOX_IMAGE_TAG:-keel-devbox:local}"
 HEALTHCHECK_TIMEOUT_S="${KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S:-120}"
 
@@ -47,12 +46,16 @@ HEALTHCHECK_TIMEOUT_S="${KEEL_DEVBOX_START_HEALTHCHECK_TIMEOUT_S:-120}"
 # ${KEEL_DEVBOX_WORKSPACE} + ${KEEL_DEVBOX_REPO_NAME} interpolation pin
 # the bind source to the host main repo (regardless of where the operator
 # invokes from, including from any worktree) and the container subdir to
-# the per-fork name. iter-239 mount-path mirroring.
+# the per-fork name. iter-239 mount-path mirroring. Story 2.11 adds
+# mode-specific state (per-fork vs shared) via resolve_mode_specific_state().
 # shellcheck source=lib/main-repo-resolver.sh
 source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
 resolve_main_repo_and_workdir
+resolve_mode_specific_state
 export KEEL_DEVBOX_WORKSPACE="${MAIN_REPO}"
 export KEEL_DEVBOX_REPO_NAME="${REPO_NAME}"
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 
 log() { printf 'start: %s\n' "$*" >&2; }
 

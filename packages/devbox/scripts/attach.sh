@@ -21,7 +21,16 @@ set -euo pipefail
 unset COMPOSE_PROJECT_NAME
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}"
+
+# Resolve main repo + mode-specific state (Story 2.11: per-fork vs shared via
+# KEEL_DEVBOX_SHARED). Without mode resolution, attach under shared mode would
+# target `keel-devbox` (per-fork default) instead of `keel-devbox-shared`.
+# shellcheck source=lib/main-repo-resolver.sh
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_main_repo_and_workdir
+resolve_mode_specific_state
+export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 
 log() { printf 'attach: %s\n' "$*" >&2; }
 
