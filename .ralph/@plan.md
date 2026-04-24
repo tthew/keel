@@ -11,7 +11,7 @@
 
 ## BLOCKED
 
-_(none — iter-340 SSH push-fail cleared by next-iter retry; branch up-to-date with `origin/feat/epic-2-packaged-devbox` at iter-341 orient.)_
+_(iter-341 SM-verified bookkeeping landed cleanly at commit `c3417ec` — but **push to remote FAILED at step-5** with `ssh: connect to host github.com port 22: Connection timed out` on both initial push + one retry, mirroring iter-340 SSH :22 egress incident; per Ralph rules step 5 "If push fails, document in IP and exit cleanly" — commit carries to next iter; iter-342 step-5 will retry the push first thing per `git log @{u}..` showing 1 unpushed commit at `c3417ec`. Pre-push gates GREEN at iter-341: typecheck 16/16 cached + lint 16/16 cached + format:check clean + commitlint passed + `pnpm keel-invariants:check-all` exit 0 on 41 entries unchanged. Story 2.17 Story State `traced → sm-verified` post-commit. iter-341 forecast confirmed: CLEAN 0-PATCH SM-verified. **SSH :22 egress flake recurrence — second consecutive iter** (iter-340 + iter-341); promotion-threshold-class observation for next-Ralph at iter-342 orient: if push retry succeeds first attempt, single-incident class; if fails again, persistent egress-side issue requiring operator-workstation diagnosis.)_
 
 ## ATDD Red Phase
 
