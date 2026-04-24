@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "f6ee34190aca9b2e98a15557bbe87ad55c417467",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.15",
+    "label": "Committed `.claude/settings.json` with deny/allow permission policies"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-15-committed-claude-settings-json-with-deny-allow-permission-policies.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 7,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 7,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 7, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 7,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 7 P2 ACs; Epic-2-substrate-claude-code-settings-policy class story (FIFTEENTH Epic 2 delivery; FIRST Claude-Code-host-layer substrate artifact at repo root; extends security barrier one level up from container-sandbox egress to Claude-Code-session permission resolution); TWENTY-FIFTH cumulative trace-WAIVED precedent (FIFTEENTH Epic 2; extends Story 2.14 iter-292 twenty-fourth); TWENTY-SIXTH ATDD-skip-trace-WAIVED co-application pairing overall (extends iter-297 ATDD-skip grounds (ii)+(iii)). Ground-(a)+(b) hybrid conjunction applied with PARTIAL ground-(c) variant-(ii) application ONLY to AC 5's behavioural signal — BROADER than Story 2.14 (pure (a)+(b)) + NARROWER than Story 2.13 (whole-AC-4 (a)+(b)+(c)-variant-(ii)).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.15 authors 2 NEW files (`.claude/settings.json` 556 bytes + `packages/keel-templates/src/seeds/.claude/settings.json` 556 bytes byte-identical per `diff` exit 0) + 4 modified files per iter-298 Dev Agent Record landing. Manifest count unchanged at 34 — Story 2.15 adds NO new InvariantSchema entry (distinct from Stories 2.10-2.14). `INV-claude-hook-secret-denylist` manifest entry is Story 2.16+2.17 scope.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification — ACs 1/2/3/4/6/7 mechanically-regression-safe via Epic 13 test framework landing (vitest/playwright-equivalent contract tests over settings.json schema + seed diff + doc grep). AC 5 BEHAVIOURAL signal (live permission-layer deny-rule-pointer emission) remains operator-workstation-only even post-Epic-13 — requires live `claude` OAuth subprocess + browser-interactive first-auth + upstream endpoint. Story 2.15 sits between Story 2.14 (no AC operator-workstation-only) + Story 2.13 (AC 4 whole operator-workstation-only) in the ground-(c) application spectrum.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.17 SC-17 close-out candidate lints: (a) D-7 — Substrate-to-seed byte-identical diff lint (sibling to 2.13 D-5 + 2.14 D-6); (b) D-8 — NFR5a deny-list minimum-entry gate (forks MAY ADD but MUST NOT REMOVE the 13-pinned deny rules); (c) D-9 — `hooks` key precondition preservation (pre-Story-2.16 must not carry `hooks` top-level key). NFR5a gap (`Read(~/.ssh/**)` + `Read(~/.aws/credentials)`) revisit-at-SC-17 marker per iter-296 pre-dev SM pin (NOT a DEFER-queue entry).",
+      "requirements": ["AC-1", "AC-2", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-15-committed-claude-settings-json-with-deny-allow-permission-policies.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}
