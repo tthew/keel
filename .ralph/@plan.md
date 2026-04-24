@@ -2,11 +2,9 @@
 
 ## NOW
 
-- [ ] Run `/bmad-create-story (args: "review")` — Story 2.13 pre-dev SM validation per § Story Lifecycle row `drafted → validated`. Story file at `_bmad-output/implementation-artifacts/2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck.md` (landed iter-280 at Status `ready-for-dev`). Four parallel Sonnet subagents (citation audit + AC+Task implementability + cross-story consistency + security+runtime hazards) per iter-266 pattern; Ralph-synthesis triage. Forecast **1-3 PATCH** at pre-dev SM band (moderate novelty — compose healthcheck + POSIX-sh probe + env-var branching; no new entrypoint code path or capability interaction per iter-271 NOVEL LESSON novel-runtime-behaviour-surface class; smaller than Story 2.12's 8-PATCH outlier; larger than Story 2.11's 5-PATCH band). Forecast **1-3 DEFER** (probe-tool portability + Dockerfile HEALTHCHECK scope carve-out clarity + Story 2.12 D-1 absorption elegance). Next iter-282 = `/bmad-testarch-atdd` forecast SKIP-WITH-GROUNDS-(c)+(ii)+(iii) per iter-267 22nd-cumulative precedent (ACs 1, 2, 3, 5 bash-functional-testable via `docker compose config` shape + file-content grep; AC 4 exercises live mid-run service kill requiring Docker container runtime — operator-workstation-deferred).
+- [ ] Run `/bmad-testarch-atdd` — Story 2.13 ATDD gate per § Story Lifecycle row `validated → atdd-scaffolded`. Story file validated at iter-281 (Status: `validated`; 6 PATCH + 3 DEFER + ~12 DISMISS; forecast-band reconciliation pinned in Change Log v1.1). Forecast **SKIP-WITH-GROUNDS-(c)+(ii)+(iii)** per Story 2.12 iter-267 22nd-cumulative precedent — (c) no test runner wired at substrate stage (Epic 13 scope); (ii) healthcheck CMD exercises only when a real Docker daemon + container runtime execute the probe (AC 2, AC 3, AC 4); (iii) substrate verification via `docker compose config` shape + file-content grep + manifest sync-gate covers AC 1 + AC 5. Twenty-third cumulative ATDD-skip precedent if forecast holds.
 
 ## QUEUE (Story 2.13 lifecycle + 2.14..2.17 substrate queue)
-
-- [ ] _(iter-282, post-pre-dev-SM)_ `/bmad-testarch-atdd` per matrix row `validated → atdd-scaffolded`. Forecast: SKIP-WITH-GROUNDS-(c)+(ii)+(iii) per Story 2.12 iter-267 22nd-cumulative precedent (mixed-class ACs; no test runner wired at substrate stage; adversarial-coverage substitutes via post-dev SM + CR gates).
 - [ ] _(after atdd-scaffolded)_ `/bmad-dev-story (args: "{story_file_path}")` per matrix row `atdd-scaffolded → in-dev`. Scope: 5 Tasks — compose healthcheck block + probe-tooling verification + `INV-devbox-healthcheck` manifest entry + invariant doc + README § Healthcheck + AGENTS.md § Healthcheck + optional Task 5 Dockerfile sshd.log pre-create (absorbs Story 2.12 iter-279 D-1 DEFER). Forecast ~30-50K (smaller than Story 2.12's ~70-100K; fewer files touched; no new apt package; no new resolver function).
 - [ ] _(after in-dev)_ `/bmad-testarch-trace (args: "yolo")` per matrix row `in-dev → traced` (forecast WAIVED per Story 2.12 iter-269 pattern — ACs 1, 2, 3, 5 substrate-covered by static smokes + sync-gate; AC 4 operator-workstation-deferred).
 - [ ] _(after traced)_ `/bmad-create-story (args: "review")` post-dev SM per matrix row `traced → sm-verified`. Two-subagent pattern (iter-235 LESSON). Forecast 0-2 PATCH per iter-270 NOVEL LESSON drift-band re-baseline (pre-dev SM absorbs CRITICAL; post-dev narrower).
@@ -20,13 +18,29 @@
 
 ## BLOCKED
 
-_(none — Story 2.12 DONE at iter-279 CR closure re-run #2 ZERO-PATCH; Story 2.13 drafted at iter-280; branch in sync with origin at `ce3ffb4` pre-commit.)_
+_(none — Story 2.12 DONE at iter-279; Story 2.13 drafted at iter-280, validated at iter-281; branch in sync with origin at `985aee0` pre-commit.)_
 
 ## ATDD Red Phase
 
-_(none — iter-267 ATDD-skip-with-grounds-(c)+(ii)+(iii) per FR14n; 22nd-cumulative ATDD-skip precedent for Story 2.12; new ATDD decision for Story 2.13 forecast at iter-282; no red-phase tests currently owed.)_
+_(none — iter-267 ATDD-skip-with-grounds-(c)+(ii)+(iii) per FR14n; 22nd-cumulative ATDD-skip precedent for Story 2.12; new ATDD decision for Story 2.13 queued at iter-282; no red-phase tests currently owed.)_
 
-## DONE (iter-280 Story 2.13 DRAFTED — `/bmad-create-story` landing; `_(no story) → drafted`; sprint-status row `backlog → ready-for-dev`)
+## DONE (iter-281 Story 2.13 VALIDATED — `/bmad-create-story (args: "review")` pre-dev SM landing; `drafted → validated`; 6 PATCH + 3 DEFER + ~12 DISMISS; Change Log v1.1)
+
+- [x] iter-281: **STORY 2.13 VALIDATED — `/bmad-create-story (args: "review")` pre-dev SM landing.** FR14n Story State transition `drafted → validated`. Sprint-status row UNCHANGED at `ready-for-dev` (flips at dev-story iter, not SM-review). Story file Status line elaborated with iter-281 Ralph-internal annotation; Change Log v1.1 landed.
+
+  - **Four parallel Sonnet subagents (iter-266 pattern) + Ralph-synthesis triage:** (1) citation audit — 40 citations examined, 3 false-positive CRITICALs for line numbers NOT actually in the story file (`entrypoint.sh:120-249` / `:146` / `:162` were from audit-prompt enumeration, not the story); story's actual entrypoint citations (`:140` / `:175` / `:235`) all PASS. (2) AC+Task implementability — 3 SUBSTANTIVE + 3 NARROW + 1 DEFER found; env-var propagation (docker-compose.yml:149) verified CORRECT; Task 5 deferral hazard narrowed to doc note. (3) Cross-story consistency — flagged sshd.log perm as CRITICAL but security subagent re-verified that root-owned fd open in parent shell pre-gosu is correct under cap_drop:[ALL]; narrowed to doc-clarity. (4) Security + runtime hazards — 15 hazard classes examined; 2 SUBSTANTIVE (whitelist-drift + sshd IPv4 binding) promoted to PATCH; 1 DEFER-WORTHY (YAML >- blank-line brittleness) logged.
+
+  - **6 PATCH landed (4 NARROW + 2 SUBSTANTIVE; all inline doc adjustments; no AC surface change):** P-1 compose `>-` → JSON-array normalisation clarification (story line 56); P-2 Docker HEALTHCHECK exit-code narrative fix (line 57; Docker does NOT coerce non-zero to 1 — preserves exact exit code in `.State.Health`); P-3 YAML blank-line hazard guard (line 56 extension; inserting blank line between clause lines introduces `\n` breaking `&&` chain); P-4 sshd IPv4 loopback binding verification in Task 2 (grep-only: `grep -n '^ListenAddress' packages/devbox/sshd/sshd_config` MUST return empty; OpenSSH unset-default covers `127.0.0.1:2222` for the `nc -z` probe); P-5 Task 3 invariant doc outline expanded with `## Exit codes` + `## Probe domain stability` H2 sections (Story 2.6 / 2.10 precedent); P-6 Task 5 Dockerfile inline comment + new "Pre-gosu redirect invariant" bullet explaining why root:root 0644 is correct (fd opened in root parent-shell pre-gosu; owner-rw bit grants access without CAP_DAC_OVERRIDE under cap_drop:[ALL]; write(2) on inherited fd does NOT re-check DAC).
+
+  - **3 DEFER (all for Story 2.17 SC-17 close-out; cumulative Epic-2 DEFER queue at iter-281 = 22 + 3 = 25):** D-5 3-site probe-domain lockstep lint (compose / invariant / README `api.github.com` drift detection); D-6 FR37 JSONL `source` field schema amendment (distinguish healthcheck-origin from app-origin queries — Epic-4 FR37 author owned, flagged downstream); D-7 compose `healthcheck.test` YAML `>-` → JSON-array form polish.
+
+  - **~12 DISMISS:** shell-injection (resolver strictly normalises); nc three-way-handshake race (bounded by interval + start_period); fd leaks (short-lived probes); transient-load false-unhealthy (3-retry buffer reasonable); dig exit-codes (Dev Notes correct); `/bin/sh`→dash (Dockerfile pinned); cascading failure (AC 4 signal-only); manifest description polish (cosmetic); Task 2 failure-path guardrail (dev discretion); AGENTS.md H2 name (verified at `:77`); .envrc.example no-knob framing (correctly scoped); entrypoint.sh citation false-positives (audit-prompt enumeration, not story file — all story's actual entrypoint citations PASS).
+
+  - **Forecast-band reconciliation:** iter-280 forecast 1-3 PATCH at pre-dev SM; iter-281 delivered 6 PATCH. ABOVE the narrow forecast, UNDER the 8-PATCH Story-2.12 outlier. Drivers: (a) iter-266 4-subagent adversarial spread catches more polish-class items; (b) Story 2.13's doc-heavy surface (7 proposed invariant-doc H2 sections + 2 README/AGENTS regions + Dockerfile comment block) exposes more pattern-compliance polish than Story 2.12's runtime-code-heavy surface. 2 SUBSTANTIVE PATCHes (sshd IPv4 binding + § Exit codes / § Probe domain stability) are AC-critical — guard AC 3 against regression class + formalize two contracts. 4 NARROW PATCHes are light-touch doc. Dev-story forecast unchanged (~30-50K, 5 Tasks, single-iter landing expected).
+
+  - **PR:** #230 **Draft** — `statusCheckRollup: []` carries unchanged across iter-272..281; iter-281 orient `gh pr view 230` + `gh pr checks 230` both GREEN first try — SSH :22 / HTTPS :443 asymmetric recovery (iter-263 LESSON) quiescent this iter. Branch in sync with origin at `985aee0` pre-commit.
+
+  - **Budget consumed:** ~68K tokens (orient + 4 parallel subagent dispatch ~35K streaming-captured + Ralph-side triage synthesis ~10K + verification greps + 6 inline PATCH Edits + Change Log v1.1 authoring + IP + RALPH.md + commit-prep ~23K stacking). Well within ~117K execution budget; exit cleanly per Guardrail 12.
 
 - [x] iter-280: **STORY 2.13 DRAFTED — `/bmad-create-story` landing.** FR14n Story State transition `_(no story) → drafted`. Sprint-status row `2-13-…: backlog → ready-for-dev` at `_bmad-output/implementation-artifacts/sprint-status.yaml:125`; `last_updated` line appended `2026-04-24 Story-2-13-ready-for-dev-iter-280 UTC`. Epic-2 row UNCHANGED at `in-progress` (workflow Step 1 "first story in epic" check does not fire — Story 2.13 is 13/17; epic already `in-progress` since Story 2.1 iter-128).
 
@@ -63,9 +77,9 @@ _(iter-253..270 Story 2.10/2.11/2.12 closure + Story 2.12 drafting/pre-dev-SM/AT
 - **Epic Branch:** `feat/epic-2-packaged-devbox` (stays Draft across full Epic 2).
 - **Story:** Story 2.13 — Healthcheck on dnsmasq + sshd (replaces upstream's broken `curl :3000` healthcheck).
 - **Story File:** `_bmad-output/implementation-artifacts/2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck.md`
-- **Story State:** `drafted` (iter-280 `/bmad-create-story` landed; next gate `/bmad-create-story (args: "review")` at iter-281 for `drafted → validated`).
-- **GitHub Issue:** Story 2.13 issue unknown; `RALPH_ISSUE_NUMBER` unset at iter-280 orient. Epic 2 → #10 (Ralph closes on EPIC_DONE halt at Story 2.17 close-out).
-- **PR:** #230 **Draft** — https://github.com/tthew/ralph-bmad/pull/230 — stays Draft across full Epic 2. No CI configured (`statusCheckRollup: []` carried unchanged iter-272..280; iter-280 orient GREEN first try).
+- **Story State:** `validated` (iter-281 `/bmad-create-story (args: "review")` landed; next gate `/bmad-testarch-atdd` at iter-282 for `validated → atdd-scaffolded`).
+- **GitHub Issue:** Story 2.13 issue unknown; `RALPH_ISSUE_NUMBER` unset at iter-281 orient. Epic 2 → #10 (Ralph closes on EPIC_DONE halt at Story 2.17 close-out).
+- **PR:** #230 **Draft** — https://github.com/tthew/ralph-bmad/pull/230 — stays Draft across full Epic 2. No CI configured (`statusCheckRollup: []` carried unchanged iter-272..281; iter-281 orient GREEN first try).
 
 ## Notes
 
