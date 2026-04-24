@@ -212,6 +212,36 @@ RUN set -eux; \
     fi
 
 # ---------------------------------------------------------------------------
+# prek (Rust reimpl of pre-commit) — baked at substrate build time so
+# fresh-fork devbox first-boot does not need network access to invoke
+# `.git/hooks/pre-commit`. @j178/prek's npm postinstall normally downloads
+# this same binary into node_modules/.pnpm-store on `pnpm install`; when
+# that store is evicted (e.g. `pnpm store prune`, volume wipe) and the
+# devbox has no network egress for GitHub release assets, local git hooks
+# fail-closed and commits are blocked (reference incident: Story 2.17
+# iter-313 BLOCKED recovered via cross-worktree binary transplant). Baking
+# at `/usr/local/bin/prek` lets operators recover by re-running
+# `prek install -t pre-commit -t commit-msg` against the substrate binary.
+#
+# Pin matches root `package.json` `devDependencies["@j178/prek"]` (0.3.9).
+# Renovate (Story 1.15) tracks the npm datasource; bump both the Dockerfile
+# pin and the package.json pin in lockstep. Arch-aware fail-closed matches
+# the git-delta + supabase-cli blocks above (iter-128 CR AI-6 pattern).
+# ---------------------------------------------------------------------------
+RUN set -eux; \
+    arch="$(uname -m)"; \
+    case "$arch" in \
+      x86_64)  prek_arch=x86_64-unknown-linux-gnu ;; \
+      aarch64) prek_arch=aarch64-unknown-linux-gnu ;; \
+      *) echo "Unsupported arch for prek: $arch" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL "https://github.com/j178/prek/releases/download/v0.3.9/prek-${prek_arch}.tar.gz" -o /tmp/prek.tar.gz; \
+    tar -xzf /tmp/prek.tar.gz -C /tmp; \
+    install -m 0755 /tmp/prek /usr/local/bin/prek; \
+    rm -f /tmp/prek.tar.gz /tmp/prek; \
+    prek --version
+
+# ---------------------------------------------------------------------------
 # Playwright browser OS-level dependencies — runs against the latest
 # Playwright release so the apt list above stays reconciled at bake time.
 # `playwright install-deps` is expected to be a no-op if apt list is
