@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "08527ba8b4da55cf05a8a1a33e2be93283b41d39",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.11",
+    "label": "Per-fork vs shared devbox mode (KEEL_DEVBOX_SHARED)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 4, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 4,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 4 P2 ACs; Epic-2-substrate-dual-mode-resolver-extension class story (ELEVENTH Epic 2 delivery; FIRST dual-mode-opinionated-resolver class — single resolver site branches behaviour between isolated-per-fork-default and shared-opinionated-across-forks postures); TWENTY-FIRST cumulative trace-WAIVED precedent (TENTH Epic 2; extends Story 2.10 iter-249 twentieth); TWENTY-SECOND ATDD-skip-trace-WAIVED co-application pairing (extends iter-256 ATDD-skip grounds (c)+(ii)+(iii)). Ground-(a)+(b)+(c) hybrid conjunction applied with resolver-substrate + spec-declared-CR-substitution for AC 4 doc-only concurrency decision.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.11 authors 1 NEW file (docs/invariants/devbox-mode.md contentHash 4ddc4eea3a3f28cde90a1c7944f14d52a18aa1a0a214d9a45050aea1ec313cf2) + 26 modified files per iter-257 Dev Agent Record. 30th manifest entry (INV-devbox-mode) lands with sync-gate GREEN after pnpm --filter @keel/keel-invariants build rebuild (iter-257 NOVEL LESSON: manifest rebuild MUST precede sync-gate verification after adding a new InvariantSchema entry).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification unlocks at M4-Pro operator workstation backend-A. AC 1/2/3 substrate-verified at iter-257 dev-story via 6 resolver functional smokes + bash -n + pnpm keel-invariants:check. AC 4 doc-only — spec-declared-CR-substitution applies.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

@@ -1,0 +1,138 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-24T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.11",
+    "label": "Per-fork vs shared devbox mode (KEEL_DEVBOX_SHARED)"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "description": "Per-fork mode (default) — isolated container (keel-devbox) + isolated named volume (keel-devbox_keel_home_dev); two forks cannot share state unless KEEL_DEVBOX_CONTAINER_NAME override is set (Story 2.1 per-fork path preserved).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification present via iter-257 dev-story Debug Log resolver functional smokes (KEEL_DEVBOX_SHARED unset/false → KEEL_DEVBOX_COMPOSE_PROJECT=keel-devbox, KEEL_DEVBOX_CONTAINER_NAME_RESOLVED=keel-devbox). Not wired as automated regression — no test runner at 1.0 substrate stage."
+    },
+    {
+      "id": "AC-2",
+      "description": "Shared mode — single container (keel-devbox-shared) + single named volume (keel-devbox-shared_keel_home_dev) across forks; bind source flips from fork root to fork root's PARENT directory (matches upstream cc-devbox /Users/tthew/Development pattern; architecture.md:547); fork B's pnpm devbox:start becomes a no-op health-poll.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification present via iter-257 dev-story Debug Log resolver functional smokes (KEEL_DEVBOX_SHARED=true → KEEL_DEVBOX_COMPOSE_PROJECT=keel-devbox-shared, KEEL_DEVBOX_REPO_NAME=basename(parent), KEEL_DEVBOX_WORKSPACE=parent) + docker-compose.yml name: parameterisation smoke (compose-project prefix flips correctly). Live two-forks-attach smoke operator-workstation-deferred per backend-A."
+    },
+    {
+      "id": "AC-3",
+      "description": "Mid-use flip — pnpm devbox:env:check warns about orphaned cross-mode containers via docker inspect probe; emits stderr warning naming the orphaned container + pointing at pnpm devbox:clean; exit code unaltered (informational).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification present via iter-257 dev-story Debug Log: Task 4 env-check orphan-container probe uses Story 2.10 PATCH-1 rc-capture pattern (rc=0; docker inspect … || rc=$?; case … ;) to survive set -e. Warning string three-site lockstep SC-8: env-check.sh emit + docs/invariants/devbox-mode.md § Mid-use flip warning + packages/devbox/README.md § Per-fork vs shared mode § Mid-use flip. Live docker inspect probe smoke operator-workstation-deferred."
+    },
+    {
+      "id": "AC-4",
+      "description": "Concurrent-Ralph behaviour in shared mode — single-operator-at-a-time BY CONVENTION (NOT by Docker enforcement); concurrent docker attach against the same container produces interleaved stdin/stdout I/O corruption (NOT auto-detach-the-first); non-Ralph operations (pnpm devbox:shell/claude/gh:auth) use docker exec + are parallel-safe across forks; operators needing true-parallel Ralph MUST revert to per-fork mode.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Doc-only concurrency decision pinned in AGENTS.md § Per-fork vs shared devbox mode (Story 2.11) + docs/invariants/devbox-mode.md § Concurrency decision + Story 2.11 § Dev Notes § Concurrency decision (Option C chosen; Options A/B rejected with rationale). No mechanical runtime path exists — Docker does NOT expose second-attach-auto-detach semantic; shared-mode concurrency story is convention-first, not machinery-first. Agent guardrail pinned in AGENTS.md: MUST NOT implement second-attach-auto-detaches-first feature. ATDD for AC 4 is out-of-scope (no harness exists for cross-fork simulation; story file § Testing Standards pre-declares trace-partial-waive candidate for AC 4)."
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 4, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 4 P2 ACs; Epic-2-substrate-dual-mode-resolver-extension class story (ELEVENTH Epic 2 delivery; FIRST instance of the dual-mode-opinionated-resolver class — branches behaviour between isolated-per-fork-default and shared-opinionated-across-forks postures at a single resolver site); TWENTY-FIRST cumulative trace-WAIVED precedent (TENTH Epic 2; extends Story 2.10 iter-249 twentieth precedent); TWENTY-SECOND ATDD-skip-trace-WAIVED co-application pairing (extends iter-256 ATDD-skip-grounds (c)+(ii)+(iii) at Story 2.11 sibling pairing). Ground-(a)+(b)+(c) hybrid conjunction: (a) substrate-verification covers AC 1 + AC 2 + AC 3 runtime branches via 6 iter-257 resolver functional smokes (per-fork default → keel-devbox; shared override → keel-devbox-shared; shared-mode operator-override-IGNORED per SC-4; env-check orphan probe rc-capture survives set -e) + bash -n syntax-check clean on all 18 shims + pnpm keel-invariants:check sync-gate PASS after manifest rebuild; (b) no test runner wired at Story 2.11 substrate stage — recursive probe for vitest.config.*/jest.config.*/playwright.config.*/cypress.config.*/pyproject.toml/go.mod/Gemfile/Cargo.toml returns zero matches at iter-258; stack detection returns none (Epic 13 delivers framework landing per twenty-one precedents); (c) HYBRID variant-(iii) spec-declared-CR-substitution for AC 4 (doc-only concurrency decision; no mechanical runtime path — Docker does NOT expose second-attach-auto-detach semantic; Option C chosen at § Dev Notes § Concurrency decision over Options A/B). Partial-waive alternative considered at IP forecast (ACs 1-3 smoke-covered + AC 4 doc-only per-AC defer) — elected full-waive per 22nd-cumulative-pairing consistency rule + coverage_basis=acceptance_criteria mechanical-matrix-absent at substrate stage.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.11 authors 1 NEW file (docs/invariants/devbox-mode.md — contentHash 4ddc4eea3a3f28cde90a1c7944f14d52a18aa1a0a214d9a45050aea1ec313cf2) + 26 modified files per iter-257 Dev Agent Record: (1) resolve_mode_specific_state() function added to packages/devbox/scripts/lib/main-repo-resolver.sh (62 LOC net-new); (2) docker-compose.yml top-level name: parameterised to ${KEEL_DEVBOX_COMPOSE_PROJECT:-keel-devbox}; (3-20) 18 host-side shims wired with resolver + KEEL_DEVBOX_CONTAINER_NAME_RESOLVED (8 already-sourcing APPEND + 10 non-sourcing NEW block); (21) packages/keel-invariants/src/invariants.manifest.ts — INV-devbox-mode registered as 30th manifest entry; (22) INVARIANTS.md — H3 + anchor bullet; (23) packages/devbox/README.md — H2 with three walkthroughs + verbatim orphan-warning renderings; (24) AGENTS.md — H3 with agent guardrails; (25) packages/devbox/.envrc.example — SC-15 past-tense comment; (26) sprint-status.yaml — row flipped twice. 30th manifest entry lands with sync-gate GREEN after pnpm --filter @keel/keel-invariants build rebuild (iter-257 NOVEL LESSON: manifest rebuild MUST precede sync-gate verification after adding a new InvariantSchema entry — whole-file content hash compares against compiled dist/check.js).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork first-run verification unlocks at M4-Pro operator workstation backend-A: AC 1 per-fork mode isolation requires two forks under different KEEL_DEVBOX_CONTAINER_NAME overrides invoked sequentially to verify Compose collision on bare name + isolation under override; AC 2 shared-mode single-container requires two fork-root siblings under a shared parent dir, both with KEEL_DEVBOX_SHARED=true, sequential pnpm devbox:start from fork A then fork B to verify fork B's invocation becomes a no-op health-poll (docker inspect detects existing container) + both resolver paths land at /workspace/<parent>/{fork-a,fork-b}/; AC 3 env-check orphan probe requires flipping .envrc between per-fork and shared mid-use on a host with either keel-devbox OR keel-devbox-shared container running from the prior mode, then pnpm devbox:env:check to verify stderr warning + pointer at pnpm devbox:clean + exit code unchanged; AC 4 concurrency decision is doc-only — no mechanical runtime verification possible; spec-declared-CR-substitution applies. No Story 2.11 code change required at any live-flow verification point — resolver + compose + env-check are stateless branches on env vars. Iteration-env-safe smokes ALL 6 PASSED at iter-257 via direct sourcing of main-repo-resolver.sh + resolve_mode_specific_state() invocation under synthetic KEEL_DEVBOX_SHARED + KEEL_DEVBOX_CONTAINER_NAME env states. Live docker-compose-config emit + two-forks-attach concurrency smoke (AC 4 live) + pnpm devbox:env:check orphan-warning emit are backend-A-only operator-workstation-deferred per § Testing Standards ground-(c) (Docker Compose + Docker daemon own the behaviors; DinD-B iteration env's host-socket passthrough cannot safely exercise shared-workspace bind mounts against the iter-env's parent dir).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
