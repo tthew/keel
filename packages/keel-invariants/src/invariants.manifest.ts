@@ -392,6 +392,22 @@ const raw: Invariant[] = [
     },
   },
   {
+    id: 'INV-claude-settings-seed',
+    description:
+      'Whole-file sha256 drift protection for the seeded copy of .claude/settings.json at packages/keel-templates/src/seeds/.claude/settings.json. Story 2.17 Task 11.1 (substrate-to-seed byte-identity via manifest-entry approach per seed-sync discipline iter-315..325): any substrate edit to .claude/settings.json MUST be mirrored into the seed file in the SAME commit — Story 1.9 pre-merge sync-gate re-walks both entries and, because INV-claude-settings-deny-rules (jq-subtree at .claude/settings.json) and INV-claude-settings-seed (whole-file at the seed path) draw their hashes from distinct files, any drift between the substrate and the seed surfaces as a content-hash-mismatch failure pointing at whichever file lagged. contentHash here is whole-file (not sub-tree) because the seed is the full artifact create-keel-app (Epic 15a consumer) writes unchanged into a fresh fork — a sub-tree hash would miss fork-extension slot edits that must travel with the seed. Distinct sourcePath from INV-claude-settings-deny-rules (seed vs. substrate); the pairing is byte-identity-by-convention, not same-sourcePath sharing. Coordinated edits bump both entries in lockstep.',
+    sourcePath: 'packages/keel-templates/src/seeds/.claude/settings.json',
+    contentHash: '1d8bac6a1414e6fe0ce8cb48a85e51943bedd9617dff07086b93f7c056816b10',
+    anchors: ['INV-claude-settings-seed'],
+  },
+  {
+    id: 'INV-claude-hook-secret-denylist-seed',
+    description:
+      'Whole-file sha256 drift protection for the seeded copy of .claude/hooks/block-secret-access.sh at packages/keel-templates/src/seeds/.claude/hooks/block-secret-access.sh. Story 2.17 Task 11.1 (substrate-to-seed byte-identity via manifest-entry approach per seed-sync discipline iter-315..325): any substrate edit to .claude/hooks/block-secret-access.sh MUST be mirrored into the seed file in the SAME commit — the sibling INV-claude-hook-secret-denylist entry hashes the substrate file whole-file, this entry hashes the seed file whole-file; drift between the two pops at Story 1.9 pre-merge sync-gate pointing at whichever file lagged. Distinct sourcePath from INV-claude-hook-secret-denylist (seed vs. substrate); the pairing is byte-identity-by-convention, not same-sourcePath sharing. create-keel-app (Epic 15a consumer) MUST write this seed unchanged (--preserve-permissions preserving the exec-bit per D-36 fresh-fork seed contract landed iter-325 Task 13.5).',
+    sourcePath: 'packages/keel-templates/src/seeds/.claude/hooks/block-secret-access.sh',
+    contentHash: '6afa322e81ecda02c65519ce2076ca6e1edf4196e65d856630cac0201a07c09d',
+    anchors: ['INV-claude-hook-secret-denylist-seed'],
+  },
+  {
     id: 'INV-git-hooks-preservation-enumeration',
     description:
       'Enumeration of prek-installed hook names + shebang patterns at packages/keel-invariants/src/prek-hook-manifest.ts — exports "readonly ExpectedHook[]" consumed by the sync-gate names-and-shebangs walker. Whole-file sha256 catches out-of-band edits to the enumeration (e.g. a PR removing pre-commit from EXPECTED_HOOKS to relax the preservation contract). Sibling to INV-git-hooks-preservation which uses the SAME sourcePath but a names-and-shebangs hashScope that derives its content from walking .git/hooks/; the two entries share sourcePath legitimately because they have distinct hashScope canonical forms (the manifest schema superRefine permits this — see invariants.manifest.ts duplicate-sourcePath comment). Adding or removing an entry in prek-hook-manifest.ts is an AMEND-path change touching this manifest + INVARIANTS.md anchor + .pre-commit-config.yaml alignment in lockstep. Story 2.17 Task 3.3.',
