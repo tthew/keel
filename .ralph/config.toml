@@ -1,0 +1,10 @@
+# .ralph/config.toml — Story 2.16 substrate
+# Pins runtime contracts that Ralph (Epic 3) reads at iteration start.
+# Changes here REQUIRE an AMEND PR per docs/invariants/fork.md § Amendment-vs-fork decision tree.
+
+[hooks]
+# Number of `hook-self-protection` blocks per Ralph iteration that triggers a SECURITY_CRITICAL halt.
+# Source: docs/invariants/claude-hook-denylist.md § Halt-threshold pin.
+# Consumer: Epic 3 Story 3.7 reads this value + counts blocks in
+# ${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl + writes the halt sentinel.
+self_protection_halt_threshold = 3

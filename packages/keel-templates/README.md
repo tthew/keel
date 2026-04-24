@@ -4,4 +4,5 @@ This package is the consumer contract for substrate-authored seeds — file-tree
 
 ## Seeded assets
 
-- `src/seeds/.claude/settings.json` — Story 2.15 committed Claude Code permission policy (deny/allow baseline per NFR5a). `create-keel-app` (Story 15a.4) materialises this at fresh-fork repo root.
+- `src/seeds/.claude/settings.json` — Story 2.15+2.16 committed Claude Code permissions + PreToolUse hook registration baseline (deny/allow + hooks.PreToolUse per NFR5a/NFR5b). `create-keel-app` (Story 15a.4) materialises this at fresh-fork repo root.
+- `src/seeds/.claude/hooks/block-secret-access.sh` — Story 2.16 PreToolUse hook script (denies secret-access + hook-self-protection patterns; per NFR5a/NFR5b). `create-keel-app` (Story 15a.4) materialises this at fresh-fork repo root.

@@ -1050,6 +1050,74 @@ Story 2.17 lands the content-hash backstop via `INV-claude-hook-secret-denylist`
 
 See `AGENTS.md § Claude Code settings policy (Story 2.15)` for the full fork-extension contract + honour-system details + cross-references to § Container hardening (Story 2.5) + § Claude Code authentication (Story 2.8) + § gh CLI authentication (Story 2.9) for the OAuth-token paths covered by the deny list.
 
+## Claude PreToolUse hooks (Story 2.16)
+
+`.claude/hooks/block-secret-access.sh` registered via `.claude/settings.json hooks.PreToolUse` is the substrate-authoritative Claude Code PreToolUse hook (Story 2.16). The hook denies secret-access patterns (env-files, OAuth tokens, env-dump idioms) AND hook-self-protection patterns (Edit/Write/Bash against `.claude/settings*.json`, `.claude/hooks/**`, `.git/hooks/**` + git `--no-verify` bypass) regardless of permission mode — completing the Ralph-path defense (the Story 2.15 permission-layer baseline only catches the permissions-prompt-enabled session class).
+
+### Quick-start
+
+View the hook:
+
+```bash
+cat .claude/hooks/block-secret-access.sh
+```
+
+View the registration:
+
+```bash
+jq '.hooks.PreToolUse' .claude/settings.json
+```
+
+Test a block decision against a fixture from inside the devbox (the hook script is unit-exercisable without a live `claude` subprocess):
+
+```bash
+echo '{"tool_name":"Read","tool_input":{"file_path":".envrc"}}' | .claude/hooks/block-secret-access.sh
+# → {"decision":"block","reason":"secret-access-denylist","match":"read-envrc-file"}
+```
+
+Test the hook-self-protection surface:
+
+```bash
+echo '{"tool_name":"Bash","tool_input":{"command":"git push --no-verify"}}' | .claude/hooks/block-secret-access.sh
+# → {"decision":"block","reason":"hook-self-protection","match":"git-no-verify-bypass"}
+```
+
+### Halt-threshold pointer
+
+`.ralph/config.toml [hooks].self_protection_halt_threshold = 3` is the substrate-pinned threshold. N=3 `hook-self-protection` blocks per Ralph iteration trigger Epic 3 Story 3.7's `SECURITY_CRITICAL` halt-write to `${RALPH_BASE_DIR}/halt`. Operators MUST NOT raise the threshold without an AMEND PR (substrate-wins per `docs/invariants/fork.md § Amendment-vs-fork decision tree`).
+
+### Fork-extension recipe
+
+Forks MAY extend the denylist (additive only — the substrate denylist is hard-coded; forks can BLOCK more patterns but CANNOT unblock substrate-denied patterns). Create `.claude/hooks/block-secret-access.fork.sh` at your fork root (`chmod 0755`); the substrate hook invokes it as the LAST step after the substrate denylist clears. Example skeleton:
+
+```bash
+#!/usr/bin/env bash
+# .claude/hooks/block-secret-access.fork.sh — fork-specific additive denylist
+set -euo pipefail
+payload="$(cat)"
+tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty')"
+file_path="$(printf '%s' "$payload" | jq -r '.tool_input.file_path // empty')"
+
+case "$tool_name" in
+  Read)
+    case "$file_path" in
+      *fork-specific-secret.yaml)
+        printf '{"decision":"block","reason":"fork-secret-denylist","match":"fork-secret-file"}\n'
+        exit 0
+        ;;
+    esac ;;
+esac
+
+printf '{"decision":"approve"}\n'
+exit 0
+```
+
+Fork-to-REMOVE a substrate-deny rule requires the source-level AMEND path (7 sites coordinated: substrate hook + substrate settings + invariant doc + manifest `contentHash` + `INVARIANTS.md` anchor + 2 seeds). See `docs/invariants/fork.md § Amendment-vs-fork decision tree`.
+
+### Pointer
+
+Machine-enforced contract: `INV-claude-hook-secret-denylist` (`docs/invariants/claude-hook-denylist.md`); manifest entry at `packages/keel-invariants/src/invariants.manifest.ts`. Story 2.17 adds the content-hash bypass-resistance backstop covering hook script + settings.json `hooks` block region + `.git/hooks/**`. See `AGENTS.md § Claude PreToolUse hooks (Story 2.16)` for the full fork-extension contract + JSONL schema + halt-threshold contract.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:

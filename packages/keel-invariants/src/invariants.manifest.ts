@@ -320,6 +320,14 @@ const raw: Invariant[] = [
     contentHash: 'e0c70aa4882a9dcb9b58919a3735357e1c8dfac2a7e925b80ee1c200a07984f1',
     anchors: ['INV-gitignored-secret-commit-deny'],
   },
+  {
+    id: 'INV-claude-hook-secret-denylist',
+    description:
+      'Claude Code PreToolUse hook at .claude/hooks/block-secret-access.sh registered via .claude/settings.json hooks.PreToolUse block for six agent-reachable tool surfaces (Bash, Read, Edit, Write, Grep, Glob). Two denylists pinned: secret-access-denylist (Bash/Read/Grep/Glob patterns for .envrc*, **/.env*, .secrets*, /home/dev/.claude/**, /home/dev/.config/gh/**, /proc/*/environ + env-dump idioms) + hook-self-protection (Edit/Write on .claude/settings*.json, .claude/hooks/**, .git/hooks/** + Bash mutations against those paths + git --no-verify bypass). Hook decision-shape: stdout JSON {"decision":"block","reason":"<rule-id>","match":"<matched-pattern>"} where rule-id ∈ {secret-access-denylist, hook-self-protection}; exits 0 always (Claude Code PreToolUse contract — non-zero = hook error fails open). Each block appends to ${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl with schema {timestamp, iteration_id, tool, args_redacted, rule_id, match}; log skipped outside Ralph iteration. Halt-threshold N=3 hook-self-protection blocks per iteration pinned in .ralph/config.toml [hooks].self_protection_halt_threshold; Epic 3 Story 3.7 wires the SECURITY_CRITICAL halt-write per INV-ralph-halt-reason-enum closed enum. Fork-extension path: .claude/hooks/block-secret-access.fork.sh invoked LAST after substrate denylist clears (forks MAY add additional patterns to block; MAY NOT unblock substrate-denied patterns). 5-site byte-identity lockstep on substrate amendment (substrate hook + substrate settings.json hooks block + invariant doc + seed hook + seed settings.json hooks block) + 2-site metadata coordination (manifest contentHash + INVARIANTS.md anchor) = 7-site AMEND coordination. Story 2.17 adds content-hash bypass-resistance covering hook script + settings.json hooks block + .git/hooks/**.',
+    sourcePath: 'docs/invariants/claude-hook-denylist.md',
+    contentHash: '85f8a539c0850f1c52ed825c6a8a904d72c6d42c0c7a87eb9f14617bc51cd7e1',
+    anchors: ['INV-claude-hook-secret-denylist'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));

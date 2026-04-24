@@ -135,6 +135,12 @@ Legacy-devbox branch retains pre-absorption cc-devbox layout as fallback canary 
 
 - **`INV-devbox-legacy-branch-retention`** — Legacy-devbox branch retains pre-absorption cc-devbox layout for bootstrap-handoff mitigation; cherry-pick + triage + retirement workflows pinned. Source: `docs/invariants/devbox-legacy-branch-retention.md`.
 
+### Claude PreToolUse hooks (Story 2.16)
+
+Claude Code PreToolUse hook at `.claude/hooks/block-secret-access.sh` registered via `.claude/settings.json` `hooks.PreToolUse` block for six agent-reachable tool surfaces (`Bash`, `Read`, `Edit`, `Write`, `Grep`, `Glob`). Closes NFR5a/NFR5b — secret-access barrier holds even when Ralph runs `claude -p --dangerously-skip-permissions` (hooks fire regardless of permission mode). Two denylists pinned: `secret-access-denylist` (env-files + OAuth tokens + env-dump idioms) and `hook-self-protection` (Edit/Write/Bash mutations against `.claude/settings*.json`, `.claude/hooks/**`, `.git/hooks/**` + git `--no-verify` bypass). Each block appends to `${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl`; halt-threshold `N=3` `hook-self-protection` blocks per iteration pinned in `.ralph/config.toml [hooks].self_protection_halt_threshold` (Epic 3 Story 3.7 wires the `SECURITY_CRITICAL` halt). Fork extension via additive `.claude/hooks/block-secret-access.fork.sh` (substrate-wins per `docs/invariants/fork.md § Precedence`).
+
+- **`INV-claude-hook-secret-denylist`** — Claude PreToolUse hook + `.claude/settings.json` `hooks.PreToolUse` block deny secret-access + hook-self-protection patterns; JSONL schema for `blocked-tool-calls.jsonl`; N=3 halt-threshold contract. Source: `docs/invariants/claude-hook-denylist.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

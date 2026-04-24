@@ -23,5 +23,45 @@
       "Bash(ls *)",
       "Bash(tsc *)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Glob",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      }
+    ]
   }
 }
