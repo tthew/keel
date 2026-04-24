@@ -1,6 +1,6 @@
 # Story 2.14: Legacy-devbox branch retention policy
 
-Status: ready-for-dev <!-- Ralph-internal `Story State` = `drafted` at iter-287 `/bmad-create-story` (no story → drafted) per § Story Lifecycle row "_(no story) → /bmad-create-story". Sprint-status row `2-14-legacy-devbox-branch-retention-policy: backlog → ready-for-dev` flipped this iter. Epic 2 progress unchanged at 13/17 done; Story 2.14 enters lifecycle. Next iter (iter-288): `/bmad-create-story (args: "review")` per row `drafted → /bmad-create-story (args: "review")` for pre-dev SM validation. Forecast band per iter-286 NOVEL LESSON for narrow-diff documentation-heavy stories: cumulative ~6-10 PATCH lifecycle (3-6 at pre-dev SM). -->
+Status: ready-for-dev <!-- Ralph-internal `Story State` = `validated` at iter-288 `/bmad-create-story (args: "review")` pre-dev SM (drafted → validated) per § Story Lifecycle row `drafted → /bmad-create-story (args: "review")`. Sprint-status row stays `ready-for-dev` (lifecycle-internal state; IP line 5). **6 PATCH landed this iter (within iter-286 NOVEL LESSON forecast band 3-6 for narrow-diff documentation-heavy):** (1) FR33 citation `prd.md:932 → :997` at References line 230 (actual FR33 location; :932 is FR6); (2) `packages/devbox/README.md` EOF drift `~923 → ~1001` at Project Structure Notes + References (H2-name anchoring preferred over line-number hints); (3) `<UPSTREAM_SHA>` placeholder resolution step added with explicit `sed -i` + grep-verification guard (prevents hand-edit miss); (4) hook-bypass inline scope annotation added to Task 1 bash block (prevents pattern transfer to substrate `main` commits per `INV-no-verify-bypass`); (5) `docs/invariants/devbox-mode.md` length ~120 → ~237 in Task 2 length-target comparison; (6) AGENTS.md (e) curl:3000 claim softened to grep-at-impl-time per iter-286 NOVEL LESSON #3 (adversarial-convergence-on-spec-endorsed-claim → empirical-verify). **1 DEFER (D-14):** Task 1 push-failure recovery + idempotent re-bootstrap guidance — defer to Story 2.17 SC-17 close-out; cumulative Epic-2 DEFER queue 30 → 31. **~5 DISMISSes** (manifest count 33 verified via `grep -c "^  {"` = 33; AGENTS.md H3 last-H3 claim verified at :190; cited PRD/architecture/epics line numbers verified correct; sync-gate regex verbatim; AC 3 vs Task 2 retirement-ordering ambiguity — Task 2 is technically correct and dev agent will execute correctly, AC 3 is a requirements-set not a procedure). Two-subagent pattern per iter-285 LESSON sufficient; AC-completeness audit + spec-fidelity audit ran in parallel via Agent tool. Next iter (iter-289): `/bmad-testarch-atdd` likely SKIP-WITH-GROUNDS-(c)+(ii)+(iii) per Story 2.12/2.13 cumulative precedent (twenty-fourth+ cumulative ATDD-skip forecast). -->
 
 <!-- Note: Validation is optional. Run `/bmad-create-story (args: "review")` for pre-dev quality check before `/bmad-testarch-atdd` / `/bmad-dev-story`. -->
 
@@ -55,7 +55,13 @@ So that if the absorbed `packages/devbox/` substrate (Stories 2.1-2.13 + 2.15-2.
     ---
 
     ```
-    Substitute `<UPSTREAM_SHA>` with the captured `$UPSTREAM_SHA` (full 40-char hex).
+    **Placeholder resolution is mechanical, not manual.** After writing the banner to `$WT/README.md`, substitute the placeholder in-place with the captured SHA:
+    ```bash
+    sed -i "s|<UPSTREAM_SHA>|$UPSTREAM_SHA|g" "$WT/README.md"
+    # Verify placeholder fully resolved — grep should return empty.
+    grep UPSTREAM_SHA "$WT/README.md" && echo "ERROR: placeholder not resolved" >&2 && exit 1
+    ```
+    Rationale: a hand-edit misses the substitution and lands `<UPSTREAM_SHA>` verbatim in the banner; the `grep` guard fails-loudly if substitution was skipped.
   - [ ] **Commit + push.**
     ```bash
     cd "$WT"
@@ -67,6 +73,11 @@ So that if the absorbed `packages/devbox/` substrate (Stories 2.1-2.13 + 2.15-2.
     #   PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit ...
     # The legacy branch is intentionally orphan-toolchain — quality gates
     # don't apply (substrate-canonical lives on `main`).
+    #
+    # **SCOPE GUARDRAIL**: hook-bypass is ONLY acceptable for legacy-devbox
+    # branch commits (scratch worktree bootstrapping upstream snapshot). On
+    # `main`-targeting commits this pattern is FORBIDDEN per Story 1.6's
+    # `INV-no-verify-bypass`. Do NOT transfer this pattern to substrate commits.
     git push -u origin legacy-devbox
     cd -
     git worktree remove "$WT"
@@ -133,7 +144,7 @@ So that if the absorbed `packages/devbox/` substrate (Stories 2.1-2.13 + 2.15-2.
       5. AGENTS.md edit: § Devbox iteration environment H3 update — flip "active retention branch" → "retired; preserved at `legacy-devbox-final` tag for archaeology only".
     - `## Fork extension contract` — forks operating their own absorbed devbox MAY (a) follow this same pattern with their own upstream + retention naming (recommended: same `legacy-<upstream-name>` slug convention so the triage path narrative carries), OR (b) skip retention entirely if their fork lacks the bootstrap-handoff risk (e.g., a fork that started post-1.0 with substrate-canonical devbox from day one). Substrate forbids: removing the substrate-side documentation, weakening the "no-feature-parity" framing, or automating cherry-picks (FR44 AMEND would be required).
   - [ ] **Compute `contentHash`.** `sha256sum docs/invariants/devbox-legacy-branch-retention.md | awk '{print $1}'`. Paste the 64-char lowercase hex into the manifest entry (Task 3).
-  - [ ] **Length target.** ~150-200 lines — denser than `docs/invariants/devbox-mode.md` (~120 lines) but lighter than `docs/invariants/devbox-healthcheck.md` (~100 lines with denser per-section content). The four-recipe shape (creation / cherry-pick / triage / retirement) is the structural backbone.
+  - [ ] **Length target.** ~150-250 lines — on par with `docs/invariants/devbox-mode.md` (~237 lines; multi-section recipe-heavy invariant) and denser than `docs/invariants/devbox-healthcheck.md` (~100 lines; single-probe contract). The four-recipe shape (creation / cherry-pick / triage / retirement) is the structural backbone; individual recipes dominate line count.
 
 - [ ] **Task 3: Register `INV-devbox-legacy-branch-retention` + INVARIANTS.md anchor** (AC 1-4 machine-enforced contract)
   - [ ] **Manifest entry.** Add new entry to `packages/keel-invariants/src/invariants.manifest.ts` AFTER the existing `INV-devbox-healthcheck` entry (Story 2.13) — Devbox block is contiguous per Story 2.12 iter-268 LESSON; numerical Story-order is the convention within the block:
@@ -169,7 +180,7 @@ So that if the absorbed `packages/devbox/` substrate (Stories 2.1-2.13 + 2.15-2.
     - (b) One-line why agents care: "When investigating a devbox regression on `main`, the canary-then-bisect triage path at `docs/invariants/devbox-legacy-branch-retention.md § Triage path` is the documented first-step. Agents MUST consult that doc before opening a fix task on `packages/devbox/` — the canary may show the regression pre-existed absorption (escalate upstream) or post-dates absorption (bisect on `main`)."
     - (c) Cherry-pick pointer: "Security-critical upstream patches are cherry-picked manually via the workflow at `docs/invariants/devbox-legacy-branch-retention.md § Cherry-pick workflow`; agents SHOULD NOT attempt automated cherry-picks (FR44 AMEND would be required)."
     - (d) `INV-devbox-legacy-branch-retention` citation for the machine-enforced contract.
-    - (e) Cross-references: § Devbox iteration environment intro for the Docker-in-Docker substrate the canary inherits; § Healthcheck (Story 2.13) for the dnsmasq probe the canary's own healthcheck would mirror (legacy-devbox carries upstream's broken `curl :3000` healthcheck — that's a known-divergence, NOT a cherry-pick candidate per § Cherry-pick workflow scope).
+    - (e) Cross-references: § Devbox iteration environment intro for the Docker-in-Docker substrate the canary inherits; § Healthcheck (Story 2.13) for the dnsmasq probe the canary's own healthcheck would mirror (legacy-devbox inherits UPSTREAM's healthcheck as-fetched — at time of Story 2.14 drafting upstream ships the broken `curl :3000` healthcheck, but dev agent MUST grep `$WT/docker-compose.yml` at Task 1 execution to record the actual state in Completion Notes; whatever the upstream state is, it's a known-divergence NOT a cherry-pick candidate per § Cherry-pick workflow scope).
   - [ ] **DO NOT modify existing `### Host-side CLI (Story 2.6)` through `### Healthcheck (Story 2.13)` H3 sections** — append NEW sibling H3 only (SC-17).
   - [ ] **`.envrc.example` comment touch (SC-15 — only if applicable):** no new `KEEL_DEVBOX_*` knob introduced by Story 2.14 (retention is git-branch-level, not container-runtime-level). SKIP `.envrc.example` edit.
   - [ ] **`RALPH.md § Decisions` (optional pre-record).** Story 2.14 may PRE-RECORD an entry in `RALPH.md § Decisions` framing the eventual M4-passes-clean retirement-decision (form: "DECISION-PENDING (M4 checkpoint clean): retire legacy-devbox per Story 15b.1; tag `legacy-devbox-final`; record M4 checkpoint reference inline."). This is a DEFERrable subtask — the actual decision belongs to Tthew at M4 close. If the dev agent judges the placeholder helpful as a forcing-function, land it; if not, defer to Story 15b.1 execution. Iter-285 LESSON: same-commit citation drift — if RALPH.md is touched, audit `RALPH.md` cross-references to Story 2.14 in this same commit.
@@ -207,7 +218,7 @@ So that if the absorbed `packages/devbox/` substrate (Stories 2.1-2.13 + 2.15-2.
 - **Files to edit on `main`:**
   - `packages/keel-invariants/src/invariants.manifest.ts` — add `INV-devbox-legacy-branch-retention` entry after `INV-devbox-healthcheck` (manifest count 33 → 34).
   - `INVARIANTS.md` — new H3 `### Devbox legacy-branch retention (Story 2.14)` + anchor bullet between `### Devbox healthcheck (Story 2.13)` (`:126-130`) and `### Gitignored-secret commit-deny (Story 2.2)` (`:132`).
-  - `packages/devbox/README.md` — new H2 `## Legacy-devbox branch retention (Story 2.14)` AFTER `## Healthcheck (Story 2.13)` (current end of file ~`:923`) and BEFORE `## cc-devbox upstream provenance`.
+  - `packages/devbox/README.md` — new H2 `## Legacy-devbox branch retention (Story 2.14)` AFTER `## Healthcheck (Story 2.13)` (currently `:909`) and BEFORE `## cc-devbox upstream provenance` (currently `:985`; EOF `:1001`). Use H2 names as the structural anchor; line numbers are drift-prone and indicative only.
   - `AGENTS.md` — new H3 `### Legacy-devbox branch retention (Story 2.14)` under § Devbox iteration environment, AFTER `### Healthcheck (Story 2.13)`.
   - `_bmad-output/implementation-artifacts/sprint-status.yaml` — `2-14-…: ready-for-dev → in-progress → review` lifecycle ledger.
 - **Files to create on `legacy-devbox` branch** (separate worktree, separate push):
@@ -227,7 +238,7 @@ So that if the absorbed `packages/devbox/` substrate (Stories 2.1-2.13 + 2.15-2.
 - [Source: `_bmad-output/planning-artifacts/prd.md:676`] — § Migration Sequence: "M0.5 landing: packages/devbox/ takes over; standalone cc-devbox becomes deprecated-but-still-functional on a legacy-devbox branch until after the M4 checkpoint."
 - [Source: `_bmad-output/planning-artifacts/prd.md:668`] — § 1.0 cut ritual: "Retire cc-devbox; the absorbed packages/devbox/ is canonical."
 - [Source: `_bmad-output/planning-artifacts/prd.md:143`] — § M4 checkpoint ritual: "explicit decision at end of critical path… Promoted from one-time M4 ritual to recurring quarterly falsification checkpoint post-1.0."
-- [Source: `_bmad-output/planning-artifacts/prd.md:932`] — FR33: "Developer can record M4 checkpoint decisions as committed markdown artefacts in the repo."
+- [Source: `_bmad-output/planning-artifacts/prd.md:997`] — FR33: "Developer can record M4 checkpoint decisions as committed markdown artefacts in the repo." (Path convention `docs/research/checkpoints/YYYY-Q#.{md,json}` is established by architecture.md:361 — FR33 itself specifies the capability, not the path.)
 - [Source: `_bmad-output/planning-artifacts/architecture.md:131-134`] — § Source-tree absorption: `git clone https://github.com/tthew/cc-devbox packages/devbox` (the absorption recipe Story 2.1 executed).
 - [Source: `_bmad-output/planning-artifacts/architecture.md:361`] — § Quarterly M4 checkpoint entries `docs/research/checkpoints/YYYY-Q#.{md,json}` (RALPH.md decision-citation target per AC 3 (a)).
 - [Source: `_bmad-output/planning-artifacts/epics.md:6268-6314`] — Story 15b.1 `scripts/major-cut.sh` retirement ritual (epics.md `:6293` Story 15b.1 statement; `:6312-6314` AC for `legacy-devbox` retirement step).
@@ -239,7 +250,7 @@ So that if the absorbed `packages/devbox/` substrate (Stories 2.1-2.13 + 2.15-2.
 - [Source: `packages/keel-invariants/src/invariants.manifest.ts`] — `InvariantSchema` five-field contract; sibling Story 2.13 entry as canonical shape reference for Story 2.14 entry.
 - [Source: `packages/keel-invariants/src/sync-gate.ts:24`] — anchor regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` (lowercase-after-`INV-` mandatory; Story 1.9 iter-7 LESSON).
 - [Source: `packages/devbox/whitelist/github.txt`] — egress whitelist already covers `github.com` + `codeload.github.com` (Task 1 `git fetch` from upstream is whitelist-clean).
-- [Source: `packages/devbox/README.md`] — current end-of-file ~line 923; § Healthcheck (Story 2.13) is current last H2 before `## cc-devbox upstream provenance` (insertion-point predecessor for Story 2.14 § Legacy-devbox branch retention H2).
+- [Source: `packages/devbox/README.md`] — current EOF at line 1001; `## Healthcheck (Story 2.13)` at `:909` is current last H2 before `## cc-devbox upstream provenance` at `:985` (insertion-point predecessor for Story 2.14 § Legacy-devbox branch retention H2 — structural H2-name anchoring preferred over line numbers).
 - [Source: `AGENTS.md`] — § Devbox iteration environment current last H3 is `### Healthcheck (Story 2.13)` (insertion-point predecessor for Story 2.14 H3).
 - [Source: `CLAUDE.md § Worktrees`] — `.claude/worktrees/` is gitignored; scratch worktrees for one-time operations are appropriate; Guardrail 16 retention rule applies to Ralph's iteration worktree only.
 - [Source: upstream `https://github.com/tthew/cc-devbox`] — canonical pre-absorption layout source; Task 1 fetches `main` directly into local ref `legacy-devbox`.
