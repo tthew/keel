@@ -14,7 +14,10 @@
 
 ## BLOCKED
 
-_(none — iter-255 push RECOVERED over SSH :22; iter-256 orient shows clean tree, no unpushed commits, network intermittency note carried forward for iter-256 step-5 push. `gh pr checks 230` timed out at iter-256 orient (`dial tcp 140.82.113.5:443: i/o timeout`) but PR has no CI configured — `statusCheckRollup: []` consistent across iter-219..255 — so not a CI gate. Proceed with push.)_
+- [ ] iter-256 step-5 push FAILED — SSH :22 timeout to github.com re-surfaced (same intermittent class from iter-249..254; iter-255 briefly recovered then re-blocked at iter-256). 1 unpushed commit locally: `8c2125b docs(story-2-11): iter-256 /bmad-testarch-atdd — ATDD-skip, validated → atdd-scaffolded, grounds (c)+(ii)+(iii)`. Plus this follow-up commit updating BLOCKED state (iter-256-post-push-fail).
+  - Attempted: `git push origin feat/epic-2-packaged-devbox` at iter-256 step 5 — blocked ~60s on `ssh: connect to host github.com port 22: Connection timed out`; returned `fatal: Could not read from remote repository` + RC=128.
+  - Error/Issue: SSH :22 egress to github.com `140.82.121.{3,4,5,6}:22` intermittently timed out across iter-219..256; iter-255 saw a recovery window; iter-256 re-blocked. `gh pr checks 230` also timed out at iter-256 orient (`dial tcp 140.82.113.5:443: i/o timeout`) — HTTPS :443 intermittency correlates with SSH :22 intermittency, suggesting upstream network-path issue from iter-env to github.com ASN rather than port-specific egress block. PR #230 has no CI configured (`statusCheckRollup: []`) so HTTPS timeout is not a CI gate, but same network path suggests correlated outage class.
+  - Next: next iter retries SSH :22 push on orient per the iter-249..255 carry-forward recovery-banking pattern. Commits are safe in local branch — no force-push, no amend, preserved intact. When SSH :22 recovers, `git push` flushes all unpushed commits in a single round-trip with no conflict. Operator escalation no longer newly-strong-recommended (iter-255 proved the intermittency self-resolves within 1-3 iters).
 
 ## ATDD Red Phase
 
