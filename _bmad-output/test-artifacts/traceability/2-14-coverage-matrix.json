@@ -1,0 +1,138 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-24T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.14",
+    "label": "Legacy-devbox branch retention policy"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-14-legacy-devbox-branch-retention-policy.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "description": "`legacy-devbox` branch exists with pre-absorption cc-devbox layout + retention README banner. Given remote `origin/legacy-devbox` exists, when I `git fetch origin legacy-devbox && git checkout legacy-devbox`, then the working tree carries the pre-absorption standalone cc-devbox layout (top-level Dockerfile, docker-compose.yml, Makefile, entrypoint.sh, README.md — NOT nested under packages/devbox/). The branch's README.md opens with a Story-2.14 retention banner naming (a) scope, (b) sunset criteria, (c) operator pointer back to substrate.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-291 `/bmad-dev-story` Task 1 re-entry impl-time smokes: `git ls-remote origin refs/heads/legacy-devbox` returned `cfdf011006d44f52e36f461eacd8395e7f54ac0e refs/heads/legacy-devbox` — branch materialized on origin. `git show origin/legacy-devbox:README.md | head -20` shows retention banner carrying upstream SHA `8ea5131eecbbfe0d0eb063c55f170cce6915af90` fully substituted (grep UPSTREAM_SHA placeholder-guard already fired locally pre-commit); banner carries (a) scope framing ('retention-only snapshot of upstream [tthew/cc-devbox] captured at upstream main@<SHA>... distinct from the absorbed-into-packages/devbox/ substrate that lives on main'), (b) sunset criteria ('retired by Story 15b.1 scripts/major-cut.sh at the 1.0 cut ritual... tagged legacy-devbox-final... then removed from active tracking'), (c) operator pointer back to substrate ('Canonical substrate: packages/devbox/ on main (Stories 2.1-2.13 + 2.15-2.17). Operators should default to that — this branch is a fallback canary, not the active devbox.'). Upstream ASCII-art banner preserved below retention banner per additive-prepend design. Pre-absorption layout confirmed via upstream SHA provenance + iter-291 Task 1 META-guard grep of $WT/docker-compose.yml at :40 + :70-71 confirming upstream still ships broken curl :3000/api/health healthcheck (consistent with pre-absorption layout; known-divergence NOT cherry-pick candidate per § Cherry-pick workflow scope). Branch-creation method per `git fetch <upstream> main:legacy-devbox` preserved upstream commit history (125 objects, 112.25 KiB, 38 deltas at iter-291 fetch — load-bearing for § Triage path `git bisect` posture on canary)."
+    },
+    {
+      "id": "AC-2",
+      "description": "Cherry-pick workflow documented as manual (not automated) with minimal-drift expectation. Given the legacy branch is in retention, when a security-critical upstream patch lands in main's packages/devbox/, then `docs/invariants/devbox-legacy-branch-retention.md § Cherry-pick workflow` documents the manual diff-application recipe (`git format-patch -1 <main-sha> -- packages/devbox/ | sed 's|^.*packages/devbox/|a/|; s|^.*packages/devbox/|b/|' | git apply` is canonical) and explicitly frames the expectation as 'minimal-drift retention, not feature parity'. Documented-but-not-automated by design (FR44 AMEND would be required to script it; out of scope at 1.0).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-290 `/bmad-dev-story` Tasks 2+3+4 ON-MAIN landing impl-time smokes: (i) `docs/invariants/devbox-legacy-branch-retention.md § Cherry-pick workflow` (lines 57-91 at 167-line invariant doc) carries `git format-patch -1 \"$MAIN_SHA\" -- packages/devbox/ | sed 's|a/packages/devbox/|a/|g; s|b/packages/devbox/|b/|g' | git am` canonical recipe — the path-rewrite pair is load-bearing because paths differ between main (packages/devbox/<file>) and legacy-devbox (<file> at branch root). (ii) 'Minimal-drift, not feature parity' framing present at § Cherry-pick workflow § Scope discipline. (iii) Explicit IN-SCOPE list (CVE-class fixes, fail-closed-egress regressions, secret-leakage regressions, network-exposure regressions) + OUT-OF-SCOPE list (feature additions including backporting Story 2.13's healthcheck explicitly called out, cosmetic refactors, dependency bumps, README/docs edits) present. (iv) 'Documented-but-not-automated by design' clause at § Cherry-pick workflow end: 'FR44 AMEND against this document would be required to script the cherry-pick workflow... At 1.0 the workflow is manual operator-invoked; automation is out of scope.' (v) `sha256sum docs/invariants/devbox-legacy-branch-retention.md` returned `02f6048f78cf3c4e315ec6bc5c55bd52a7278d2cba99cc1f1e7b5a5b91d0c4ca` matching manifest `INV-devbox-legacy-branch-retention` contentHash field at `packages/keel-invariants/src/invariants.manifest.ts:309` — sync-gate-bound. (vi) `pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check` GREEN at iter-292 re-run; manifest count 33 → 34 confirmed via `grep -c \"^    id: 'INV-\"` = 34 (iter-290 landing state preserved at iter-292). (vii) `sync-gate.ts:24` anchor-regex matches `INVARIANTS.md:136` anchor bullet `- **\\`INV-devbox-legacy-branch-retention\\`** — ...` — lowercase-after-INV- compliant per Story 1.9 iter-7 LESSON. Live cherry-pick exercise deferred (no synthesised CVE-class fix to cherry-pick at Story 2.14 landing — synthetic testing would not add real coverage)."
+    },
+    {
+      "id": "AC-3",
+      "description": "Retirement procedure documented (executed by Story 15b.1). Given the M4 checkpoint passes without devbox regressions reported, when Tthew decides to retire the branch, then the documented procedure in `docs/invariants/devbox-legacy-branch-retention.md § Retirement gate` requires: (a) RALPH.md § Decisions entry recording the decision with M4 checkpoint reference, (b) `git tag legacy-devbox-final origin/legacy-devbox` to preserve a permanent reference, (c) `git push origin --delete legacy-devbox` to remove the branch from active tracking, (d) the tag MUST remain pushed (`git push origin legacy-devbox-final`) so the snapshot stays reachable post-retirement. Story 15b.1's `scripts/major-cut.sh` owns the EXECUTION; Story 2.14 owns the recipe-contract that 15b.1 binds against.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-290 `/bmad-dev-story` Tasks 2+3+4 ON-MAIN landing impl-time smokes: (i) `docs/invariants/devbox-legacy-branch-retention.md § Retirement gate` (lines 140-152) carries 5-step execution sequence: (1) `git tag legacy-devbox-final origin/legacy-devbox`, (2) `git push origin legacy-devbox-final`, (3) `git push origin --delete legacy-devbox`, (4) RALPH.md § Decisions entry dated with M4 checkpoint doc path (`docs/research/checkpoints/YYYY-Q#.{md,json}` per FR33 + architecture.md:361), (5) AGENTS.md § Devbox iteration environment H3 flip from 'active retention branch' → 'retired; preserved at legacy-devbox-final tag for archaeology only.' (ii) Lockstep contract clause present: 'If a future iter modifies the retirement procedure (e.g. tag-name changes, additional cleanup steps, alternative retention horizons), BOTH this document's § Retirement gate AND Story 15b.1's scripts/major-cut.sh acceptance criteria MUST update in the same PR. Drift between the two is an INV-devbox-legacy-branch-retention violation.' (iii) 'Story 15b.1 owns EXECUTION; Story 2.14 owns recipe-contract' framing present. (iv) Permanent-tag + branch-delete sequence is canonical git retention-with-archaeology posture — tag remains reachable via `git fetch origin legacy-devbox-final` post-retirement; operators running `git fetch origin legacy-devbox` post-retirement get clean miss (expected). (v) § Sunset criteria (lines 132-138) documents M4-checkpoint gate + two-consecutive-M4-windows fallback rule + date-unpinned intent — AC 3 (a) RALPH.md-decision-entry contract satisfied via § Retirement gate step 4. Live retirement exercise out of scope at Story 2.14 landing by AC contract — Story 15b.1's scripts/major-cut.sh owns execution at 1.0 cut."
+    },
+    {
+      "id": "AC-4",
+      "description": "Triage path documented. Given anyone (Ralph subagent, operator, fork maintainer) opens an issue about a devbox regression on main, when they consult `docs/invariants/devbox-legacy-branch-retention.md § Triage path` (and the AGENTS.md + packages/devbox/README.md pointers to it), then the documented first-step is: (1) clone the legacy-devbox branch as a canary fork; (2) reproduce the regression against the canary; (3) if ABSENT on legacy-devbox, bisect via `git bisect start HEAD 5278738 -- packages/devbox/`; (4) if PRESENT on legacy-devbox, escalate to upstream cc-devbox or fix in-place on packages/devbox/.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-290 `/bmad-dev-story` Tasks 2+3+4 ON-MAIN landing impl-time smokes: (i) `docs/invariants/devbox-legacy-branch-retention.md § Triage path` (lines 93-130) carries canary-then-bisect canonical recipe: (1) `git fetch origin legacy-devbox && git worktree add ../legacy-devbox-canary legacy-devbox`; (2) reproduce regression in canary; (3a) if ABSENT on canary → `git log 5278738..HEAD -- packages/devbox/` enumerates candidate commits, `git bisect start HEAD 5278738 -- packages/devbox/` finds introducing commit; (3b) if PRESENT on canary → pre-existed absorption, escalate upstream OR fix in-place on packages/devbox/ (substrate-canonical); (4) cleanup via `git worktree remove ../legacy-devbox-canary`. (ii) Commit `5278738` anchor rationale documented at § Triage path § Why bisect from 5278738: 'Commit 5278738 is Story 2.1's packages/devbox/ landing commit... any packages/devbox/ regression introduced post-absorption lives between that commit and HEAD; bisecting with the -- packages/devbox/ path-filter narrows the search space to commits that actually touched the substrate.' (iii) Load-bearing-UX framing present at § Triage path narrative-is-load-bearing clause. (iv) Three-site triage-pointer lockstep verified: (a) full recipe in invariant doc § Triage path (lines 93-130); (b) TL;DR in `packages/devbox/README.md § Legacy-devbox branch retention (Story 2.14)` H2 at :985 with 5-line canary-then-bisect variant; (c) one-line pointer + AC-4 citation in `AGENTS.md § Legacy-devbox branch retention (Story 2.14)` H3 at :202 within § Devbox iteration environment per SC-17 sibling-append discipline. (v) 'Fix-in-place means editing packages/devbox/ on main, NOT cherry-picking a fix back to the legacy-devbox branch' carve-out present at § Triage path step 3b — prevents scope-creep overlap with § Cherry-pick workflow (CVE-class only). (vi) Manifest sync-gate `pnpm keel-invariants:check` + `pnpm keel-invariants:check-all` GREEN post-landing with INV-devbox-legacy-branch-retention binding § Triage path via contentHash. Live `git bisect` exercise against synthesised regression deferred (requires synthesised fault-inject out of scope at Story 2.14 landing)."
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 4, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2" },
+      { "id": "AC-2", "priority": "P2" },
+      { "id": "AC-3", "priority": "P2" },
+      { "id": "AC-4", "priority": "P2" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 4 P2 ACs; Epic-2-substrate-policy-plus-branch-creation class story (FOURTEENTH Epic 2 delivery; FIRST story combining (i) git-branch-state retention contract (origin/legacy-devbox one-time creation + sustain-through-M4 + Story-15b.1-retirement) + (ii) multi-recipe invariant-doc authoring (§ Branch creation contract + § Cherry-pick workflow + § Triage path + § Sunset criteria + § Retirement gate + § Fork extension contract) + (iii) cross-story lockstep contract binding against Story 15b.1's future scripts/major-cut.sh — distinct from Stories 2.1-2.13 runtime-substrate-code extensions since Story 2.14 adds ZERO runtime code under packages/devbox/; the 'running code' IS the git branch itself); TWENTY-FOURTH cumulative trace-WAIVED precedent (THIRTEENTH Epic 2; extends Story 2.13 iter-284 twenty-third); TWENTY-FIFTH ATDD-skip-trace-WAIVED co-application pairing overall (extends iter-289 ATDD-skip grounds (ii)+(iii)). Ground-(a)+(b) hybrid conjunction applied with substrate-verification + no-test-runner. NARROWER than Story 2.13 — drops (c) variant-(ii) operator-workstation-deferred-AC-completion since all 4 Story 2.14 ACs are static-smoke-testable (no runtime behaviour requiring live operator-workstation observation).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.14 authors 1 NEW file (docs/invariants/devbox-legacy-branch-retention.md contentHash 02f6048f78cf3c4e315ec6bc5c55bd52a7278d2cba99cc1f1e7b5a5b91d0c4ca) + 1 NEW git branch (origin/legacy-devbox at SHA cfdf011006d44f52e36f461eacd8395e7f54ac0e; upstream main@8ea5131eecbbfe0d0eb063c55f170cce6915af90 + 1 retention-banner commit) + 5 modified files per iter-290 + iter-291 Dev Agent Record landing (packages/keel-invariants/src/invariants.manifest.ts 34th entry; INVARIANTS.md H3 + anchor bullet; packages/devbox/README.md H2; AGENTS.md H3; sprint-status.yaml ready-for-dev → in-progress → review). 34th manifest entry (INV-devbox-legacy-branch-retention) lands with sync-gate GREEN after pnpm --filter @keel/keel-invariants build rebuild (iter-257 NOVEL LESSON reaffirmed: manifest rebuild MUST precede sync-gate verification after adding new InvariantSchema entry).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification unlocks at Epic 13 test framework landing — NO operator-workstation dependency (contrast Story 2.13 AC 4's mid-run SIGKILL which remains operator-workstation-only even under Epic 13). All 4 Story 2.14 ACs substrate-verified at iter-290 + iter-291 + iter-292 via impl-time smokes (git ls-remote probe + git show banner-content probe + sha256 contentHash match + sync-gate GREEN + three-site lockstep + anchor-regex compliance).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
