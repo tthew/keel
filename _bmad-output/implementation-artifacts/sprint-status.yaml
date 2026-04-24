@@ -48,6 +48,7 @@
 # last_updated: 2026-04-24 Story-2-12-in-progress-iter-268 UTC
 # last_updated: 2026-04-24 Story-2-12-review-iter-268 UTC
 # last_updated: 2026-04-24 Story-2-12-done-CR-closure-re-run-2-ZERO-PATCH-iter-279 UTC
+# last_updated: 2026-04-24 Story-2-13-ready-for-dev-iter-280 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -122,7 +123,7 @@ development_status:
   2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors: done
   2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared: done
   2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: done
-  2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: backlog
+  2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: ready-for-dev
   2-14-legacy-devbox-branch-retention-policy: backlog
   2-15-committed-claude-settings-json-with-deny-allow-permission-policies: backlog
   2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: backlog
