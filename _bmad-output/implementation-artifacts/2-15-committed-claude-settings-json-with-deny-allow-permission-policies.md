@@ -91,8 +91,8 @@ So that Claude Code sessions (both interactive `claude` and Ralph's `claude -p` 
 - [ ] **Task 4: `CLAUDE.md` Claude-Code-specifics bullet touch** (AC 4)
   - [ ] **Insertion point.** `CLAUDE.md:74` currently reads `- **Don't touch `.claude/settings.local.json`** — it's user-specific and gitignored.`. Update this bullet to reference the committed counterpart AND add a new sibling bullet referencing the committed file. Resulting two bullets (replace the existing line with these two):
     ```markdown
-    - **Committed settings at `.claude/settings.json`** — tracked permission policy (`permissions.deny` + `permissions.allow`) per NFR5a. See `AGENTS.md § Claude Code settings policy (Story 2.15)` for the fork-extension honour system. Don't edit to weaken the deny list — the sync-gate (Story 2.17 forward-ref) flags tampering.
-    - **Don't touch `.claude/settings.local.json`** — it's user-specific and gitignored. Local allow rules extend the committed file; local allow rules for patterns matching a committed deny are silently ignored (Claude Code's `deny`-wins-over-`allow` resolution).
+    - **Committed settings at `.claude/settings.json`** — tracked permission policy (`permissions.deny` + `permissions.allow`) per NFR5a. See `AGENTS.md § Claude Code settings policy (Story 2.15)` for the fork-extension honour system. Don't edit to weaken the deny list — Story 2.17's content-hash sync-gate will flag tampering once landed.
+    - **Don't touch `.claude/settings.local.json`** — it's user-specific and gitignored. Local allow rules extend but cannot weaken committed deny rules (see AGENTS.md H3 for resolution semantics).
     ```
   - [ ] **Scope.** Do NOT edit other CLAUDE.md sections (knowledge-file contract table, promotion rules, etc.). This is a targeted two-bullet update only.
 
@@ -115,7 +115,7 @@ So that Claude Code sessions (both interactive `claude` and Ralph's `claude -p` 
     # Verify byte-identical
     diff .claude/settings.json packages/keel-templates/src/seeds/.claude/settings.json && echo "OK: seed matches substrate"
     ```
-  - [ ] **`packages/keel-templates/README.md` update.** The existing README (at `packages/keel-templates/README.md`) documents the package's purpose. Append a bullet to the list of seeded assets (or create the list if absent): "- `src/seeds/.claude/settings.json` — Story 2.15 committed Claude Code permission policy (deny/allow baseline per NFR5a). `create-keel-app` (Story 15a.4) materialises this at fresh-fork repo root."
+  - [ ] **`packages/keel-templates/README.md` update.** The existing README (at `packages/keel-templates/README.md`) is currently a 5-line stub: `# @keel/keel-templates` + `Page-template library.` + `Empty shell in Story 1.1 — populated in Epic 12.`. Story 2.15 is the first substrate producer of seeded assets into `src/seeds/`, so Task 6's README edit must (a) replace the "populated in Epic 12" sentence (now inaccurate — seeding begins at Story 2.15, not Epic 12) with a short paragraph framing the package as the consumer contract for substrate-authored seeds, AND (b) create a NEW seeded-assets list (the list does not yet exist) with a single bullet: "- `src/seeds/.claude/settings.json` — Story 2.15 committed Claude Code permission policy (deny/allow baseline per NFR5a). `create-keel-app` (Story 15a.4) materialises this at fresh-fork repo root." Future seed-producers (Story 2.16 hooks, Story 3.3 PROMPT templates) append sibling bullets; SC-15 sibling-append discipline applies.
   - [ ] **`packages/keel-templates/package.json` passthrough.** No `package.json` edit expected — the `src/seeds/` tree is filesystem-level, not a programmatic export. Consumer (`create-keel-app` Story 15a.4) reaches into `packages/keel-templates/src/seeds/` via the pnpm workspace + fs-level copy. Verify at landing: `ls packages/keel-templates/src/seeds/.claude/` returns `settings.json`.
 
 ### Review Findings (post-dev / CR)
@@ -166,12 +166,9 @@ NFR5a (PRD `:1075`) enumerates the minimum-coverage requirements for the in-sess
 
 Story 2.15's AC 2 (13-entry `permissions.deny`) maps to the Read + Bash axes of NFR5a's coverage. The Write-path axis (Edit/Write denials on settings/hook/git-hook paths) is Story 2.16's hook-based defense (settings.json's `permissions.deny` cannot express Write-path denials with the same granularity as a PreToolUse hook reading tool-call JSON from stdin — hook-based defense is the right tool for Write-path patterns).
 
-**Gap against strict NFR5a minimum:** Story 2.15's 13-entry deny list does NOT include `Read(~/.ssh/**)` or `Read(~/.aws/credentials)`. These are operator-workstation secrets that live outside the devbox (NFR10 forbids host `.ssh/` bind-mount; `.aws/credentials` is not mounted by substrate compose). Inside the devbox, the devbox sandbox + the `keel_home_dev` named-volume isolation make these read-denies no-ops (the paths don't resolve to anything sensitive inside the container). The deny entries are still **cheap to add** — they become load-bearing for a fork that DOES bind-mount host `.ssh/` or `.aws/` (against substrate advice). The dev may optionally add these two entries to the 13 as "belt-and-braces operator-workstation guard"; AC 2's "at minimum" phrasing permits the extension. If extending, add:
-```json
-"Read(~/.ssh/**)",
-"Read(~/.aws/credentials)",
-```
-to the `permissions.deny` array. Note: Claude Code's `~` expansion is honoured in permission-rule paths per upstream CLI contract.
+**Gap against strict NFR5a minimum:** Story 2.15's 13-entry deny list does NOT include `Read(~/.ssh/**)` or `Read(~/.aws/credentials)`. These are operator-workstation secrets that live outside the devbox (NFR10 forbids host `.ssh/` bind-mount; `.aws/credentials` is not mounted by substrate compose). Inside the devbox, the devbox sandbox + the `keel_home_dev` named-volume isolation make these read-denies no-ops (the paths don't resolve to anything sensitive inside the container).
+
+**Decision — DEFER to Story 2.17 bypass-resistance close-out** (pinned pre-dev SM per iter-296): the two entries (`Read(~/.ssh/**)` + `Read(~/.aws/credentials)`) are NOT added at Story 2.15 landing. Rationale: (a) substrate-internal posture is the no-op case as described above — adding entries that resolve to nothing is decorative at best; (b) Story 2.17 scope already owns "bypass-resistance + expanded coverage" for the deny/hook substrate, including the `.git/hooks/**` expansion — operator-workstation-guard extensions belong in the same scope gate; (c) forks that DO bind-mount host `.ssh/` or `.aws/` (against substrate advice) can self-amend via the AMEND path at `docs/invariants/fork.md § Amendment-vs-fork decision tree` — operator-layer opt-in is the correct mechanism, not pre-emptive substrate inclusion. AC 2's "at minimum" phrasing remains in place; Story 2.17 may revisit add-or-keep-deferred at SC-17 close-out reconciliation. The dev agent MUST NOT add these entries at Story 2.15 dev-story landing — doing so would scope-creep into Story 2.17's bypass-resistance surface.
 
 ### Claude Code CLI version pin
 
@@ -243,8 +240,8 @@ No pre-commit gate additions at Story 2.15. The prek pipeline (Story 1.4 `.pre-c
 - [Source: `_bmad-output/planning-artifacts/prd.md:910`] — PRD § Invariants Coverage table "Claude Code hook + settings secret-access denylist" row (Story 2.16 + Story 2.17 forward-ref for manifest entry).
 - [Source: `_bmad-output/planning-artifacts/epics.md:1165`] — Epic 2 § NFR5a implementation notes listing the Story 2.15 `.claude/settings.json` deny/allow axes + Story 2.16 hook-based axes.
 - [Source: `_bmad-output/planning-artifacts/epics.md:1670-1720`] — Story 2.16 full AC set (forward-ref; dev-agent understands downstream scope).
-- [Source: `_bmad-output/planning-artifacts/epics.md:1722-1800`] — Story 2.17 full AC set (forward-ref; Story 2.17's manifest entry + INVARIANTS.md H3 + sync-gate coverage).
-- [Source: `_bmad-output/planning-artifacts/epics.md:6214-6232`] — Story 15a.4 (`packages/keel-templates/` consumer seeding) — Story 2.15 Task 6's contract counterpart.
+- [Source: `_bmad-output/planning-artifacts/epics.md:1722-1773`] — Story 2.17 full AC set (forward-ref; Story 2.17's manifest entry + INVARIANTS.md H3 + sync-gate coverage).
+- [Source: `_bmad-output/planning-artifacts/epics.md:6214-6230`] — Story 15a.4 (`packages/keel-templates/` consumer seeding) — Story 2.15 Task 6's contract counterpart.
 - [Source: `docs/invariants/fork.md § Precedence`] — substrate-wins precedence model; AGENTS.md Task 3 honour-system bullets cite this.
 - [Source: `docs/invariants/fork.md § Amendment-vs-fork decision tree`] — fork/amend/defer path for when a fork disagrees with substrate `.claude/settings.json` rules.
 - [Source: `AGENTS.md:56-63`] — promotion rules (applies to every AI agent → `AGENTS.md`). Task 3 AGENTS.md H3 is the correct placement per these rules (Claude Code settings apply to every AI agent via the permission layer).
