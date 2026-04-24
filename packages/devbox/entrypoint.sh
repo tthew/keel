@@ -143,7 +143,12 @@ if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
   # The named volume may have been inspected from host OR pre-populated
   # with stray perms on upgrade; sshd's StrictModes (default yes) rejects
   # any parent dir more permissive than 0700, silently. Enforce.
-  chmod 0700 /home/dev/.ssh /home/dev/.ssh/host_keys
+  # gosu dev: chmod needs CAP_FOWNER when invoked by root against files
+  # owned by a different UID; Story 2.5 cap_drop:[ALL] strips CAP_FOWNER,
+  # so root chmod here EPERMs + set -e aborts the entrypoint before
+  # keygen. dev owns these files (created via gosu dev mkdir at L141),
+  # so gosu dev chmod satisfies DAC without needing CAP_FOWNER.
+  gosu dev chmod 0700 /home/dev/.ssh /home/dev/.ssh/host_keys
   # Atomic host-key generation: a mid-keygen container kill leaves a
   # partial keypair which sshd refuses. Generate BOTH keys into a
   # scratch dir then atomically mv into place. Guard on BOTH algorithms'
@@ -159,7 +164,10 @@ if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
   # Touch authorized_keys with 0600 every boot (idempotent). Empty file
   # = no inbound auth; operator appends pubkeys via Task 6 flow (AC 5).
   [[ -f /home/dev/.ssh/authorized_keys ]] || gosu dev touch /home/dev/.ssh/authorized_keys
-  chmod 0600 /home/dev/.ssh/authorized_keys
+  # gosu dev: see chmod 0700 comment above — CAP_FOWNER is dropped, dev
+  # owns authorized_keys (touched via gosu dev), so gosu dev chmod is the
+  # DAC-satisfying path.
+  gosu dev chmod 0600 /home/dev/.ssh/authorized_keys
   # Launch sshd as dev (port 2222 > 1024; NET_BIND_SERVICE not needed).
   # -D = foreground; backgrounded with `&` because PID 1 is the `exec
   # gosu dev "$@"` handoff below. Liveness verified post-spawn so a
