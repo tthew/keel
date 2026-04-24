@@ -139,10 +139,14 @@ services:
       # entrypoint.sh's `${KEEL_DEVBOX_SSH:-false}` can gate the sshd-launch
       # block. Compose's ${VAR} interpolation runs on the HOST at parse time;
       # the container only sees vars in `environment:` or `env_file:`.
-      # Host-side normalisation happens in resolve_ssh_state() — at this
-      # propagation site the value is passed through verbatim (default `false`
-      # preserves the no-SSH posture when .envrc is absent).
-      KEEL_DEVBOX_SSH: ${KEEL_DEVBOX_SSH:-false}
+      # Source the normalised (case-folded, strict-true-only) host-side value
+      # exported by resolve_ssh_state() — `KEEL_DEVBOX_SSH_RESOLVED` — NOT the
+      # raw `KEEL_DEVBOX_SSH`. Sourcing the raw var here would leak host-side
+      # case variants (`True`/`TRUE`/`tRuE`) through to the container, where
+      # entrypoint.sh's case-sensitive `"true"` match rejects them, producing
+      # a port-published-but-no-sshd-listening drift. Default `false` preserves
+      # the no-SSH posture when `.envrc` is absent.
+      KEEL_DEVBOX_SSH: ${KEEL_DEVBOX_SSH_RESOLVED:-false}
     # Story 2.2: compute + shm limits parameterised via .envrc. Non-swarm
     # canonical form (service-level `cpus:` / `mem_limit:` / `shm_size:` —
     # NOT `deploy.resources.limits.*`, which Compose silently ignores outside

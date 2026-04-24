@@ -129,11 +129,14 @@ else
   exit 1
 fi
 
-# Story 2.12: opt-in sshd. KEEL_DEVBOX_SSH is normalised on the host by
-# resolve_ssh_state() before container start; here we honour the
-# container-side env var (propagated via docker-compose.yml § environment
-# by Task 4). Case-sensitive "true" match mirrors Story 2.11 shared-mode
-# entrypoint posture — normalisation already done host-side.
+# Story 2.12: opt-in sshd. The container-side `KEEL_DEVBOX_SSH` env var
+# receives the VALUE of host-side `KEEL_DEVBOX_SSH_RESOLVED` (the canonical
+# case-folded + strict-true-only output of resolve_ssh_state(), mapped at
+# docker-compose.yml § environment). Case-sensitive "true" match is safe
+# here BECAUSE the resolver already folded host-side variants (`True`,
+# `TRUE`, `tRuE`) to the canonical `"true"`; this gate would have rejected
+# those variants + leaked a port-published-but-no-sshd-listening drift if
+# compose had sourced the raw `KEEL_DEVBOX_SSH` instead of the resolved one.
 if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
   # Pre-creation runs as root (pre-gosu). Use gosu to create the tree
   # with dev:dev ownership from t=0 so the subsequent keygen + sshd both
