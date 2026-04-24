@@ -375,7 +375,7 @@ const raw: Invariant[] = [
     description:
       'Invariant-doc drift protection for docs/invariants/claude-hook-denylist.md — the contract description carrying the hook-denylist narrative, decision-shape, JSONL schema, halt-threshold pin, source-files index, fork-extension path, limitations, and Story 2.17 git-layer backstop table. Story 2.17 Task 4 split: the former INV-claude-hook-secret-denylist sourcePath (this doc) is now covered here, while the ID INV-claude-hook-secret-denylist itself is repointed to the hook script per the Option B rationale at story Task 4.1 (preserves ID lineage; splits doc protection into a -doc sibling). Whole-file sha256; drift-detected by Story 1.9 pre-merge sync-gate.',
     sourcePath: 'docs/invariants/claude-hook-denylist.md',
-    contentHash: 'cb32195fc5731688e5224310ca45b2a41cc8b3da1ecedbe2e42c5760413abb96',
+    contentHash: '90812335f70c757c88984da2a9bfcde87b2a2146d4a207a8c0f814e89239ebac',
     anchors: ['INV-claude-hook-secret-denylist-doc'],
   },
   {
