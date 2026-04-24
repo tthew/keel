@@ -316,6 +316,19 @@ RUN userdel -r ubuntu 2>/dev/null || true \
 # ---------------------------------------------------------------------------
 RUN install -m 0644 -o root -g root /dev/null /var/log/dnsmasq.log
 
+# Story 2.13 Task 5 — Story 2.12 iter-279 D-1 absorption.
+# Pre-create sshd.log with root:root 0644. The entrypoint.sh:235 launch
+# `gosu dev /usr/sbin/sshd -D -e 2>>/var/log/sshd.log &` opens the stderr
+# fd in the PARENT SHELL (running as root pre-gosu), so the DAC check
+# at open() is "root opens root:root 0644 for append" — owner-rw bit
+# grants access WITHOUT requiring CAP_DAC_OVERRIDE (which is dropped
+# under Story 2.5 cap_drop:[ALL]). Once the fd is inherited by the
+# gosu-execed sshd child, subsequent write(2) calls do NOT re-check
+# DAC on the open fd (POSIX fd-inheritance semantics). Do NOT move
+# the sshd launch past the `exec gosu dev` handoff without updating
+# perms to dev:dev or 0666 (§ Opt-in SSH pre-gosu-only constraint).
+RUN install -m 0644 -o root -g root /dev/null /var/log/sshd.log
+
 # ---------------------------------------------------------------------------
 # /run writable by dev under USER dev + cap_drop: [ALL] (Story 2.3 deferred
 # AR-7 remediation, branch (a)).

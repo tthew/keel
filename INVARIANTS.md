@@ -123,6 +123,12 @@ Opt-in sshd via `KEEL_DEVBOX_SSH=true` (pubkey-only, root-disabled, loopback-bou
 
 - **`INV-devbox-ssh`** — Opt-in sshd + loopback-bound port publication contract (`KEEL_DEVBOX_SSH=true` opens 127.0.0.1:2222 pubkey-only; ALL ports must use 127.0.0.1:<host>:<container> form). Source: `docs/invariants/devbox-ssh.md`.
 
+### Devbox healthcheck (Story 2.13)
+
+Compose-level healthcheck probes dnsmasq liveness (always) + sshd liveness (iff `KEEL_DEVBOX_SSH=true`); replaces upstream cc-devbox's broken `curl :3000`. Timing parameters `interval 10s` / `timeout 5s` / `retries 3` / `start_period 30s` are substrate-authoritative with per-knob rationale. Canonical probe: `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` (dnsmasq) + `nc -z 127.0.0.1 2222` (sshd; conditional). POSIX sh safe (`/bin/sh` is `dash` on Ubuntu 24.04). Probe domain `api.github.com` is three-site lockstep with `packages/devbox/whitelist/github.txt`. Forks MAY add additive fork-specific probes via compose override; MAY NOT weaken the substrate.
+
+- **`INV-devbox-healthcheck`** — Compose healthcheck probes dnsmasq + sshd liveness; never curl :3000; timing parameters + rationale pinned. Source: `docs/invariants/devbox-healthcheck.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

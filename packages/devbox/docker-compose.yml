@@ -21,7 +21,7 @@
 #                        /home/dev/.config/gh) via `volumes:` top-level.
 #   - Story 2.11 : shared-workspace mode (`KEEL_DEVBOX_SHARED=true`). LANDED iter-257.
 #   - Story 2.12 : opt-in sshd via KEEL_DEVBOX_SSH=true (port 2222, pubkey-only, host keys persisted in keel_home_dev). LANDED iter-268.
-#   - Story 2.13 : healthcheck (dnsmasq + sshd liveness).
+#   - Story 2.13 : healthcheck (dnsmasq + sshd liveness). LANDED iter-283.
 #
 # Story 2.1 only needs the file to parse and bring a container up so that the
 # AC 3 / AC 4 raw-compose verifications are runnable.
@@ -260,7 +260,30 @@ services:
     tmpfs:
       - /tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
       - /var/tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
-    # TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.
+    # Story 2.13: dnsmasq liveness (always) + sshd liveness (when KEEL_DEVBOX_SSH=true).
+    # Replaces upstream cc-devbox's broken `curl :3000` healthcheck (README §
+    # cc-devbox upstream provenance § Known upstream bugs fixed). Probes run as
+    # USER dev (Dockerfile:347) via docker exec semantics; `dig` + `nc` ship in
+    # the Dockerfile apt layer (dnsutils + netcat-openbsd per Dockerfile:61-64).
+    # KEEL_DEVBOX_SSH env var is populated by Story 2.12 § environment
+    # propagation (compose:149 sources KEEL_DEVBOX_SSH_RESOLVED — iter-273
+    # PATCH-2 — so case-folded true is canonical inside the container).
+    # Probe domain `api.github.com` is always whitelisted (Story 2.9 github.txt
+    # fragment is load-bearing for every fork's gh-auth flow); `+short` + `+time=3`
+    # + `+tries=1` bounds the probe at ~3s even on transient upstream lag.
+    # NXDOMAIN counts as success (we're measuring dnsmasq RESPONSIVENESS, not
+    # whitelist membership); dig exits non-zero only on timeout / connection
+    # refused — the signal we care about.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
+          && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z 127.0.0.1 2222; }
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     # TODO(Story 2.8 / 2.9): named-volume mounts for OAuth tokens.
     restart: 'no'
     tty: true

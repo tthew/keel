@@ -906,6 +906,82 @@ Container-side sshd `ListenAddress` is INTENTIONALLY unset. Container-loopback i
 - `AGENTS.md § Opt-in SSH (Story 2.12)` — agent-facing guardrails.
 - Story 2.12 file `_bmad-output/implementation-artifacts/2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd.md` — full spec, 5 ACs + 6 tasks + 14 SCs.
 
+## Healthcheck (Story 2.13)
+
+Upstream cc-devbox shipped a `healthcheck.test: ["CMD", "curl", "-f", "http://localhost:3000"]` block whose target service does not exist at substrate scope — the container was permanently `unhealthy`, so `pnpm devbox:status` (Story 2.6 `status.sh:54`) and `pnpm devbox:start`'s healthcheck poll (Story 2.6 AC 2.6.4; `start.sh:92-120`) reported meaningless state. Story 2.13 replaces the broken probe with real service-liveness checks: dnsmasq via `dig @127.0.0.1 -p 53` (always) + sshd via `nc -z 127.0.0.1 2222` (when `KEEL_DEVBOX_SSH=true`).
+
+### Probe shape
+
+```yaml
+healthcheck:
+  test:
+    - CMD-SHELL
+    - >-
+      dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
+      && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z 127.0.0.1 2222; }
+  interval: 10s
+  timeout: 5s
+  retries: 3
+  start_period: 30s
+```
+
+- **Clause 1 (AC 2):** `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` — DNS query against the in-container dnsmasq (Story 2.3); exit 0 on any response (including `NXDOMAIN`), exit 9 on timeout / connection refused. Probes dnsmasq RESPONSIVENESS, not whitelist membership.
+- **Clause 2 (AC 3):** `nc -z 127.0.0.1 2222` — TCP three-way-handshake against sshd (Story 2.12); exit 0 on handshake, non-zero on refused / timeout. Gated on `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` short-circuit: in default (`KEEL_DEVBOX_SSH=false`) mode, only clause 1 runs.
+
+### Timing parameters
+
+| Key            | Value | Rationale                                                                                                                                                      |
+| -------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interval`     | `10s` | 6 probes/min/service = ~8640 dnsmasq queries/day added to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. Expected baseline for FR37 consumers. |
+| `timeout`      | `5s`  | Kills hung probes. `dig +time=3 +tries=1` (3s worst case) + `nc -z` (~1s) = ~4s combined; 1s margin.                                                           |
+| `retries`      | `3`   | Container transitions `healthy → unhealthy` after 3 consecutive failures — ~30s post-`start_period` detection latency.                                         |
+| `start_period` | `30s` | Cold-boot budget: `start-egress.sh` ~3-5s (nftables + dnsmasq + resolv.conf pin) + sshd ~1s under opt-in + probe margin. Failures here don't count against `retries`. |
+
+### Default-mode walkthrough (`KEEL_DEVBOX_SSH=false`)
+
+```
+$ pnpm devbox:start
+…
+[start] container healthy
+$ pnpm devbox:status
+healthcheck: healthy
+```
+
+Fresh fork, `.envrc` default (`KEEL_DEVBOX_SSH=false`), first `pnpm devbox:start` — healthcheck runs dnsmasq-only; `pnpm devbox:status` surfaces `healthcheck: healthy` within ~30-40s of container start.
+
+### Opt-in sshd walkthrough (`KEEL_DEVBOX_SSH=true`)
+
+```
+$ KEEL_DEVBOX_SSH=true pnpm devbox:start
+…
+[start] container healthy
+$ pnpm devbox:shell
+dev@keel-devbox:/workspace$ sudo pkill sshd    # simulate sshd crash
+dev@keel-devbox:/workspace$ exit
+$ pnpm devbox:status
+healthcheck: unhealthy                          # after ~30s (3 retries × 10s interval)
+$ pnpm devbox:logs keel-devbox | grep sshd     # diagnose via logs
+```
+
+With `KEEL_DEVBOX_SSH=true`, the healthcheck probes dnsmasq AND sshd; killing sshd manually drops the next 3 consecutive probes and transitions the container to `unhealthy`. (The `pkill sshd` above assumes the operator has sudo inside the container — the test case is illustrative; in practice sshd crashes are triggered by configuration regressions, not deliberate kill.)
+
+### JSONL query-log volume note
+
+The healthcheck emits ~8640 `api.github.com` DNS queries/day to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl` (6-field schema per `docs/invariants/devbox-egress.md § JSONL query log schema`). FR37 Epic-4 security-evidence consumers should expect this baseline. Filter with:
+
+```
+jq 'select(.query != "api.github.com")' /workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl
+```
+
+### Integration with `pnpm devbox:start` + `pnpm devbox:status`
+
+- `packages/devbox/scripts/start.sh:103-120` polls `State.Health.Status`. Pre-Story-2.13, the upstream-broken healthcheck left this perpetually `starting` / `unhealthy`, so `start.sh` fell back to `State.Status` (always `running` post-`up -d`). Story 2.13 UNBLOCKS the `healthy` / `unhealthy` branch — no `start.sh` edit required.
+- `packages/devbox/scripts/status.sh:54-58` reports `healthcheck: <status>` with a `(no healthcheck configured)` fallback. Story 2.13 UNBLOCKS the meaningful-value branch — no `status.sh` edit required.
+
+### Machine-enforced contract
+
+`INV-devbox-healthcheck` (`docs/invariants/devbox-healthcheck.md`) pins the probe contract, timing parameters, probe tooling (dnsutils + netcat-openbsd baked at image build; BSD `nc -z` is load-bearing), exit-code semantics, probe-domain stability (three-site lockstep with `packages/devbox/whitelist/github.txt`), and fork-extension rules (additive compose override permitted; substrate MAY NOT be weakened).
+
 ## cc-devbox upstream provenance
 
 - Upstream source:
@@ -918,7 +994,7 @@ Container-side sshd `ListenAddress` is INTENTIONALLY unset. Container-loopback i
     flips the shared mode).
   - Divergent whitelist tooling + fail-open resolv.conf + IPv6 gap →
     Stories 2.3 + 2.4.
-  - Broken `curl :3000` healthcheck → Story 2.13 (dnsmasq + sshd liveness).
+  - Broken `curl :3000` healthcheck → fixed in Story 2.13 (dnsmasq + sshd liveness). LANDED iter-283.
   - `./dev-home:/home/dev:delegated` bind-mount for auth tokens → replaced
     by named Docker volumes (NFR10; Stories 2.5 + 2.8 + 2.9).
 - `legacy-devbox` branch retention — standalone cc-devbox stays functional
