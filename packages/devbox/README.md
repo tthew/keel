@@ -1118,6 +1118,57 @@ Fork-to-REMOVE a substrate-deny rule requires the source-level AMEND path (7 sit
 
 Machine-enforced contract: `INV-claude-hook-secret-denylist` (`docs/invariants/claude-hook-denylist.md`); manifest entry at `packages/keel-invariants/src/invariants.manifest.ts`. Story 2.17 adds the content-hash bypass-resistance backstop covering hook script + settings.json `hooks` block region + `.git/hooks/**`. See `AGENTS.md § Claude PreToolUse hooks (Story 2.16)` for the full fork-extension contract + JSONL schema + halt-threshold contract.
 
+## Hook + settings bypass-resistance (Story 2.17)
+
+Completes the three-layer NFR5a/NFR5b defense on top of Story 2.15's permission policy + Story 2.16's in-session hook. **Layer 1** (Story 2.16 in-session hook) catches commit-time tamper attempts inside a Claude session. **Layer 2** (this story — Story 1.9 pre-merge invariant sync-gate over five manifest entries covering the hook script + the `.claude/settings.json` substrate sub-tree + the `.git/hooks/` preserved set + the `EXPECTED_HOOKS` TypeScript enumerator + the invariant-doc narrative) catches out-of-band tampering that evaded Layer 1 via a non-Claude editor or a race condition. **Layer 3** (three authored S4 prompt-injection rules at `packages/keel-invariants/src/prompt-injection-rules/`) catches tampering attempts that landed in the diff; Epic 4's S4 scanner binary is the consumer.
+
+### Quick-start
+
+Run the pre-merge sync-gate locally to verify the substrate is in lockstep:
+
+```sh
+pnpm keel-invariants:check
+# → exit 0 on lockstep; non-zero with a drift report on mismatch.
+```
+
+View the five Story-2.17 invariant-manifest entries via the agent-readable index:
+
+```sh
+grep -E '(INV-claude-(hook|settings)|INV-git-hooks)' INVARIANTS.md
+# → INV-claude-hook-secret-denylist          — hook script (whole-file sha256)
+# → INV-claude-hook-secret-denylist-doc      — invariant-doc narrative
+# → INV-claude-settings-deny-rules           — jq-subtree over .permissions.deny + .hooks.PreToolUse
+# → INV-git-hooks-preservation               — names-and-shebangs over prek-installed .git/hooks/
+# → INV-git-hooks-preservation-enumeration   — whole-file over the EXPECTED_HOOKS TS enumerator
+```
+
+### Fork-extension path (substrate-additive only)
+
+Forks MAY add without the AMEND path:
+
+- `.permissions.allow[]` entries in `.claude/settings.json` (fork-specific dev commands — `Bash(cargo *)` etc.).
+- `.hooks.PostToolUse[]` / `.hooks.UserPromptSubmit[]` entries (non-substrate matchers; the canonical `jq-subtree` filter ignores these so they do NOT perturb the content hash).
+- `.claude/hooks/block-secret-access.fork.sh` at the fork root (substrate hook invokes this LAST after the substrate denylist clears; fork rules MAY block additional patterns, MUST NOT unblock substrate-denied patterns).
+
+Forks MUST NOT modify `.permissions.deny[]` / `.hooks.PreToolUse[]` / `.claude/hooks/block-secret-access.sh` / `packages/keel-invariants/src/**` / the substrate-preserved `.git/hooks/` — those are substrate-wins per `docs/invariants/fork.md § Precedence`. Fork-to-remove goes through the 7-site AMEND path at `docs/invariants/fork.md § Amendment-vs-fork decision tree` (substrate hook + substrate settings.json + invariant doc + manifest contentHashes + `INVARIANTS.md` anchor + 2 seeds).
+
+### CI visibility forward-link
+
+Epic 14's CI dashboard panel (forthcoming) surfaces a trend-line of hook-denial + S4-scan events from `security-evidence.json`:
+
+- `scans.hook_denials[]` (Story 2.16 FR37) with `rule_id` breakdown across `secret-access-denylist` / `hook-self-protection` / `install-boundary-protection` (the last rule-id is introduced by Story 2.17 — Ralph-authored edits to `packages/keel-invariants/src/**` are denied in-session).
+- `scans.prompt_injection.findings[]` (Story 2.17 Task 5) with severity breakdown; any `high` finding escalates `overall_severity_max = "high"` → commit blocked + Ralph halt `SECURITY_CRITICAL` per the closed halt-reason enum.
+
+The panel contract is pinned at Story 2.17 Task 9; the implementation is Epic 14 scope.
+
+### Gap against strict NFR5a minimum
+
+The `permissions.deny` baseline at Story 2.15 does NOT include `Read(~/.ssh/**)` or `Read(~/.aws/credentials)`. These are operator-workstation secrets that live outside the devbox (NFR10 forbids host `.ssh/` bind-mount; `.aws/credentials` is not mounted by substrate compose) — inside the devbox, the sandbox + `keel_home_dev` named-volume isolation make these read-denies no-ops. The gap is doc-pinned at `AGENTS.md § Claude Code settings policy (Story 2.15)` with Story 2.17 as the close-out site; forks that DO bind-mount host `.ssh/` or `.aws/` against substrate advice self-amend via the AMEND path.
+
+### Pointer
+
+Machine-enforced contracts: `INV-claude-hook-secret-denylist` + `INV-claude-hook-secret-denylist-doc` + `INV-claude-settings-deny-rules` + `INV-git-hooks-preservation` + `INV-git-hooks-preservation-enumeration`; manifest entries at `packages/keel-invariants/src/invariants.manifest.ts`; machine-readable index at `INVARIANTS.md § Hook + settings bypass-resistance (Story 2.17)`. See `AGENTS.md § Hook + settings bypass-resistance (Story 2.17)` for the full contract (three layers + three-layer install-boundary + halt-threshold range contract + `install-boundary-protection` rule-id + fork-extension honour + pre-install `bash -n`/`dash -n` syntax-check discipline + fresh-fork seeds with D-36 exec-bit preservation); `docs/invariants/claude-hook-denylist.md` for the invariant-doc narrative.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:
