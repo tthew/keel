@@ -30,7 +30,7 @@ Machine-enforced contract for the in-session Claude Code PreToolUse hook that de
 
 Every block writes stdout JSON `{"decision":"block","reason":"<rule-id>","match":"<matched-pattern>"}` where:
 
-- `<rule-id>` ∈ {`secret-access-denylist`, `hook-self-protection`} — the closed rule-id enum.
+- `<rule-id>` ∈ {`secret-access-denylist`, `hook-self-protection`, `install-boundary-protection`} — the closed rule-id enum (three members post-Story-2.17 Task 7; `install-boundary-protection` denies Ralph-authored edits against `packages/keel-invariants/src/{invariants.manifest.ts,sync-gate.ts,manifest-reader.ts,prek-hook-manifest.ts,prompt-injection-rules/**}`).
 - `<matched-pattern>` is a short human-readable identifier (e.g. `cat-envrc-file`, `hook-script-file`, `git-no-verify-bypass`) — NEVER the full tool-call argv (args may contain secrets that would be exfiltrated via the hook's own log channel).
 
 Every approval writes stdout JSON `{"decision":"approve"}` (or empty stdout — both honoured by upstream).
@@ -49,7 +49,7 @@ Schema (stable; Epic 4 FR37 consumer contract):
   "iteration_id": "<RALPH_ITER_ID value or 'unknown'>",
   "tool": "<tool_name from stdin: Bash|Read|Edit|Write|Grep|Glob>",
   "args_redacted": "<redacted argv summary — '<redacted>' literal at 1.0; stable across versions>",
-  "rule_id": "<secret-access-denylist|hook-self-protection>",
+  "rule_id": "<secret-access-denylist|hook-self-protection|install-boundary-protection>",
   "match": "<short identifier of the specific rule that fired>"
 }
 ```

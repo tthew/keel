@@ -367,7 +367,7 @@ const raw: Invariant[] = [
       // eslint-disable-next-line keel-invariants/no-verify-bypass -- substrate description enumerates the token it blocks; this is a doc-reference, not an invocation
       'Claude Code PreToolUse hook at .claude/hooks/block-secret-access.sh — substrate enforcement script (Story 2.16 landed; Story 2.17 Task 4 repoints this entry sourcePath from the invariant doc to the hook script itself, elevating the hook body to whole-file contentHash drift-protection at the git layer). Two denylists pinned inside the script: secret-access-denylist (Bash/Read/Grep/Glob patterns for .envrc*, **/.env*, .secrets*, /home/dev/.claude/**, /home/dev/.config/gh/**, /proc/*/environ + env-dump idioms) + hook-self-protection (Edit/Write on .claude/settings*.json, .claude/hooks/**, .git/hooks/** + Bash mutations against those paths + git --no-verify bypass). Hook decision-shape: stdout JSON {"decision":"block","reason":"<rule-id>","match":"<matched-pattern>"} where rule-id ∈ {secret-access-denylist, hook-self-protection}; exits 0 always (Claude Code PreToolUse contract — non-zero = hook error fails open). Each block appends to ${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl with schema {timestamp, iteration_id, tool, args_redacted, rule_id, match}; log skipped outside Ralph iteration. Halt-threshold N=3 hook-self-protection blocks per iteration pinned in .ralph/config.toml [hooks].self_protection_halt_threshold; Epic 3 Story 3.7 wires the SECURITY_CRITICAL halt-write per INV-ralph-halt-reason-enum closed enum. Invariant-doc drift protection now carried by sibling entry INV-claude-hook-secret-denylist-doc (Story 2.17 Task 4 split). Fork-extension path: .claude/hooks/block-secret-access.fork.sh invoked LAST after substrate denylist clears (forks MAY add additional patterns to block; MAY NOT unblock substrate-denied patterns). 7-site AMEND coordination documented at docs/invariants/claude-hook-denylist.md § Fork extension § AMEND path.',
     sourcePath: '.claude/hooks/block-secret-access.sh',
-    contentHash: 'eb5f2d3af5fdd82d0f80d62d9e3f3528c1dffc5b7683074347ebc80d27368b8c',
+    contentHash: '5f03ff75e787bbc397175e8da47fba88664a07520314c1617204dc7a994603e2',
     anchors: ['INV-claude-hook-secret-denylist'],
   },
   {
@@ -375,7 +375,7 @@ const raw: Invariant[] = [
     description:
       'Invariant-doc drift protection for docs/invariants/claude-hook-denylist.md — the contract description carrying the hook-denylist narrative, decision-shape, JSONL schema, halt-threshold pin, source-files index, fork-extension path, limitations, and Story 2.17 git-layer backstop table. Story 2.17 Task 4 split: the former INV-claude-hook-secret-denylist sourcePath (this doc) is now covered here, while the ID INV-claude-hook-secret-denylist itself is repointed to the hook script per the Option B rationale at story Task 4.1 (preserves ID lineage; splits doc protection into a -doc sibling). Whole-file sha256; drift-detected by Story 1.9 pre-merge sync-gate.',
     sourcePath: 'docs/invariants/claude-hook-denylist.md',
-    contentHash: '118d956c229d48835d035ab3572b45ee4f076454ff8c206a6615396b488d9330',
+    contentHash: '1b176152838f14b6ff96f67bff110bdcdb078b3908dee84e933441d67b328fde',
     anchors: ['INV-claude-hook-secret-denylist-doc'],
   },
   {

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook
+# .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook (Story 2.17 Task 7 L1 install-boundary extension)
 set -euo pipefail
 payload="$(cat)"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || printf '')"
@@ -30,6 +30,9 @@ block() {
   log_block "$rule_id" "$match"
   exit 0
 }
+# Story 2.17 Task 7 — L1 install-boundary protection regex (shared by Edit|Write + Bash arms).
+# Protected substrate files under packages/keel-invariants/src/ that Ralph MUST NOT author.
+l1_path_re='packages/keel-invariants/src/(invariants\.manifest\.ts|sync-gate\.ts|manifest-reader\.ts|prek-hook-manifest\.ts|prompt-injection-rules/)'
 case "$tool_name" in
   Read)
     case "$file_path" in
@@ -44,7 +47,11 @@ case "$tool_name" in
         block "hook-self-protection" "settings-file" ;;
       .claude/hooks/*|*/.claude/hooks/*) block "hook-self-protection" "hook-script-file" ;;
       .git/hooks/*|*/.git/hooks/*) block "hook-self-protection" "git-hook-file" ;;
-    esac ;;
+    esac
+    # Story 2.17 Task 7 — L1 install-boundary Edit|Write denial.
+    if [[ "$file_path" =~ $l1_path_re ]]; then
+      block "install-boundary-protection" "install-boundary-file"
+    fi ;;
   Bash)
     if [[ "$bash_command" =~ ^git[[:space:]]+(commit|push) ]] && [[ "$bash_command" == *--no-verify* ]]; then
       block "hook-self-protection" "git-no-verify-bypass"
@@ -57,7 +64,23 @@ case "$tool_name" in
       sed*-i*.claude/settings*|sed*-i*.claude/hooks/*) block "hook-self-protection" "sed-i-against-protected" ;;
       echo*\>*.claude/settings*|echo*\>*.claude/hooks/*) block "hook-self-protection" "echo-redirect-against-protected" ;;
       cp*.claude/settings*|cp*.claude/hooks/*) block "hook-self-protection" "cp-against-protected" ;;
-    esac ;;
+    esac
+    # Story 2.17 Task 7 — L1 install-boundary Bash mutation denial.
+    # Guard expensive regex matching behind the path-presence gate (short-circuit on non-L1 commands).
+    if [[ "$bash_command" =~ $l1_path_re ]]; then
+      if [[ "$bash_command" =~ (^|[[:space:]])(rm|mv|chmod|tee|cp|truncate|dd)[[:space:]] ]]; then
+        block "install-boundary-protection" "mutation-verb-against-l1"
+      fi
+      if [[ "$bash_command" =~ (^|[[:space:]])sed[[:space:]]+-i ]]; then
+        block "install-boundary-protection" "sed-i-against-l1"
+      fi
+      if [[ "$bash_command" =~ (^|[[:space:]])echo.*\> ]]; then
+        block "install-boundary-protection" "echo-redirect-against-l1"
+      fi
+      if [[ "$bash_command" =~ (^|[[:space:]])find[[:space:]].*-delete ]]; then
+        block "install-boundary-protection" "find-delete-against-l1"
+      fi
+    fi ;;
 esac
 case "$tool_name" in
   Bash)
