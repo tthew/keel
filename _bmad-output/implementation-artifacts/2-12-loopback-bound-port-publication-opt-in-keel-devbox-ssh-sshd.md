@@ -1,6 +1,6 @@
 # Story 2.12: Loopback-bound port publication + opt-in `KEEL_DEVBOX_SSH` sshd
 
-Status: ready-for-dev <!-- Ralph-internal `Story State` = `drafted` after `/bmad-create-story` lands. Sprint-status row flipped `backlog → ready-for-dev` per workflow.md step 6. Next iter advances `drafted → validated` via `/bmad-create-story (args: "review")`. -->
+Status: ready-for-dev <!-- Ralph-internal `Story State` = `validated` after iter-266 `/bmad-create-story (args: "review")` pre-dev SM gate landed 8 PATCHes. Sprint-status row stays `ready-for-dev` (pre-dev SM review gate does NOT flip sprint-status). Next iter advances `validated → atdd-scaffolded` via `/bmad-testarch-atdd` (ATDD-applicable for ACs 1-3; ACs 4-5 operator-workstation-deferred). -->
 
 <!-- Note: Validation is optional. Run `/bmad-create-story (args: "review")` for pre-dev quality check before `/bmad-testarch-atdd` / `/bmad-dev-story`. -->
 
@@ -16,9 +16,9 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 
 2. **Default — `KEEL_DEVBOX_SSH=false` — sshd does NOT run AND port 2222 is NOT published.** Given `KEEL_DEVBOX_SSH=false` (the `.envrc.example:40` default; iterating per Story 2.2 SC the unset case also defaults to `false`), when the container starts (`pnpm devbox:start`), then no `sshd` process is running inside the container (`pgrep sshd` inside the container returns no PIDs / exit 1) AND `docker port keel-devbox` lists no `2222/tcp` mapping AND `docker compose -f packages/devbox/docker-compose.yml config` emits NO `127.0.0.1:2222:2222` line (compose stack matches the no-SSH posture at the YAML layer, not just the runtime layer). The four Story 2.2 publish ports remain published unaffected.
 
-3. **Opt-in — `KEEL_DEVBOX_SSH=true` — sshd runs, pubkey-only, port 2222 loopback-bound, host keys persisted in named volume.** Given `KEEL_DEVBOX_SSH=true` in `.envrc`, when the container starts, then sshd runs inside the container bound to `127.0.0.1:2222` (server-side `ListenAddress 127.0.0.1` in `sshd_config` — defence-in-depth even though Docker's `127.0.0.1:2222:2222` already loopback-binds the published port) AND password auth is disabled (`PasswordAuthentication no`, `ChallengeResponseAuthentication no`, `KbdInteractiveAuthentication no`) AND only pubkey auth is allowed (`PubkeyAuthentication yes`) AND root login is disabled (`PermitRootLogin no`) AND host keys auto-generate on first boot via `ssh-keygen -A -f /home/dev/.ssh/host_keys/` (entrypoint logic — the keys persist in the `keel_home_dev` named volume per Story 2.5 so subsequent restarts re-use the same keys; first-boot generation is a one-time event). `docker port keel-devbox` lists `2222/tcp -> 127.0.0.1:2222` AND `docker compose … config` emits the loopback-bound `127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222` line.
+3. **Opt-in — `KEEL_DEVBOX_SSH=true` — sshd runs, pubkey-only, port 2222 loopback-bound via published-port confinement, host keys persisted in named volume.** Given `KEEL_DEVBOX_SSH=true` in `.envrc`, when the container starts, then sshd runs inside the container listening on port 2222 (container-side `ListenAddress` intentionally unset — inbound packets arrive on container eth0, not container-loopback, under both `userland-proxy=true` and `userland-proxy=false` Docker modes; loopback confinement is enforced by the `127.0.0.1:2222:2222` publish in `docker-compose.ssh.yml`, NOT by sshd config) AND password auth is disabled (`PasswordAuthentication no`, `ChallengeResponseAuthentication no`, `KbdInteractiveAuthentication no`) AND only pubkey auth is allowed (`PubkeyAuthentication yes`) AND root login is disabled (`PermitRootLogin no`) AND host keys auto-generate on first boot via explicit `ssh-keygen -t ed25519 -f /home/dev/.ssh/host_keys/ssh_host_ed25519_key -N ""` + `ssh-keygen -t rsa -b 4096 -f /home/dev/.ssh/host_keys/ssh_host_rsa_key -N ""` (entrypoint logic — the keys persist in the `keel_home_dev` named volume per Story 2.5 so subsequent restarts re-use the same keys; first-boot generation is a one-time event gated on key absence). `docker port keel-devbox` lists `2222/tcp -> 127.0.0.1:2222` AND `docker compose … config` emits the loopback-bound `127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222` line.
 
-4. **External (non-loopback) connection refusal.** Given sshd is enabled (`KEEL_DEVBOX_SSH=true`), when an external (non-loopback) client attempts to connect (e.g., `ssh -p 2222 dev@<host-LAN-IP>` from a peer machine on the host's LAN), then the connection is refused at the Docker layer (the `127.0.0.1:2222:2222` mapping refuses non-loopback source IPs at the kernel iptables NAT layer — Docker emits `DNAT` rules scoped to `127.0.0.1`) AND only `ssh -p 2222 dev@127.0.0.1` from the host succeeds with a registered pubkey. AC verification is operator-workstation only — DinD backend B (the iteration env) cannot exercise non-loopback LAN clients meaningfully; substrate verification per Story 2.5 iter-186 posture (config-shape correctness via `docker compose config` + invariant doc claim).
+4. **External (non-loopback) connection refusal.** Given sshd is enabled (`KEEL_DEVBOX_SSH=true`), when an external (non-loopback) client attempts to connect (e.g., `ssh -p 2222 dev@<host-LAN-IP>` from a peer machine on the host's LAN), then the connection is refused at the Docker published-port layer (the `127.0.0.1:2222:2222` mapping binds the host socket exclusively to the `127.0.0.1` host-loopback interface — under `userland-proxy=true` mode, `docker-proxy` only listens on `127.0.0.1:2222`; under `userland-proxy=false` mode, Docker's iptables `DOCKER` chain DNAT rules are scoped to the loopback destination. Both modes refuse LAN-sourced traffic) AND only `ssh -p 2222 dev@127.0.0.1` from the host (the Docker-daemon host) succeeds with a registered pubkey. AC verification is operator-workstation only — DinD backend B (the iteration env) cannot exercise non-loopback LAN clients meaningfully; substrate verification per Story 2.5 iter-186 posture (config-shape correctness via `docker compose config` + invariant doc claim). NOTE: Defence-in-depth via container-side sshd `ListenAddress 127.0.0.1` is intentionally NOT used — see AC 3 + sshd_config header comment — because container-loopback is disjoint from host-loopback and would silently reject all inbound traffic under either Docker userland-proxy mode. Single-layer host-side publish confinement is correct and sufficient.
 
 5. **Operator authorized-keys flow — pubkey written to `/home/dev/.ssh/authorized_keys` inside named volume; persists across restarts.** Given a fork operator wants to add their pubkey, when they follow the documented flow in `packages/devbox/README.md § Opt-in SSH (Story 2.12)`, then the pubkey is appended to `/home/dev/.ssh/authorized_keys` inside the `keel_home_dev` named volume (Story 2.5 substrate; persists across container restarts + image rebuilds; tokens never bind-mounted to host per NFR10) AND a subsequent `ssh -p 2222 dev@127.0.0.1 -i <matching-private-key>` succeeds AND the pubkey survives `pnpm devbox:stop && pnpm devbox:start` AND survives `pnpm devbox:rebuild` (image rebuild) because the named volume is preserved across both operations (Story 2.6 AC 4 + Story 2.11 AC 1 contracts).
 
@@ -27,12 +27,25 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 - [ ] **Task 1: Add `openssh-server` to the Dockerfile apt layer + bake `sshd_config` template** (AC 3, AC 4)
   - [ ] Edit `packages/devbox/Dockerfile:43-91` (apt-get layer): add `openssh-server` package alongside the existing `openssh-client` (line 65). Renovate `apt` manager (Story 1.15) tracks the package version.
   - [ ] Bake a hardened `sshd_config` template at image-build time. Source: `packages/devbox/sshd/sshd_config` (NEW file under `packages/devbox/sshd/` directory, mirroring the Story 2.3 `packages/devbox/dnsmasq/` + `packages/devbox/nftables/` template-directory convention). Copy via Dockerfile `COPY packages/devbox/sshd/sshd_config /etc/ssh/sshd_config` (path relative to compose build context — `packages/devbox/Dockerfile`'s context is `packages/devbox/` per `docker-compose.yml:69-71` `build.context: .`). Set permissions: `chmod 0644 /etc/ssh/sshd_config && chown root:root /etc/ssh/sshd_config`.
-  - [ ] `sshd_config` content (verbatim — pinned to a hash hashed-ish minimum but not contentHash-tracked since not an INV-doc):
+  - [ ] `sshd_config` content (verbatim — copy into `packages/devbox/sshd/sshd_config`; NOT contentHash-tracked since not a `sourcePath` of any `INV-*` entry):
     ```
     # packages/devbox/sshd/sshd_config — Story 2.12
-    # Hardened sshd config; only-loopback-bound + pubkey-only.
+    # Hardened sshd config; pubkey-only, root-disabled.
+    #
+    # Loopback binding at container-side is NOT specified here — the
+    # container's network namespace receives incoming published-port
+    # traffic on its eth0 interface (via Docker's iptables-NAT rules
+    # under default `userland-proxy=false` mode, or via docker-proxy's
+    # re-originated connection under `userland-proxy=true`). In BOTH
+    # modes, packets arrive on eth0, NOT on the container's 127.0.0.1.
+    # Binding sshd to `ListenAddress 127.0.0.1` would silently drop
+    # all inbound connections. Leave `ListenAddress` at sshd's default
+    # (any address in container netns); host-side loopback confinement
+    # is enforced by the `127.0.0.1:2222:2222` publish in
+    # docker-compose.ssh.yml (AC 4). The container netns is already an
+    # isolated attack surface — external peers cannot reach eth0
+    # without traversing the published-port gate on the host.
     Port 2222
-    ListenAddress 127.0.0.1
     HostKey /home/dev/.ssh/host_keys/ssh_host_ed25519_key
     HostKey /home/dev/.ssh/host_keys/ssh_host_rsa_key
     PermitRootLogin no
@@ -50,7 +63,7 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
     SyslogFacility AUTH
     ```
   - [ ] Pre-create `/home/dev/.ssh/` + `/home/dev/.ssh/host_keys/` directories in the Dockerfile near line 252 (where `/home/dev/.claude` + `/home/dev/.config/gh` are pre-created). Mode 0700; owner `dev:dev` (matches Story 2.5 non-root-user posture). Do NOT pre-generate the host keys at image-build time — first-boot generation in entrypoint.sh ensures the keys live in the named-volume payload (per AC 3 persistence requirement).
-  - [ ] Add `setcap +ep` invocation if needed for sshd port-bind under `cap_drop: [ALL]` + `cap_add: [..., NET_BIND_SERVICE]`. Port 2222 is >1024 so NET_BIND_SERVICE is NOT required for the bind itself; sshd should run as `dev` (UID 1000) under USER dev with no extra capability. Verify at impl time: `ss -tlnp` inside the container confirms `127.0.0.1:2222` is bound by `sshd` running as `dev`.
+  - [ ] **No `setcap` invocation.** Port 2222 > 1024; `NET_BIND_SERVICE` is NOT required for the bind. Sshd runs as `dev` (UID 1000) with no extra capability needed. Verify at impl time: `ss -tlnp` (or `ss -tlpn` if `-p` requires root) inside the container confirms `0.0.0.0:2222` is bound by `sshd` running as `dev`. Do NOT add a `setcap +ep /usr/sbin/sshd` line to the Dockerfile — it would violate Story 2.5's `no-new-privileges=1` posture expectations and is unnecessary.
 
 - [ ] **Task 2: Conditionally publish port 2222 via a compose override file `docker-compose.ssh.yml` + resolver wiring** (AC 2, AC 3)
   - [ ] Create `packages/devbox/docker-compose.ssh.yml` — Compose override that ADDS the port 2222 mapping when included. Shape:
@@ -65,47 +78,68 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
         ports:
           - '127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222'
     ```
-  - [ ] **Compose-CLI inclusion path.** When `KEEL_DEVBOX_SSH=true`, host-side shims that invoke `docker compose` (the 13 from Story 2.6's CLI surface that compose-up / compose-down / compose-config — `start.sh`, `stop.sh`, `restart.sh`, `build.sh`, `rebuild.sh`, `clean.sh`, `logs.sh`, `status.sh`, `env-check.sh` for `docker compose config` smokes) MUST add `-f packages/devbox/docker-compose.ssh.yml` AFTER the base `-f packages/devbox/docker-compose.yml`. Last-write-wins compose-merge semantics: the override file's `ports:` array is APPENDED (Compose v2 `!override` would replace; default merge appends list-typed keys for `services.<svc>.ports`).
-  - [ ] **Resolver extension.** Add a NEW function `resolve_ssh_state()` to `packages/devbox/scripts/lib/main-repo-resolver.sh` (sibling to `resolve_main_repo_and_workdir` + `resolve_mode_specific_state`). Function reads `KEEL_DEVBOX_SSH` from the process env, normalises (lowercase + accept-`true`-only — fail-closed to no-SSH for any other value, mirroring Story 2.11 `KEEL_DEVBOX_SHARED` normalisation pattern at `lib/main-repo-resolver.sh:146`), and exports two outputs:
+  - [ ] **Compose-CLI inclusion path.** When `KEEL_DEVBOX_SSH=true`, host-side shims that invoke `docker compose -f "${COMPOSE_FILE}"` MUST extend the invocation with a second `-f "${COMPOSE_FILE_SSH}"` after the base file. Compose v2 multi-file merge spec: `services.<svc>.ports` is a sequence-typed key that CONCATENATES across `-f` files (ref: compose-spec.io § Merge/override — `ports`, `expose`, `external_links`, `dns`, `dns_search`, `tmpfs`, `volumes` are additive sequences). Base file's 4 Story-2.2 ports + override's 1 SSH port = 5 total; no duplicate-2222 risk because the base file does NOT publish 2222.
+  - [ ] **Resolver extension.** Add a NEW function `resolve_ssh_state()` to `packages/devbox/scripts/lib/main-repo-resolver.sh` (sibling to `resolve_main_repo_and_workdir` + `resolve_mode_specific_state`). Function reads `KEEL_DEVBOX_SSH` from the process env, normalises (lowercase via `tr '[:upper:]' '[:lower:]'` + accept-`true`-only — fail-closed to no-SSH for any other value including `yes`/`1`/`on`), mirroring the Story 2.11 `KEEL_DEVBOX_SHARED` normalisation idiom at `lib/main-repo-resolver.sh:152` (the `tr` line; the `resolve_mode_specific_state()` function opener is at `:146`). Exports:
     - `KEEL_DEVBOX_SSH_RESOLVED=true|false` (canonical normalised value).
-    - `KEEL_DEVBOX_COMPOSE_FILES_ARGS` — a string containing the compose `-f` arg list. Per-fork no-SSH: `"-f packages/devbox/docker-compose.yml"`. Opt-in SSH: `"-f packages/devbox/docker-compose.yml -f packages/devbox/docker-compose.ssh.yml"`. Shared mode (Story 2.11) does NOT change this — the override composes regardless of mode (sshd is per-container, not per-mode).
+    - `KEEL_DEVBOX_COMPOSE_FILE_SSH` — EITHER the empty string (no-SSH) OR the absolute path `"${DEVBOX_DIR}/docker-compose.ssh.yml"` (opt-in SSH). The shim pattern then becomes `docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}` — the `${VAR:+-f "${VAR}"}` parameter-expansion form expands to `-f <path>` when non-empty and to the empty string when empty, avoiding the word-splitting hazard of passing a joined `-f <a> -f <b>` string through unquoted expansion (RALPH.md 2026-04-21 AR-9 bash-iterable-word-splitting LESSON). Shared mode (Story 2.11) does NOT change this — the override composes regardless of mode (sshd is per-container, not per-mode).
   - [ ] Caller invocation order: `resolve_main_repo_and_workdir` → `resolve_mode_specific_state` → `resolve_ssh_state` → exports → downstream `docker compose` invocations.
-  - [ ] Update existing 9 compose-invoking shims to consume `${KEEL_DEVBOX_COMPOSE_FILES_ARGS}` instead of hardcoded `-f packages/devbox/docker-compose.yml`. Affected sites (canonical inventory via `grep -rn 'docker compose -f packages/devbox/docker-compose.yml' packages/devbox/scripts/`): `start.sh`, `stop.sh`, `restart.sh`, `build.sh`, `rebuild.sh`, `clean.sh`, `logs.sh`, `status.sh`, `env-check.sh`. Each substitution: `docker compose -f packages/devbox/docker-compose.yml` → `docker compose ${KEEL_DEVBOX_COMPOSE_FILES_ARGS}`.
-  - [ ] Header comment block update: amend the existing `lib/main-repo-resolver.sh:9-28` doc-block (already extended by Story 2.11) with a NEW `SSH state (Story 2.12)` paragraph naming the two outputs (`KEEL_DEVBOX_SSH_RESOLVED`, `KEEL_DEVBOX_COMPOSE_FILES_ARGS`).
+  - [ ] **Update the 8 actual compose-invoking shims** to thread `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}` through every `docker compose -f "${COMPOSE_FILE}"` call site. Verified inventory (via `grep -c '^[^#]*docker compose -f' packages/devbox/scripts/*.sh` at iter-266): `build.sh` (1 site), `rebuild.sh` (1), `start.sh` (1), `stop.sh` (1), `status.sh` (1), `clean.sh` (2 sites — preserve + destructive paths), `logs.sh` (2 sites — follow-mode + passthrough-mode), `benchmark.sh` (6 sites — NFR2 cold/warm instrumentation, all paths MUST pick up the override so sshd-enabled benchmarks measure the enabled posture). Scripts WITHOUT compose invocations and therefore NOT in scope for substitution: `restart.sh` (delegates to stop.sh + start.sh), `env-check.sh` (parses `.envrc` only; no compose call), `monitor-host.sh` (`docker exec` shim, not compose), `attach.sh` / `shell.sh` / `claude-host.sh` / `gh-auth-host.sh` / `ralph-build-host.sh` / `ralph-plan-host.sh` / `whitelist-host.sh` (docker-exec shims). Story 2.7's 2 ralph wrappers + Story 2.8/2.9 auth shims + Story 2.6 shell/attach do NOT compose-invoke and therefore inherit sshd state via the already-running container's environment (set at `docker compose up` time via Task 4 env propagation).
+  - [ ] Header comment block update: the existing `lib/main-repo-resolver.sh:1-28` doc-block covers only the original three WORKTREE_ROOT / REPO_NAME / CONTAINER_WORKDIR resolver outputs; Story 2.11 extended the file via a SECOND doc paragraph at `:35-77` describing `resolve_mode_specific_state()`. Task 2 adds a THIRD doc paragraph AFTER the Story 2.11 paragraph (i.e., inserted at approximately `:78` — adjust line for current file) describing `resolve_ssh_state()`: the two outputs (`KEEL_DEVBOX_SSH_RESOLVED`, `KEEL_DEVBOX_COMPOSE_FILE_SSH`), the `true`-only normalisation, and the caller invocation order contract. Do NOT edit the original `:1-28` or the Story 2.11 `:35-77` paragraphs.
 
 - [ ] **Task 3: First-boot host-key generation + conditional sshd start in `entrypoint.sh`** (AC 3, AC 5)
-  - [ ] Edit `packages/devbox/entrypoint.sh` — add a NEW block AFTER the existing Story 2.3 egress-init block (currently the last meaningful block before `exec gosu dev "$@"` at line 154) and BEFORE the `exec gosu dev "$@"` handoff. Block contract:
+  - [ ] **Insertion point.** Edit `packages/devbox/entrypoint.sh` — add a NEW block AFTER the existing Story 2.3 egress-init block (`entrypoint.sh:121-130` — the `start-egress.sh` dispatch wrapped in an `if [[ ... ]]` conditional) and BEFORE the CMD-empty fallback + `exec gosu dev "$@"` handoff at `entrypoint.sh:155-159` (`:154` is the `if [ "$#" -eq 0 ]; then` opener; `:155` and `:157` are the two exec handoffs). The new block MUST land BEFORE the if/else block, not inside it.
+  - [ ] **Entrypoint block contract** (copy-paste-ready; NO placeholders):
     ```bash
-    # Story 2.12: opt-in sshd. KEEL_DEVBOX_SSH is normalised by the host-side
-    # resolver before container start; here we honour the in-container env var
-    # (propagated via docker-compose.yml § environment).
+    # Story 2.12: opt-in sshd. KEEL_DEVBOX_SSH is normalised on the host by
+    # resolve_ssh_state() before container start; here we honour the
+    # container-side env var (propagated via docker-compose.yml § environment
+    # by Task 4). Case-sensitive "true" match mirrors Story 2.11 shared-mode
+    # entrypoint posture — normalisation already done host-side.
     if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
-      # First-boot: generate host keys into the named-volume path so they
-      # persist across restarts (Story 2.5 keel_home_dev volume; AC 3).
-      if [[ ! -f /home/dev/.ssh/host_keys/ssh_host_ed25519_key ]]; then
-        mkdir -p /home/dev/.ssh/host_keys
-        chown -R dev:dev /home/dev/.ssh/host_keys 2>/dev/null || true
-        chmod 0700 /home/dev/.ssh/host_keys
-        gosu dev ssh-keygen -A -f /home/dev/.ssh/  # generates into ./host_keys/ via the -f prefix + symlink convention
+      # Pre-creation runs as root (pre-gosu). Use gosu to create the tree
+      # with dev:dev ownership from t=0 so the subsequent keygen + sshd both
+      # run as dev without relying on CAP_CHOWN (Story 2.5 hardening).
+      gosu dev mkdir -p /home/dev/.ssh/host_keys
+      # Idempotent perm enforcement EVERY boot (not gated on existence).
+      # The named volume may have been inspected from host OR pre-populated
+      # with stray perms on upgrade; sshd's StrictModes (default yes) rejects
+      # any parent dir more permissive than 0700, silently. Enforce.
+      chmod 0700 /home/dev/.ssh /home/dev/.ssh/host_keys
+      # Atomic host-key generation: a mid-keygen container kill leaves a
+      # partial keypair which sshd refuses. Generate BOTH keys into a
+      # scratch dir then atomically mv into place. Guard on BOTH algorithms'
+      # final filenames — if either is missing, regenerate both.
+      if [[ ! -f /home/dev/.ssh/host_keys/ssh_host_ed25519_key ]] \
+         || [[ ! -f /home/dev/.ssh/host_keys/ssh_host_rsa_key ]]; then
+        gosu dev rm -rf /home/dev/.ssh/host_keys.tmp
+        gosu dev mkdir -p /home/dev/.ssh/host_keys.tmp
+        gosu dev ssh-keygen -q -t ed25519 -f /home/dev/.ssh/host_keys.tmp/ssh_host_ed25519_key -N "" < /dev/null
+        gosu dev ssh-keygen -q -t rsa -b 4096 -f /home/dev/.ssh/host_keys.tmp/ssh_host_rsa_key -N "" < /dev/null
+        gosu dev mv -T /home/dev/.ssh/host_keys.tmp /home/dev/.ssh/host_keys
       fi
-      # Touch the authorized_keys file (mode 0600) so sshd does not refuse
-      # to start under StrictModes (default yes). Empty file = no inbound
-      # auth; operator appends pubkeys via the documented flow (AC 5).
-      if [[ ! -f /home/dev/.ssh/authorized_keys ]]; then
-        touch /home/dev/.ssh/authorized_keys
-        chown dev:dev /home/dev/.ssh/authorized_keys 2>/dev/null || true
-        chmod 0600 /home/dev/.ssh/authorized_keys
-      fi
-      # Launch sshd in background as dev (port 2222 > 1024, no NET_BIND_SERVICE
-      # needed). The -D flag keeps sshd in foreground, but we background with
-      # `&` because the entrypoint's `exec gosu dev "$@"` is the PID 1 keepalive.
+      # Touch authorized_keys with 0600 every boot (idempotent). Empty file
+      # = no inbound auth; operator appends pubkeys via Task 6 flow (AC 5).
+      [[ -f /home/dev/.ssh/authorized_keys ]] || gosu dev touch /home/dev/.ssh/authorized_keys
+      chmod 0600 /home/dev/.ssh/authorized_keys
+      # Launch sshd as dev (port 2222 > 1024; NET_BIND_SERVICE not needed).
+      # -D = foreground; backgrounded with `&` because PID 1 is the `exec
+      # gosu dev "$@"` handoff below. Liveness verified post-spawn so a
+      # silent sshd startup failure does NOT leave the entrypoint proceeding
+      # with an un-started sshd + operator seeing port 2222 published +
+      # connections refusing (§ Dev Notes § Liveness verification contract).
       gosu dev /usr/sbin/sshd -D -e 2>>/var/log/sshd.log &
+      SSHD_PID="$!"
+      sleep 0.5
+      if ! kill -0 "${SSHD_PID}" 2>/dev/null; then
+        echo "entrypoint: sshd failed to start; tail /var/log/sshd.log:" >&2
+        tail -n 20 /var/log/sshd.log >&2 || true
+        echo "entrypoint: sshd startup failure is NON-FATAL under Story 2.12 SC-10 (background process; PID 1 remains the exec handoff). Operator: pnpm devbox:logs keel-devbox + investigate." >&2
+      fi
     fi
     ```
-  - [ ] **`ssh-keygen -A -f` semantics audit:** OpenSSH's `-A` generates one key per algorithm using default paths under `/etc/ssh/` (NOT under `-f`'s prefix). The Dockerfile + sshd_config diverts via `HostKey /home/dev/.ssh/host_keys/...` — entrypoint MUST explicitly `ssh-keygen -t ed25519 -f /home/dev/.ssh/host_keys/ssh_host_ed25519_key -N ""` and `ssh-keygen -t rsa -b 4096 -f /home/dev/.ssh/host_keys/ssh_host_rsa_key -N ""` rather than rely on `-A`. Verify at impl time + adjust the entrypoint block accordingly. Empty passphrase via `-N ""` avoids the interactive prompt; host keys are not user-passphrase-protected in any conventional sshd setup.
-  - [ ] **`gosu dev` ordering:** `ssh-keygen` runs BEFORE the `exec gosu dev "$@"` handoff which still runs as root (per `user: "0:0"` in compose; gosu drops to dev for the CMD only). The keygen explicitly invokes `gosu dev` so the key files are created with dev:dev ownership from t=0 — avoids relying on `chown` calls that fail under `cap_drop: [ALL]` without CAP_CHOWN (Story 2.5 hardening — same `2>/dev/null || true` best-effort posture as the existing `entrypoint.sh:101-105` `chown` block).
-  - [ ] **Background-process death handling:** sshd in background (`&`) is intentional — PID 1 is `gosu dev sleep infinity` (or Epic 3's Ralph TUI). If sshd dies mid-session, the entrypoint does NOT restart it (sshd's own `-D` foreground mode + Docker's restart policy do not compose here; restart policy is at the container level not the in-container PID level). Story 2.13 will add a healthcheck that probes `nc -z 127.0.0.1 2222` when `KEEL_DEVBOX_SSH=true` and fails the container's healthcheck if sshd is down — operator can `pnpm devbox:restart` to recover.
-  - [ ] **Forbidden runtime install.** `sshd_config` is BAKED at image-build time (Task 1); entrypoint MUST NOT modify it at runtime. `ssh-keygen` is a binary from `openssh-server` — no apt invocation, no curl-pipe-sh, conforms to entrypoint.sh's iter-1 forbidden-runtime-install posture (Story 2.1 AC 2; entrypoint header comment block lines 17-19).
+  - [ ] **`set -e` + background-spawn interaction.** The `gosu dev /usr/sbin/sshd -D … &` returns exit 0 from the FORK regardless of whether sshd successfully bound the port (bash's `&` operator itself never fails). Under `set -e` this means a crashing sshd would NOT trip the entrypoint — the container would proceed cleanly with port 2222 published (by Docker) but no listener inside. The `kill -0 ${SSHD_PID}` check 0.5s later catches the common failure modes (config syntax error, host-key unreadable, port already in use by stray process); non-fatal reporting preserves SC-10 (background process lifecycle = operator's responsibility) while surfacing the failure in container logs. Story 2.13 healthcheck is the authoritative long-term signal.
+  - [ ] **Ownership under `cap_drop: [ALL]`.** Running `mkdir -p` + key generation as `gosu dev` ensures the directory tree + key files are created with `dev:dev` ownership from t=0. The entrypoint's `chmod` calls do NOT need CAP_CHOWN (chmod only needs process ownership, which dev has). The separate `chown` calls from the pre-Story-2.12 named-volume-dir block (`entrypoint.sh:111-117`) retain their existing `2>/dev/null || true` best-effort posture — Story 2.12 adds no new root-`chown` calls.
+  - [ ] **Forbidden runtime install.** `sshd_config` is BAKED at image-build time (Task 1); entrypoint MUST NOT modify it at runtime. `ssh-keygen` is a binary from `openssh-server` — no apt invocation, no curl-pipe-sh, conforms to entrypoint.sh's forbidden-runtime-install posture (Story 2.1 AC 2; entrypoint header comment block lines 17-19).
 
 - [ ] **Task 4: Propagate `KEEL_DEVBOX_SSH` into the container via compose `environment:` block** (AC 3 prerequisite)
   - [ ] Edit `packages/devbox/docker-compose.yml` — extend the existing `environment:` block at line 135-136 (currently propagates only `KEEL_DEVBOX_REPO_NAME`) to add `KEEL_DEVBOX_SSH`:
@@ -129,17 +163,17 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
   - [ ] Author `docs/invariants/devbox-ssh.md` with the following H2 sections (Story 2.3 iter-156 LESSON: multi-faceted contracts embed sub-schemas verbatim in the `sourcePath` doc):
     - `## Loopback-bound port publication contract` — every `ports:` mapping MUST use `127.0.0.1:<host>:<container>` form; bare `<host>:<container>` and explicit `0.0.0.0:...` are forbidden. Applies to base compose + every override (sibling `docker-compose.ssh.yml`, future per-fork add-ons).
     - `## SSH signal` — `KEEL_DEVBOX_SSH=true|false|unset`; normalisation rules (lowercase compare; non-`true` defaults to `false`; fail-closed to no-SSH on any unrecognised value).
-    - `## Opt-in sshd contract` — sshd runs as UID 1000 (`dev`); `ListenAddress 127.0.0.1`; `Port 2222`; `PermitRootLogin no`; `PasswordAuthentication no`; `PubkeyAuthentication yes`; `AllowUsers dev`; host keys at `/home/dev/.ssh/host_keys/`; `authorized_keys` at `/home/dev/.ssh/authorized_keys`; first-boot key generation; persistence via `keel_home_dev` named volume.
+    - `## Opt-in sshd contract` — sshd runs as UID 1000 (`dev`); `Port 2222`; `PermitRootLogin no`; `PasswordAuthentication no`; `ChallengeResponseAuthentication no`; `KbdInteractiveAuthentication no`; `PubkeyAuthentication yes`; `AllowUsers dev`; `UsePAM no`; host keys at `/home/dev/.ssh/host_keys/ssh_host_{ed25519,rsa}_key`; `authorized_keys` at `/home/dev/.ssh/authorized_keys`; first-boot atomic key generation via explicit `-t ed25519` + `-t rsa -b 4096`; persistence via `keel_home_dev` named volume. Container-side `ListenAddress` INTENTIONALLY unset (see § External connection refusal for rationale).
     - `## No-SSH default contract` — `KEEL_DEVBOX_SSH=false` (or unset): sshd is NOT started AND port 2222 is NOT published AND `docker compose config` emits no 2222 mapping. Compose override file `packages/devbox/docker-compose.ssh.yml` is the SINGLE site that publishes 2222; the base `docker-compose.yml` MUST NOT publish 2222.
     - `## Resolver contract` — `packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state()` is the single resolution site; every host-side compose-invoking shim invokes it after `resolve_mode_specific_state`; exports `KEEL_DEVBOX_SSH_RESOLVED` + `KEEL_DEVBOX_COMPOSE_FILES_ARGS`.
-    - `## External (non-loopback) connection refusal` — Docker's `127.0.0.1:2222:2222` mapping refuses non-loopback source IPs at the iptables-NAT layer; defence-in-depth via sshd_config's `ListenAddress 127.0.0.1`. Operator-workstation verification only; substrate verifies via `docker compose config` shape.
+    - `## External (non-loopback) connection refusal` — Docker's `127.0.0.1:2222:2222` mapping is the SINGLE loopback-confinement layer. Under `userland-proxy=true` (default), `docker-proxy` binds host-side `127.0.0.1:2222` only; under `userland-proxy=false`, iptables DNAT targets are scoped to the host's loopback destination. In BOTH modes, LAN-sourced traffic is refused. Container-side sshd `ListenAddress` is NOT used — container-loopback is disjoint from host-loopback and would silently drop traffic that arrives on container eth0. Operator-workstation verification only; substrate verifies via `docker compose config` shape + AC 4 invariant doc claim.
     - `## Operator authorized-keys flow` — pubkey appended to `/home/dev/.ssh/authorized_keys` from inside the container (`pnpm devbox:shell` then `echo 'ssh-ed25519 AAAA…' >> ~/.ssh/authorized_keys`); persistence guaranteed by the named volume across restarts + image rebuilds; agents MUST NOT bind-mount or copy `authorized_keys` outside the named volume (NFR10 — same posture as Story 2.8/2.9 OAuth tokens).
     - `## Named volume relationship to INV-devbox-homedev-named-volume` — Story 2.5's `INV-devbox-homedev-named-volume` pins the unqualified name `keel_home_dev`; Story 2.12's host keys + authorized_keys live INSIDE that volume; Story 2.12 does NOT touch the volume's name or substrate posture.
     - `## Invariant stability` — loopback-bound port publication is a SUBSTRATE INVARIANT — forks MAY NOT publish to `0.0.0.0` or use bare-port form. Opt-in sshd is OPERATOR-DEFAULT-OFF — forks MAY NOT change the default to `true`. Fork-level growth-tier `INVARIANTS.fork.md` rules MAY add fork-specific sshd_config overlays (e.g., MFA via `AuthenticationMethods publickey,keyboard-interactive`) but MAY NOT weaken substrate defaults (no PasswordAuthentication; no PermitRootLogin).
   - [ ] Compute `contentHash`: `sha256sum docs/invariants/devbox-ssh.md | awk '{print $1}'`. Paste 64-char lowercase hex into the manifest entry. `pnpm keel-invariants:check` MUST pass after manifest + doc both land (Story 1.9 sync-gate verification).
   - [ ] Append entry to `INVARIANTS.md` under the devbox section after `INV-devbox-mode` (Story 2.11 anchor) as: ``- **`INV-devbox-ssh`** — Opt-in sshd + loopback-bound port publication contract (`KEEL_DEVBOX_SSH=true` opens 127.0.0.1:2222 pubkey-only; ALL ports must use 127.0.0.1:<host>:<container> form). Source: `docs/invariants/devbox-ssh.md`.`` Index-only, no body (FR42).
   - [ ] Anchor bullet MUST match the verbatim regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` per `packages/keel-invariants/src/sync-gate.ts:24` (Story 1.9 sync-gate). Lowercase-after-`INV-` prefix MANDATORY (Story 1.9 iter-7 LESSON).
-  - [ ] Add new `### Devbox SSH (Story 2.12)` H3 in `INVARIANTS.md` between `### Devbox mode (Story 2.11)` and the next existing H3 (or end of devbox section if 2.12 is the last). One-line H3 body, then the anchor bullet underneath.
+  - [ ] Add new `### Devbox SSH (Story 2.12)` H3 in `INVARIANTS.md` AFTER the `### Devbox mode (Story 2.11)` H3 body + its `INV-devbox-mode` anchor bullet, and BEFORE the `### Gitignored-secret commit-deny (Story 2.2)` H3 (verified at `INVARIANTS.md:120` at iter-266 — the devbox H3 sequence is NOT strictly numerical; Story 2.2's gitignored-secret H3 lives AFTER all Story 2.1/2.3/2.5/2.10/2.11 devbox H3s). One-line H3 body (mirroring Story 2.11's one-line body), then the anchor bullet underneath.
 
 - [ ] **Task 6: Operator + agent documentation** (AC 1–5 comprehension)
   - [ ] **`packages/devbox/README.md`** — append new H2 `## Opt-in SSH (Story 2.12)` AFTER the existing `## Per-fork vs shared devbox mode (Story 2.11)` H2 and BEFORE `## cc-devbox upstream provenance` (SC-17 sibling-append; do NOT edit prior story sections). Content:
@@ -171,12 +205,12 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 
 - **Substrate authority: `packages/devbox/`.** All Story 2.12 changes scoped to `packages/devbox/Dockerfile`, `packages/devbox/docker-compose.yml`, the new `packages/devbox/docker-compose.ssh.yml`, the new `packages/devbox/sshd/sshd_config`, `packages/devbox/entrypoint.sh`, `packages/devbox/scripts/lib/main-repo-resolver.sh`, and the 9 compose-invoking shims. Plus the new `docs/invariants/devbox-ssh.md` invariant doc + `INVARIANTS.md` anchor + manifest entry + operator docs at `packages/devbox/README.md` + `AGENTS.md` + `.envrc.example` comment update.
 - **Compose-override pattern.** Conditional port publication uses Docker Compose v2's `-f` file-merge semantics (last-file-wins for scalars; APPEND for list-typed keys like `services.<svc>.ports`). Pinned in Story 2.6 architecture (the `${KEEL_DEVBOX_COMPOSE_FILES_ARGS}` env-var carrying the compose `-f` arg list). Docker Compose v2.20+ floor pinned at `packages/devbox/docker-compose.yml:78` (Story 2.1 substrate). The override file's `services.devbox.ports` array adds the port 2222 entry to the base file's existing ports array (which has 4 entries from Story 2.2).
-- **`set -euo pipefail` discipline + resolver function shape.** Mirror Story 2.11 `resolve_mode_specific_state()` pattern: pure string manipulation (no command rc-dependence), default-substitution `${KEEL_DEVBOX_SSH:-false}` to survive `set -u`. Case-fold normalisation via `tr '[:upper:]' '[:lower:]'` (mirrors `lib/main-repo-resolver.sh:146` Story 2.11 site).
+- **`set -euo pipefail` discipline + resolver function shape.** Mirror Story 2.11 `resolve_mode_specific_state()` pattern: pure string manipulation (no command rc-dependence), default-substitution `${KEEL_DEVBOX_SSH:-false}` to survive `set -u`. Case-fold normalisation via `tr '[:upper:]' '[:lower:]'` (mirrors `lib/main-repo-resolver.sh:152` — the actual `tr` line inside `resolve_mode_specific_state()`; the function opener is at `:146` and the `if [[ "$shared" != "true" ]]` gate is at `:154`).
 - **Entrypoint forbidden-runtime-install posture.** Story 2.1 AC 2 + entrypoint header lines 17-19 forbid `apt-get` / `npm install` / `pip install` / `curl…|sh` at runtime. Task 3's entrypoint extension only invokes `ssh-keygen` (binary baked at image-build time via `openssh-server` apt package) and `gosu dev /usr/sbin/sshd -D`; neither violates the posture.
 - **`INV-devbox-homedev-named-volume` interaction.** Host keys + authorized_keys live INSIDE `keel_home_dev` (Story 2.5 substrate). Story 2.12 does NOT change the named-volume contract; it only adds new file-tree paths under `/home/dev/.ssh/`. Persistence semantics inherited unchanged.
 - **`INV-devbox-mode` interaction (Story 2.11).** SSH state is per-CONTAINER, not per-MODE. Both per-fork mode (`keel-devbox` container) and shared mode (`keel-devbox-shared` container) honour `KEEL_DEVBOX_SSH` independently. The compose-files-args resolver output is the same in both modes; the per-mode container-name resolution composes orthogonally.
 - **Defence-in-depth posture for AC 4.** Two layers refuse non-loopback connections: (1) Docker's iptables-NAT layer (`127.0.0.1:2222:2222` mapping); (2) sshd's own `ListenAddress 127.0.0.1` directive. If the operator's host firewall fails / Docker daemon misconfigures, sshd still refuses non-loopback inbound. If sshd_config is corrupted, Docker still refuses. Both layers must misbehave for an external IP to reach the dev shell.
-- **No PRD amendment required.** PRD line 551 (architecture.md `:551`) verbatim matches AC 1 (loopback-bound ports + opt-in sshd). PRD line 74 (`:74`) verbatim matches AC 3 (`KEEL_DEVBOX_SSH=true` pubkey-only loopback-bound). Architecture line 550 verbatim matches the healthcheck-with-sshd-when-enabled posture (Story 2.13 scope, not Story 2.12).
+- **No PRD amendment required.** PRD `:544` (Attach UX) + `:550` (Healthcheck) + `:551` (Ports) and architecture.md `:74` (Executive summary) + `:285-292` (.envrc block) + `:291` (KEEL_DEVBOX_SSH=false default) are the verbatim sources for the AC 1-5 contract. All sources are unchanged; Story 2.12 lands the substrate without amending planning artefacts.
 - **Story 2.13 forward-compat.** Story 2.12's sshd-running-as-background-process leaves PID 1 free for the existing `sleep infinity` (or Epic 3's Ralph TUI). Story 2.13 will add a healthcheck that probes sshd liveness when `KEEL_DEVBOX_SSH=true`; Story 2.12 makes no healthcheck claim.
 
 ### Source tree components to touch
@@ -209,7 +243,7 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 ### Success Criteria (SCs)
 
 1. **Loopback-bound port publication is invariant.** Every `ports:` mapping (base compose + override + every future override) MUST use `127.0.0.1:<host>:<container>` form. Pinned in `INV-devbox-ssh § Loopback-bound port publication contract`. Future story edits adding ports MUST honour this — fork-level extension permitted, weakening forbidden.
-2. **Opt-in sshd is fail-closed.** `KEEL_DEVBOX_SSH=true` is the EXACT signal; `True`, `TRUE`, `yes`, `1`, etc. all also accepted (case-fold normalisation); EVERY other value (`false`, `0`, empty, unset, `garbage`) defaults to NO sshd. No accidental opt-in via typo.
+2. **Opt-in sshd is fail-closed.** `KEEL_DEVBOX_SSH=true` is the opt-in signal; case-fold normalisation accepts `true`, `True`, `TRUE`, `TrUe` (i.e., any-case spelling of the literal `true`). EVERY other value — `false`, `yes`, `on`, `1`, empty, unset, `garbage` — defaults to NO sshd. Strict-true-only posture mirrors Story 2.11 `KEEL_DEVBOX_SHARED` normalisation idiom at `lib/main-repo-resolver.sh:152`; forks MAY NOT extend the accepted-signal set.
 3. **Compose-override single-source.** `packages/devbox/docker-compose.ssh.yml` is the ONLY site that publishes port 2222. The base `packages/devbox/docker-compose.yml` MUST NOT have a 2222 entry in `ports:`. Lockstep enforced by code review + `INV-devbox-ssh § No-SSH default contract`.
 4. **Resolver single-site discipline.** `resolve_ssh_state` is the ONLY site that decides SSH mode + composes the `-f` arg list. No shim re-computes mode independently; no inline `if [[ $KEEL_DEVBOX_SSH == true ]]` blocks outside the resolver and entrypoint.sh.
 5. **Sshd runs as `dev` UID 1000.** No CAP_NET_BIND_SERVICE required for port 2222 (>1024). Sshd process visible in `ps -eo pid,user,cmd | grep sshd` as `dev sshd: /usr/sbin/sshd -D`. Honours Story 2.5 non-root posture.
@@ -219,7 +253,7 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 9. **No environment leakage.** `KEEL_DEVBOX_SSH` propagated via compose `environment:` (NOT `env_file:`-only). Without explicit `environment:` propagation, container sees empty env-var even though host's `.envrc` set it (compose's `${VAR}` interpolation runs on host at parse time).
 10. **Entrypoint sshd is background.** `gosu dev /usr/sbin/sshd -D &` — backgrounded so PID 1 remains the `exec gosu dev "$@"` keepalive. PID 1 death tears down the container; sshd process death does NOT (Story 2.13 healthcheck adds detection).
 11. **No new exit codes.** Story 2.6's uniform schema (0/2/3/8/9/10/11/12) + Story 2.10's additions + Story 2.11's no-additions apply unchanged. SSH start failure is logged to `/var/log/sshd.log` inside the container, not surfaced as a host-side exit code.
-12. **Defence-in-depth via `ListenAddress 127.0.0.1`.** Even if Docker's `127.0.0.1:2222:2222` mapping is somehow circumvented (operator-edited compose; runtime `docker run --network host`; operator wraps with `socat`), sshd's own bind refuses non-loopback inbound.
+12. **Single-layer published-port confinement.** Loopback confinement is enforced by Docker's `127.0.0.1:2222:2222` publish in `docker-compose.ssh.yml` (host-side). Container-side sshd `ListenAddress 127.0.0.1` is INTENTIONALLY NOT set — container-loopback is disjoint from host-loopback, and binding there would silently drop all inbound traffic under both Docker `userland-proxy` modes. The container network namespace is an isolated attack surface; external peers cannot reach container eth0 without traversing the host-side `127.0.0.1:2222` publish. If the operator circumvents the publish (runtime `docker run --network host`; socat wrap; operator-edited compose), the attack surface widens to the operator's trust posture — this is an operator escape hatch, not a Story-2.12 regression.
 13. **No PRD amendment.** PRD `:74` + `:551` + architecture `:550` + `:551` are unchanged. Story 2.12 is substrate-only.
 14. **SC-17 close-out scope carry-forward.** Inherit from Stories 2.6/2.8/2.9/2.10/2.11: DO NOT modify prior stories' docs sections in README.md / AGENTS.md; append NEW sibling sections only. Rewriting prior sections is scope-creep for Epic 2 close-out polish (Story 2.17).
 
@@ -231,12 +265,13 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 
 ### References
 
-- [Source: _bmad-output/planning-artifacts/prd.md#74] FR/Executive summary: "Host surface = `pnpm <subcommand>` only. Users never type `docker` / `docker-compose` / `ssh` directly. sshd is opt-in via `KEEL_DEVBOX_SSH=true` (pubkey-only, loopback-bound `127.0.0.1:2222`)."
-- [Source: _bmad-output/planning-artifacts/prd.md#291] PRD `.envrc.example` snippet: `KEEL_DEVBOX_SSH=false` default.
-- [Source: _bmad-output/planning-artifacts/architecture.md#550] Healthcheck contract: "Based on dnsmasq process liveness (and sshd liveness when `KEEL_DEVBOX_SSH=true`)" — Story 2.13 consumer; Story 2.12 prerequisite (sshd existence).
-- [Source: _bmad-output/planning-artifacts/architecture.md#551] Ports: "3000 (dev FE), 3001 (dev BE), 6006 (Storybook), 24679 (Vite HMR), all bound to `127.0.0.1` (not `0.0.0.0`) for host-only exposure. SSH port 2222 only exposed when `KEEL_DEVBOX_SSH=true`. Port list parameterisable via `.envrc`."
-- [Source: _bmad-output/planning-artifacts/architecture.md#1153] PRD-pinned `.envrc` parameterisation enumerates `KEEL_DEVBOX_SSH` + `KEEL_DEVBOX_SHARED` toggles.
-- [Source: _bmad-output/planning-artifacts/architecture.md#1160] Architecture-pinned: "Ports bound to `127.0.0.1` (no `0.0.0.0`); opt-in sshd via `KEEL_DEVBOX_SSH=true` (pubkey-only, loopback-bound `127.0.0.1:2222`, host keys auto-generate on first boot)."
+- [Source: _bmad-output/planning-artifacts/architecture.md#74] Executive summary: "Host surface = `pnpm <subcommand>` only. Users never type `docker` / `docker-compose` / `ssh` directly. sshd is opt-in via `KEEL_DEVBOX_SSH=true` (pubkey-only, loopback-bound `127.0.0.1:2222`)."
+- [Source: _bmad-output/planning-artifacts/architecture.md#291] `.envrc.example` snippet inside architecture.md § Devbox Implementation Contract: `KEEL_DEVBOX_SSH=false` default.
+- [Source: _bmad-output/planning-artifacts/architecture.md#285-292] `.envrc` parameterisation block enumerating `KEEL_DEVBOX_SSH` + `KEEL_DEVBOX_SHARED` toggles verbatim.
+- [Source: _bmad-output/planning-artifacts/prd.md#104] PRD Executive Summary — "users never invoke Docker, docker-compose, or SSH directly (sshd is an opt-in escape hatch via `KEEL_DEVBOX_SSH=true`, off by default)."
+- [Source: _bmad-output/planning-artifacts/prd.md#544] PRD § Devbox Implementation Contract — Attach UX: "Opt-in sshd is enabled via `KEEL_DEVBOX_SSH=true` in `.envrc`; when enabled, sshd is pubkey-only (no password auth), host keys auto-generate on first boot, and the port is bound to loopback (`127.0.0.1:2222`)."
+- [Source: _bmad-output/planning-artifacts/prd.md#550] Healthcheck contract: "Based on dnsmasq process liveness (and sshd liveness when `KEEL_DEVBOX_SSH=true`)" — Story 2.13 consumer; Story 2.12 prerequisite (sshd existence).
+- [Source: _bmad-output/planning-artifacts/prd.md#551] Ports: "3000 (dev FE), 3001 (dev BE), 6006 (Storybook), 24679 (Vite HMR), all bound to `127.0.0.1` (not `0.0.0.0`) for host-only exposure. SSH port 2222 only exposed when `KEEL_DEVBOX_SSH=true`. Port list parameterisable via `.envrc`."
 - [Source: _bmad-output/planning-artifacts/epics.md#1540-1572] Story 2.12 epic block: 5 acceptance criteria verbatim (loopback-bound ports + no-SSH default + opt-in sshd + external-refusal + authorized-keys flow).
 - [Source: packages/devbox/.envrc.example#40] `KEEL_DEVBOX_SSH=false` default — Story 2.2 published the knob; Story 2.12 activates.
 - [Source: packages/devbox/docker-compose.yml#22-24] Story-roadmap comment block — Task 4 inserts Story 2.12 LANDED line.
@@ -247,9 +282,11 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 - [Source: packages/devbox/Dockerfile#65] Existing `openssh-client` package — Task 1 adds sibling `openssh-server`.
 - [Source: packages/devbox/Dockerfile#252-253] `mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh` — Task 1 extends with `/home/dev/.ssh/host_keys`.
 - [Source: packages/devbox/entrypoint.sh#107-119] Named-volume directory bring-up loop — Task 3 inserts sshd-launch block AFTER this loop and AFTER the Story 2.3 egress-init block.
-- [Source: packages/devbox/entrypoint.sh#125-130] Story 2.3 egress-init block — Task 3 inserts sshd block AFTER (sshd needs egress-policy active so that DNS resolution works during host-key-gen if any reverse-DNS happens).
-- [Source: packages/devbox/scripts/lib/main-repo-resolver.sh#9-28] Header doc-block — Task 2 extends with `SSH state (Story 2.12)` paragraph.
-- [Source: packages/devbox/scripts/lib/main-repo-resolver.sh#100-200] `resolve_main_repo_and_workdir` + `resolve_mode_specific_state` (Story 2.11) — Task 2 adds sibling `resolve_ssh_state` AFTER `resolve_mode_specific_state`.
+- [Source: packages/devbox/entrypoint.sh#121-130] Story 2.3 egress-init block (comment at :121; conditional dispatch at :125-130) — Task 3 inserts sshd block AFTER this block so egress policy is active during host-key-gen (any reverse-DNS or remote lookup sshd-keygen performs resolves through dnsmasq's whitelist).
+- [Source: packages/devbox/entrypoint.sh#154-159] CMD-empty fallback + exec handoff (`:154` = `if [ "$#" -eq 0 ]; then`; `:155` + `:157` = the two `exec gosu dev ...` statements) — Task 3 block inserted BEFORE this if/else, not inside it.
+- [Source: packages/devbox/scripts/lib/main-repo-resolver.sh#1-28] Original header doc-block (WORKTREE_ROOT / REPO_NAME / CONTAINER_WORKDIR) — DO NOT edit; Story 2.11 already extended via a SECOND doc paragraph.
+- [Source: packages/devbox/scripts/lib/main-repo-resolver.sh#35-77] Story 2.11 Mode-specific-state doc paragraph — DO NOT edit; Task 2 appends a THIRD paragraph describing `resolve_ssh_state()` AFTER this one.
+- [Source: packages/devbox/scripts/lib/main-repo-resolver.sh#146-203] `resolve_mode_specific_state()` function (opener at `:146`; `tr` case-fold at `:152`; gate at `:154`) — Task 2 adds sibling `resolve_ssh_state()` AFTER this function.
 - [Source: packages/keel-invariants/src/invariants.manifest.ts#3-15] InvariantSchema five-field shape — Task 5 compliance.
 - [Source: packages/keel-invariants/src/sync-gate.ts#24] Anchor regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` — Task 5 INVARIANTS.md bullet compliance.
 - [Source: docs/invariants/devbox-hardening.md (Story 2.5)] `INV-devbox-homedev-named-volume` authoritative doc; Story 2.12 doc cross-references for named-volume relationship (host keys + authorized_keys live INSIDE the volume).
@@ -271,3 +308,42 @@ So that the devbox's attack surface is limited to the host loopback, never a LAN
 ### Completion Notes List
 
 ### File List
+
+## Change Log
+
+### v1.1 — iter-266 pre-dev SM gate (`drafted → validated`)
+
+Four parallel Sonnet subagents re-analysed story against sources. Ralph triage produced 8 PATCH + 8 DEFER + 3 DISMISS across critical + second-class findings.
+
+**PATCH-1 (§ References).** Swapped `prd.md ↔ architecture.md` file-paths for 6 citations. Verified at iter-266: `architecture.md:74` holds "Host surface…sshd opt-in"; `architecture.md:291` holds `KEEL_DEVBOX_SSH=false` snippet; `prd.md:550` holds Healthcheck contract; `prd.md:551` holds Ports contract. Replaced architecture.md:1153 / :1160 citations (stale lines pointing at app-tree content) with architecture.md:285-292 (.envrc parameterisation block) + prd.md:104 (Executive Summary) + prd.md:544 (Attach UX). Removed the redundant stale "PRD line 551 … architecture.md :551 verbatim matches" Dev Note — replaced with a clean enumeration of the 6 authoritative source sites.
+
+**PATCH-2 (Task 2 shim inventory).** Corrected 3-way wrong claim: original spec said "9 shims" hardcoded-path-based via a grep that returns 0 hits (scripts use `"${COMPOSE_FILE}"` var pattern, not a literal). Verified at iter-266 via `grep -c '^[^#]*docker compose -f' packages/devbox/scripts/*.sh`: actual 8 compose-invoking scripts are `build.sh, rebuild.sh, start.sh, stop.sh, status.sh, clean.sh (2 sites), logs.sh (2 sites), benchmark.sh (6 sites)`. Non-invoking scripts explicitly named OUT-OF-SCOPE: `restart.sh` (delegates to stop+start), `env-check.sh` (parses .envrc only), plus the docker-exec shims (`monitor-host/attach/shell/claude-host/gh-auth-host/ralph-*-host/whitelist-host`). Also switched the resolver's export shape from a word-split-fragile string (`KEEL_DEVBOX_COMPOSE_FILES_ARGS`) to a conditional-expansion single-path (`KEEL_DEVBOX_COMPOSE_FILE_SSH`), using the `${VAR:+-f "${VAR}"}` idiom that avoids RALPH.md 2026-04-21 AR-9 iterable-word-splitting hazards.
+
+**PATCH-3 (Task 3 entrypoint block).** Critical — original code block had `gosu dev ssh-keygen -A -f /home/dev/.ssh/` which is LITERALLY BROKEN (`-A` ignores `-f`, writes to `/etc/ssh/` which is read-only-after-image-build). Three-way convergent from Subagents 2/3/4. Replaced with explicit `-t ed25519 -f <path> -N ""` + `-t rsa -b 4096 -f <path> -N ""` invocations, wrapped in an atomic `mkdir tmpdir → generate → mv -T` pattern that survives mid-keygen container kills. Added idempotent perm enforcement every boot (chmod outside existence guards, per Subagent 4 F2 — StrictModes silent-reject defence). Changed root-`mkdir` to `gosu dev mkdir` so keygen doesn't hit "permission denied" against a root-owned directory (Subagent 3 finding). Added `< /dev/null` to every ssh-keygen invocation (prevents interactive prompt under `set -e`). Corrected entrypoint insertion-point claim: exec handoff is at `:155`/`:157`, NOT `:154` (line 154 is the CMD-empty `if` opener).
+
+**PATCH-4 (Task 3 liveness verification).** Added post-spawn `SSHD_PID="$!"; sleep 0.5; kill -0 "${SSHD_PID}"` check with non-fatal stderr reporting (Subagent 4 F3 CRITICAL). Background `&` returns exit 0 from the fork regardless of sshd's actual startup success; without the liveness check, a crashing sshd leaves operator seeing `docker port` reporting 2222 published + connections refusing, with no signal until operator tries to ssh. Non-fatal posture preserves SC-10 (background process lifecycle is operator's responsibility post-spawn); fatal halt would regress the no-SSH-default-should-just-work contract on sshd-config-corruption edge cases. Story 2.13 healthcheck remains the authoritative long-term signal.
+
+**PATCH-5 (sshd_config + AC 3 + AC 4 + SC-12 + invariant doc).** Removed `ListenAddress 127.0.0.1` from sshd_config (Subagent 4 F4 CRITICAL). Rationale: container's network namespace has its own loopback; inbound traffic from Docker's published port arrives on container eth0 (via iptables DNAT under `userland-proxy=false`, or via docker-proxy re-origination under `userland-proxy=true` default), NOT on container-loopback. Binding sshd to `127.0.0.1` inside the container would SILENTLY reject all inbound traffic under both modes — AC 3 would be broken. Loopback confinement is correctly + solely enforced by Docker's `127.0.0.1:2222:2222` publish in `docker-compose.ssh.yml` (host-side). Rewrote AC 3 + AC 4 + SC 12 + invariant doc § Opt-in sshd contract + § External connection refusal to reflect single-layer host-side-publish posture. Added sshd_config header comment explaining the intentional absence of `ListenAddress`.
+
+**PATCH-6 (SC-2 normalisation).** Removed "`yes`, `1`, etc. all also accepted" misstatement; pinned strict `true`-only posture mirroring Story 2.11 `resolve_mode_specific_state()` idiom at `lib/main-repo-resolver.sh:152`. Forks MAY NOT extend the accepted-signal set. Aligns SC-2 with AC 3 + Task 2 resolver contract.
+
+**PATCH-7 (Dev Notes + References line pins).** Corrected `lib/main-repo-resolver.sh:146` line-pin (the function opener; normalisation at `:152`; gate at `:154`). Corrected the "already extended by Story 2.11" claim about `:9-28` — Story 2.11's extension is at `:35-77`, original doc-block at `:1-28` is untouched. Clarified Task 2 inserts a THIRD doc paragraph AFTER the Story 2.11 paragraph. Added source-citations for entrypoint.sh `:121-130` (egress-init block is actually :121-130, not :125-130) and `:154-159` (CMD-empty fallback + exec handoff).
+
+**PATCH-8 (Task 1 setcap).** Removed self-cancelling subtask ("Add `setcap +ep` if needed…NET_BIND_SERVICE is NOT required") — replaced with an affirmative "No `setcap` invocation" instruction that closes the read-body-cancels-title confusion. Verification hook preserved.
+
+**DEFER items (8):**
+1. sshd_config `StrictModes no` opt-out (kept StrictModes default; Task 3 idempotent perm enforcement sufficient).
+2. docker-exec shims `-e KEEL_DEVBOX_SSH=...` propagation safeguard (operator-edge; once-at-start contract already clear in Task 6(d) mode-flip note).
+3. Task 5 invariant-doc H2 section overlap (8→6 consolidation); polish-only, defer to CR cycle or Story 2.17 close-out.
+4. Override file `name:` subtask hardening (Compose v2 implicitly picks up from base file; correct-by-default).
+5. SC-13 ("No PRD amendment") — narrative SC without Task-enforcement step; keep for traceability.
+6. `resolve_ssh_state()` paths-with-spaces edge (current repo `/workspace/ralph-bmad` is safe; fork under `/Users/<space>/…` would hit AR-9 word-splitting — mitigated by PATCH-2's `${VAR:+-f "${VAR}"}` single-path idiom).
+7. Operator lockout/revoke flow documentation (Task 6 gap; queue for CR cycle).
+8. Task 6 authorized-keys echo `>>` command-injection surface (operator-trusted content; defer to Story 2.13 or Epic 2 close-out docs polish).
+
+**DISMISS items (3):**
+1. InvariantSchema description-field compliance (already compliant; Story 2.3 iter-156 LESSON applies cleanly).
+2. SC-1/SC-3 overlap with AC 1/AC 2 (standard pattern across Epic 2 stories; not a defect).
+3. Compose v2 `ports:` merge REPLACE-vs-CONCATENATE claim (per compose-spec.io, `ports` IS in the additive-sequence key list alongside `expose`, `external_links`, `dns`, `dns_search`, `tmpfs`, `volumes` — the original spec claim was correct).
+
+**Outcome.** Story State `drafted → validated`. 8 PATCH applied in-place; 8 DEFER + 3 DISMISS logged. Next gate: `/bmad-testarch-atdd` for `validated → atdd-scaffolded` (forecast: NON-SKIP for ACs 1-3 via `docker compose config` + entrypoint behaviour smokes; ACs 4-5 operator-workstation-deferred per iter-256/258 precedent). Pre-dev SM review PATCH-count (8) lands slightly above iter-221 LESSON's ~5-ceiling — driven by the two CRITICAL substantive findings (F3 liveness + F4 userland-proxy) that are NOT density-amortisable; the three additional non-blocker PATCHes (7, 8, and half of 2) are narrow pins.
