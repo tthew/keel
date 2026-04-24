@@ -2,10 +2,9 @@
 
 ## NOW
 
-- [ ] `/bmad-testarch-trace (args: "yolo")` per § Story Lifecycle row `in-dev → traced` — forecast WAIVED per Story 2.12 iter-269 pattern (ACs 1, 2, 3, 5 substrate-covered by static smokes + sync-gate at `946f1ac1…907029 + 665174a3…d18623`; AC 4 operator-workstation-deferred — live mid-run SIGKILL of dnsmasq/sshd with `State.Health.Status` transition observation infeasible under DinD backend B cap-dropped semantics).
+- [ ] `/bmad-create-story (args: "review")` post-dev SM per § Story Lifecycle row `traced → sm-verified` — two-subagent pattern (iter-235 LESSON). Forecast 0-2 PATCH per iter-270 NOVEL LESSON drift-band re-baseline (pre-dev SM at iter-281 already absorbed 6 PATCH + 3 DEFER; post-dev SM narrower).
 
 ## QUEUE (Story 2.13 lifecycle + 2.14..2.17 substrate queue)
-- [ ] _(after traced)_ `/bmad-create-story (args: "review")` post-dev SM per matrix row `traced → sm-verified`. Two-subagent pattern (iter-235 LESSON). Forecast 0-2 PATCH per iter-270 NOVEL LESSON drift-band re-baseline (pre-dev SM absorbs CRITICAL; post-dev narrower).
 - [ ] _(after sm-verified)_ `/bmad-code-review (args: "2")` per matrix row `sm-verified → done | fixes-pending` — three-layer Ralph-hosted adversarial fan-out (iter-271 pattern + iter-277 NOVEL LESSON #2 META guard carry-forward). Forecast 1-3 first-class PATCH (moderate-novelty band per iter-264 LESSON; narrower than Story 2.12 novel-runtime-behaviour outlier).
 - [ ] _(after Story 2.13 done)_ Story 2.14 legacy branch retention policy — full lifecycle.
 - [ ] _(after Story 2.14 done)_ Story 2.15 committed Claude settings.json deny/allow — full lifecycle.
@@ -16,13 +15,22 @@
 
 ## BLOCKED
 
-_(none — iter-283 recovery iter completed cleanly; uncommitted WIP from killed prior iter-283 verified-and-committed; sync-gate GREEN post `pnpm --filter @keel/keel-invariants build`; branch ready for push at `3f35dd6` pre-commit.)_
+_(none — iter-284 trace landed WAIVED cleanly; sync-gate GREEN post `pnpm --filter @keel/keel-invariants build`; branch ready for push at HEAD+1.)_
 
 ## ATDD Red Phase
 
 _(none — Story 2.13 ATDD-skipped at iter-282 with grounds-(c)+(ii)+(iii); no red-phase tests owed.)_
 
-## DONE (iter-283 Story 2.13 `/bmad-dev-story` landing (RECOVERY) — `atdd-scaffolded → in-dev (review)`; all 5 Tasks complete + Task 5 D-1 absorption; manifest count 32 → 33)
+## DONE (iter-284 Story 2.13 `/bmad-testarch-trace (args: "yolo")` — `in-dev → traced` WAIVED; TWENTY-THIRD cumulative trace-WAIVED precedent)
+
+- [x] iter-284: **STORY 2.13 TRACE LANDING.** FR14n Story State `in-dev → traced` under § Story Lifecycle row `in-dev → /bmad-testarch-trace`. **Gate decision: WAIVED** (TWENTY-THIRD cumulative trace-WAIVED precedent extending Story 2.12 iter-269 twenty-second; TWENTY-FOURTH ATDD-skip-trace-WAIVED pairing overall). Ground-(a)+(b)+(c) hybrid conjunction applied: (a) substrate-verification covers ACs 1, 2, 3, 5 via iter-283 recovery-landing impl-time smokes (sha256 contentHash `665174a3…d18623` + sync-gate GREEN `pnpm --filter @keel/keel-invariants build && check && check-all` + dash -n POSIX parse + three-site `api.github.com` lockstep + probe-tooling-baked dnsutils/netcat-openbsd + sshd_config ListenAddress-unset + timing-values lockstep + AC-1 negative-assertion + Story-2.12 env-propagation canonical stream); (b) no test runner wired (Epic 13 scope; zero test configs under repo root); (c) HYBRID variant-(ii) operator-workstation-deferred-AC-completion for AC 4 (mid-run SIGKILL + retry accumulator + State.Health.Status transition infeasible under DinD backend B cap-dropped semantics per Dev Notes:149).
+  - **Trace artefacts landed:** `_bmad-output/test-artifacts/traceability/2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck.md` (~500 lines; full five-phase matrix + gate decision + residual risks + waiver details + CI/CD yaml snippet) + `2-13-coverage-matrix.json` (Phase 1 temp; 5 requirements × P2 × NONE coverage) + `2-13-e2e-trace-summary.json` (portable summary + gate_status WAIVED) + `2-13-gate-decision.json` (slim gate surface). Structural inheritance from Story 2.12 iter-269 template (~85% reasoning-cost savings; mechanical adaptation to 2.13's 5-AC healthcheck-compose-probe class).
+  - **Story file v1.3:** Status HTML comment updated `in-dev → traced` with full annotation covering hybrid grounds + trace artefact paths + next-iter forecast.
+  - **No code changes.** Trace is gate-only; no manifest or substrate edit. `pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check` GREEN confirms no regression from inherited iter-283 landing (manifest count stays at 33 entries).
+  - **Budget consumed:** ~35K tokens (orient ~10K + story file + IP + RALPH.md reads ~8K + Story 2.12 precedent read (markdown + 3 JSONs) ~8K + artefact authoring (markdown + 3 JSONs) ~15K + sync-gate verification + commit prep ~5K). Well within ~117K execution budget; exit cleanly per Guardrail 12.
+  - **PR:** #230 **Draft** — `statusCheckRollup: []` carries unchanged at iter-284 orient; clean push expected at step 5.
+
+
 
 - [x] iter-283: **STORY 2.13 DEV-STORY LANDING (RECOVERY).** FR14n Story State `atdd-scaffolded → in-dev` under § Story Lifecycle row `atdd-scaffolded → /bmad-dev-story`. Killed-pre-commit iter-283 (iter-268 recovery precedent — reflog `f631bf8` "feat(story-2-12): iter-268 /bmad-dev-story landing (recovery)") produced all 5 Tasks' file edits in-tree but never committed; recovery iter verified + committed rather than re-invoking the skill. Story file v1.2 Change Log entry + Status HTML comment pre-written by the killed iter — retained verbatim. Sprint-status flipped `ready-for-dev → in-progress → review` at Step 9 completion.
 
@@ -52,19 +60,20 @@ _(iter-253..271 Story 2.10/2.11/2.12 closure + Story 2.12 lifecycle iters pruned
 
 ## Context
 
-- **Phase:** 4-implementation — Epic 2 at **12/17 stories done** (2.1-2.12) + 5/17 in-flight (2.13 in-dev (review) at iter-283; 2.14..2.17 backlog). Epic 2 current active story = 2.13 (healthcheck on dnsmasq + sshd).
-- **Runtime:** cc-devbox iteration env with Docker via host socket-passthrough (backend B per `INV-devbox-dind-available`). Live fresh-fork first-run smokes operator-workstation-deferred; substrate smokes covered through iter-283 (`pnpm keel-invariants:check` GREEN at `946f1ac1…907029` + new `665174a3…d18623` for `INV-devbox-healthcheck`; manifest count 32 → 33).
-- **Baked image:** `keel-devbox:local` (iter-123 bake; 848 MB, linux/arm64; `@anthropic-ai/claude-code@2.1.116` at Dockerfile:120). Host-side shim count: **18** at iter-283 (unchanged — dev-story did NOT add shims; only compose + Dockerfile + doc + invariant edits).
-- **Epic:** Epic 2 — Sandboxed Execution Environment (devbox). 17 stories total; **12 done** (2.1-2.12); **1 in-dev (review)** (2.13 at iter-283); **4 backlog** (2.14..2.17). Epic 2 closes at Story 2.17.
+- **Phase:** 4-implementation — Epic 2 at **12/17 stories done** (2.1-2.12) + 5/17 in-flight (2.13 traced at iter-284; 2.14..2.17 backlog). Epic 2 current active story = 2.13 (healthcheck on dnsmasq + sshd).
+- **Runtime:** cc-devbox iteration env with Docker via host socket-passthrough (backend B per `INV-devbox-dind-available`). Live fresh-fork first-run smokes operator-workstation-deferred; substrate smokes covered through iter-284 (`pnpm keel-invariants:check` GREEN at 33 manifest entries including `INV-devbox-healthcheck` at `665174a3…d18623`).
+- **Baked image:** `keel-devbox:local` (iter-123 bake; 848 MB, linux/arm64; `@anthropic-ai/claude-code@2.1.116` at Dockerfile:120). Host-side shim count: **18** at iter-284 (unchanged — trace is gate-only; zero code edits).
+- **Epic:** Epic 2 — Sandboxed Execution Environment (devbox). 17 stories total; **12 done** (2.1-2.12); **1 traced** (2.13 at iter-284); **4 backlog** (2.14..2.17). Epic 2 closes at Story 2.17.
 - **Epic Branch:** `feat/epic-2-packaged-devbox` (stays Draft across full Epic 2).
 - **Story:** Story 2.13 — Healthcheck on dnsmasq + sshd (replaces upstream's broken `curl :3000` healthcheck).
 - **Story File:** `_bmad-output/implementation-artifacts/2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck.md`
-- **Story State:** `in-dev` (iter-283 `/bmad-dev-story` RECOVERY landing; all 5 Tasks complete + Task 5 D-1 absorption; story file Status = `review`; sprint-status row `ready-for-dev → in-progress → review`; next gate `/bmad-testarch-trace (args: "yolo")` at iter-284 for `in-dev → traced` — forecast WAIVED per Story 2.12 iter-269 pattern).
-- **GitHub Issue:** Story 2.13 issue unknown; `RALPH_ISSUE_NUMBER` unset at iter-283 orient. Epic 2 → #10 (Ralph closes on EPIC_DONE halt at Story 2.17 close-out).
-- **PR:** #230 **Draft** — https://github.com/tthew/ralph-bmad/pull/230 — stays Draft across full Epic 2. No CI configured (`statusCheckRollup: []` carried unchanged iter-272..283).
+- **Story State:** `traced` (iter-284 `/bmad-testarch-trace (args: "yolo")` WAIVED landing; story file Status = `review` (sprint-status convention unchanged at Ralph-internal `traced` sub-state per iter-269 precedent); next gate `/bmad-create-story (args: "review")` post-dev SM at iter-285 for `traced → sm-verified` — forecast 0-2 PATCH per iter-270 drift-band re-baseline).
+- **GitHub Issue:** Story 2.13 issue unknown; `RALPH_ISSUE_NUMBER` unset at iter-284 orient. Epic 2 → #10 (Ralph closes on EPIC_DONE halt at Story 2.17 close-out).
+- **PR:** #230 **Draft** — https://github.com/tthew/ralph-bmad/pull/230 — stays Draft across full Epic 2. No CI configured (`statusCheckRollup: []` carried unchanged iter-272..284).
 
 ## Notes
 
+- **iter-284 observation (trace WAIVED via structural inheritance):** Story 2.12 iter-269 trace artefacts served as the canonical template; ~85% reasoning-cost savings via mechanical adaptation to Story 2.13's 5-AC healthcheck-compose-probe class. Four artefacts landed: markdown + 3 JSONs. Zero code edits — trace is gate-only; manifest count unchanged at 33; sync-gate GREEN on first try (no rebuild needed — no `invariants.manifest.ts` edit). Structural pattern carry-forward to Stories 2.14..2.17 traces expected: continue template inheritance discipline + three-site lockstep checks + ground-(a)+(b)+(c) hybrid framing.
 - **iter-283 observation (recovery iter pattern reused; iter-268 precedent):** The WIP in `git status` at iter-283 orient was produced by a killed-pre-commit prior iter-283 `/bmad-dev-story` invocation. Recovery was verification-and-commit (NOT re-invoke the skill). Verification steps: (a) story file's `File List` matches `git status` output exactly; (b) story file's claimed sha256 (`665174a3…d18623`) matches `sha256sum` of the actual doc; (c) contentHash in manifest matches doc sha256; (d) `pnpm --filter @keel/keel-invariants build` + sync-gate GREEN; (e) POSIX `dash -n` parse GREEN; (f) 3-site `api.github.com` lockstep + `^ListenAddress` empty smokes GREEN. Same precedent-match pattern as iter-268 Story 2.12 recovery (reflog `f631bf8` — "feat(story-2-12): iter-268 /bmad-dev-story landing (recovery)"). Commit framing preserves iter-283 number (not "iter-284 recovery") per iter-268 convention.
 - **iter-283 observation (TodoWrite reminder hooks continue):** harness surfaced TodoWrite reminders twice during this recovery iter (once mid-orient after verification-branch decision, once during README diff review). Matches iter-282 observation: in narrow-surface iters (~30K) the todo list is a single in-progress entry; reminder is false-positive at this iter density. No pattern change — documented harness behaviour.
 - **iter-257 LESSON REAFFIRMED (manifest rebuild mandatory; applies to recovery iters too):** `pnpm --filter @keel/keel-invariants build` MUST run before `pnpm keel-invariants:check` after any `invariants.manifest.ts` edit — including when verifying inherited WIP. Sync-gate consumes the compiled `dist/check.js`; stale dist shows `removed-from-docs-only INV-devbox-healthcheck` false drift. Recovery iters should treat the rebuild as load-bearing even when they did NOT author the manifest edit themselves. Story 2.13 v1.2 Completion Notes captures the same observation from the killed iter-283.

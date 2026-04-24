@@ -1,0 +1,147 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-24T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.13",
+    "label": "Healthcheck on dnsmasq + sshd (replaces upstream's broken curl :3000 healthcheck)"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "description": "No `curl localhost:3000` in the healthcheck. The TODO marker at `docker-compose.yml:263` is removed and replaced by a real `healthcheck:` block. The upstream cc-devbox carry-over (referenced in README § cc-devbox upstream provenance § Known upstream bugs fixed) that left every run permanently `unhealthy` is eliminated.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-283 `/bmad-dev-story` recovery-landing impl-time smokes: `grep -c '3000' packages/devbox/docker-compose.yml` returns exactly 2 matches — line 167 `KEEL_DEVBOX_PORT_WEB:-3000` publish (Story 2.2 Web port knob; expected per Dev Notes line 149) + line 264 prose reference string `\"upstream's broken \\`curl :3000\\` healthcheck\"` inside the Story 2.13 healthcheck block comment (meta-reference, not a live invocation). Zero `curl localhost:3000` live invocations. The TODO marker `# TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.` at docker-compose.yml:263 replaced with a CMD-SHELL `healthcheck:` block (YAML `>-` folded-scalar two-clause composition). Story-roadmap line at docker-compose.yml:24 converted to past tense `LANDED iter-283`. Manifest sync-gate `pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check` GREEN post manifest rebuild with `INV-devbox-healthcheck` registered binding `docs/invariants/devbox-healthcheck.md § No curl :3000` via contentHash 665174a3592106eabbb9f6b5dd39ce813839b3c61a89f1709d81e90524d18623 (33rd manifest entry). Not wired as automated regression — no test runner at Epic 2 substrate stage."
+    },
+    {
+      "id": "AC-2",
+      "description": "dnsmasq liveness probe — DNS query against `127.0.0.1:53` resolving a known-whitelisted domain (canonical: `api.github.com`, permanently present in `packages/devbox/whitelist/github.txt` per Story 2.3 + Story 2.9 substrate — the only whitelist fragment guaranteed to be load-bearing for every fork because `gh auth login` / `gh push` depend on it). The probe exits 0 iff dnsmasq (a) accepts the DNS query, (b) returns a response (NXDOMAIN counts as success for liveness). Canonical probe: `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com`.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-283 `/bmad-dev-story` recovery-landing impl-time smokes: (i) `dash -n` POSIX-sh syntax-parse on the joined healthcheck CMD string (`dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null && { [ \"${KEEL_DEVBOX_SSH:-false}\" != \"true\" ] || nc -z 127.0.0.1 2222; }`) returned exit 0 — clean POSIX-shell parse, no bashisms, no [[ ... ]], no arrays. (ii) `grep -n 'dnsutils' packages/devbox/Dockerfile` confirms line 61 — `dig` is baked via `/usr/bin/dig` on Ubuntu 24.04 apt install, no PATH issue under USER dev per Dockerfile:347. (iii) Three-site `api.github.com` lockstep verified: (a) compose healthcheck CMD string, (b) `docs/invariants/devbox-healthcheck.md § Probe contract + § Probe domain stability`, (c) `packages/devbox/README.md § Healthcheck (Story 2.13)`. (iv) `grep -n 'api.github.com' packages/devbox/whitelist/github.txt` confirms line 8 — probe domain is always-whitelisted per Story 2.3 default fragment + Story 2.9 gh-auth load-bearing substrate. Live `docker inspect --format '{{json .State.Health}}'` + `dig @127.0.0.1 ...` exit-code check + live dnsmasq SIGKILL recovery observation operator-workstation-deferred per Story 2.5 iter-186 posture (DinD backend B cap-dropped container semantics cannot safely exercise mid-run SIGKILL against dnsmasq without poisoning adjacent host-socket-passthrough state)."
+    },
+    {
+      "id": "AC-3",
+      "description": "Conditional sshd liveness probe when `KEEL_DEVBOX_SSH=true`. Given `KEEL_DEVBOX_SSH=true` is propagated into the container via `docker-compose.yml § environment` per Story 2.12 Task 4 (sources the normalised `KEEL_DEVBOX_SSH_RESOLVED` — iter-273 PATCH-2), when a probe runs, it ADDITIONALLY probes sshd liveness on `127.0.0.1:2222` (TCP connect via `nc -z 127.0.0.1 2222`) AND the healthcheck fails if EITHER dnsmasq OR sshd is down. Logical: `healthcheck succeeds IFF (dnsmasq responds) AND (KEEL_DEVBOX_SSH != \"true\" OR sshd port 2222 accepting TCP)`. No healthcheck difference in `KEEL_DEVBOX_SSH=false` mode — single probe (dnsmasq only).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-283 `/bmad-dev-story` recovery-landing impl-time smokes: (i) `grep -n 'netcat-openbsd' packages/devbox/Dockerfile` confirms line 64 — `nc` baked via `/usr/bin/nc.openbsd` on Ubuntu 24.04; BSD variant supports `-z` (zero-byte probe / scan mode); `netcat-traditional` does NOT support `-z` and is NOT installed. (ii) `grep -E '^ListenAddress' packages/devbox/sshd/sshd_config` returns empty — Story 2.12 iter-266 PATCH-F4 deliberately leaves the directive unset so OpenSSH listens on all local addresses (IPv4 `0.0.0.0` + IPv6 `::`), which includes `127.0.0.1:2222` for `nc -z` IPv4 probe to connect (verification smoke PATCH-4 PASS per story file Task 2). (iii) POSIX-shell branching analysis: `[ \"${KEEL_DEVBOX_SSH:-false}\" != \"true\" ] || nc -z 127.0.0.1 2222` — under `KEEL_DEVBOX_SSH=false/unset` the test evaluates TRUE (left operand `false` != `true`), short-circuits past `||` → nc NOT invoked; under `KEEL_DEVBOX_SSH=true` the test evaluates FALSE → `nc -z 127.0.0.1 2222` runs + its exit code governs. The outer `&&` pairing with clause 1 ensures both must succeed for exit 0. (iv) `KEEL_DEVBOX_SSH_RESOLVED` canonical env propagation via Story 2.12 iter-273 PATCH-2 ensures case-folded `true` reaches the container — raw case variants (`True`/`TRUE`/`tRuE`) NEVER reach the probe. (v) Manifest sync-gate GREEN with `INV-devbox-healthcheck` binding `§ SSH-conditional branch`. Live `docker inspect healthcheck` state observation under `KEEL_DEVBOX_SSH=true` + live `pkill sshd` mid-run SIGKILL recovery + `State.Health.Status` transition observation operator-workstation-deferred per Story 2.5 iter-186 posture."
+    },
+    {
+      "id": "AC-4",
+      "description": "Mid-run service death transitions container to `unhealthy`. Given the container is running and healthy, when dnsmasq (or sshd under opt-in) crashes mid-run, then the next probe fails, and after `retries: 3` consecutive failures the container's `State.Health.Status` transitions from `healthy` to `unhealthy`. `pnpm devbox:status` (Story 2.6 `status.sh:54` — `docker inspect --format '{{.State.Health.Status}}'`) surfaces the `unhealthy` state to the operator. `start.sh:103-120` already handles the `unhealthy-but-running` case (emits pointer to `pnpm devbox:logs`); Story 2.13 provides the actual probe that trips the transition.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Operator-workstation-deferred by AC contract + Story 2.5 iter-186 substrate-smoke posture. DinD backend B cannot safely exercise mid-run SIGKILL of dnsmasq/sshd against cap-dropped containers (risk of poisoning host docker state per AGENTS.md § Devbox iteration environment safety rule). Substrate-verification: (i) Healthcheck timing parameters `interval: 10s` / `timeout: 5s` / `retries: 3` / `start_period: 30s` set in compose block per Dev Notes contract; verified by js-yaml-compatible shape inspection of the healthcheck YAML block at docker-compose.yml:263-270. Retries=3 with interval=10s yields 30s detection latency post-start-period — standard Docker HEALTHCHECK state-machine contract (upstream Docker daemon owns the retry accumulator + State.Health.Status transition). (ii) `pnpm devbox:status` consumer (`status.sh:54`) reads `docker inspect --format '{{.State.Health.Status}}'` unchanged from Story 2.6 substrate — Story 2.13 unblocks the branch consumers already query by supplying the probe that produces meaningful state. (iii) `start.sh:92-120` healthcheck poll loop (Story 2.6 AC 2.6.4) and `start.sh:103` unhealthy-but-running branch unchanged — Story 2.13 adds the probe, not the consumer. (iv) `INV-devbox-healthcheck § Timing parameters` pins the four values via contentHash; sync-gate (Story 1.9) detects drift mechanically. Substrate-smoke matrix covers the timing-shape + consumer-branch + Docker-state-machine layers; live SIGKILL + retry-accumulator observation + State.Health.Status transition require real Docker daemon + `docker exec pkill` sequences against cap-dropped containers — operator-workstation-only backend-A per § Testing Standards (story file Dev Notes line 149) story-file-declared posture."
+    },
+    {
+      "id": "AC-5",
+      "description": "Healthcheck timing parameters documented with rationale. Given the compose `healthcheck:` block, when I inspect it, then the four timing keys are set to `interval: 10s`, `timeout: 5s`, `retries: 3`, `start_period: 30s`, AND these values are documented in `packages/devbox/README.md § Healthcheck (Story 2.13)` with per-knob rationale (cold-start margin vs detection-latency trade-off; probe frequency vs dnsmasq JSONL log volume; single-probe timeout vs `dig +time=3 +tries=1` + `nc -z` combined worst-case wall time).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-283 `/bmad-dev-story` recovery-landing impl-time smokes: (i) compose healthcheck block inspection — `interval: 10s` / `timeout: 5s` / `retries: 3` / `start_period: 30s` all present at docker-compose.yml:263-270 per contract. (ii) `docs/invariants/devbox-healthcheck.md § Timing parameters` documents all four values with per-knob rationale (cold-start margin vs detection-latency; probe frequency vs JSONL log volume at ~8640 queries/day; dig worst-case 3s + nc worst-case 1s = 4s margin under 5s timeout). (iii) `packages/devbox/README.md § Healthcheck (Story 2.13)` H2 section appended between `## Opt-in SSH (Story 2.12)` H2 and `## cc-devbox upstream provenance` H2 (SC-17 sibling-append discipline — prior story sections UNCHANGED) with four-row timing-parameter rationale table mirroring the invariant doc. (iv) `packages/devbox/README.md:921` forward-ref `Broken curl :3000 healthcheck → Story 2.13 …` converted to past-tense `→ fixed in Story 2.13 … LANDED iter-283` per SC-17. (v) `AGENTS.md § Healthcheck (Story 2.13)` H3 appended after `### Opt-in SSH (Story 2.12)` within § Devbox iteration environment — operator-facing walkthroughs + agent diagnostic pointer (`docker inspect State.Health.Status: unhealthy` → queue `pnpm devbox:logs` + `/var/log/sshd.log` inspect) + probe-tooling-baked + probe-domain-lockstep + SSH-conditional-branch + timing-substrate-authoritative + scope-carve-out + cross-reference. (vi) Manifest sync-gate GREEN with `INV-devbox-healthcheck` binding `§ Timing parameters`. No `.envrc.example` edit (no new `KEEL_DEVBOX_*` knob — timing substrate-authoritative per § Timing parameters posture per Dev Notes contract). Three-site timing-values lockstep: compose + invariant doc + README all carry interval 10s / timeout 5s / retries 3 / start_period 30s; future drift detected by sync-gate contentHash binding."
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 5, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2" },
+      { "id": "AC-2", "priority": "P2" },
+      { "id": "AC-3", "priority": "P2" },
+      { "id": "AC-4", "priority": "P2" },
+      { "id": "AC-5", "priority": "P2" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 5 P2 ACs; Epic-2-substrate-healthcheck-compose-probe class story (THIRTEENTH Epic 2 delivery; FIRST story combining (i) POSIX-sh probe-composition inside YAML folded-scalar + (ii) Docker HEALTHCHECK state-machine consumer + (iii) multi-clause conditional-probe composition on env var — distinct from Stories 2.1-2.12 non-healthcheck-layer extensions); TWENTY-THIRD cumulative trace-WAIVED precedent (TWELFTH Epic 2; extends Story 2.12 iter-269 twenty-second); TWENTY-FOURTH ATDD-skip-trace-WAIVED co-application pairing (extends iter-282 ATDD-skip grounds (c)+(ii)+(iii)). Ground-(a)+(b)+(c) hybrid conjunction applied with substrate-verification + no-test-runner + operator-workstation-deferred-AC-completion variant-(ii) for AC 4.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.13 authors 1 NEW file (docs/invariants/devbox-healthcheck.md contentHash 665174a3592106eabbb9f6b5dd39ce813839b3c61a89f1709d81e90524d18623) + 7 modified files per iter-283 Dev Agent Record recovery landing (docker-compose.yml healthcheck block; Dockerfile Task 5 D-1 absorption one-line `install -m 0644 /dev/null /var/log/sshd.log`; packages/keel-invariants/src/invariants.manifest.ts 33rd entry; INVARIANTS.md H3 + anchor bullet; packages/devbox/README.md H2 + forward-ref past-tense; AGENTS.md H3; story file v1.2 Status + Change Log). 33rd manifest entry (INV-devbox-healthcheck) lands with sync-gate GREEN after pnpm --filter @keel/keel-invariants build rebuild (iter-257 NOVEL LESSON reaffirmed: manifest rebuild MUST precede sync-gate verification after adding a new InvariantSchema entry).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification unlocks at M4-Pro operator workstation backend-A. ACs 1-3 + AC 5 substrate-verified at iter-283 dev-story recovery via impl-time smokes (dash -n POSIX parse + grep-based tooling verification + sha256 contentHash match + sync-gate GREEN + three-site api.github.com + timing-values lockstep). AC 4 operator-workstation-deferred by AC contract (live SIGKILL + retry-accumulator + State.Health.Status transition) — hybrid variant-(ii) applies per § Testing Standards Dev Notes line 149 story-file-declared posture.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}
