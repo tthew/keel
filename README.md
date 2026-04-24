@@ -1,3 +1,17 @@
+> # ⚠ Legacy-devbox retention branch (Story 2.14)
+>
+> **This branch is a retention-only snapshot of upstream [`tthew/cc-devbox`](https://github.com/tthew/cc-devbox)** captured at upstream `main@8ea5131eecbbfe0d0eb063c55f170cce6915af90` for the Keel project's bootstrap-handoff mitigation per PRD Technical Risks (`_bmad-output/planning-artifacts/prd.md:617`). It carries the pre-absorption standalone cc-devbox layout (top-level `Dockerfile`, `docker-compose.yml`, etc.) — distinct from the absorbed-into-`packages/devbox/` substrate that lives on `main`.
+>
+> **Canonical substrate:** `packages/devbox/` on `main` (Stories 2.1-2.13 + 2.15-2.17). Operators should default to that — this branch is a fallback canary, not the active devbox.
+>
+> **Retention scope:** security-critical upstream patches MAY be cherry-picked to this branch via the manual workflow at `docs/invariants/devbox-legacy-branch-retention.md § Cherry-pick workflow` on `main`. Feature parity with the substrate is NOT a goal — minimal drift only.
+>
+> **Sunset:** retired by Story 15b.1's `scripts/major-cut.sh` at the 1.0 cut ritual. The branch will be tagged `legacy-devbox-final` (kept reachable post-retirement) then removed from active tracking via `git push origin --delete legacy-devbox`. The retirement decision is recorded in `RALPH.md § Decisions` post-M4 checkpoint per Story 2.14 AC 3.
+>
+> **Triage path** (when investigating a devbox regression on `main`): see `docs/invariants/devbox-legacy-branch-retention.md § Triage path` on `main` — TL;DR: clone this branch as a canary, reproduce the regression here, bisect `main` between commit `5278738` (Story 2.1 absorption) and the regression-reporting commit if absent here.
+
+---
+
 <pre>
  ████████╗████████╗██╗  ██╗███████╗██╗    ██╗    ██████╗ ███████╗██╗   ██╗
  ╚══██╔══╝╚══██╔══╝██║  ██║██╔════╝██║    ██║    ██╔══██╗██╔════╝██║   ██║
