@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook (Story 2.17 Task 7 L1 install-boundary extension)
+# .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook (Story 2.17 Task 7 L1 install-boundary extension; Task 8.4 settings.*.json forward-compat pattern)
 set -euo pipefail
 payload="$(cat)"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || printf '')"
@@ -42,8 +42,9 @@ case "$tool_name" in
 esac
 case "$tool_name" in
   Edit|Write)
+    # Story 2.17 Task 8.4 — settings-file patterns (exact, forward-compat .*.json, and nested under any prefix).
     case "$file_path" in
-      .claude/settings.json|.claude/settings.local.json|*/.claude/settings.json|*/.claude/settings.local.json)
+      .claude/settings.json|.claude/settings.local.json|.claude/settings.*.json|*/.claude/settings.json|*/.claude/settings.local.json|*/.claude/settings.*.json)
         block "hook-self-protection" "settings-file" ;;
       .claude/hooks/*|*/.claude/hooks/*) block "hook-self-protection" "hook-script-file" ;;
       .git/hooks/*|*/.git/hooks/*) block "hook-self-protection" "git-hook-file" ;;
