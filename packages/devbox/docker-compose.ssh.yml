@@ -3,8 +3,9 @@
 # Included by host-side shims when KEEL_DEVBOX_SSH=true via
 # packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state(),
 # which exports KEEL_DEVBOX_COMPOSE_FILE_SSH as the absolute path to this
-# file. Shim sites thread the override via
-# `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}`.
+# file. Shim sites source packages/devbox/scripts/lib/compose-args.sh and
+# thread the override via `docker compose "${COMPOSE_ARGS[@]}" <subcommand>`
+# after calling `resolve_compose_args` (Story 2.12 PATCH-5, iter-276).
 # NEVER edit the base docker-compose.yml ports block to add 2222 — this file
 # is the SINGLE site that publishes 2222 (INV-devbox-ssh § No-SSH default
 # contract).

@@ -108,17 +108,27 @@ No shim re-computes SSH mode independently; no inline
 `if [[ $KEEL_DEVBOX_SSH == true ]]` blocks outside the resolver and
 `entrypoint.sh`.
 
-Compose-CLI idiom at every invoking site:
+Compose-CLI idiom at every invoking site (Story 2.12 PATCH-5,
+iter-276):
 
 ```
-docker compose -f "${COMPOSE_FILE}" \
-  ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} \
-  <subcommand>
+source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
+resolve_ssh_state
+source "${SCRIPT_DIR}/lib/compose-args.sh"
+resolve_compose_args
+docker compose "${COMPOSE_ARGS[@]}" <subcommand>
 ```
 
-The `${VAR:+-f "${VAR}"}` parameter-expansion form expands to `-f <path>`
-when non-empty and to the empty string when empty, avoiding the iterable-
-word-splitting hazard (RALPH.md 2026-04-21 AR-9).
+`resolve_compose_args` populates the `COMPOSE_ARGS` bash array with
+`(-f <base-compose-yml>)`, appending `(-f <ssh-override-yml>)` when
+`KEEL_DEVBOX_COMPOSE_FILE_SSH` is non-empty. The array idiom avoids
+the embedded-quote-under-unquoted-alt-expansion word-splitting hazard
+that the prior inline `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f
+"${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}` form exposed on fork repo paths
+containing whitespace — distinct hazard class from the iterable-word-
+splitting lesson at RALPH.md 2026-04-21 AR-9. See
+`packages/devbox/scripts/lib/compose-args.sh` header for the full
+analysis.
 
 ## External (non-loopback) connection refusal
 

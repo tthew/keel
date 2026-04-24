@@ -61,6 +61,9 @@ README_FILE="${DEVBOX_DIR}/README.md"
 # shellcheck source=lib/main-repo-resolver.sh
 source "${SCRIPT_DIR}/lib/main-repo-resolver.sh"
 resolve_ssh_state
+# shellcheck source=lib/compose-args.sh
+source "${SCRIPT_DIR}/lib/compose-args.sh"
+resolve_compose_args
 
 # --help|-h handling (iter-143 CR-re-run AR-5 = iter-138 findings F30 / E19).
 # Operators asking for usage previously fell through to the unknown-arg
@@ -220,7 +223,7 @@ compose_version="$(docker compose version --short 2>/dev/null || echo unknown)"
 # status would otherwise leak through.
 cleanup_on_exit() {
   local exit_code=$?
-  docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null 2>&1 || true
+  docker compose "${COMPOSE_ARGS[@]}" down >/dev/null 2>&1 || true
   exit "$exit_code"
 }
 trap cleanup_on_exit EXIT
@@ -233,21 +236,21 @@ if [[ $SKIP_COLD -eq 0 ]]; then
   echo "→ cold start: docker system prune -af --volumes (backend=$BACKEND)"
   docker system prune -af --volumes >/dev/null
   cold_start_ts="$(date +%s)"
-  docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} up --build -d
+  docker compose "${COMPOSE_ARGS[@]}" up --build -d
   cold_end_ts="$(date +%s)"
   cold_seconds=$(( cold_end_ts - cold_start_ts ))
-  docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null
+  docker compose "${COMPOSE_ARGS[@]}" down >/dev/null
 else
   cold_seconds="skipped"
 fi
 
 echo "→ warm start: docker compose down && up -d (backend=$BACKEND)"
-docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null 2>&1 || true
+docker compose "${COMPOSE_ARGS[@]}" down >/dev/null 2>&1 || true
 warm_start_ts="$(date +%s)"
-docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} up -d
+docker compose "${COMPOSE_ARGS[@]}" up -d
 warm_end_ts="$(date +%s)"
 warm_seconds=$(( warm_end_ts - warm_start_ts ))
-docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} down >/dev/null
+docker compose "${COMPOSE_ARGS[@]}" down >/dev/null
 
 # Flag text branches on backend classification per the iter-128 CR AI-4
 # finding: backend A (no /.dockerenv; detect_backend only asserts A on a

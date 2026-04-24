@@ -88,14 +88,17 @@
 #                                   = "${DEVBOX_DIR}/docker-compose.ssh.yml"
 #                                                        when opt-in SSH.
 #
-# Caller wiring idiom: every shim that invokes `docker compose -f
-# "${COMPOSE_FILE}"` extends the invocation with
-# `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}` —
-# the `${VAR:+…}` parameter-expansion form expands to `-f <path>` when non-
-# empty and to the empty string when empty, avoiding the iterable-word-
-# splitting hazard (RALPH.md 2026-04-21 AR-9). Shared mode (Story 2.11) does
-# NOT change this — the override composes regardless of mode (sshd is
-# per-container, not per-mode).
+# Caller wiring idiom (Story 2.12 PATCH-5, iter-276): every shim that
+# invokes `docker compose` sources `lib/compose-args.sh` after this
+# resolver and calls `resolve_compose_args` to populate the
+# `COMPOSE_ARGS` bash array, then invokes `docker compose
+# "${COMPOSE_ARGS[@]}" <subcommand>`. Superseded inline form
+# `${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"}`
+# was unquoted at the outer level and word-split forks whose repo path
+# contained whitespace. See `lib/compose-args.sh` header for the
+# hazard-class analysis (distinct from AR-9). Shared mode (Story 2.11)
+# does NOT change this — the override composes regardless of mode
+# (sshd is per-container, not per-mode).
 #
 # See `docs/invariants/devbox-ssh.md` (INV-devbox-ssh) for the full contract
 # (loopback-bound port publication + opt-in sshd + pubkey-only + named-volume

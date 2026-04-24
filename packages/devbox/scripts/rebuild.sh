@@ -30,6 +30,9 @@ resolve_main_repo_and_workdir
 resolve_mode_specific_state
 resolve_ssh_state
 export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+# shellcheck source=lib/compose-args.sh
+source "${SCRIPT_DIR}/lib/compose-args.sh"
+resolve_compose_args
 
 log() { printf 'rebuild: %s\n' "$*" >&2; }
 
@@ -39,4 +42,4 @@ log() { printf 'rebuild: %s\n' "$*" >&2; }
 "${SCRIPT_DIR}/prereq-check.sh" --tier1
 
 log "docker compose build --no-cache devbox (fresh)"
-exec docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} build --no-cache devbox
+exec docker compose "${COMPOSE_ARGS[@]}" build --no-cache devbox

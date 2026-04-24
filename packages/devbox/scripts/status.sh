@@ -34,6 +34,9 @@ resolve_mode_specific_state
 resolve_ssh_state
 export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+# shellcheck source=lib/compose-args.sh
+source "${SCRIPT_DIR}/lib/compose-args.sh"
+resolve_compose_args
 
 log() { printf 'status: %s\n' "$*" >&2; }
 
@@ -46,7 +49,7 @@ if ! docker inspect "${CONTAINER_NAME}" >/dev/null 2>&1; then
 	exit 9
 fi
 
-docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} ps devbox || true
+docker compose "${COMPOSE_ARGS[@]}" ps devbox || true
 
 health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}(no healthcheck configured){{end}}' "${CONTAINER_NAME}" 2>/dev/null || echo "(inspect failed)")"
 state="$(docker inspect --format '{{.State.Status}}' "${CONTAINER_NAME}" 2>/dev/null || echo "unknown")"

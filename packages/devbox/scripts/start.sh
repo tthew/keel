@@ -57,6 +57,9 @@ export KEEL_DEVBOX_WORKSPACE="${MAIN_REPO}"
 export KEEL_DEVBOX_REPO_NAME="${REPO_NAME}"
 export KEEL_DEVBOX_CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
 CONTAINER_NAME="${KEEL_DEVBOX_CONTAINER_NAME_RESOLVED}"
+# shellcheck source=lib/compose-args.sh
+source "${SCRIPT_DIR}/lib/compose-args.sh"
+resolve_compose_args
 
 log() { printf 'start: %s\n' "$*" >&2; }
 
@@ -84,7 +87,7 @@ if [[ "${KEEL_DEVBOX_START_SKIP_ENV_CHECK:-false}" != "true" ]]; then
 fi
 
 log "docker compose up -d devbox"
-docker compose -f "${COMPOSE_FILE}" ${KEEL_DEVBOX_COMPOSE_FILE_SSH:+-f "${KEEL_DEVBOX_COMPOSE_FILE_SSH}"} up -d devbox
+docker compose "${COMPOSE_ARGS[@]}" up -d devbox
 
 log "polling healthcheck (timeout ${HEALTHCHECK_TIMEOUT_S}s)"
 deadline=$(( $(date +%s) + HEALTHCHECK_TIMEOUT_S ))

@@ -509,7 +509,7 @@ Four parallel Sonnet subagents re-analysed story against sources. Ralph triage p
 3. Task 5 invariant-doc H2 section overlap (8→6 consolidation); polish-only, defer to CR cycle or Story 2.17 close-out.
 4. Override file `name:` subtask hardening (Compose v2 implicitly picks up from base file; correct-by-default).
 5. SC-13 ("No PRD amendment") — narrative SC without Task-enforcement step; keep for traceability.
-6. `resolve_ssh_state()` paths-with-spaces edge (current repo `/workspace/ralph-bmad` is safe; fork under `/Users/<space>/…` would hit AR-9 word-splitting — mitigated by PATCH-2's `${VAR:+-f "${VAR}"}` single-path idiom).
+6. `resolve_ssh_state()` paths-with-spaces edge (current repo `/workspace/ralph-bmad` is safe; fork under `/Users/<space>/…` would hit embedded-quote-under-unquoted-alt-expansion word-splitting). ~~mitigated by PATCH-2's `${VAR:+-f "${VAR}"}` single-path idiom~~ — superseded at iter-271 CR PATCH-5 + iter-276 landing: the inline `${VAR:+-f "${VAR}"}` form is NOT a mitigation for the paths-with-spaces hazard; bash's alt-value expansion re-tokenises by word-splitting BEFORE embedded double-quote chars are re-parsed (they become literal post-expansion). AR-9 citation removed — AR-9 is about `for x in $(...)` iterable word-splitting on IFS, a distinct hazard class that the single-path idiom does mitigate but which is not this one. Actual fix: bash array idiom via `packages/devbox/scripts/lib/compose-args.sh` helper (iter-276 PATCH-5).
 7. Operator lockout/revoke flow documentation (Task 6 gap; queue for CR cycle).
 8. Task 6 authorized-keys echo `>>` command-injection surface (operator-trusted content; defer to Story 2.13 or Epic 2 close-out docs polish).
 
