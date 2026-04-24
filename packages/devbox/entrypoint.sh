@@ -173,6 +173,17 @@ if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
     gosu dev mkdir -p /home/dev/.ssh/host_keys.tmp
     gosu dev ssh-keygen -q -t ed25519 -f /home/dev/.ssh/host_keys.tmp/ssh_host_ed25519_key -N "" < /dev/null
     gosu dev ssh-keygen -q -t rsa -b 4096 -f /home/dev/.ssh/host_keys.tmp/ssh_host_rsa_key -N "" < /dev/null
+    # PATCH-4 / Story 2.12 SC-10 partial-keypair recovery: when a prior
+    # keygen ran was killed mid-way, one of the two final filenames may
+    # exist in host_keys/ while the other is missing — the outer `if`
+    # catches this (both-present short-circuits the branch) and we're
+    # regenerating. But `mv -T` refuses to overwrite a non-empty target
+    # directory ("Directory not empty"); under `set -e` inside the SC-10
+    # subshell, this aborts setup and the `||` diagnostic fires — sshd
+    # never starts. `rm -rf host_keys` clears any stray survivor first;
+    # the mv then succeeds in BOTH fresh-fork (empty host_keys — just
+    # mkdir'd at L155) and partial-keypair (non-empty host_keys) cases.
+    gosu dev rm -rf /home/dev/.ssh/host_keys
     gosu dev mv -T /home/dev/.ssh/host_keys.tmp /home/dev/.ssh/host_keys
   fi
   # Touch authorized_keys with 0600 every boot (idempotent). Empty file
