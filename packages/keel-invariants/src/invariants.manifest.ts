@@ -302,6 +302,14 @@ const raw: Invariant[] = [
     anchors: ['INV-devbox-healthcheck'],
   },
   {
+    id: 'INV-devbox-legacy-branch-retention',
+    description:
+      'Legacy-devbox branch retains pre-absorption cc-devbox layout as fallback canary during M0.5 → M4 critical-path window per PRD § Technical Risks bootstrap-handoff mitigation (prd.md:617); retired by Story 15b.1 scripts/major-cut.sh at 1.0 cut ritual (epics.md:6293-6314). Four workflow contracts pinned: § Branch creation (git fetch https://github.com/tthew/cc-devbox.git main:legacy-devbox; scratch worktree; Story 2.14 retention banner prepended to upstream README.md; push origin legacy-devbox); § Cherry-pick (manual minimal-drift via git format-patch | sed path-rewrite | git am; scope restricted to CVE-class / fail-closed-egress / secret-leakage / network-exposure regressions — NOT feature parity, NOT dependency bumps); § Triage (canary-then-bisect — git worktree add the canary + reproduce + git bisect HEAD 5278738 -- packages/devbox/ if regression absent on canary, escalate upstream if present); § Retirement gate (git tag legacy-devbox-final + push tag + delete active branch + RALPH.md § Decisions entry referencing M4 checkpoint doc per FR33; AGENTS.md H3 pointer flip — Story 15b.1 owns execution, Story 2.14 owns recipe-contract). Documented-but-not-automated by design; FR44 AMEND required to script cherry-pick workflow. Forks MAY follow pattern with own upstream + retention naming OR skip retention entirely if no bootstrap-handoff risk; forks MAY NOT weaken no-feature-parity framing or automate cherry-picks without AMEND (substrate-wins precedence per docs/invariants/fork.md § Precedence). Upstream SHA captured at Story 2.14 landing is substrate-canonical; replacing or force-pushing origin/legacy-devbox requires AMEND against this invariant. Anchors: branch existence at origin/legacy-devbox + invariant doc + INVARIANTS.md H3 + packages/devbox/README.md H2 + AGENTS.md § Devbox iteration environment H3 + manifest entry + Story 15b.1 retirement-script binding.',
+    sourcePath: 'docs/invariants/devbox-legacy-branch-retention.md',
+    contentHash: '02f6048f78cf3c4e315ec6bc5c55bd52a7278d2cba99cc1f1e7b5a5b91d0c4ca',
+    anchors: ['INV-devbox-legacy-branch-retention'],
+  },
+  {
     id: 'INV-gitignored-secret-commit-deny',
     description:
       'Pre-commit hook refuses additions of .envrc, .envrc.local, and .secrets at any path. ' +

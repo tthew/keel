@@ -129,6 +129,12 @@ Compose-level healthcheck probes dnsmasq liveness (always) + sshd liveness (iff 
 
 - **`INV-devbox-healthcheck`** — Compose healthcheck probes dnsmasq + sshd liveness; never curl :3000; timing parameters + rationale pinned. Source: `docs/invariants/devbox-healthcheck.md`.
 
+### Devbox legacy-branch retention (Story 2.14)
+
+Legacy-devbox branch retains pre-absorption cc-devbox layout as fallback canary during the M0.5 → M4 critical-path window per PRD § Technical Risks bootstrap-handoff mitigation (`prd.md:617`); retired by Story 15b.1's `scripts/major-cut.sh` at the 1.0 cut ritual (`epics.md:6293-6314`). Four workflow contracts pinned: branch creation (upstream fetch + retention banner), cherry-pick (manual minimal-drift; CVE-class / fail-closed-egress / secret-leakage only — no feature-parity), triage (canary-then-bisect — reproduce the regression on the canary; `git bisect HEAD 5278738 -- packages/devbox/` if absent on canary, escalate upstream if present), retirement (tag `legacy-devbox-final` + delete active branch + `RALPH.md` decision entry per FR33). Documented-but-not-automated by design; FR44 AMEND required to script cherry-pick. Forks MAY follow the pattern with their own upstream + retention naming OR skip retention if no bootstrap-handoff risk applies; substrate-wins precedence forbids weakening no-feature-parity framing or automating cherry-picks.
+
+- **`INV-devbox-legacy-branch-retention`** — Legacy-devbox branch retains pre-absorption cc-devbox layout for bootstrap-handoff mitigation; cherry-pick + triage + retirement workflows pinned. Source: `docs/invariants/devbox-legacy-branch-retention.md`.
+
 ### Gitignored-secret commit-deny (Story 2.2)
 
 Pre-commit hook refuses additions of `.envrc`, `.envrc.local`, and `.secrets` at any path. Committed schema companions (`.envrc.example`, `.secrets.example`) remain exempt via anchored regex end-match. Machine-enforced via prek hook → `pnpm keel-invariants:no-committed-dotfiles` → `packages/keel-invariants/src/check-no-committed-dotfiles.ts`.

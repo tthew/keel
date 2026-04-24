@@ -982,6 +982,35 @@ jq 'select(.query != "api.github.com")' /workspace/${KEEL_DEVBOX_REPO_NAME}/logs
 
 `INV-devbox-healthcheck` (`docs/invariants/devbox-healthcheck.md`) pins the probe contract, timing parameters, probe tooling (dnsutils + netcat-openbsd baked at image build; BSD `nc -z` is load-bearing), exit-code semantics, probe-domain stability (three-site lockstep with `packages/devbox/whitelist/github.txt`), and fork-extension rules (additive compose override permitted; substrate MAY NOT be weakened).
 
+## Legacy-devbox branch retention (Story 2.14)
+
+An `origin/legacy-devbox` branch carries the pre-absorption standalone [`cc-devbox`](https://github.com/tthew/cc-devbox) layout as a fallback canary during the M0.5 → M4 critical-path window per PRD § Technical Risks bootstrap-handoff mitigation. If you encounter a devbox regression on `main`, see the triage TL;DR below; the canonical recipe lives at `docs/invariants/devbox-legacy-branch-retention.md` on this branch.
+
+### Triage TL;DR
+
+```bash
+git fetch origin legacy-devbox
+git worktree add ../legacy-devbox-canary legacy-devbox
+# Reproduce the regression in ../legacy-devbox-canary.
+# If absent: git bisect HEAD 5278738 -- packages/devbox/ on main.
+# If present: pre-existed absorption — escalate upstream.
+git worktree remove ../legacy-devbox-canary
+```
+
+Commit `5278738` is Story 2.1's `packages/devbox/` absorption-landing commit; bisecting with the `-- packages/devbox/` path-filter narrows the search to commits that actually touched the substrate.
+
+### Cherry-pick scope
+
+Security-critical upstream patches MAY be cherry-picked manually per `docs/invariants/devbox-legacy-branch-retention.md § Cherry-pick workflow` (CVE-class / fail-closed-egress / secret-leakage / network-exposure regressions ONLY). Feature additions, cosmetic refactors, and dependency bumps are out of scope — the retention branch tracks upstream, not `main`. Operators wanting feature-parity use `packages/devbox/` on `main`, not this branch.
+
+### Sunset
+
+The branch is retired by Story 15b.1's `scripts/major-cut.sh` at the 1.0 cut ritual. Retirement tags `legacy-devbox-final` (kept reachable for archaeology post-retirement), then `git push origin --delete legacy-devbox` removes the active-tracking target. Full retirement-gate procedure: `docs/invariants/devbox-legacy-branch-retention.md § Retirement gate`.
+
+### Machine-enforced contract
+
+`INV-devbox-legacy-branch-retention` (`docs/invariants/devbox-legacy-branch-retention.md`) pins the branch-creation contract, cherry-pick workflow (manual, minimal-drift), triage path (canary-then-bisect), sunset criteria (M4 checkpoint), retirement gate (Story 15b.1 execution), and fork-extension rules.
+
 ## cc-devbox upstream provenance
 
 - Upstream source:
