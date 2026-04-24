@@ -42,7 +42,7 @@ Baked at image build:
 - `dig` via `dnsutils` apt package (`packages/devbox/Dockerfile:61`).
 - `nc` via `netcat-openbsd` apt package (`packages/devbox/Dockerfile:64`). The BSD `nc` variant is load-bearing — `netcat-traditional` does NOT support `-z` (zero-byte probe mode).
 
-Both probes run as USER `dev` (`packages/devbox/Dockerfile:347`); no capability or SUID dependency. `dig` opens a UDP client socket on a high ephemeral port (no `CAP_NET_BIND_SERVICE` needed); `nc -z` opens a TCP client socket to `127.0.0.1:2222` (no cap needed). Under `cap_drop: [ALL]` + three-cap allow (NET_ADMIN / NET_RAW / NET_BIND_SERVICE per `INV-devbox-homedev-named-volume`), both probes succeed as `dev`.
+Both probes run as USER `dev` (`packages/devbox/Dockerfile:360`); no capability or SUID dependency. `dig` opens a UDP client socket on a high ephemeral port (no `CAP_NET_BIND_SERVICE` needed); `nc -z` opens a TCP client socket to `127.0.0.1:2222` (no cap needed). Under `cap_drop: [ALL]` + three-cap allow (NET_ADMIN / NET_RAW / NET_BIND_SERVICE per `INV-devbox-homedev-named-volume`), both probes succeed as `dev`.
 
 Do NOT switch to `curl` / `wget` / `openssl s_client` without updating this invariant.
 

@@ -263,7 +263,7 @@ services:
     # Story 2.13: dnsmasq liveness (always) + sshd liveness (when KEEL_DEVBOX_SSH=true).
     # Replaces upstream cc-devbox's broken `curl :3000` healthcheck (README §
     # cc-devbox upstream provenance § Known upstream bugs fixed). Probes run as
-    # USER dev (Dockerfile:347) via docker exec semantics; `dig` + `nc` ship in
+    # USER dev (Dockerfile:360) via docker exec semantics; `dig` + `nc` ship in
     # the Dockerfile apt layer (dnsutils + netcat-openbsd per Dockerfile:61-64).
     # KEEL_DEVBOX_SSH env var is populated by Story 2.12 § environment
     # propagation (compose:149 sources KEEL_DEVBOX_SSH_RESOLVED — iter-273
