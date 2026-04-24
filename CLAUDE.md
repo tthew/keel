@@ -72,7 +72,7 @@ When you discover something new during a session:
 - **One skill per context window.** BMad skills assume a clean context. Start a fresh conversation for each.
 - **Memory.** BMad agent sidecar memory lives in `_bmad/_memory/`. Claude Code user-level memory lives outside this repo (`~/.claude/...`). Don't persist transient task state to either.
 - **Committed settings at `.claude/settings.json`** — tracked permission policy (`permissions.deny` + `permissions.allow`) per NFR5a. See `AGENTS.md § Claude Code settings policy (Story 2.15)` for the fork-extension honour system. Don't edit to weaken the deny list — Story 2.17's content-hash sync-gate will flag tampering once landed.
-- **Don't touch `.claude/settings.local.json`** — it's user-specific and gitignored. Local allow rules extend but cannot weaken committed deny rules (see AGENTS.md H3 for resolution semantics).
+- **Don't touch `.claude/settings.local.json`** — it's user-specific and gitignored. Local allow rules extend but cannot weaken committed deny rules (see `AGENTS.md § Claude Code settings policy (Story 2.15)` for resolution semantics).
 - **Don't invent skills.** Only invoke skills listed in the Claude Code `available-skills` block or explicitly typed as `/<name>` by the user.
 - **Worktrees.** If you're running inside a worktree under `.claude/worktrees/` (gitignored), never clean it up on exit — the worktree preserves WIP for the next iteration.
 

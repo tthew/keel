@@ -1023,7 +1023,7 @@ View the policy:
 cat .claude/settings.json | jq .permissions
 ```
 
-Extend with fork-specific rules (edit the committed file directly if fork-scoped; route through FR44 AMEND at `docs/invariants/fork.md § Amendment-vs-fork decision` if the change should propagate to every fork):
+Extend with fork-specific rules (edit the committed file directly if fork-scoped; route through FR44 AMEND at `docs/invariants/fork.md § Amendment-vs-fork decision tree` if the change should propagate to every fork):
 
 ```sh
 # Fork-specific add (example): deny a fork-only secret-file pattern
@@ -1034,6 +1034,7 @@ Personal preferences — extend `allow` in the gitignored local-override file (n
 
 ```sh
 # .claude/settings.local.json — your local extension (not tracked)
+# NOTE: `>` overwrites any existing file; use `jq` merge (see above) if you already have local overrides.
 echo '{"permissions":{"allow":["Bash(my-local-tool *)"]}}' > .claude/settings.local.json
 ```
 
