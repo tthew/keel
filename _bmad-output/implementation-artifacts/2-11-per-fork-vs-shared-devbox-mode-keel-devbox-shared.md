@@ -1,6 +1,6 @@
 # Story 2.11: Per-fork vs shared devbox mode (`KEEL_DEVBOX_SHARED`)
 
-Status: ready-for-dev <!-- Ralph-internal `Story State` = `validated` after `/bmad-create-story (args: "review")` pre-dev gate (iter-255; 1 CRITICAL + 6 ENHANCEMENT review-findings folded in at v1.1). Sprint-row `ready-for-dev` unchanged (sprint-status does not distinguish drafted vs validated). -->
+Status: ready-for-dev <!-- Ralph-internal `Story State` = `atdd-scaffolded` after `/bmad-testarch-atdd` skip-with-grounds-(c)+(ii)+(iii) at iter-256 (Story 2.5 iter-186 precedent; 21st-cumulative FR14n ATDD-skip; ZERO-PATCH — IP+RALPH.md only, no Change Log entry per precedent). Prior: `validated` after pre-dev `/bmad-create-story (args: "review")` gate at iter-255 (Change Log v1.1). Sprint-row `ready-for-dev` unchanged (sprint-status does not distinguish atdd-scaffolded vs validated). -->
 
 <!-- Note: Validation is optional. Run `/bmad-create-story (args: "review")` for pre-dev quality check before `/bmad-testarch-atdd` / `/bmad-dev-story`. -->
 
