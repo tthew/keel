@@ -992,7 +992,7 @@ An `origin/legacy-devbox` branch carries the pre-absorption standalone [`cc-devb
 git fetch origin legacy-devbox
 git worktree add ../legacy-devbox-canary legacy-devbox
 # Reproduce the regression in ../legacy-devbox-canary.
-# If absent: git bisect HEAD 5278738 -- packages/devbox/ on main.
+# If absent: git bisect start HEAD 5278738 -- packages/devbox/ on main.
 # If present: pre-existed absorption — escalate upstream.
 git worktree remove ../legacy-devbox-canary
 ```
