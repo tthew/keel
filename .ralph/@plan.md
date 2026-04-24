@@ -14,8 +14,8 @@
 
 ## BLOCKED
 
-- [ ] iter-257 step-5 push EXPECTED to fail — SSH :22 to github.com still timing out per iter-256 BLOCKED carry-forward (probed at iter-257 orient via `git ls-remote origin HEAD` with 15s timeout → RC=124). 3 unpushed commits locally (iter-256 × 2 + iter-257-dev-story-landing). Commits flush together when upstream recovers per iter-249..256 recovery-banking pattern.
-  - Attempted: `git ls-remote origin HEAD` at iter-257 orient — 15s timeout; step-5 `git push` will either succeed if the window has opened OR re-fail with SSH :22 timeout.
+- [ ] iter-257 step-5 push CONFIRMED FAILED — SSH :22 timeout re-surfaced (90s timeout via `timeout 90 git push origin feat/epic-2-packaged-devbox` → RC=124). 4 unpushed commits locally now (iter-256 × 2 + iter-257-dev-story-landing + iter-257-post-push-fail BLOCKED-state update). Commits flush together when upstream recovers per iter-249..256 recovery-banking pattern.
+  - Attempted: orient probe `git ls-remote origin HEAD` 15s timeout → RC=124; step-5 `git push` 90s timeout → RC=124. Both SSH :22 probes unresponsive.
   - Error/Issue: SSH :22 egress to github.com `140.82.121.{3,4,5,6}:22` intermittently timed out across iter-219..257; iter-255 saw a brief recovery window; iter-256 + iter-257 re-blocked. HTTPS :443 correlates (iter-256 `gh pr checks 230` also timed out). Suggests upstream network-path issue from iter-env to github.com ASN rather than port-specific egress block. PR #230 has no CI configured so HTTPS timeout is not a CI gate.
   - Next: next iter retries SSH :22 push on orient per the iter-249..255 carry-forward recovery-banking pattern. Commits are safe in local branch — no force-push, no amend, preserved intact. When SSH :22 recovers, `git push` flushes all unpushed commits in a single round-trip with no conflict.
 
