@@ -17,7 +17,7 @@
 
 ## BLOCKED
 
-_(empty — iter-323 push expected to succeed; egress stable across iter-321/322. If egress recurs, apply iter-321 diagnostic recipe from RALPH.md 2026-04-24 Gotchas.)_
+- **iter-323 push BLOCKED — SSH egress timeout to github.com:22.** DNS healthy (`dig @127.0.0.1 -p 53 +short github.com` → `140.82.121.4`); `ssh -T git@github.com` + `git push` (default + `GIT_SSH_COMMAND="ssh -o ConnectTimeout=30" git push`) both returned `ssh: connect to host github.com port 22: Connection timed out`. Same systemic-egress signature as iter-321 (recovered in <5s on retry after 90s timeout on that iter). Commit `b2c56b8` (iter-323 Task 13.2 landing) queued locally; 1 commit ahead of upstream. Retry push chained after committing this BLOCKED IP update per iter-321 recovery pattern; if still blocked, next iter-324 NOW first action is push retry before Task 13.4.
 
 ## ATDD Red Phase
 
