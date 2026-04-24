@@ -18,7 +18,11 @@
 
 ## BLOCKED
 
-_(none)_
+- [ ] **iter-301 push deferred — SSH egress timeout to github.com:22** (three retries at 0s/5s/15s intervals all returned `ssh: connect to host github.com port 22: Connection timed out`). Matches iter-299 precedent observation (commits `7eba35c` / `ce39110` — "push cleared on third retry; SSH egress flake observation"); iter-301 extends the observation to "four+ retries may be needed on some iters; DinD backend B SSH egress is intermittently flaky".
+  - Attempted: three `git push` attempts with 0s/5s/15s pacing; `gh pr view 230 --json` recovered on retry-1 (GraphQL API :443 at 140.82.121.5 separate from SSH :22 egress) confirming the flake is SSH-specific + not a generalised github.com egress outage.
+  - Error: `ssh: connect to host github.com port 22: Connection timed out` / `fatal: Could not read from remote repository.`
+  - Next: NEXT ITER step-5 retries push on its own orient; orient step 0h surfaces unpushed commit `9415ce5` (iter-301 CR bundled close); if retry succeeds, this BLOCKED entry self-clears via a follow-up `docs(story-2-15): iter-302 clear BLOCKED` commit sequence (iter-299 pattern). No Ralph escalation; guardrail 10 (push before exit — UNLESS CI is in-progress OR push fails with documented network flake) + autonomy guardrail (bounded halt reasons) apply — this is a committed-locally + exit-cleanly scenario, NOT a new halt reason.
+  - Scope note: this does NOT change Story 2.15 close-state (`sm-verified → done` is LANDED locally in commit `9415ce5`; sprint-status row `2-15: done` is LANDED locally; the push is a remote-sync concern only). When the push clears, PR #230 shows the iter-301 commit atop iter-300; no CI configured (`statusCheckRollup: []`) so no gate race.
 
 ## ATDD Red Phase
 
