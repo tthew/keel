@@ -18,11 +18,7 @@
 
 ## BLOCKED
 
-_(none — Story 2.12 DONE at iter-279; Story 2.13 drafted at iter-280, validated at iter-281.)_
-
-## Unpushed (carry-forward to iter-282)
-
-- **iter-281 commit `6e0e810`** (`docs(story-2-13): iter-281 /bmad-create-story (args: "review") — drafted → validated (6 PATCH + 3 DEFER)`) — local HEAD is 1 ahead of `origin/feat/epic-2-packaged-devbox`. Push attempted 4× at iter-281 exit (SSH :22 ×3 via `git push` / `git push` / `GIT_SSH_COMMAND="ssh -o ServerAliveInterval=15 -o ConnectTimeout=30" git push`; HTTPS :443 ×1 via `git push https://…`). ALL FOUR FAILED — both `github.com:22` and `github.com:443` blocked from the devbox at iter-281 exit time (HTTPS probe reported `Failed to connect … after 136084 ms`). This is BROADER than iter-263's asymmetric-recovery LESSON (where one protocol times out while the other is clean); both are blocked simultaneously. Next iter (iter-282) MUST retry push at step 0 orient BEFORE dispatching the NOW BMad workflow; apply iter-268 `ServerAliveInterval=15` keepalive + iter-263 asymmetric-recovery retry pattern (SSH first; if SSH times out, try HTTPS; if both time out, exit with another iter of carry-forward without starting new work per step 5's "If push fails, document in IP and exit cleanly" discipline). Branch in sync with local HEAD at `6e0e810` post-commit.
+_(none — Story 2.12 DONE at iter-279; Story 2.13 drafted at iter-280, validated at iter-281. Branch pushed at iter-281 exit after 4× timeout retry; SSH :22 recovered on 5th attempt per iter-263 asymmetric-recovery LESSON (narrowed this iter: both protocols were simultaneously blocked for ~5 min, then SSH cleared — broader than the usual asymmetric pattern but self-healed).)_
 
 ## ATDD Red Phase
 
