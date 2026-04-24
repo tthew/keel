@@ -2,7 +2,7 @@
 
 Status: ready-for-dev
 
-<!-- lifecycle: drafted (iter-309) → validated (iter-310 pre-dev SM) → atdd-scaffolded → in-dev → traced → sm-verified → done. FINAL story of Epic 2 (16/17 done pre-2.17; 17/17 at 2.17 `done`). Scope-inherent absorbs the 83-DEFER Epic-2 close-out backlog: 25 from Story 2.16 iter-308 CR (D-12..D-36) + 8 carry-forward from Story 2.15 CR (D-2/D-4/D-5/D-7/D-8/D-9/D-10/D-11 — D-1/D-3/D-6 already mitigated at Story 2.16 hook layer) + 3 SC-17 close-out candidates from Story 2.16 iter-306 trace (byte-identity diff lint + NFR5a minimum-entry gate + `hooks` key precondition lint) + 47 earlier carry-forward from Stories 1.8–1.16 + 2.1–2.14 (doc-drift / citation-lockstep / recipe polish — triage in Task 17). -->
+<!-- lifecycle: drafted (iter-309) → validated (iter-310 pre-dev SM) → atdd-scaffolded (iter-311 SKIP-WITH-GROUNDS-(ii)+(iii); 27th cumulative ATDD-skip; 17th Epic-2) → in-dev → traced → sm-verified → done. FINAL story of Epic 2 (16/17 done pre-2.17; 17/17 at 2.17 `done`). Scope-inherent absorbs the 83-DEFER Epic-2 close-out backlog: 25 from Story 2.16 iter-308 CR (D-12..D-36) + 8 carry-forward from Story 2.15 CR (D-2/D-4/D-5/D-7/D-8/D-9/D-10/D-11 — D-1/D-3/D-6 already mitigated at Story 2.16 hook layer) + 3 SC-17 close-out candidates from Story 2.16 iter-306 trace (byte-identity diff lint + NFR5a minimum-entry gate + `hooks` key precondition lint) + 47 earlier carry-forward from Stories 1.8–1.16 + 2.1–2.14 (doc-drift / citation-lockstep / recipe polish — triage in Task 17). -->
 
 ## Story
 
