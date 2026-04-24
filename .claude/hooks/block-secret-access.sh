@@ -1,21 +1,32 @@
 #!/usr/bin/env bash
 # .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook
-# Story 2.17 Task 7 (L1 install-boundary), Task 8 (settings-file patterns), Task 10.1 D-12..D-17 first batch.
+# Story 2.17 Task 7 (L1 install-boundary), Task 8 (settings-file patterns), Task 10.1 D-12..D-24.
 set -euo pipefail
+# D-19 — case-insensitive pattern matching across case/regex blocks (defense-in-depth on mixed-case
+# FS bypass: e.g. `cat .ENVRC`, `/HOME/DEV/.claude/...`). Restored before fork-hook invocation.
+shopt -s nocasematch
 payload="$(cat)"
 tool_name="$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || printf '')"
 bash_command=""
 normalized=""
 file_path=""
 pattern=""
-grep_path=""
+search_path=""
 case "$tool_name" in
   Bash) bash_command="$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null || printf '')" ;;
   Read|Edit|Write) file_path="$(printf '%s' "$payload" | jq -r '.tool_input.file_path // empty' 2>/dev/null || printf '')" ;;
   Grep) pattern="$(printf '%s' "$payload" | jq -r '.tool_input.pattern // empty' 2>/dev/null || printf '')"
-        grep_path="$(printf '%s' "$payload" | jq -r '.tool_input.path // empty' 2>/dev/null || printf '')" ;;
-  Glob) pattern="$(printf '%s' "$payload" | jq -r '.tool_input.pattern // empty' 2>/dev/null || printf '')" ;;
+        search_path="$(printf '%s' "$payload" | jq -r '.tool_input.path // empty' 2>/dev/null || printf '')" ;;
+  Glob) pattern="$(printf '%s' "$payload" | jq -r '.tool_input.pattern // empty' 2>/dev/null || printf '')"
+        # D-20 — Glob tool also exposes `.tool_input.path`; previously only Grep's path was read.
+        search_path="$(printf '%s' "$payload" | jq -r '.tool_input.path // empty' 2>/dev/null || printf '')" ;;
 esac
+# D-22 — resolve symlink target for Read/Edit/Write file paths; exemption-guard below blocks
+# `decoy.envrc.example → /home/dev/.claude/.credentials.json` bypass attempts.
+resolved_file_path=""
+if [ -n "$file_path" ]; then
+  resolved_file_path="$(readlink -f "$file_path" 2>/dev/null || printf '%s' "$file_path")"
+fi
 log_block() {
   local rule_id="$1" match="$2"
   [ -z "${RALPH_BASE_DIR:-}" ] && return 0
@@ -23,8 +34,18 @@ log_block() {
   local log_dir="${RALPH_BASE_DIR}/logs/${iter_id}"
   mkdir -p "$log_dir" 2>/dev/null || return 0
   local ts; ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  printf '{"timestamp":"%s","iteration_id":"%s","tool":"%s","args_redacted":"<redacted>","rule_id":"%s","match":"%s"}\n' \
-    "$ts" "$iter_id" "$tool_name" "$rule_id" "$match" >> "$log_dir/blocked-tool-calls.jsonl" 2>/dev/null || true
+  # D-21 — jq --arg construction prevents JSON injection via " / \ / newline in iter/rule/match.
+  # D-24 — append-failure surfaces to stderr instead of silent-drop; block decision still stdouts.
+  if ! jq -nc \
+    --arg ts "$ts" \
+    --arg iter "$iter_id" \
+    --arg tool "$tool_name" \
+    --arg rule "$rule_id" \
+    --arg match "$match" \
+    '{timestamp: $ts, iteration_id: $iter, tool: $tool, args_redacted: "<redacted>", rule_id: $rule, match: $match}' \
+    >> "$log_dir/blocked-tool-calls.jsonl"; then
+    printf '[block-secret-access] JSONL write failed: %d\n' "$?" >&2
+  fi
 }
 block() {
   local rule_id="$1" match="$2"
@@ -67,16 +88,28 @@ l1_path_re='packages/keel-invariants/src/(invariants\.manifest\.ts|sync-gate\.ts
 
 # D-17 — Read/Bash reader exemption for *.envrc.example / *.secrets.example / *.env.example
 # (schema-companion files, intentional documentation samples).
+# D-22 — guard: if the example path resolves through a symlink into a secret directory, DENY.
 case "$tool_name" in
   Read)
     case "$file_path" in
       *.envrc.example|*.secrets.example|*.env.example)
+        case "$resolved_file_path" in
+          /home/dev/.claude/*|/home/dev/.config/gh/*|*/home/dev/.claude/*|*/home/dev/.config/gh/*|/proc/*/environ|*/proc/*/environ)
+            block "secret-access-denylist" "symlink-example-to-secret-dir" ;;
+        esac
         printf '{"decision":"approve"}\n'; exit 0 ;;
     esac ;;
   Bash)
-    # Reader-verb (D-12 readers + interp-stdin) against *.example companion files — approve.
-    example_read_re='^(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd|node|python|python3|perl|ruby|php)([[:space:]]+-[ec])?([[:space:]]+[^[:space:]]+)*[[:space:]]+[^[:space:]]*\.(envrc|secrets|env)\.example([[:space:]]|$)'
+    # Reader-verb (D-12 readers + interp-stdin) against *.example companion files — approve,
+    # but D-22 guards against a symlink-in-example-suffix pointing into a secret directory.
+    example_read_re='^(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd|node|python|python3|perl|ruby|php)([[:space:]]+-[ec])?([[:space:]]+[^[:space:]]+)*[[:space:]]+([^[:space:]]*\.(envrc|secrets|env)\.example)([[:space:]]|$)'
     if [[ "$normalized" =~ $example_read_re ]]; then
+      example_arg="${BASH_REMATCH[4]}"
+      example_resolved="$(readlink -f "$example_arg" 2>/dev/null || printf '%s' "$example_arg")"
+      case "$example_resolved" in
+        /home/dev/.claude/*|/home/dev/.config/gh/*|*/home/dev/.claude/*|*/home/dev/.config/gh/*|/proc/*/environ|*/proc/*/environ)
+          block "secret-access-denylist" "symlink-example-to-secret-dir" ;;
+      esac
       printf '{"decision":"approve"}\n'; exit 0
     fi ;;
 esac
@@ -155,6 +188,12 @@ case "$tool_name" in
       cat*.env|cat*.env.*|cat*/.env|cat*/.env.*|less*.env|less*.env.*|less*/.env|less*/.env.*|tail*.env|tail*.env.*|tail*/.env|tail*/.env.*|head*.env|head*.env.*|head*/.env|head*/.env.*|bat*.env|bat*.env.*|bat*/.env|bat*/.env.*|xxd*.env|xxd*.env.*|xxd*/.env|xxd*/.env.*|od*.env|od*.env.*|od*/.env|od*/.env.*|strings*.env|strings*.env.*|strings*/.env|strings*/.env.*|more*.env|more*.env.*|more*/.env|more*/.env.*|grep*.env|grep*.env.*|grep*/.env|grep*/.env.*|awk*.env|awk*.env.*|awk*/.env|awk*/.env.*|sed*.env|sed*.env.*|sed*/.env|sed*/.env.*|cp*.env|cp*.env.*|cp*/.env|cp*/.env.*|dd*.env|dd*.env.*|dd*/.env|dd*/.env.*|node*-[ec]*.env|node*-[ec]*.env.*|node*-[ec]*/.env|node*-[ec]*/.env.*|python*-[ec]*.env|python*-[ec]*.env.*|python*-[ec]*/.env|python*-[ec]*/.env.*|python3*-[ec]*.env|python3*-[ec]*.env.*|python3*-[ec]*/.env|python3*-[ec]*/.env.*|perl*-[ec]*.env|perl*-[ec]*.env.*|perl*-[ec]*/.env|perl*-[ec]*/.env.*|ruby*-[ec]*.env|ruby*-[ec]*.env.*|ruby*-[ec]*/.env|ruby*-[ec]*/.env.*|php*-[ec]*.env|php*-[ec]*.env.*|php*-[ec]*/.env|php*-[ec]*/.env.*) block "secret-access-denylist" "cat-env-file" ;;
     esac ;;
   Read)
+    # D-22 — evaluate resolved path against secret-dir denies first (catches symlink-to-oauth-token
+    # bypass where file_path itself looks benign but symlink target is in a secret directory).
+    case "$resolved_file_path" in
+      /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "read-resolved-to-oauth-token" ;;
+      /proc/*/environ|*/proc/*/environ) block "secret-access-denylist" "read-resolved-to-proc-environ" ;;
+    esac
     case "$file_path" in
       /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "read-oauth-token" ;;
       /proc/*/environ|*/proc/*/environ) block "secret-access-denylist" "read-proc-environ" ;;
@@ -163,13 +202,21 @@ case "$tool_name" in
       *.secrets|*.secrets.*|*/.secrets|*/.secrets.*) block "secret-access-denylist" "read-secrets-file" ;;
     esac ;;
   Grep|Glob)
+    # D-18 — narrow patterns to specific secret-file name forms. Carve-out first for *.example
+    # schema-companion searches (docs enumeration legitimate; parallel to Read/Bash D-17 exemption).
     case "$pattern" in
-      *.env*|*.envrc*|*.secrets*) block "secret-access-denylist" "grep-glob-secret-pattern" ;;
+      *.envrc.example|*.envrc.example.*|*.secrets.example|*.secrets.example.*|*.env.example|*.env.example.*) ;;
+      .env|.env.*|*.env|*.env.*|*/.env|*/.env.*|**/.env|**/.env.*|.envrc|.envrc.*|*.envrc|*.envrc.*|*/.envrc|*/.envrc.*|**/.envrc|**/.envrc.*|.secrets|.secrets.*|*.secrets|*.secrets.*|*/.secrets|*/.secrets.*|**/.secrets|**/.secrets.*)
+        block "secret-access-denylist" "grep-glob-secret-pattern" ;;
     esac
-    case "$grep_path" in
-      /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "grep-path-oauth" ;;
+    # D-20 — path-arg inspection for BOTH Grep and Glob (previously Grep only).
+    case "$search_path" in
+      /home/dev/.claude/*|/home/dev/.config/gh/*|*/home/dev/.claude/*|*/home/dev/.config/gh/*) block "secret-access-denylist" "grep-glob-path-oauth" ;;
     esac ;;
 esac
+
+# D-19 — restore default case-sensitive matching before invoking fork hook (clean child env).
+shopt -u nocasematch
 if [ -x .claude/hooks/block-secret-access.fork.sh ]; then
   printf '%s' "$payload" | .claude/hooks/block-secret-access.fork.sh
   exit "$?"
