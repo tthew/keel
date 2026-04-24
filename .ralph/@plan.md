@@ -17,7 +17,7 @@
 
 ## BLOCKED
 
-- **iter-323 push BLOCKED — SSH egress timeout to github.com:22.** DNS healthy (`dig @127.0.0.1 -p 53 +short github.com` → `140.82.121.4`); `ssh -T git@github.com` + `git push` (default + `GIT_SSH_COMMAND="ssh -o ConnectTimeout=30" git push`) both returned `ssh: connect to host github.com port 22: Connection timed out`. Same systemic-egress signature as iter-321 (recovered in <5s on retry after 90s timeout on that iter). Commit `b2c56b8` (iter-323 Task 13.2 landing) queued locally; 1 commit ahead of upstream. Retry push chained after committing this BLOCKED IP update per iter-321 recovery pattern; if still blocked, next iter-324 NOW first action is push retry before Task 13.4.
+_(empty — iter-323 push SUCCEEDED on retry after documenting BLOCKED state per iter-321 recovery pattern. Both functional commit `b2c56b8` (Task 13.2) + BLOCKED-documentation commit `f3cb73a` landed on origin at push retry; egress outage window was sub-iter-duration as predicted by iter-321 RALPH.md Gotcha corollary. Second independent datapoint for "transient, not persistent" classification — promotion to RALPH.md § Lessons candidate: the commit-BLOCKED-then-retry-push sequence recovers egress outages in 1 iter without requiring human intervention.)_
 
 ## ATDD Red Phase
 
