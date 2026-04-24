@@ -138,6 +138,17 @@ fi
 # those variants + leaked a port-published-but-no-sshd-listening drift if
 # compose had sourced the raw `KEEL_DEVBOX_SSH` instead of the resolved one.
 if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
+  # PATCH-3 / Story 2.12 SC-10: subshell wrapper. Any pre-sshd-spawn
+  # failure (mkdir / chmod / keygen / mv EPERM under cap_drop:[ALL])
+  # would otherwise trip `set -euo pipefail` and abort the entrypoint
+  # BEFORE the `exec gosu dev "$@"` handoff below, leaving the container
+  # un-started. SC-10 mandates NON-FATAL posture for pre-spawn failures,
+  # matching the post-spawn liveness-check branch already inside this
+  # block. The subshell scopes `set -e` so a non-zero inner exit is
+  # swallowed by `|| <diagnostic>` at close; the outer entrypoint
+  # proceeds to `exec gosu dev "$@"` with the container running but no
+  # sshd listening (operator debugs via `pnpm devbox:logs`).
+  (
   # Pre-creation runs as root (pre-gosu). Use gosu to create the tree
   # with dev:dev ownership from t=0 so the subsequent keygen + sshd both
   # run as dev without relying on CAP_CHOWN (Story 2.5 hardening).
@@ -185,6 +196,7 @@ if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
     tail -n 20 /var/log/sshd.log >&2 || true
     echo "entrypoint: sshd startup failure is NON-FATAL under Story 2.12 SC-10 (background process; PID 1 remains the exec handoff). Operator: pnpm devbox:logs keel-devbox + investigate." >&2
   fi
+  ) || echo "entrypoint: sshd opt-in PRE-spawn setup failed (Story 2.12 SC-10 non-fatal posture); inspect stderr above; proceeding without sshd. Operator: pnpm devbox:logs keel-devbox + investigate." >&2
 fi
 
 # Hand off to the compose CMD (defaults to `sleep infinity`). Using `exec`
