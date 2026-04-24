@@ -1,11 +1,22 @@
 import { resolve } from 'node:path';
-import { invariants, readSourceFile, computeSha256 } from './manifest-reader.js';
+import type { Invariant } from './invariants.manifest.js';
+import {
+  invariants,
+  readSourceFile,
+  computeSha256,
+  computeSubtreeHash,
+  computeAnchorRangeHash,
+  computeNamesAndShebangsHash,
+  loadExpectedHooks,
+} from './manifest-reader.js';
 
 export type DriftKind =
   | 'added-to-source-only'
   | 'removed-from-source-only'
   | 'content-hash-mismatch'
-  | 'removed-from-docs-only';
+  | 'removed-from-docs-only'
+  | 'git-hook-missing'
+  | 'git-hook-shebang-mismatch';
 
 export interface Drift {
   kind: DriftKind;
@@ -14,6 +25,7 @@ export interface Drift {
   expectedHash?: string;
   actualHash?: string;
   anchor?: string;
+  detail?: string;
 }
 
 export interface DriftReport {
@@ -33,30 +45,71 @@ export async function readAnchors(repoRoot: string): Promise<Set<string>> {
   return anchors;
 }
 
+interface HashResult {
+  kind: 'hash';
+  hash: string;
+}
+
+interface ReadErrorResult {
+  kind: 'read-error';
+}
+
+interface NamesAndShebangsErrorResult {
+  kind: 'names-and-shebangs';
+  hash: string;
+  missing: readonly string[];
+  shebangMismatches: readonly { name: string; actual: string }[];
+}
+
+type EntryHashResult = HashResult | ReadErrorResult | NamesAndShebangsErrorResult;
+
+async function computeEntryHash(repoRoot: string, entry: Invariant): Promise<EntryHashResult> {
+  const sourceAbs = resolve(repoRoot, entry.sourcePath);
+  const scope = entry.hashScope;
+  try {
+    if (!scope) {
+      const content = await readSourceFile(sourceAbs);
+      return { kind: 'hash', hash: computeSha256(content) };
+    }
+    if (scope.kind === 'jq-subtree') {
+      const hash = await computeSubtreeHash(sourceAbs, scope.filter);
+      return { kind: 'hash', hash };
+    }
+    if (scope.kind === 'anchor-range') {
+      const hash = await computeAnchorRangeHash(sourceAbs, scope.startMarker, scope.endMarker);
+      return { kind: 'hash', hash };
+    }
+    // names-and-shebangs: enumerator file read; hook directory (.git/hooks/) walked.
+    const enumeratorAbs = resolve(repoRoot, scope.enumeratorPath);
+    const expected = await loadExpectedHooks(enumeratorAbs);
+    const hooksDir = resolve(repoRoot, '.git/hooks');
+    const { hash, missing, shebangMismatches } = await computeNamesAndShebangsHash(
+      hooksDir,
+      expected,
+    );
+    if (missing.length > 0 || shebangMismatches.length > 0) {
+      return { kind: 'names-and-shebangs', hash, missing, shebangMismatches };
+    }
+    return { kind: 'hash', hash };
+  } catch {
+    return { kind: 'read-error' };
+  }
+}
+
 export async function runSyncGate(repoRoot: string): Promise<DriftReport> {
   const drifts: Drift[] = [];
   const anchors = await readAnchors(repoRoot);
   const manifestIds = new Set<string>();
-
-  const uniqueSourcePaths = new Set<string>();
   for (const entry of invariants) {
     manifestIds.add(entry.id);
-    uniqueSourcePaths.add(entry.sourcePath);
   }
 
-  const sourceHashes = new Map<string, string | null>();
-  await Promise.all(
-    [...uniqueSourcePaths].map(async (sourcePath) => {
-      try {
-        const content = await readSourceFile(resolve(repoRoot, sourcePath));
-        sourceHashes.set(sourcePath, computeSha256(content));
-      } catch {
-        sourceHashes.set(sourcePath, null);
-      }
-    }),
+  // Compute one hash per entry (entries may share sourcePath but have distinct hashScopes).
+  const entryResults = await Promise.all(
+    invariants.map(async (entry) => ({ entry, result: await computeEntryHash(repoRoot, entry) })),
   );
 
-  for (const entry of invariants) {
+  for (const { entry, result } of entryResults) {
     if (!anchors.has(entry.id)) {
       drifts.push({
         kind: 'added-to-source-only',
@@ -64,8 +117,7 @@ export async function runSyncGate(repoRoot: string): Promise<DriftReport> {
         sourcePath: entry.sourcePath,
       });
     }
-    const actualHash = sourceHashes.get(entry.sourcePath);
-    if (actualHash === null) {
+    if (result.kind === 'read-error') {
       drifts.push({
         kind: 'removed-from-source-only',
         id: entry.id,
@@ -73,6 +125,26 @@ export async function runSyncGate(repoRoot: string): Promise<DriftReport> {
       });
       continue;
     }
+    if (result.kind === 'names-and-shebangs') {
+      for (const name of result.missing) {
+        drifts.push({
+          kind: 'git-hook-missing',
+          id: entry.id,
+          sourcePath: entry.sourcePath,
+          detail: name,
+        });
+      }
+      for (const { name, actual } of result.shebangMismatches) {
+        drifts.push({
+          kind: 'git-hook-shebang-mismatch',
+          id: entry.id,
+          sourcePath: entry.sourcePath,
+          detail: `${name}: ${actual}`,
+        });
+      }
+      // Fall through to hash comparison using result.hash.
+    }
+    const actualHash = result.kind === 'hash' ? result.hash : result.hash;
     if (actualHash !== entry.contentHash) {
       drifts.push({
         kind: 'content-hash-mismatch',

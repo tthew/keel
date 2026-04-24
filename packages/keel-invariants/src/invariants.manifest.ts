@@ -1,5 +1,37 @@
 import { z } from 'zod';
 
+// hashScope variants (Story 2.17 Task 1.1):
+//   absent            → whole-file sha256 (back-compat with all 35 pre-existing entries).
+//   jq-subtree        → pipe file through `jq -c <filter>` then sha256 the canonical output.
+//   anchor-range      → extract content between startMarker + endMarker (inclusive), sha256.
+//   names-and-shebangs→ walk directory (derived from enumeratorPath's EXPECTED_HOOKS export) and
+//                       hash sort(name + "\t" + first-line) over the enumerated hook files.
+//                       sourcePath === enumeratorPath by convention; the entry anchors on the
+//                       enumerator file, not on the walked directory (which is not git-tracked).
+export const HashScopeSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('jq-subtree'),
+    filter: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('anchor-range'),
+    startMarker: z.string().min(1),
+    endMarker: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('names-and-shebangs'),
+    enumeratorPath: z
+      .string()
+      .min(1)
+      .refine(
+        (p) => !p.startsWith('/') && !p.startsWith('\\') && !p.includes('..') && !p.includes('\\'),
+        { message: 'enumeratorPath must be a repo-relative forward-slash path without traversal' },
+      ),
+  }),
+]);
+
+export type HashScope = z.infer<typeof HashScopeSchema>;
+
 export const InvariantSchema = z.object({
   id: z.string().regex(/^INV-[a-z0-9]+(-[a-z0-9]+)+$/),
   description: z.string().min(1),
@@ -12,6 +44,7 @@ export const InvariantSchema = z.object({
     ),
   contentHash: z.string().regex(/^[0-9a-f]{64}$/),
   anchors: z.array(z.string().min(1)).min(1),
+  hashScope: HashScopeSchema.optional(),
 });
 
 export type Invariant = z.infer<typeof InvariantSchema>;
@@ -28,18 +61,26 @@ export const InvariantsSchema = z
     }
   })
   .superRefine((arr, ctx) => {
-    const hashesBySource = new Map<string, Set<string>>();
+    // Entries with the same (sourcePath, hashScope canonical-form) MUST share contentHash.
+    // Entries with the same sourcePath but different hashScopes are legitimate (e.g.
+    // INV-git-hooks-preservation-enumeration uses whole-file sha256 while
+    // INV-git-hooks-preservation uses names-and-shebangs derived from the same anchor file).
+    const hashesByScopedSource = new Map<string, Set<string>>();
     for (const entry of arr) {
-      if (!hashesBySource.has(entry.sourcePath)) {
-        hashesBySource.set(entry.sourcePath, new Set());
+      const scopeKey = entry.hashScope ? JSON.stringify(entry.hashScope) : '';
+      const key = `${entry.sourcePath}|${scopeKey}`;
+      if (!hashesByScopedSource.has(key)) {
+        hashesByScopedSource.set(key, new Set());
       }
-      hashesBySource.get(entry.sourcePath)!.add(entry.contentHash);
+      hashesByScopedSource.get(key)!.add(entry.contentHash);
     }
-    for (const [sourcePath, hashes] of hashesBySource) {
+    for (const [key, hashes] of hashesByScopedSource) {
       if (hashes.size > 1) {
+        const [sourcePath, scopeKey] = key.split('|', 2);
+        const scopeLabel = scopeKey ? ` (hashScope ${scopeKey})` : '';
         ctx.addIssue({
           code: 'custom',
-          message: `contentHash mismatch across entries sharing sourcePath ${sourcePath}: ${[...hashes].join(', ')}`,
+          message: `contentHash mismatch across entries sharing sourcePath ${sourcePath}${scopeLabel}: ${[...hashes].join(', ')}`,
         });
       }
     }
@@ -88,9 +129,9 @@ const raw: Invariant[] = [
   {
     id: 'INV-prek-pre-commit-config',
     description:
-      '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs.',
+      '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs. Post-Story-2.17 the file also hosts the claude-hook-syntax source-scoped gate (pass_filenames: false, files: ^\\.claude/hooks/.*\\.sh$); that carries its own invariant ID.',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '4ec1758431b105347c6f632ecf35b96114d14133e8e211f9a54eac0374811b1d',
+    contentHash: '55f52cfddccaebee3359fdd4573c511797aa4536377c06e0d27f6a8d32353eb5',
     anchors: ['INV-prek-pre-commit-config'],
   },
   {
@@ -98,7 +139,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: 'dc5ed31b8a4d44d79cf5c69d15df43d9279892f6292c3dbb61dc02f6f6b4ddc0',
+    contentHash: '5473e088edc5478dc0e103ef9c4b8b89ae96bfa49c426e2d662d464993eda534',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -106,7 +147,7 @@ const raw: Invariant[] = [
     description:
       'Hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional. Lives in the commit-msg stage block of .pre-commit-config.yaml (position-independent — the block is identified by stages: [commit-msg], not by row index).',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '4ec1758431b105347c6f632ecf35b96114d14133e8e211f9a54eac0374811b1d',
+    contentHash: '55f52cfddccaebee3359fdd4573c511797aa4536377c06e0d27f6a8d32353eb5',
     anchors: ['INV-prek-commit-msg-config'],
   },
   {
@@ -323,6 +364,7 @@ const raw: Invariant[] = [
   {
     id: 'INV-claude-hook-secret-denylist',
     description:
+      // eslint-disable-next-line keel-invariants/no-verify-bypass -- substrate description enumerates the token it blocks; this is a doc-reference, not an invocation
       'Claude Code PreToolUse hook at .claude/hooks/block-secret-access.sh registered via .claude/settings.json hooks.PreToolUse block for six agent-reachable tool surfaces (Bash, Read, Edit, Write, Grep, Glob). Two denylists pinned: secret-access-denylist (Bash/Read/Grep/Glob patterns for .envrc*, **/.env*, .secrets*, /home/dev/.claude/**, /home/dev/.config/gh/**, /proc/*/environ + env-dump idioms) + hook-self-protection (Edit/Write on .claude/settings*.json, .claude/hooks/**, .git/hooks/** + Bash mutations against those paths + git --no-verify bypass). Hook decision-shape: stdout JSON {"decision":"block","reason":"<rule-id>","match":"<matched-pattern>"} where rule-id ∈ {secret-access-denylist, hook-self-protection}; exits 0 always (Claude Code PreToolUse contract — non-zero = hook error fails open). Each block appends to ${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl with schema {timestamp, iteration_id, tool, args_redacted, rule_id, match}; log skipped outside Ralph iteration. Halt-threshold N=3 hook-self-protection blocks per iteration pinned in .ralph/config.toml [hooks].self_protection_halt_threshold; Epic 3 Story 3.7 wires the SECURITY_CRITICAL halt-write per INV-ralph-halt-reason-enum closed enum. Fork-extension path: .claude/hooks/block-secret-access.fork.sh invoked LAST after substrate denylist clears (forks MAY add additional patterns to block; MAY NOT unblock substrate-denied patterns). 5-site byte-identity lockstep on substrate amendment (substrate hook + substrate settings.json hooks block + invariant doc + seed hook + seed settings.json hooks block) + 2-site metadata coordination (manifest contentHash + INVARIANTS.md anchor) = 7-site AMEND coordination. Story 2.17 adds content-hash bypass-resistance covering hook script + settings.json hooks block + .git/hooks/**.',
     sourcePath: 'docs/invariants/claude-hook-denylist.md',
     contentHash: '85f8a539c0850f1c52ed825c6a8a904d72c6d42c0c7a87eb9f14617bc51cd7e1',

@@ -714,12 +714,12 @@ Missing tokens under Tier 2 are aggregated into a single composite stderr messag
 
 ### Tier contract
 
-| Invocation surface                           | Tier  | Why                                                       |
-| -------------------------------------------- | ----- | --------------------------------------------------------- |
-| Every `pnpm devbox:*` verb (13 shims)        | tier1 | Container mgmt — tokens not required at pre-flight.       |
-| `pnpm claude` + `pnpm gh:auth`               | tier1 | Auth-establishing verbs — Tier 2 would be circular.       |
-| `pnpm ralph:build` + `pnpm ralph:plan`       | tier2 | Ralph needs all three to run autonomously (FR5).          |
-| `pnpm devbox:prereq:check` (standalone verb) | tier2 | Operator wants the full check; `--tier1` overrides.       |
+| Invocation surface                           | Tier  | Why                                                 |
+| -------------------------------------------- | ----- | --------------------------------------------------- |
+| Every `pnpm devbox:*` verb (13 shims)        | tier1 | Container mgmt — tokens not required at pre-flight. |
+| `pnpm claude` + `pnpm gh:auth`               | tier1 | Auth-establishing verbs — Tier 2 would be circular. |
+| `pnpm ralph:build` + `pnpm ralph:plan`       | tier2 | Ralph needs all three to run autonomously (FR5).    |
+| `pnpm devbox:prereq:check` (standalone verb) | tier2 | Operator wants the full check; `--tier1` overrides. |
 
 ### Fresh-fork first-run walkthrough
 
@@ -740,12 +740,12 @@ Operator recovery sequence:
 
 ### Exit codes
 
-| Code | Meaning                                                                                                                    |
-| ---- | -------------------------------------------------------------------------------------------------------------------------- |
-| `0`  | All checks pass (silent; no stderr).                                                                                       |
-| `2`  | One or more tokens missing (composite pointer list emitted, Claude before gh) — OR unknown-arg usage error. Tier 2 only.   |
-| `8`  | Docker runtime unreachable — install-URL pointer emitted. Tier 1 + Tier 2.                                                 |
-| `12` | Other docker-daemon error (volume-inspect crash, alpine pull failure under fail-closed egress) — propagated via `docker`.  |
+| Code | Meaning                                                                                                                   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------- |
+| `0`  | All checks pass (silent; no stderr).                                                                                      |
+| `2`  | One or more tokens missing (composite pointer list emitted, Claude before gh) — OR unknown-arg usage error. Tier 2 only.  |
+| `8`  | Docker runtime unreachable — install-URL pointer emitted. Tier 1 + Tier 2.                                                |
+| `12` | Other docker-daemon error (volume-inspect crash, alpine pull failure under fail-closed egress) — propagated via `docker`. |
 
 Codes `9`/`10`/`11` (container not running / image not built / healthcheck timeout) are Story 2.6 + 2.7 downstream-of-prereq-check concerns.
 
@@ -930,11 +930,11 @@ healthcheck:
 
 ### Timing parameters
 
-| Key            | Value | Rationale                                                                                                                                                      |
-| -------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `interval`     | `10s` | 6 probes/min/service = ~8640 dnsmasq queries/day added to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. Expected baseline for FR37 consumers. |
-| `timeout`      | `5s`  | Kills hung probes. `dig +time=3 +tries=1` (3s worst case) + `nc -z` (~1s) = ~4s combined; 1s margin.                                                           |
-| `retries`      | `3`   | Container transitions `healthy → unhealthy` after 3 consecutive failures — ~30s post-`start_period` detection latency.                                         |
+| Key            | Value | Rationale                                                                                                                                                             |
+| -------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interval`     | `10s` | 6 probes/min/service = ~8640 dnsmasq queries/day added to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. Expected baseline for FR37 consumers.      |
+| `timeout`      | `5s`  | Kills hung probes. `dig +time=3 +tries=1` (3s worst case) + `nc -z` (~1s) = ~4s combined; 1s margin.                                                                  |
+| `retries`      | `3`   | Container transitions `healthy → unhealthy` after 3 consecutive failures — ~30s post-`start_period` detection latency.                                                |
 | `start_period` | `30s` | Cold-boot budget: `start-egress.sh` ~3-5s (nftables + dnsmasq + resolv.conf pin) + sshd ~1s under opt-in + probe margin. Failures here don't count against `retries`. |
 
 ### Default-mode walkthrough (`KEEL_DEVBOX_SSH=false`)

@@ -29,6 +29,12 @@ repos:
         language: system
         pass_filenames: true
         files: '(^|/)\.(envrc|envrc\.local|secrets)$'
+      - id: claude-hook-syntax
+        name: Claude PreToolUse hook syntax check (@keel/keel-invariants; Story 2.17 Task 12)
+        entry: pnpm keel-invariants:claude-hook-syntax
+        language: system
+        pass_filenames: false
+        files: ^\.claude/hooks/.*\.sh$
       - id: tokens-schema
         name: Design-token schema validation (@keel/keel-invariants)
         entry: pnpm keel-invariants:tokens-schema

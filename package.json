@@ -17,6 +17,7 @@
     "keel-invariants:tokens-schema": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-schema",
     "keel-invariants:tokens-contrast": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-contrast",
     "keel-invariants:no-committed-dotfiles": "pnpm --filter @keel/keel-invariants keel-invariants:no-committed-dotfiles",
+    "keel-invariants:claude-hook-syntax": "pnpm --filter @keel/keel-invariants keel-invariants:claude-hook-syntax",
     "keel-invariants:tokens-sync": "pnpm --filter @keel/ui generate-tokens -- --check",
     "keel-invariants:check-all": "pnpm keel-invariants:check && pnpm keel-invariants:tokens-sync",
     "devbox:build": "./packages/devbox/scripts/build.sh",
