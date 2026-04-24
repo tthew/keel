@@ -963,7 +963,7 @@ healthcheck: unhealthy                          # after ~30s (3 retries × 10s i
 $ pnpm devbox:logs keel-devbox | grep sshd     # diagnose via logs
 ```
 
-With `KEEL_DEVBOX_SSH=true`, the healthcheck probes dnsmasq AND sshd; killing sshd manually drops the next 3 consecutive probes and transitions the container to `unhealthy`. (The `pkill sshd` above assumes the operator has sudo inside the container — the test case is illustrative; in practice sshd crashes are triggered by configuration regressions, not deliberate kill.)
+With `KEEL_DEVBOX_SSH=true`, the healthcheck probes dnsmasq AND sshd; killing sshd manually drops the next 3 consecutive probes and transitions the container to `unhealthy`. The `pkill sshd` walkthrough above is illustrative only — `dev` intentionally lacks sudo per Story 2.5 § Container hardening (SC-13); sshd crashes in practice surface via configuration regressions observed through `pnpm devbox:logs`, not deliberate kill from within the container. For operator-initiated crash simulation, run host-side `docker exec -u root keel-devbox pkill sshd`.
 
 ### JSONL query-log volume note
 
