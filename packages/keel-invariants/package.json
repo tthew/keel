@@ -28,6 +28,7 @@
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
+    "test": "node --test dist/prompt-injection-rules/hook-settings-tamper.test.js",
     "check": "node dist/check.js",
     "keel-invariants:tokens-schema": "node dist/check-tokens-schema.js",
     "keel-invariants:tokens-contrast": "node dist/check-tokens-contrast.js",

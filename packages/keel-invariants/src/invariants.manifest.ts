@@ -99,7 +99,7 @@ const raw: Invariant[] = [
     description:
       'Shared ESLint flat-config baseline: global ignores + js.configs.recommended + tseslint.configs.recommended (spread) + languageOptions.globals (node + browser).',
     sourcePath: 'packages/keel-invariants/eslint.config.keel-invariants.js',
-    contentHash: '10ac60e693c32566971eecd52341d6f5b9b42047843812fd8f8153310112afe2',
+    contentHash: '83b2228f1c13e9eed83b1c73197577957b9650bf0f7759857a49f67bfa1a0330',
     anchors: ['INV-eslint-shared'],
   },
   {
@@ -123,7 +123,7 @@ const raw: Invariant[] = [
     description:
       'no-restricted-imports denies cross-package relative imports (AC 1), @keel/*/internal/* deep imports (AC 2), and per-package self-import via alias (AC 3 via forPackage(ownName) overlay).',
     sourcePath: 'packages/keel-invariants/eslint.config.keel-invariants.js',
-    contentHash: '10ac60e693c32566971eecd52341d6f5b9b42047843812fd8f8153310112afe2',
+    contentHash: '83b2228f1c13e9eed83b1c73197577957b9650bf0f7759857a49f67bfa1a0330',
     anchors: ['INV-eslint-import-boundary'],
   },
   {
