@@ -19,7 +19,7 @@
 
 ## BLOCKED
 
-_(empty.)_
+- [ ] **iter-316 push timed out** (`git push` HTTPS + SSH both timeout against `github.com:443` / `git@github.com:22`; `api.github.com` responds HTTP 200 in 0.1s so partial connectivity). Commit `538b38b` (iter-316 Task 8 + 10.2 bundle) ahead of `origin/feat/epic-2-packaged-devbox` by 1. Next iteration SHOULD retry `git push` at startup — may be transient egress latency (prior iter-315 push landed via `429a4be`). If still failing, investigate egress allow-list for `github.com` (Story 2.3 whitelist/github.txt already enumerates it; resolver may be hitting a cache or nftables path issue). Guardrail 10 honoured — do NOT rewrite commits, do NOT force-push; simple retry-push suffices.
 
 ## ATDD Red Phase
 
