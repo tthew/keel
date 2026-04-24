@@ -59,6 +59,14 @@ Opt-in posture when `KEEL_DEVBOX_SHARED=true`.
   requires fork A and fork B to attach to the SAME container; an
   operator-specific override would silently break that. The override path
   is gated at per-fork mode only.
+- **REPO_NAME:** parent-dir basename, HARDCODED to `$(basename $(dirname
+  $MAIN_REPO))` regardless of operator `KEEL_DEVBOX_REPO_NAME` (INTENTIONALLY
+  IGNORED in shared mode). AC 2 requires fork A and fork B to resolve to
+  the SAME `/workspace/<parent>/` bind target; a per-fork `KEEL_DEVBOX_REPO_NAME`
+  override would silently produce divergent container paths (second fork's
+  `docker exec -w` would hit ENOENT against the first fork's bind target).
+  The override path is gated at per-fork mode only. Posture extends SC-4's
+  `KEEL_DEVBOX_CONTAINER_NAME` opinionation consistently (iter-261 PATCH-1).
 - **Named volume:** `keel-devbox-shared_keel_home_dev`.
 - **Bind source:** PARENT directory of the fork root (matches upstream
   cc-devbox's `/Users/tthew/Development:/workspace:delegated` pattern per
@@ -215,9 +223,12 @@ surfaces the flip).
   reasons") but MAY NOT weaken substrate defaults. The per-fork-mode
   default is substrate-authoritative; fork rules compose additively on
   top.
-- **Operator `KEEL_DEVBOX_CONTAINER_NAME` override:** preserved in
-  per-fork mode; intentionally ignored in shared mode (opinionated —
-  shared mode REQUIRES a hardcoded container name for AC 2).
+- **Operator `KEEL_DEVBOX_CONTAINER_NAME` + `KEEL_DEVBOX_REPO_NAME` overrides:**
+  both preserved in per-fork mode; both intentionally ignored in shared
+  mode (opinionated — shared mode REQUIRES a hardcoded container name AND
+  a hardcoded REPO_NAME for AC 2; a per-fork override of either would
+  silently break cross-fork container-attach or produce divergent
+  `/workspace/<parent>/` bind targets).
 - **Exit-code schema:** unchanged. Story 2.6's uniform schema
   (`0`/`2`/`3`/`8`/`9`/`10`/`11`/`12`) + Story 2.10's Tier 1/Tier 2
   additions apply as-is; the orphan warning is stderr-only.

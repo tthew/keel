@@ -48,8 +48,14 @@
 #   shared mode (KEEL_DEVBOX_SHARED = "true" after case-fold):
 #     WORKTREE_ROOT / MAIN_REPO           = $(dirname "$MAIN_REPO") — the
 #                                           parent directory of the fork root.
-#     REPO_NAME                           = basename of the parent dir
-#                                           (or KEEL_DEVBOX_REPO_NAME override).
+#     REPO_NAME                           = basename of the parent dir —
+#                                           shared mode HARDCODES this;
+#                                           operator's KEEL_DEVBOX_REPO_NAME
+#                                           setting is intentionally ignored
+#                                           so fork A and fork B resolve to
+#                                           the SAME /workspace/<parent>/
+#                                           bind target (AC 2; iter-261
+#                                           PATCH-1 extension of SC-4).
 #     CONTAINER_WORKDIR                   = re-derived against the new
 #                                           WORKTREE_ROOT so the caller lands
 #                                           at /workspace/<parent>/<fork>/
@@ -161,7 +167,11 @@ resolve_mode_specific_state() {
 	shared_parent_name="$(basename "$shared_parent")"
 	MAIN_REPO="$shared_parent"
 	WORKTREE_ROOT="$shared_parent"
-	REPO_NAME="${KEEL_DEVBOX_REPO_NAME:-$shared_parent_name}"
+	# Shared mode hardcodes REPO_NAME regardless of operator KEEL_DEVBOX_REPO_NAME —
+	# AC 2 requires fork A and fork B to resolve to the SAME /workspace/<parent>/
+	# bind target; a per-fork REPO_NAME override would silently produce divergent
+	# container paths (second fork's `docker exec -w` would hit ENOENT).
+	REPO_NAME="$shared_parent_name"
 	export MAIN_REPO WORKTREE_ROOT REPO_NAME
 
 	# Re-derive CONTAINER_WORKDIR against the NEW WORKTREE_ROOT. Do NOT

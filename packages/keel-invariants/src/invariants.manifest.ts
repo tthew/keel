@@ -274,7 +274,7 @@ const raw: Invariant[] = [
     description:
       'Per-fork vs shared devbox mode contract — KEEL_DEVBOX_SHARED flag branches compose project name, container name, bind source, and named volume between keel-devbox (per-fork, default) and keel-devbox-shared (shared) with orphaned-container warning on mid-use flip (Story 2.11). Resolution lives in packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_mode_specific_state(); every host-side shim sources it after resolve_main_repo_and_workdir. Shared mode is opinionated — operator KEEL_DEVBOX_CONTAINER_NAME override is intentionally ignored (AC 2 requires both forks to attach to the SAME container). Two modes = two separate named volumes (keel-devbox_keel_home_dev vs keel-devbox-shared_keel_home_dev); OAuth tokens do not cross modes. Mid-use flip emits a three-site-lockstep stderr warning via env-check.sh (warning-only posture — exit code unchanged). Concurrency posture: shared mode is single-operator-at-a-time by convention (docker attach concurrent-client I/O corruption), NOT by Docker enforcement; operators needing true-parallel Ralph revert to per-fork mode. Fork-level Growth-tier INVARIANTS.fork.md rules MAY add fork-specific mode constraints but MAY NOT weaken substrate defaults (per-fork default preservation).',
     sourcePath: 'docs/invariants/devbox-mode.md',
-    contentHash: '4ddc4eea3a3f28cde90a1c7944f14d52a18aa1a0a214d9a45050aea1ec313cf2',
+    contentHash: '0647445551c8a5ab0d84cc71dca25f96536f5d19f5d3ccaa1350176689e5728a',
     anchors: ['INV-devbox-mode'],
   },
   {
