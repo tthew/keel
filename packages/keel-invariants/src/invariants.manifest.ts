@@ -131,7 +131,7 @@ const raw: Invariant[] = [
     description:
       '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs. Post-Story-2.17 the file also hosts the claude-hook-syntax source-scoped gate (pass_filenames: false, files: ^\\.claude/hooks/.*\\.sh$); that carries its own invariant ID.',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '55f52cfddccaebee3359fdd4573c511797aa4536377c06e0d27f6a8d32353eb5',
+    contentHash: 'f3ccc11677d249324e6a26cfe33e431712032f21145545b02b077104a6af072a',
     anchors: ['INV-prek-pre-commit-config'],
   },
   {
@@ -139,7 +139,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: '5473e088edc5478dc0e103ef9c4b8b89ae96bfa49c426e2d662d464993eda534',
+    contentHash: 'e410d9cab2c77e0525b37e3775029e6bd3565efe9b7e7ed42a5ced58bc5198fd',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -147,7 +147,7 @@ const raw: Invariant[] = [
     description:
       'Hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional. Lives in the commit-msg stage block of .pre-commit-config.yaml (position-independent — the block is identified by stages: [commit-msg], not by row index).',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '55f52cfddccaebee3359fdd4573c511797aa4536377c06e0d27f6a8d32353eb5',
+    contentHash: 'f3ccc11677d249324e6a26cfe33e431712032f21145545b02b077104a6af072a',
     anchors: ['INV-prek-commit-msg-config'],
   },
   {

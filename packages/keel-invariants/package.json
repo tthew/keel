@@ -21,7 +21,8 @@
     "keel-invariants:tokens-schema": "./dist/check-tokens-schema.js",
     "keel-invariants:tokens-contrast": "./dist/check-tokens-contrast.js",
     "keel-invariants:no-committed-dotfiles": "./dist/check-no-committed-dotfiles.js",
-    "keel-invariants:claude-hook-syntax": "./dist/check-claude-hook-syntax.js"
+    "keel-invariants:claude-hook-syntax": "./dist/check-claude-hook-syntax.js",
+    "keel-invariants:nfr5a-minimum": "./dist/check-nfr5a-minimum.js"
   },
   "scripts": {
     "build": "tsc -b",
@@ -31,7 +32,8 @@
     "keel-invariants:tokens-schema": "node dist/check-tokens-schema.js",
     "keel-invariants:tokens-contrast": "node dist/check-tokens-contrast.js",
     "keel-invariants:no-committed-dotfiles": "node dist/check-no-committed-dotfiles.js",
-    "keel-invariants:claude-hook-syntax": "node dist/check-claude-hook-syntax.js"
+    "keel-invariants:claude-hook-syntax": "node dist/check-claude-hook-syntax.js",
+    "keel-invariants:nfr5a-minimum": "node dist/check-nfr5a-minimum.js"
   },
   "dependencies": {
     "ajv": "8.17.1",

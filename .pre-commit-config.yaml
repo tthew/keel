@@ -35,6 +35,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^\.claude/hooks/.*\.sh$
+      - id: nfr5a-minimum
+        name: NFR5a deny-list minimum-entry gate (@keel/keel-invariants; Story 2.17 Task 11.2)
+        entry: pnpm keel-invariants:nfr5a-minimum
+        language: system
+        pass_filenames: false
+        files: ^\.claude/settings\.json$
       - id: tokens-schema
         name: Design-token schema validation (@keel/keel-invariants)
         entry: pnpm keel-invariants:tokens-schema
