@@ -60,6 +60,7 @@
 # last_updated: 2026-04-24 Story-2-15-in-progress-iter-298 UTC
 # last_updated: 2026-04-24 Story-2-15-review-iter-298 UTC
 # last_updated: 2026-04-24 Story-2-15-done-CR-PATCH-4-bundled-close-iter-301 UTC
+# last_updated: 2026-04-24 Story-2-16-ready-for-dev-iter-302 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -95,7 +96,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-24 Story-2-15-done-CR-PATCH-4-bundled-close-iter-301 UTC
+last_updated: 2026-04-24 Story-2-16-ready-for-dev-iter-302 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -137,7 +138,7 @@ development_status:
   2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: done
   2-14-legacy-devbox-branch-retention-policy: done
   2-15-committed-claude-settings-json-with-deny-allow-permission-policies: done
-  2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: backlog
+  2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: ready-for-dev
   2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt: backlog
   epic-2-retrospective: optional
 
