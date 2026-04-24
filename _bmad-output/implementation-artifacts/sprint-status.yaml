@@ -52,6 +52,7 @@
 # last_updated: 2026-04-24 Story-2-13-in-progress-iter-283 UTC
 # last_updated: 2026-04-24 Story-2-13-review-iter-283 UTC
 # last_updated: 2026-04-24 Story-2-13-done-CR-ZERO-PATCH-iter-286 UTC
+# last_updated: 2026-04-24 Story-2-14-ready-for-dev-iter-287 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -87,7 +88,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-24 Story-2-13-done-CR-ZERO-PATCH-iter-286 UTC
+last_updated: 2026-04-24 Story-2-14-ready-for-dev-iter-287 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -127,7 +128,7 @@ development_status:
   2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared: done
   2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: done
   2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: done
-  2-14-legacy-devbox-branch-retention-policy: backlog
+  2-14-legacy-devbox-branch-retention-policy: ready-for-dev
   2-15-committed-claude-settings-json-with-deny-allow-permission-policies: backlog
   2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: backlog
   2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt: backlog
