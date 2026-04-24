@@ -13,10 +13,10 @@
 
 ## BLOCKED
 
-- [ ] POST-PUSH SSH :22 CARRY-FORWARD — `12a5ebc` (RALPH.md SSH keepalive lesson) + `3dcedd3` (docs iter-268 post-push BLOCKED note) still unpushed at iter-269 orient. Per iter-263 asymmetric-recovery LESSON, SSH :22 and HTTPS :443 recover independently — carry forward to iter-269 step 5 push. If SSH :22 clean at iter-269 step 5, both prior commits + iter-269 trace-gate commit flush together. Non-critical: all three commits are docs/journal only; no impl surface.
-  - Attempted: iter-268 three push attempts all failed (two exit 0 empty output stall-before-flush; one "Connection timed out port 22" exit 128).
-  - Error/Issue: transient SSH :22 network timeout.
-  - Next: iter-269 step 5 push attempts SSH :22 first per iter-263 recovery rule; if clean, carry-forward commits auto-flush as part of iter-269's normal push cycle.
+- [ ] POST-PUSH SSH :22 CARRY-FORWARD — three unpushed commits at iter-269 close: `12a5ebc` (iter-268 RALPH.md SSH keepalive lesson), `3dcedd3` (iter-268 docs BLOCKED note), `921c21d` (iter-269 trace-gate artefacts). Per iter-263 asymmetric-recovery LESSON, SSH :22 and HTTPS :443 recover independently — all three flush together on first clean SSH :22 window. Non-critical: all commits are docs/journal + trace artefacts only; no impl surface. PR #230 has no CI (statusCheckRollup: []).
+  - Attempted iter-269 step 5: two push attempts with increasing SSH ConnectTimeout (15s then 30s) + keepalive `ServerAliveInterval=15` per iter-268 POST-PUSH LESSON both returned explicit "ssh: connect to host github.com port 22: Connection timed out" — network-layer failure to establish TCP on :22, not an in-session stall (the iter-268 keepalive fix targeted mid-session stalls; doesn't help pre-connection TCP timeout).
+  - Error/Issue: transient SSH :22 network timeout at TCP handshake layer.
+  - Next: iter-270 step 5 push attempts SSH :22 first per iter-263 recovery rule; if clean, all three carry-forward commits auto-flush as part of iter-270's normal push cycle. Do NOT re-write the keepalive lesson in RALPH.md — it's already recorded at iter-268 Signposts; the lesson stands for mid-session stalls, not pre-connection TCP timeouts (a refinement worth noting if the pattern persists but not yet a distinct lesson class).
 
 ## ATDD Red Phase
 
