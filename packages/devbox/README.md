@@ -317,11 +317,24 @@ docker exec keel-devbox /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}/packages
 
 Domain-syntax validation uses a strict LDH (letter-digit-hyphen) regex with a 253-char total-length bound (RFC 1035). Underscores, leading/trailing hyphens, empty labels, slashes, embedded whitespace, and zero-width Unicode are rejected. IDN entries MUST be pre-punycode-encoded by the operator (1.0 scope; refinement deferred). Validation failure exits 2 WITHOUT invoking `reload-egress.sh` — previous policy stays active (AC 3 fail-closed).
 
+### Rotating-IP services (Story 2.18)
+
+The static-pin path resolves each whitelisted domain to one or more IPs at reload-time and emits per-IP `ip daddr <ip> accept` rules into the nftables chains. That contract holds for stable-IP services. **Multi-A rotating-IP services** (`github.com`, `api.github.com`, and the GitHub-class hosts grouped in `whitelist/github-rotating.txt`) defeat it: GitHub's edge serves a different rotation of IPs across responses, the static-pin snapshot captures only the IPs returned during the reload's `getent`, and any subsequent GitHub IP that falls outside that snapshot is dropped at the nftables layer mid-iteration (Issue #232 / Story 2.18 fix).
+
+Story 2.18 layers three cooperating mechanisms on top of the static-pin path WITHOUT replacing it:
+
+- **`*-rotating.txt` annotation contract (SC-2).** Whitelist fragments named with the filename suffix `-rotating.txt` (e.g. `whitelist/github-rotating.txt`) classify their domains as `rotating` in the parallel `.classification` sidecar that both composers (`scripts/start-egress.sh compose_whitelist()` + `scripts/whitelist.sh compose_whitelist_into()`) emit alongside the existing composed-whitelist file. The sidecar is byte-identical across both composers per SC-11 (extends Story 2.4 SC-14). Per-fragment annotation is the contract; per-line annotation is rejected to keep the SC-5 LDH validation regex byte-identical.
+- **`dnsmasq nftset=` directive emission (Option A — primary).** `reload-egress.sh` reads the `.classification` sidecar at render time and, for every rotating-flagged domain, emits one extra pair of `nftset=` directives alongside the existing `server=` line: `nftset=/<domain>/4#inet#keel_egress#gh_v4` (IPv4) + `nftset=/<domain>/6#inet#keel_egress#gh_v6` (IPv6). dnsmasq combines forwarding (`server=`) + named-set population (`nftset=`) in a single resolution pass, so every observed A/AAAA reply lands in the matching kernel set with the per-set TTL applied.
+- **Static GitHub CIDR fallback (Option B — belt-and-braces).** `nftables/egress.nft` `output_v4` carries two static CIDR rules BEFORE the dynamic `@gh_v4` accept rule: `ip daddr 140.82.112.0/20 accept` (GitHub web/api per `https://api.github.com/meta`) + `ip daddr 192.30.252.0/22 accept` (GitHub legacy). Three-way ordering inside `output_v4` is therefore `static-CIDR → @gh_v4 accept → KEEL_EGRESS_V4_MARKER_START` so the static layer short-circuits during the boot-time-to-first-DNS-reply window and any catastrophic dnsmasq failure mode.
+
+The named sets `gh_v4` / `gh_v6` are declared at table scope with `flags timeout; timeout 600s` (SC-5; retunable via a forthcoming `${KEEL_DEVBOX_NFTSET_TIMEOUT}` knob); `flush table` at reload wipes them and dnsmasq re-fills on the next DNS query (typical < 1s) — the in-flight window is covered by Option B. Per SC-4, set names are STATIC per family across all rotating GitHub-class domains; future rotating services with their own published CIDR ranges land as sibling sets in future stories rather than reusing `gh_v<family>`.
+
 ### Known upstream bugs fixed
 
 1. **Divergent whitelist tooling** — upstream shipped two independent reload paths (`manage-whitelist.sh` + `whitelist`) with different state; Story 2.3 collapses onto a single `reload-egress.sh` primitive.
 2. **Fail-open `/etc/resolv.conf` fallback to `8.8.8.8`** — upstream leaked queries to public DNS when dnsmasq was slow; Story 2.3 pins `resolv.conf` to `nameserver 127.0.0.1` only.
 3. **IPv6 default-deny gap** — upstream only blocked IPv4; Story 2.3 adds `address=/#/::` + `chain output_v6 { policy drop }` for full parity.
+4. **DNS-rotation drop mid-iteration** — Story 2.3's static-pin path captured a single snapshot at reload-time and dropped subsequent GitHub IPs that fell outside the snapshot. Story 2.18's `dnsmasq nftset=` + named-set + static-CIDR-fallback layering closes the gap (Issue #232).
 
 ## Hardening (Story 2.5)
 

@@ -84,11 +84,32 @@ relpath_devbox() {
 # strips comments + blanks, dedupes via sort -u, writes to <dest>. MUST
 # produce byte-identical output to start-egress.sh's compose_whitelist() for
 # the same input files. Task 7.4 parity smoke verifies.
+#
+# Story 2.18 SC-11: also emits a parallel `${dest}.classification` sidecar
+# mapping `domain<TAB>type` (type ∈ {rotating, static}) — every domain
+# originating from a `*-rotating.txt` fragment is `rotating`; everything
+# else (default + non-rotating fragments + per-fork override) is `static`.
+# On collision across rotating + non-rotating sources, rotating wins
+# (most-permissive class for population safety). The sidecar MUST be
+# byte-identical across this composer + start-egress.sh's compose_whitelist()
+# — extends the SC-14 dual-composer parity contract.
 compose_whitelist_into() {
 	local dest="$1"
+	# Build a typed-stream tempfile (`<domain><TAB><type>` records) by walking
+	# the same source files as the existing composer, tagging each line with
+	# its source-derived type. We then derive BOTH outputs from this stream:
+	#   - composed whitelist (domain-only, deduped + sorted) → ${dest}
+	#   - classification sidecar (domain<TAB>type) → ${dest}.classification
+	# Per-source-type rules per Story 2.18 SC-2:
+	#   - whitelist.default.txt → static
+	#   - whitelist/*.txt fragments: filename suffix `-rotating.txt` → rotating; else static
+	#   - whitelist.local.txt (per-fork override) → static
+	local typed
+	typed="$(mktemp -t keel-egress.typed.XXXXXX)"
 	{
 		if [[ -r "${WHITELIST_DEFAULT}" ]]; then
-			cat "${WHITELIST_DEFAULT}"
+			sed -E 's/#.*$//' "${WHITELIST_DEFAULT}" \
+				| awk 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print $0 "\tstatic" }'
 		fi
 		if [[ -d "${WHITELIST_FRAGMENTS_DIR}" ]]; then
 			# Whitespace-safe enumeration via find + mapfile (matches
@@ -99,18 +120,31 @@ compose_whitelist_into() {
 			mapfile -t fragments < <(LC_ALL=C find "${WHITELIST_FRAGMENTS_DIR}" -maxdepth 1 -type f -name '*.txt' -print | sort)
 			for fragment in "${fragments[@]}"; do
 				[[ -r "${fragment}" ]] || continue
-				cat "${fragment}"
+				local frag_type=static
+				case "${fragment}" in
+					*-rotating.txt) frag_type=rotating ;;
+				esac
+				sed -E 's/#.*$//' "${fragment}" \
+					| awk -v t="${frag_type}" 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print $0 "\t" t }'
 			done
 		fi
 		# SC-4: per-fork override composed last; additive-only — final sort -u dedupes.
 		if [[ -r "${WHITELIST_LOCAL}" ]]; then
-			cat "${WHITELIST_LOCAL}"
+			sed -E 's/#.*$//' "${WHITELIST_LOCAL}" \
+				| awk 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print $0 "\tstatic" }'
 		fi
-	} \
-		| sed -E 's/#.*$//' \
-		| awk 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print }' \
-		| LC_ALL=C sort -u \
-		> "${dest}"
+	} > "${typed}"
+	# Composed whitelist: project to domain column, dedupe, sort.
+	cut -f1 < "${typed}" | LC_ALL=C sort -u > "${dest}"
+	# Classification sidecar (Story 2.18 SC-11): per-domain max(type) where
+	# rotating > static (collision rule), then `LC_ALL=C sort -u` for byte
+	# identity across composers.
+	awk -F'\t' '
+		{ c[$1] = ($2 == "rotating" || c[$1] == "rotating") ? "rotating" : "static" }
+		END { for (d in c) print d "\t" c[d] }
+	' "${typed}" | LC_ALL=C sort -u > "${dest}.classification"
+	chmod 0644 "${dest}.classification"
+	rm -f "${typed}"
 }
 
 # --- Validation primitive (SC-5 + SC-6) -----------------------------------
