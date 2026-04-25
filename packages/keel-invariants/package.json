@@ -28,7 +28,7 @@
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
-    "test": "node --test dist/prompt-injection-rules/hook-settings-tamper.test.js",
+    "test": "vitest run",
     "check": "node dist/check.js",
     "keel-invariants:tokens-schema": "node dist/check-tokens-schema.js",
     "keel-invariants:tokens-contrast": "node dist/check-tokens-contrast.js",
@@ -49,6 +49,7 @@
     "eslint": "10.2.1",
     "globals": "17.5.0",
     "prettier": "3.8.3",
-    "typescript-eslint": "8.58.2"
+    "typescript-eslint": "8.58.2",
+    "vitest": "3.2.4"
   }
 }

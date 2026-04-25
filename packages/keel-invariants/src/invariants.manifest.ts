@@ -139,7 +139,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: 'e410d9cab2c77e0525b37e3775029e6bd3565efe9b7e7ed42a5ced58bc5198fd',
+    contentHash: '74237244a3a2b2ce676754a26640c59b3afb56aa9937b1ab901fd41d1d03b525',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {

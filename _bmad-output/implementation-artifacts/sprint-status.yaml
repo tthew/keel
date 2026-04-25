@@ -77,6 +77,7 @@
 # last_updated: 2026-04-25 Epic-2-in-progress-to-done-Story-2-18-closed-iter-353 UTC
 # last_updated: 2026-04-25 Epic-1-reopened-stories-1-17-to-1-21-appended-correct-course-issue-233 UTC
 # last_updated: 2026-04-25 Story-1-17-create-story-drafted-iter-1 UTC
+# last_updated: 2026-04-25 Story-1-17-ready-for-dev-to-review-iter-359 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -112,7 +113,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-25 Epic-2-done-to-in-progress-Story-2-18-active-iter-347 UTC
+last_updated: 2026-04-25 Story-1-17-ready-for-dev-to-review-iter-359 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -136,7 +137,7 @@ development_status:
   1-14-release-please-monorepo-config-single-bundled-mode: done
   1-15-renovate-config-with-version-pinning-rules-i7: done
   1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold: done
-  1-17-bootstrap-typescript-test-runner-vitest-minimal-ci: ready-for-dev
+  1-17-bootstrap-typescript-test-runner-vitest-minimal-ci: review
   1-18-bootstrap-python-test-runner-pytest-under-uv: backlog
   1-19-backfill-keel-invariants-test-coverage: backlog
   1-20-activate-fr14i-for-real-end-vacuous-pass: backlog

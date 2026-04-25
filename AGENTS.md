@@ -40,6 +40,10 @@ Where content belongs, by audience and scope. When you learn something new durin
 4. **Respect required gates.** The `required=true` rows in `bmad-help.csv` are blocking — don't skip Create PRD, Create Architecture, Create Epics & Stories, Implementation Readiness, Sprint Planning, Create Story, or Dev Story unless the user explicitly opts out.
 5. **Don't invent skills.** Only invoke skills listed in the Claude Code `available-skills` block or explicitly typed as `/<name>` by the user.
 
+## Testing
+
+Run `pnpm test` from the worktree root to execute the workspace-wide Vitest suite (same entry point documented in `CLAUDE.md § Common commands`). Python tests under `uv run pytest` arrive with Story 1.18. See `_bmad-output/planning-artifacts/architecture.md § M0 substrate developer-productivity floor` for the canonical rationale behind the M0 test-runner substrate.
+
 ## Project conventions
 
 - Communication language: **English**
