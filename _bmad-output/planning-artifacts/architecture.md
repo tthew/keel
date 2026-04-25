@@ -399,6 +399,51 @@ Pre-merge-fast rejects tasks where `manifest_hash` shrank or the `id` list shran
 
 **R4. Knowledge-file upkeep contract.** Per FR14j: `AGENTS.md` (shared operational), `CLAUDE.md` (Claude-Code-specific), `RALPH.md` (Ralph-private). Every iteration's commit includes a diff to at least one of the three OR a justification comment in the commit body explaining why nothing was learned. Pre-commit hook emits a warning (not a hard fail) if all three are untouched AND no justification found; Ralph honours the warning by prompting itself to reflect. **Affects:** pre-commit hook, Ralph prompt files, M9.
 
+**Doc-budget enforcement (issue #231 amendment, 2026-04-25).** R4 extends to size-bounding the three knowledge files plus `.ralph/@plan.md` mechanically. Two complementary surfaces share a single threshold-constants block:
+
+- **Phase 1 — soft orient-gate (PRIMARY defense).** `ralph.py` adds `_build_doc_budget_block(env)` mirroring the pattern at `_build_issue_tracking_block()` (`ralph.py:1622`). On threshold trip, a `## PRUNE-FIRST (advisory)` block is injected into the loaded `PROMPT_build.md` before agent invocation. This is upstream of the ~80K orient read; the only intervention that prevents bloat from being read in the first place.
+- **Phase 2 — pre-commit gate (belt-and-braces).** `tools/check-ralph-doc-budget.sh` enforces a numeric double-bound (bytes AND lines) ungameable by prose density. Wired as a hook entry in `.pre-commit-config.yaml` (the prek-managed pipeline that already gates this repo); shares `RALPH_DOC_BUDGET_ENFORCE` env propagation with the orient-gate. Threshold constants live in a single SSOT file (`.githooks/doc-budget.json`) read by both `ralph.py` and the hook script — no parallel implementation.
+
+**Architectural primacy (non-droppable).** Phase 1 is the PRIMARY defense — it's the only intervention upstream of the orient read. Phase 2 is belt-and-braces. Future readers MUST NOT drop Phase 1 as redundant once Phase 2 lands; these are complementary, not escalating.
+
+**Env-var contract (extends R7's environment-variable surface).** Two new vars:
+
+| Variable                       | Values                                          | Purpose                                                              |
+|--------------------------------|-------------------------------------------------|----------------------------------------------------------------------|
+| `RALPH_DOC_BUDGET_ENFORCE`     | `off` \| `warn-in-prompt` \| `halt-in-prompt`   | Selects Phase-1 / Phase-2 active consumer; default `warn-in-prompt`  |
+| `RALPH_DOC_BUDGET_OVERRIDE`    | `<int bytes>`                                   | Emergency-merge override for Phase 2 hook                            |
+
+**Telemetry — `sizes.jsonl`.** `$RALPH_BASE_DIR/logs/sizes.jsonl` (gitignored, schema in Story 3.15) records one JSON line per iteration:
+
+```
+{
+  "iter": <int>,
+  "ts": "<ISO8601>",
+  "ralph_md_bytes": <int>,
+  "ralph_md_lines": <int>,
+  "plan_md_bytes": <int>,
+  "plan_md_lines": <int>,
+  "signpost_word_counts": [<int>, ...],
+  "done_entry_word_counts": [<int>, ...],
+  "orient_phase_tokens": <int>,
+  "line_delta_from_prev": <int>
+}
+```
+
+The last two fields are leading + lagging indicators for the post-ship monitoring described in Story 3.34's threshold-tuning AC. Retention: untrimmed at 1.0; rotation policy is a future per-fork concern, not substrate.
+
+**Phase 2 ship preconditions (architecture-binding, NOT advisory).** Phase 2 MUST NOT move from `warn-in-prompt` to `halt-in-prompt` (with hook active) until ALL of:
+
+1. ≥ 20 HEALTHY iterations recorded in `sizes.jsonl`.
+2. P90 of recorded sizes is ≥ 30% below the proposed hard cap (prevents calibrating to a too-loose budget).
+3. Phase-1 soft-gate false-positive rate < 5% on healthy-baseline replay (prevents the "Ralph learns padding patterns under the cap" flakiness trap).
+
+Failing any precondition keeps Phase 2 off; threshold iteration uses the telemetry data. This sequencing is architectural, not optional — see § R6 (flake measurement layer) precedent for the "ship measurement at 1.0; ship enforcement after empirical baseline" pattern.
+
+**Lands NOW (not deferred to Epic 3).** Phase 0 telemetry + Phase 1 orient-gate + Phase 2 hook in `warn-only` mode ship on the branch carrying this architecture amendment; Phase 2 promotion to `halt-in-prompt` mode + manifest registration follow once the empirical preconditions are met. Story 3.34 in Epic 3 is the BMad story-record; its sprint-status enters as `done`.
+
+**Affects:** `ralph.py` (`_build_doc_budget_block`, env-var injection, sizes.jsonl writer), `.githooks/doc-budget.json` (SSOT thresholds), `tools/check-ralph-doc-budget.sh` (Phase 2 hook), `.pre-commit-config.yaml` (hook entry), `$RALPH_BASE_DIR/logs/sizes.jsonl`, `packages/keel-invariants/src/invariants.manifest.ts` (`INV-ralph-doc-budget` registered ONLY after Phase 2 promotion + 10 clean iterations), `INVARIANTS.md` (new `### Ralph loop hygiene` section + anchor bullet at the same milestone), Story 3.15 (telemetry — Phase 0 absorption), Story 3.22 (cross-ref), Story 3.23 (threshold-constants coordination), **Story 3.34** (BMad-tracking record; ships done with this PR).
+
 **R5. Headless Ralph `--no-tui` as research instrumentation (Party-Mode-driven reclassification).** Originally deferred to Growth-tier in the PRD; promoted to M0/M1 research infrastructure because the TUI is a human-observation interface and the dual-posture tie-breaker makes structured data collection primary. A TUI cannot be driven by a cron job or GitHub Action without losing measurement integrity (Victor, 2026-04-19 pressure-test: "If the tripwire measurement is run by you, manually, watching a TUI, measurement integrity is already compromised").
 
 - **Flag:** `ralph.py --no-tui` (or the equivalent in a refactored harness) — suppresses the Textual UI, writes structured JSON to `.ralph/logs/<iteration-id>/` and a concluding summary line to stdout, exits with a known code.

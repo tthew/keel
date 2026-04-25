@@ -53,6 +53,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^packages/ui/tokens\.json$
+      - id: ralph-doc-budget
+        name: Ralph doc-budget gate (issue #231 / FR14j amendment; warn-only at 1.0)
+        entry: tools/check-ralph-doc-budget.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: commitlint
         name: commitlint (conventional commits)
         entry: pnpm exec commitlint --edit

@@ -2368,6 +2368,17 @@ So that 40–60% smart-zone targeting (NFR4a) is observable and >80% utilisation
 **When** Story 1.8 tracks it,
 **Then** `INV-ralph-context-meter-schema` is registered.
 
+**Given** `$RALPH_BASE_DIR/logs/sizes.jsonl` is the doc-budget telemetry sibling of `context-meter.json` (issue #231 / Story 3.34 Phase 0),
+**When** the iteration footer runs,
+**Then** `sizes.jsonl` is appended with one JSON line per iteration matching the schema `{iter, ts, ralph_md_bytes, ralph_md_lines, plan_md_bytes, plan_md_lines, signpost_word_counts[], done_entry_word_counts[], orient_phase_tokens, line_delta_from_prev}`
+**And** the file is gitignored
+**And** `orient_phase_tokens` + `line_delta_from_prev` are leading + lagging indicators for the threshold-tuning logic in Story 3.34
+**And** the writer is the SAME footer that emits `context-meter.json` — no separate write site.
+
+**Given** the schema is invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-ralph-sizes-log-schema` is registered alongside `INV-ralph-context-meter-schema`.
+
 ##### Story 3.16: Execution budget headroom (25K push-buffer; XL decomposition; exhaustion signals)
 
 As Ralph,
@@ -2579,6 +2590,11 @@ So that knowledge-file upkeep is prompted but not blocked — preserves agent ve
 **When** documented in `AGENTS.md`,
 **Then** `Knowledge-files-no-change: <reason>` appears as the canonical form (e.g., `Knowledge-files-no-change: trivial refactor`, `Knowledge-files-no-change: test fix`).
 
+**Given** Story 3.34 ships the orient-gate + pre-commit hook for size enforcement (issue #231),
+**When** I read the upkeep contract,
+**Then** Story 3.22 (warn-on-no-update) and Story 3.34 (warn-on-bloat) are acknowledged as complementary — upkeep ensures *something* is written; budget ensures *not too much*
+**And** both hooks share the `.githooks/` directory (single hooksPath registration in `ralph.py`).
+
 ##### Story 3.23: L3 lint guardrails (`tools/lint-knowledge-files.ts`)
 
 As a substrate maintainer,
@@ -2617,6 +2633,12 @@ So that L3 knowledge-file drift cannot poison the Ralph context window (RS6).
 **Given** `.ralph/@plan.md` entries,
 **When** a commit modifies existing entries (not just appends new ones),
 **Then** the linter rejects the commit — entries are append-only per FR14a2 pattern.
+
+**Given** Story 3.34 introduces a single threshold-constants block (issue #231),
+**When** `tools/lint-knowledge-files.ts` enforces RALPH.md size,
+**Then** the linter reads the SAME constants as Story 3.34's `_build_doc_budget_block` and `.githooks/pre-commit-ralph-budget` (no parallel byte/line definitions)
+**And** the existing 500-line cap migrates to the threshold constants with the new byte/per-bullet dimensions
+**And** the linter's "RALPH.md exceeds 500 lines" message is rephrased to "RALPH.md exceeds the doc-budget threshold" pointing to issue #231 / Story 3.34's rationale.
 
 ##### Story 3.24: `.ralph-safe-set.yaml` manifest + `tools/check-safe-set.ts` + orient self-awareness
 
@@ -2963,6 +2985,90 @@ So that Ralph is operable before Epic 7 lands and Epic 7 re-theming is cosmetic-
 **When** `.ralph/halt` exists,
 **Then** it renders the halt reason + context prominently
 **And** clears when the halt sentinel is cleared.
+
+##### Story 3.34: Ralph doc-budget enforcement (orient-gate + pre-commit gate)
+
+As a substrate maintainer,
+I want a single-source-of-truth doc-budget enforcement chain — Phase 1 soft orient-gate (PRIMARY defense; injected into PROMPT_build.md by ralph.py) and Phase 2 pre-commit hook (belt-and-braces; numeric double-bound) — both consuming the same threshold constants and selectable via `RALPH_DOC_BUDGET_ENFORCE`, with an emergency `RALPH_DOC_BUDGET_OVERRIDE` escape hatch,
+So that `RALPH.md` and `.ralph/@plan.md` cannot silently inflate past the per-iteration orient budget — preserving Ralph loop reliability monotonically (FR14j amendment per issue #231).
+
+**Acceptance Criteria:**
+
+**Given** `ralph.py` has the `_build_issue_tracking_block()` pattern at `:1622`,
+**When** I read the harness,
+**Then** a parallel `_build_doc_budget_block(env)` function exists, invoked from the same env-injection site (`:1639,1761`)
+**And** it reads `RALPH.md`, `.ralph/@plan.md`, `.ralph/PROMPT_build.md`, `.ralph/PROMPT_plan.md` sizes (bytes + lines + per-bullet words)
+**And** trips when ANY of the threshold tuple is exceeded.
+
+**Given** `RALPH_DOC_BUDGET_ENFORCE=warn-in-prompt` (default),
+**When** the threshold is tripped,
+**Then** a `## PRUNE-FIRST (advisory)` block is injected into the loaded `PROMPT_build.md` before the agent invocation
+**And** the block names the offending file + which dimension(s) tripped + the target reduction.
+
+**Given** `RALPH_DOC_BUDGET_ENFORCE=halt-in-prompt` AND Phase 2 preconditions met,
+**When** the threshold is tripped,
+**Then** the block converts to a halt directive
+**And** the pre-commit hook is active.
+
+**Given** `RALPH_DOC_BUDGET_ENFORCE=off`,
+**When** the function runs,
+**Then** no injection; pre-commit hook is bypassed.
+
+**Given** `.githooks/pre-commit-ralph-budget` exists,
+**When** the orchestrator starts,
+**Then** `git config core.hooksPath .githooks` is registered alongside the `RALPH_BASE_DIR` export near `ralph.py:141`
+**And** the registration emits a one-line confirmation to the session log
+**And** missing registration is a loud failure, not a silent no-op (`uv run ralph.py` exits non-zero if registration fails).
+
+**Given** the pre-commit hook fires,
+**When** byte AND line counts are read,
+**Then** the hook reads the SAME threshold constants as `_build_doc_budget_block` (no parallel implementation)
+**And** the hook is ungameable by prose density (numeric double-bound).
+
+**Given** `RALPH_DOC_BUDGET_OVERRIDE=<bytes>` is set,
+**When** the pre-commit hook runs,
+**Then** the override is honoured for the current commit only
+**And** the override usage is logged to `$RALPH_BASE_DIR/logs/budget-overrides.jsonl` with the commit SHA, ISO8601 timestamp, and the override value.
+
+**Given** the rubric-by-example replaces prose rules in `PROMPT_build.md` step 3a,
+**When** I read the prompt,
+**Then** three exemplar entries (1 Lesson / 1 Gotcha / 1 Decision, ≤ 12 words before commit-SHA / PR pointer) demonstrate the target shape
+**And** the IP DONE template tightens to `- [iter-N] <verb> <object> — <sha7> (PR #N)` with a 12-word hard cap before the pointer
+**And** Guardrail 8 in `PROMPT_build.md` extends to name `RALPH.md` (currently mentions `AGENTS.md` only).
+
+**Given** `RALPH.md` bullets carry `<!-- iter:N -->` decay markers,
+**When** the pruner runs,
+**Then** bullets where `current_iter − N > 30` are deletable per pure age rule
+**And** per-section FIFO caps (§ Signposts ≤ 20, § Lessons ≤ 15, § Gotchas ≤ 10) are documented as structural caps (not LLM-judged).
+
+**Given** Phase 2 ship preconditions,
+**When** the operator promotes `RALPH_DOC_BUDGET_ENFORCE` from `warn-in-prompt` to `halt-in-prompt`,
+**Then** ALL THREE preconditions MUST hold:
+- ≥ 20 HEALTHY iterations recorded in `$RALPH_BASE_DIR/logs/sizes.jsonl`
+- P90 of recorded sizes ≥ 30% below the proposed hard cap
+- Phase-1 soft-gate false-positive rate < 5% on healthy-baseline replay
+
+**And** the promotion PR records all three values inline; missing any → Phase 2 stays off.
+
+**Given** Phase 2 has been active for ≥ 10 consecutive iterations with zero hook fires,
+**When** the operator opens the manifest registration PR,
+**Then** `INV-ralph-doc-budget` is added to `packages/keel-invariants/src/invariants.manifest.ts`
+**And** a new `### Ralph loop hygiene` section + anchor bullet are added to `INVARIANTS.md`
+**And** Story 1.9's sync-gate validates the manifest ↔ INVARIANTS.md drift on the same PR
+**And** Day-1 registration is explicitly REJECTED (would flap the sync-gate during calibration; precedent: Story 3.14 / FR14a3 contract-at-1.0-enforcement-at-1.x).
+
+**Given** a one-shot RALPH.md prune is the precondition for Phase 2 to ship in `warn-in-prompt` mode without firing on every commit,
+**When** the prune iteration runs,
+**Then** `RALPH.md` is reduced to under the proposed hard cap before `RALPH_DOC_BUDGET_ENFORCE=warn-in-prompt` defaults are merged
+**And** the pruned content is NOT archived to a new file (per Paige's roundtable rejection: archives become the next bloat vector; git log is the archive).
+
+**Given** the implementation rejects alternatives explicitly,
+**When** I read the story,
+**Then** the rejected-alternatives list (archive files, YAML frontmatter scoring, LLM-as-judge filtering, in-prompt forbidden-words lists, periodic retro mode, separate `PRUNE_RUBRIC.md` file) is recorded in the story body for future re-readers — explicit rejection prevents zombie-resurrection.
+
+**Implementation refs:** `ralph.py:141` (hooksPath registration site), `ralph.py:1622` (injection-block pattern to mirror), `ralph.py:1639,1669,1761,1763` (env-var injection sites), `packages/keel-invariants/src/invariants.manifest.ts` (deferred manifest entry), `INVARIANTS.md` (deferred anchor bullet).
+
+**Out of scope:** Phase 0 telemetry instrumentation (`sizes.jsonl` schema + writer) is absorbed by Story 3.15 — same JSON-on-disk site, same per-iteration write cadence. Cross-references in Story 3.22 (FR14j upkeep) and Story 3.23 (L3 lint guardrails) acknowledge this story but do not duplicate implementation.
 
 ---
 
