@@ -2,43 +2,41 @@
 
 ## NOW
 
-- [ ] § Cross-epic transition: next invocation re-evaluate `gh pr view 230 --json state,mergedAt`. MERGED + Epic 3 row `3-1-…: backlog` → `Run /bmad-create-story`. Otherwise re-fire `EPIC_DONE`.
+- [ ] Run `/bmad-correct-course` (issue #232 — devbox network whitelist DNS-rotation regression). Input: `_bmad-output/planning-artifacts/course-correction-issue-232-briefing.md`. Expected output: sprint-change proposal at `_bmad-output/planning-artifacts/sprint-change-proposal-issue-232.md` + Story 2.18 spec + Story 2.3/2.4 Change Log amendments + sprint-status.yaml entry.
 
-## QUEUE (Epic 3 — Ralph package + multi-iteration loop, 33 stories)
+## QUEUE (Story 2.18 — pending /bmad-correct-course refinement)
 
 - [ ] _(after every push)_ Monitor PR CI — queue fix tasks for any failures.
+- [ ] Run `/bmad-create-story` — Story 2.18 first creation pass (post-correction; lifecycle `_(no story) → drafted`).
 
 ## BLOCKED
 
-_(empty — iter-345 EPIC_DONE re-fire clean.)_
+_(none)_
 
 ## ATDD Red Phase
 
-_(empty — substrate coverage at Epic 2 close: 7 persistent `node:test` unit tests GREEN + 74 persistent replay fixtures GREEN.)_
+_(empty until Story 2.18 atdd-scaffolded.)_
 
 ## DONE
 
-- [x] iter-345: PR #230 still OPEN — re-fired idempotent `EPIC_DONE` halt; awaiting human merge.
-- [x] iter-344: RALPH.md + @plan.md prune; doc-budget hook silent in warn-mode.
-- [x] iter-343: Epic-2 close-out — PR #230 Draft→Open + EPIC_DONE halt.
-- [x] iter-342: Story 2.17 CR LANDING — sm-verified → done; 3 PATCH bundle-close + 25 DEFER.
-
-_(prior DONE detail in commits + story-file Status HTML comment chain + story-file Change Log.)_
+- [x] iter-1 (this branch): course-correction setup — branch `chore/devbox-network-whitelist-232` from `origin/feat/epic-2-packaged-devbox` tip (152be87); briefing artifact written at `_bmad-output/planning-artifacts/course-correction-issue-232-briefing.md`; IP reset for course-correction lifecycle.
 
 ## Context
 
-- **Phase:** 4-implementation — Epic 2 COMPLETE; awaiting human merge of PR #230.
-- **Runtime:** cc-devbox iteration env with Docker via host socket-passthrough (backend B per `INV-devbox-dind-available`).
-- **Epic:** Epic 2 — Sandboxed Execution Environment (devbox). 17/17 stories `done`; epic-row `done` at sprint-status line 132.
-- **Epic Branch:** `feat/epic-2-packaged-devbox` (PR #230 OPEN, awaiting merge).
-- **Story:** _(no story — Story 2.17 done iter-342; § Cross-epic transition picks up Epic 3 Story 3.1 after merge.)_
-- **Story State:** `done` (Story 2.17).
-- **Next-Epic Story:** Epic 3 Story 3.1 = `3-1-packages-ralph-package-install-boundary-via-uv-tool-install` (sprint-status line 153, `backlog`).
-- **GitHub Issue:** no GH Project configured; `RALPH_ISSUE_NUMBER` unset.
-- **PR:** #230 Open / mergeStateStatus=CLEAN / mergeable=MERGEABLE / mergedAt=null at iter-345 — https://github.com/tthew/ralph-bmad/pull/230.
+- **Phase:** 4-implementation — Epic 2 in COURSE-CORRECTION (Story 2.18 staged). Epic-2 PR #230 still OPEN, awaiting human merge; this branch stacks the network-whitelist fix on top.
+- **Runtime:** cc-devbox iteration env. Network egress to `github.com` is the bug under fix — best-effort push when DNS rotation lands a whitelisted IP.
+- **Epic:** Epic 2 — Sandboxed Execution Environment (devbox). 17/17 stories `done` at iter-345; Story 2.18 will be appended via this course-correction.
+- **Epic Branch (parent):** `feat/epic-2-packaged-devbox` (PR #230 OPEN).
+- **Working Branch:** `chore/devbox-network-whitelist-232` (this branch — course-correction host).
+- **Story:** _(none — pre-correction; `/bmad-correct-course` runs first to draft Story 2.18 + amendments)._
+- **Story File:** _(n/a until Story 2.18 spec produced.)_
+- **Story State:** _(no story — course-correction phase precedes Story 2.18 lifecycle entry.)_
+- **GitHub Issue:** [#232](https://github.com/tthew/ralph-bmad/issues/232) — devbox network whitelist DNS-rotation. Issue body unreachable from inside devbox at iteration 1 (the bug); body inferred from synthesized live evidence.
+- **PR:** TBD — this iteration creates a draft PR targeting `feat/epic-2-packaged-devbox`.
 
 ## Notes
 
-- iter-344 prune routed via `/bmad-quick-dev` one-shot path (zero blast radius — RALPH.md is private journal; git log preserves full history per Paige's roundtable rejection of archive files).
-- Doc-budget halt-in-prompt mode promotion gates on baseline FP-rate proof: ≥20 healthy iters in `sizes.jsonl` + P90 ≥30% below cap + Phase-1 FP <5%. Stays in warn-in-prompt until then.
-- iter-345 first exercise of § Cross-epic transition idempotent re-entry — `gh pr view 230` showed `state=OPEN, mergedAt=null`; halt sentinel rewritten with same payload as iter-343, no other artifact mutated.
+- **Root cause (issue #232).** `reload-egress.sh` snapshots whitelisted-domain IPs at boot via `getent ahostsv4/v6` + pins them as static `ip daddr <addr> accept` rules in nftables. `github.com` round-robin DNS rotates beyond the snapshot. dnsmasq's `nftset=` directive (Option A in briefing) is the load-bearing fix — every DNS reply for `/github.com/` adds the resolved IP to a named nftables set; `output_v4` accepts on `ip daddr @gh_v4`. Static GitHub CIDR fallback (Option B) covers the bootstrap window. Combo = Option C, recommended.
+- **Briefing handoff.** `course-correction-issue-232-briefing.md` is the durable input artifact for `/bmad-correct-course`. It survives loop interruption — next iteration reads + feeds verbatim.
+- **Push-fail intermittence.** Even WITHIN this iteration, `github.com:443` worked at 2026-04-25 11:46 UTC (200 in 146ms); the prior iteration saw an 8s timeout. Window is non-deterministic — push when it lands.
+- **No conflict with issue #231.** `sprint-change-proposal-2026-04-25.md` exists for issue #231 (doc-budget). New course-correction artifact filename uses `-issue-232` suffix — no clash.
