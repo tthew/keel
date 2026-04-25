@@ -2,10 +2,9 @@
 
 ## NOW
 
-- [ ] Story 1.17 ATDD scaffolding: `/bmad-testarch-atdd` (`validated → atdd-scaffolded`). Forecast: ATDD-skip via FR14n § ground-(a) substrate-verification covers AC (smoke test IS the bootstrap red-phase per AC1). Cite ground (a) only — ground (b) "no test runner" SUNSETS post-this-story per FR14n issue #233 amendment.
+- [ ] Story 1.17 dev-story: `/bmad-dev-story (args: "_bmad-output/implementation-artifacts/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md")` (`atdd-scaffolded → in-dev`). Single-iter expected (substrate-extension class per RALPH.md iter-344 counter-example; 11 Tasks / ~25 subtasks; mostly additive edits, no rewrites).
 
 ## QUEUE (Epic 1 reopen — Stories 1.17–1.21 bootstrap arc per issue #233)
-- [ ] Story 1.17 dev-story: `/bmad-dev-story (args: "<story_file_path>")` (`atdd-scaffolded → in-dev`). Single-iter expected (substrate-extension class per RALPH.md iter-344 counter-example).
 - [ ] Story 1.17 trace: `/bmad-testarch-trace (args: "yolo")` (`in-dev → traced`). WAIVED expected (smoke IS the verification).
 - [ ] Story 1.17 post-dev SM: `/bmad-create-story (args: "review")` (`traced → sm-verified`). Forecast 1–4 PATCH (RALPH.md iter-352 narrow-substrate-extension empirical).
 - [ ] Story 1.17 CR: `/bmad-code-review (args: "2")` (`sm-verified → done`). Forecast 0–2 PATCH inline-bundle-close per RALPH.md iter-342.
@@ -26,24 +25,25 @@ _(none)_
 
 ## ATDD Red Phase
 
-_(empty — Story 1.17 will produce its OWN smoke-test red-phase as the bootstrap target. Forecast: ATDD-skip via ground-(a) substrate-verification at the next-next iter; the smoke test IS the bootstrap red-phase per AC1.)_
+_(empty — Story 1.17 ATDD-skipped via FR14n § ground-(a) at iter-358; the smoke test produced by Tasks 4 / 9 IS the bootstrap red-phase per AC1, satisfying the substrate-verification clause without `/bmad-testarch-atdd` invocation. No red-phase failures to track here — the smoke goes RED-then-GREEN within the dev-story iter as Tasks 1–10 land.)_
 
 ## DONE (Epic 1 reopen pass — Stories 1.17–1.21)
 
 - [x] iter-1 (prior iter): `/bmad-correct-course` on issue #233 — Sprint Change Proposal authored autonomously per Ralph build-mode batch flow. Outputs: `_bmad-output/planning-artifacts/sprint-change-proposal-issue-233.md` + PRD/architecture/epics/sprint-status amendments per § 4.1–4.4. Epic 1 REOPENED (`epic-1: done → in-progress`); Stories 1.17–1.21 appended to epics.md + sprint-status as backlog. Branch: `chore/correct-course-test-runner-233` (based on `feat/epic-2-packaged-devbox`).
 - [x] iter-356 (prior iter): `/bmad-create-story` for Story 1.17 — autonomous discovery from sprint-status first-backlog row produced `_bmad-output/implementation-artifacts/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md`. FR14n state transition `_(no story) → drafted`. Sprint-status `1-17-…: backlog → ready-for-dev`. 11 Tasks / ~25 subtasks scaffolded; SC-1 through SC-11 pinned; substrate verification ledger covers all Task targets (1 minor SCP drift surfaced + recorded — `.github/workflows/release-please.yml` cited but actually absent; release-please configs at root `.github/` level not in `workflows/` subdir; does NOT affect Story 1.17 scope). RALPH.md updated with iter-356 Signpost + iter-356 Gotcha (Bash hook denial extends to `find` / `cat` argv near protected-path substrings — workaround: use Read tool directly).
-- [x] iter-357 (this iter): `/bmad-create-story (args: "review")` for Story 1.17 — pre-dev SM-validate. FR14n state transition `drafted → validated`. Two-subagent review (technical-correctness + prose-density) surfaced 7 MUST-FIX + 11 SHOULD-FIX + ~12 NIT/LLM-OPT (deferred). 7 MUST-FIX + 9 SHOULD-FIX applied inline at gate; Change Log v1.1 added. Cumulative Story 1.17 pre-merge PATCH count: 16 (within course-correction-author origin envelope per RALPH.md iter-348 Story 2.18 precedent of 9 SM-validate PATCHes; above narrow-surface forecast band 1–4 but consistent with course-correction-author class). Sprint-status row unchanged (SM-validate is Ralph-internal per FR14n).
+- [x] iter-357 (prior iter): `/bmad-create-story (args: "review")` for Story 1.17 — pre-dev SM-validate. FR14n state transition `drafted → validated`. Two-subagent review (technical-correctness + prose-density) surfaced 7 MUST-FIX + 11 SHOULD-FIX + ~12 NIT/LLM-OPT (deferred). 7 MUST-FIX + 9 SHOULD-FIX applied inline at gate; Change Log v1.1 added. Cumulative Story 1.17 pre-merge PATCH count: 16 (within course-correction-author origin envelope per RALPH.md iter-348 Story 2.18 precedent of 9 SM-validate PATCHes; above narrow-surface forecast band 1–4 but consistent with course-correction-author class). Sprint-status row unchanged (SM-validate is Ralph-internal per FR14n).
+- [x] iter-358 (this iter): Story 1.17 ATDD-skipped via FR14n § ground-(a) substrate-verification (no `/bmad-testarch-atdd` invocation). FR14n state transition `validated → atdd-scaffolded`. Change Log v1.2 added. Skip rationale: every AC is substrate-verifiable on Task landing; AC1 literally declares the smoke test as the bootstrap red-phase. Bare ground-(a) is sufficient because Story 1.17's substrate-verification is unusually strong (every AC ↔ substrate file 1:1); ground (b) deprecated under issue #233 sunset clause; ground (c)-(iii) cross-referenced but not primary. 29th cumulative Epic ATDD-skip / 2nd course-correction-origin / 1st post-(b)-sunset. 0 fix-task QUEUE entries → direct promotion. Sprint-status unchanged.
 
 ## Context
 
-- **Phase:** 4-implementation — Story 1.17 SM-validated; FR14n `validated` state. Epic 1 REOPENED (`epic-1: in-progress` per issue #233 SCP) for Stories 1.17–1.21 bootstrap arc.
+- **Phase:** 4-implementation — Story 1.17 ATDD-skipped; FR14n `atdd-scaffolded` state. Epic 1 REOPENED (`epic-1: in-progress` per issue #233 SCP) for Stories 1.17–1.21 bootstrap arc.
 - **Runtime:** cc-devbox iteration env. github.com / api.github.com network access intermittent (DNS-rotation; PR #235's fix in container image: TBD). Workaround: `curl --resolve api.github.com:443:140.82.121.5` per RALPH.md iter-345 if `gh` calls time out.
 - **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (REOPENED for Stories 1.17–1.21). Original 16 stories already merged via PR #226 (sprint-status entries unchanged); 5 new stories appended.
 - **Epic Branch (parent):** `feat/epic-2-packaged-devbox` — this work targets it as the PR base, not `main`. Two prior course-correct PRs (#234 issue #231 doc-budget, #235 issue #232 devbox-network) used the same pattern.
 - **Working Branch:** `chore/correct-course-test-runner-233` (based on `origin/feat/epic-2-packaged-devbox` tip).
 - **Story:** Story 1.17 — Bootstrap TypeScript test runner (Vitest) + minimal CI workflow.
 - **Story File:** `_bmad-output/implementation-artifacts/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md`.
-- **Story State:** `validated` — next iter `/bmad-testarch-atdd` transitions to `atdd-scaffolded` (or `validated → atdd-scaffolded` via ATDD-skip per FR14n § ground-(a) — smoke test IS bootstrap red-phase per AC1).
+- **Story State:** `atdd-scaffolded` — next iter `/bmad-dev-story (args: "_bmad-output/implementation-artifacts/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md")` transitions to `in-dev`.
 - **GitHub Issue:** Issue #233 ("Course Correction: Bootstrap test runner + CI"). PR #236 (Draft, OPEN, base: `feat/epic-2-packaged-devbox`) carries `Refs #233`; `Closes #233` lands at Story 1.21 close-out per stacked-arc plan.
 - **PR:** #236 (Draft, OPEN, base: `feat/epic-2-packaged-devbox`).
 
