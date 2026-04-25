@@ -123,6 +123,25 @@ mapfile -t domains < <(awk 'NF { print }' "${whitelist_path}")
 domain_count="${#domains[@]}"
 log "composing rules for ${domain_count} domain(s); upstream=${UPSTREAM_RESOLVER}"
 
+# --- Load classification sidecar (Story 2.18 SC-11) -----------------------
+# The sidecar lives at `${whitelist_path}.classification` next to the composed
+# whitelist; both `compose_whitelist()` (in start-egress.sh) and
+# `compose_whitelist_into()` (in whitelist.sh) emit it byte-identically per
+# SC-11. Each record is `domain<TAB>type` where type ∈ {rotating, static}.
+# Story 2.18 AC1: rotating-flagged domains drive `nftset=` directive emission
+# in the rendered dnsmasq.conf so the named sets `gh_v4` / `gh_v6` (declared
+# in `nftables/egress.nft`) self-fill as DNS rotates upstream. Missing or
+# unreadable sidecar → every domain defaults to `static` (back-compat: a
+# flat-list whitelist with no sidecar produces the pre-Story-2.18 output).
+declare -A classification=()
+classification_path="${whitelist_path}.classification"
+if [[ -r "${classification_path}" ]]; then
+	while IFS=$'\t' read -r class_domain class_type; do
+		[[ -z "${class_domain}" ]] && continue
+		classification["${class_domain}"]="${class_type}"
+	done < "${classification_path}"
+fi
+
 # --- Bootstrap detection + resolver selection -----------------------------
 # Historical posture (pre-hardening): temporarily rewrite /etc/resolv.conf to
 # route getent via ${UPSTREAM_RESOLVER} when dnsmasq isn't up yet, then trap-
@@ -282,6 +301,17 @@ cleanup_files+=("${dnsmasq_rendered}")
 dnsmasq_server_block=""
 for domain in "${domains[@]}"; do
 	dnsmasq_server_block+="server=/${domain}/${UPSTREAM_RESOLVER}"$'\n'
+	# Story 2.18 AC1: emit `nftset=` directives for rotating-flagged domains
+	# so dnsmasq populates the named sets `gh_v4` / `gh_v6` (declared at
+	# nftables table scope in `nftables/egress.nft`) on every DNS resolution.
+	# dnsmasq combines `server=` (forwarding) + `nftset=` (population) in a
+	# single resolution pass — the static-IP path remains the only source of
+	# accept rules for non-rotating domains. Per-domain three-line block
+	# order: server= → nftset=v4 → nftset=v6 (Subtask 3.3).
+	if [[ "${classification[${domain}]:-static}" == "rotating" ]]; then
+		dnsmasq_server_block+="nftset=/${domain}/4#inet#keel_egress#gh_v4"$'\n'
+		dnsmasq_server_block+="nftset=/${domain}/6#inet#keel_egress#gh_v6"$'\n'
+	fi
 done
 
 awk -v server_block="${dnsmasq_server_block}" '

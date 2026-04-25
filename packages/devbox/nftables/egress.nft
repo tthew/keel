@@ -37,6 +37,42 @@ flush table inet keel_egress
 
 table inet keel_egress {
 	# ----------------------------------------------------------------------
+	# Story 2.18 — Rotating-IP services: named sets populated by `dnsmasq
+	# nftset=` directives.
+	#
+	# The composed dnsmasq.conf emits one `nftset=/<domain>/4#inet#keel_egress#gh_v4`
+	# (and the IPv6 sibling) per domain originating from a `*-rotating.txt`
+	# whitelist fragment. As dnsmasq forwards queries upstream and observes
+	# A / AAAA replies, it inserts the resolved IPs into the matching set with
+	# the per-set TTL applied. The chain accept rules `ip daddr @gh_v4 accept`
+	# / `ip6 daddr @gh_v6 accept` (below, in output_v4 / output_v6) short-
+	# circuit egress for any IP currently in the set — covering the multi-A
+	# rotation pattern that Story 2.3's static-pin path could not (single
+	# snapshot at reload-time). `flags timeout` self-prunes stale entries.
+	# `flush table inet keel_egress` above wipes the sets on every reload;
+	# dnsmasq re-fills them on the next DNS query (typical < 1s); the brief
+	# in-flight window is covered by the static GitHub CIDR fallback rules
+	# (Option B) ALSO emitted into output_v4 below. SC-7 + SC-5.
+	#
+	# Set names are STATIC per family per SC-4: `gh_v4` / `gh_v6` regardless
+	# of how many rotating-IP services share them. If a future rotating
+	# service has its own published CIDR ranges (e.g. Anthropic API), that
+	# gets a sibling set in a future story — single-set-per-family is an
+	# explicit simplicity-vs-future-flexibility trade-off rooted in Option C
+	# being scoped to GitHub's whitelisted-rotating-IP class.
+	# ----------------------------------------------------------------------
+	set gh_v4 {
+		type ipv4_addr
+		flags timeout
+		timeout 600s
+	}
+	set gh_v6 {
+		type ipv6_addr
+		flags timeout
+		timeout 600s
+	}
+
+	# ----------------------------------------------------------------------
 	# IPv4 egress filter — default drop, explicit allow-list.
 	#
 	# Chain scope: in an `inet`-family table with `hook output`, a packet
@@ -65,6 +101,26 @@ table inet keel_egress {
 		# DNS replies from our own dnsmasq back to clients inside the container.
 		udp sport 53 ip saddr 127.0.0.1 accept
 
+		# Story 2.18 — Option B: static GitHub CIDR fallback. Authority:
+		# https://api.github.com/meta § `web` / `api` / `git` ranges.
+		# These rules apply BEFORE the @gh_v4 dynamic-set accept so they
+		# short-circuit during (a) the boot-time-to-first-DNS-reply window
+		# between container start and dnsmasq populating the set, and
+		# (b) catastrophic dnsmasq failure modes (process death / config
+		# corruption) where the set never refills. Three-way ordering is:
+		# static-CIDR → @gh_v4 accept → KEEL_EGRESS_V4_MARKER_START.
+		# `185.199.108.0/22` (Pages/raw) is intentionally NOT here — Story
+		# 2.3's existing static-pin path covers it via stable-IP host
+		# whitelist (`raw.githubusercontent.com`).
+		ip daddr 140.82.112.0/20 accept comment "Story 2.18 GitHub web/api CIDR fallback (Option B)"
+		ip daddr 192.30.252.0/22 accept comment "Story 2.18 GitHub legacy CIDR fallback (Option B)"
+
+		# Story 2.18 — Option A: dynamic accept for IPs dnsmasq has populated
+		# into `gh_v4` via `nftset=` directives (rotating-IP services). The
+		# set self-prunes via `flags timeout` (default 600s); `flush table`
+		# wipes it on reload and dnsmasq re-fills on the next DNS query.
+		ip daddr @gh_v4 accept comment "Story 2.18 dnsmasq nftset= dynamic accept (Option A)"
+
 		# KEEL_EGRESS_V4_MARKER_START
 		# (reload-egress.sh injects `ip daddr <resolved-ipv4> accept` rules here)
 		# KEEL_EGRESS_V4_MARKER_END
@@ -92,6 +148,15 @@ table inet keel_egress {
 		# IPv6 Neighbour Discovery — required for ICMPv6 RS/RA/NS/NA so the
 		# kernel's IPv6 stack remains functional under a default-drop policy.
 		icmpv6 type { nd-router-solicit, nd-router-advert, nd-neighbor-solicit, nd-neighbor-advert } accept
+
+		# Story 2.18 — Option A: IPv6 dynamic accept (mirror of the IPv4
+		# @gh_v4 rule above). `gh_v6` is populated by `nftset=` directives
+		# in the rendered dnsmasq.conf; `flags timeout` self-prunes; `flush
+		# table` wipes on reload. Static IPv6 CIDR fallback is intentionally
+		# omitted — GitHub's `https://api.github.com/meta` IPv6 ranges are
+		# CDN-fronted with broad blocks, and the static-pin path already
+		# resolves AAAA records into per-IP accept rules during reload.
+		ip6 daddr @gh_v6 accept comment "Story 2.18 dnsmasq nftset= dynamic accept (Option A)"
 
 		# KEEL_EGRESS_V6_MARKER_START
 		# (reload-egress.sh injects `ip6 daddr <resolved-ipv6> accept` rules here)

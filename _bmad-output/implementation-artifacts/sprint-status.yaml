@@ -68,6 +68,13 @@
 # last_updated: 2026-04-25 Story-2-17-done-CR-PATCH-3-bundled-close-iter-342 UTC
 # last_updated: 2026-04-25 Epic-2-done-PR-230-Draft-to-Open-final-CI-gate-iter-343 UTC
 # last_updated: 2026-04-25 Epic-3-Story-3-34-appended-doc-budget-correct-course-issue-231 UTC
+# last_updated: 2026-04-25 Epic-2-Story-2-18-appended-backlog-correct-course-issue-232 UTC
+# last_updated: 2026-04-25 Story-2-18-ready-for-dev-iter-347 UTC
+# last_updated: 2026-04-25 Epic-2-done-to-in-progress-Story-2-18-active-iter-347 UTC
+# last_updated: 2026-04-25 Story-2-18-in-progress-iter-350 UTC
+# last_updated: 2026-04-25 Story-2-18-review-iter-350 UTC
+# last_updated: 2026-04-25 Story-2-18-done-iter-353 UTC
+# last_updated: 2026-04-25 Epic-2-in-progress-to-done-Story-2-18-closed-iter-353 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -103,7 +110,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-25 Epic-2-done-PR-230-Draft-to-Open-final-CI-gate-iter-343 UTC
+last_updated: 2026-04-25 Epic-2-done-to-in-progress-Story-2-18-active-iter-347 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -147,6 +154,7 @@ development_status:
   2-15-committed-claude-settings-json-with-deny-allow-permission-policies: done
   2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: done
   2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt: done
+  2-18-devbox-network-whitelist-dnsmasq-nftset-rotating-ip-fix: done
   epic-2-retrospective: optional
 
   epic-3: backlog

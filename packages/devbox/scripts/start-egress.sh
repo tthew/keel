@@ -81,13 +81,36 @@ fi
 # --- Step 3: compose the baseline whitelist (SC-8) ------------------------
 # Concatenate default + every *.txt fragment in deterministic sorted order.
 # Strip blank lines and #-prefixed comments; preserve domain literals only.
+# Story 2.18 SC-11: emit a parallel `${COMPOSED_WHITELIST}.classification`
+# sidecar mapping `domain<TAB>type` (type ∈ {rotating, static}) — every domain
+# originating from a `*-rotating.txt` fragment is `rotating`; everything else
+# (default + non-rotating fragments + per-fork override) is `static`. On
+# domain collision across rotating + non-rotating sources, rotating wins
+# (most-permissive class for population safety). The sidecar MUST be
+# byte-identical across `compose_whitelist()` here and `compose_whitelist_into()`
+# in `whitelist.sh` — extends Story 2.4 SC-14 dual-composer parity contract.
 : > "${COMPOSED_WHITELIST}"
 chmod 0644 "${COMPOSED_WHITELIST}"
+COMPOSED_WHITELIST_CLASSIFICATION="${COMPOSED_WHITELIST}.classification"
+: > "${COMPOSED_WHITELIST_CLASSIFICATION}"
+chmod 0644 "${COMPOSED_WHITELIST_CLASSIFICATION}"
 
 compose_whitelist() {
+	# Build a typed-stream tempfile (`<domain><TAB><type>` records) by walking
+	# the same source files as the existing composer, tagging each line with
+	# its source-derived type. We then derive BOTH outputs from this stream:
+	#   - composed whitelist (domain-only, deduped + sorted) → ${COMPOSED_WHITELIST}
+	#   - classification sidecar (domain<TAB>type) → ${COMPOSED_WHITELIST}.classification
+	# Per-source-type rules per Story 2.18 SC-2:
+	#   - whitelist.default.txt → static
+	#   - whitelist/*.txt fragments: filename suffix `-rotating.txt` → rotating; else static
+	#   - whitelist.local.txt (per-fork override) → static
+	local typed
+	typed="$(mktemp -t keel-egress.typed.XXXXXX)"
 	{
 		if [[ -r "${WHITELIST_DEFAULT}" ]]; then
-			cat "${WHITELIST_DEFAULT}"
+			sed -E 's/#.*$//' "${WHITELIST_DEFAULT}" \
+				| awk 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print $0 "\tstatic" }'
 		fi
 		if [[ -d "${WHITELIST_FRAGMENTS_DIR}" ]]; then
 			# Enumerate fragments via find(1) + mapfile, NOT an unquoted
@@ -109,7 +132,12 @@ compose_whitelist() {
 			mapfile -t fragments < <(LC_ALL=C find "${WHITELIST_FRAGMENTS_DIR}" -maxdepth 1 -type f -name '*.txt' -print | sort)
 			for fragment in "${fragments[@]}"; do
 				[[ -r "${fragment}" ]] || continue
-				cat "${fragment}"
+				local frag_type=static
+				case "${fragment}" in
+					*-rotating.txt) frag_type=rotating ;;
+				esac
+				sed -E 's/#.*$//' "${fragment}" \
+					| awk -v t="${frag_type}" 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print $0 "\t" t }'
 			done
 		fi
 		# Story 2.4 SC-4: per-fork override composed last, additive-only.
@@ -118,15 +146,23 @@ compose_whitelist() {
 		# (SC-3); absent by default; present when operator has invoked
 		# `whitelist.sh add <domain>` at least once or pre-placed via fork
 		# scaffolding. SC-14 byte-identity contract: this composition stage MUST
-		# match whitelist.sh's compose_whitelist_into exactly.
+		# match whitelist.sh's compose_whitelist_into exactly. Story 2.18 SC-11
+		# extends byte-identity to the `.classification` sidecar.
 		if [[ -r "${WHITELIST_LOCAL}" ]]; then
-			cat "${WHITELIST_LOCAL}"
+			sed -E 's/#.*$//' "${WHITELIST_LOCAL}" \
+				| awk 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print $0 "\tstatic" }'
 		fi
-	} \
-		| sed -E 's/#.*$//' \
-		| awk 'NF { gsub(/[[:space:]]+$/, ""); gsub(/^[[:space:]]+/, ""); if (length($0) > 0) print }' \
-		| LC_ALL=C sort -u \
-		> "${COMPOSED_WHITELIST}"
+	} > "${typed}"
+	# Composed whitelist: project to domain column, dedupe, sort.
+	cut -f1 < "${typed}" | LC_ALL=C sort -u > "${COMPOSED_WHITELIST}"
+	# Classification sidecar (Story 2.18 SC-11): per-domain max(type) where
+	# rotating > static (collision rule), then `LC_ALL=C sort -u` for byte
+	# identity across composers.
+	awk -F'\t' '
+		{ c[$1] = ($2 == "rotating" || c[$1] == "rotating") ? "rotating" : "static" }
+		END { for (d in c) print d "\t" c[d] }
+	' "${typed}" | LC_ALL=C sort -u > "${COMPOSED_WHITELIST_CLASSIFICATION}"
+	rm -f "${typed}"
 }
 
 compose_whitelist

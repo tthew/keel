@@ -93,11 +93,11 @@ Docker-in-Docker as a fork-time substrate requirement: every Ralph iteration env
 
 - **`INV-devbox-dind-available`** — Ralph iteration environment provides `docker` on PATH + reachable daemon (`/var/run/docker.sock` canonical; remote transport permitted) + `docker compose` subcommand. Canonical install path: `docs.docker.com/engine/install/ubuntu/` against the cc-devbox `FROM ubuntu:24.04` base. Does NOT change NFR2 authority — M4-Pro native remains authoritative; DinD entries land in README § Benchmarks flagged `modelled indicative baseline`. Source: `docs/invariants/devbox-dind.md`.
 
-### Devbox egress (Story 2.3)
+### Devbox egress (Story 2.3 + Story 2.18 rotating-IP fix)
 
-Fail-closed DNS (dnsmasq) + IPv4/IPv6 default-deny (nftables) + atomic reload consolidated into one substrate-authoritative invariant. Closes upstream cc-devbox's divergent-whitelist + fail-open-resolv.conf + IPv6-gap bugs. JSONL query log at `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl` with 6-field stable schema is the FR37 (Epic 4) security-evidence consumer contract.
+Fail-closed DNS (dnsmasq) + IPv4/IPv6 default-deny (nftables) + atomic reload consolidated into one substrate-authoritative invariant. Closes upstream cc-devbox's divergent-whitelist + fail-open-resolv.conf + IPv6-gap bugs. JSONL query log at `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl` with 6-field stable schema is the FR37 (Epic 4) security-evidence consumer contract. Story 2.18 layers `dnsmasq nftset=` directive emission for `*-rotating.txt`-flagged domains plus a static GitHub CIDR fallback (Option C combo A+B per Issue #232 course-correction § 4.4) without changing the static-pin path for stable-IP services.
 
-- **`INV-devbox-egress-contract`** — Fail-closed DNS + IPv4/IPv6 parity + atomic reload; JSONL query log schema is append-only stable. Source: `docs/invariants/devbox-egress.md`.
+- **`INV-devbox-egress-contract`** — Fail-closed DNS + IPv4/IPv6 parity + atomic reload; JSONL query log schema is append-only stable. + Story 2.18 rotating-IP fix: `dnsmasq nftset=` driven `gh_v4` / `gh_v6` named sets (`flags timeout; timeout 600s`) + static GitHub CIDR fallback (`140.82.112.0/20` + `192.30.252.0/22`) for the boot-time-to-first-DNS-reply window and catastrophic dnsmasq failure modes; whitelist composers emit a parallel `.classification` sidecar (byte-identical across composers per SC-11). Source: `docs/invariants/devbox-egress.md`.
 
 ### Devbox hardening (Story 2.5)
 

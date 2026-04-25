@@ -25,3 +25,14 @@
 # `pnpm devbox:whitelist add|remove <domain>` or hand-edit the file then
 # `pnpm devbox:whitelist sync`. Substrate amendments to this file or to
 # whitelist/*.txt go through source-level PRs subject to prek gates (FR44 AMEND).
+#
+# Per-fragment rotating annotation (Story 2.18 SC-2): fragments named with the
+# filename suffix `-rotating.txt` (e.g. `whitelist/github-rotating.txt`) are
+# classified `rotating` by both composers; `compose_whitelist()` /
+# `compose_whitelist_into()` emit a parallel `.classification` sidecar
+# (`<composed-whitelist-path>.classification`) mapping `domain<TAB>type` so
+# `reload-egress.sh` can drive `dnsmasq nftset=` directive emission for those
+# domains. All other sources (this default + non-rotating fragments + the
+# per-fork `whitelist.local.txt` override) classify as `static`. Collision
+# rule: a domain present in both rotating and non-rotating sources resolves
+# to `rotating` (rotating wins — most-permissive class for population safety).

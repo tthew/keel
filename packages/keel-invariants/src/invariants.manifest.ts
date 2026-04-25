@@ -131,7 +131,7 @@ const raw: Invariant[] = [
     description:
       '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs. Post-Story-2.17 the file also hosts the claude-hook-syntax source-scoped gate (pass_filenames: false, files: ^\\.claude/hooks/.*\\.sh$); that carries its own invariant ID.',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '8f603ec5e73baf0c28be09cd0416ef2256587d1124a48f793f32a9f086cdb039',
+    contentHash: '4d8941568b37f33a4d3c5bc381a07827827d94da4f14fed02d43ee2dfb8d329f',
     anchors: ['INV-prek-pre-commit-config'],
   },
   {
@@ -147,7 +147,7 @@ const raw: Invariant[] = [
     description:
       'Hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional. Lives in the commit-msg stage block of .pre-commit-config.yaml (position-independent — the block is identified by stages: [commit-msg], not by row index).',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: '8f603ec5e73baf0c28be09cd0416ef2256587d1124a48f793f32a9f086cdb039',
+    contentHash: '4d8941568b37f33a4d3c5bc381a07827827d94da4f14fed02d43ee2dfb8d329f',
     anchors: ['INV-prek-commit-msg-config'],
   },
   {
@@ -297,9 +297,9 @@ const raw: Invariant[] = [
   {
     id: 'INV-devbox-egress-contract',
     description:
-      'Fail-closed DNS (dnsmasq, default address=/#/ returns 0.0.0.0/::) + IPv4/IPv6 default-deny (nftables inet keel_egress table with output_v4 + output_v6 chains both `policy drop`) + atomic reload (flock + nft -f kernel transaction + dnsmasq SIGHUP). Closes upstream cc-devbox bugs: divergent whitelist tooling (single reload-egress.sh primitive), fail-open resolv.conf fallback to 8.8.8.8 (pinned to 127.0.0.1 only), IPv6 default-deny gap (both families covered). JSONL query log at /workspace/logs/egress-queries.jsonl with 6-field stable schema (timestamp/query/type/result/upstream/client) + 50 MB size-based rotation (5 gzip generations). Source consolidation: one contentHash-bound doc gates the three sub-contracts together so drift surfaces at a single sync-gate target (rationale: Story 2.2 iter-151 AR-2 allow-list asymmetry lesson — splitting contracts across manifest entries grew asymmetry risk).',
+      'Fail-closed DNS (dnsmasq, default address=/#/ returns 0.0.0.0/::) + IPv4/IPv6 default-deny (nftables inet keel_egress table with output_v4 + output_v6 chains both `policy drop`) + atomic reload (flock + nft -f kernel transaction + dnsmasq SIGHUP). Closes upstream cc-devbox bugs: divergent whitelist tooling (single reload-egress.sh primitive), fail-open resolv.conf fallback to 8.8.8.8 (pinned to 127.0.0.1 only), IPv6 default-deny gap (both families covered). JSONL query log at /workspace/logs/egress-queries.jsonl with 6-field stable schema (timestamp/query/type/result/upstream/client) + 50 MB size-based rotation (5 gzip generations). Story 2.18 extension: rotating-IP services (`*-rotating.txt` whitelist fragments) drive `dnsmasq nftset=` directive emission populating named sets `gh_v4` / `gh_v6` (declared in egress.nft at table scope; `flags timeout; timeout 600s`); chain accept rules `ip daddr @gh_v4 accept` / `ip6 daddr @gh_v6 accept` short-circuit egress for any IP in the set; static GitHub CIDR fallback (`140.82.112.0/20` + `192.30.252.0/22`) covers the boot-time-to-first-DNS-reply window and catastrophic dnsmasq failure modes (Option C combo A+B per Issue #232 course-correction § 4.4). Whitelist composers (`compose_whitelist()` / `compose_whitelist_into()`) emit a parallel `.classification` sidecar (domain<TAB>type, byte-identical across composers per SC-11). Source consolidation: one contentHash-bound doc gates the four sub-contracts together so drift surfaces at a single sync-gate target (rationale: Story 2.2 iter-151 AR-2 allow-list asymmetry lesson — splitting contracts across manifest entries grew asymmetry risk).',
     sourcePath: 'docs/invariants/devbox-egress.md',
-    contentHash: 'd04b02282eab4e5d1affa9f27646f6f88d1e41434afa00007015ebfbcbba7ff0',
+    contentHash: '5d644a38e9db8c5f88185ec2207dc865001b66821cb7a4fb0cc287f82085f0d6',
     anchors: ['INV-devbox-egress-contract'],
   },
   {
