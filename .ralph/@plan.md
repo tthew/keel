@@ -6,6 +6,7 @@
 
 ## QUEUE (Story 2.18 — pending /bmad-correct-course refinement)
 
+- [ ] Monitor PR #235 CI — queue fix tasks for any failures.
 - [ ] _(after every push)_ Monitor PR CI — queue fix tasks for any failures.
 - [ ] Run `/bmad-create-story` — Story 2.18 first creation pass (post-correction; lifecycle `_(no story) → drafted`).
 
@@ -32,7 +33,7 @@ _(empty until Story 2.18 atdd-scaffolded.)_
 - **Story File:** _(n/a until Story 2.18 spec produced.)_
 - **Story State:** _(no story — course-correction phase precedes Story 2.18 lifecycle entry.)_
 - **GitHub Issue:** [#232](https://github.com/tthew/ralph-bmad/issues/232) — devbox network whitelist DNS-rotation. Issue body unreachable from inside devbox at iteration 1 (the bug); body inferred from synthesized live evidence.
-- **PR:** TBD — this iteration creates a draft PR targeting `feat/epic-2-packaged-devbox`.
+- **PR:** [#235](https://github.com/tthew/ralph-bmad/pull/235) Draft — targets `feat/epic-2-packaged-devbox`. Created via `curl --resolve api.github.com:443:140.82.121.5` workaround after `gh pr create` repeatedly timed out at `.121.6` (live demonstration of issue #232).
 
 ## Notes
 
@@ -40,3 +41,4 @@ _(empty until Story 2.18 atdd-scaffolded.)_
 - **Briefing handoff.** `course-correction-issue-232-briefing.md` is the durable input artifact for `/bmad-correct-course`. It survives loop interruption — next iteration reads + feeds verbatim.
 - **Push-fail intermittence.** Even WITHIN this iteration, `github.com:443` worked at 2026-04-25 11:46 UTC (200 in 146ms); the prior iteration saw an 8s timeout. Window is non-deterministic — push when it lands.
 - **No conflict with issue #231.** `sprint-change-proposal-2026-04-25.md` exists for issue #231 (doc-budget). New course-correction artifact filename uses `-issue-232` suffix — no clash.
+- **DNS-rotation workaround (next-Ralph-relevant).** When `gh pr create` / `gh api graphql` times out repeatedly at `api.github.com → 140.82.121.6` (or any non-whitelisted IP), bypass via REST API + `curl --resolve api.github.com:443:140.82.121.5` (or `.121.4`). Token via `gh auth token`. Same pattern works for any rotating-IP GitHub endpoint until Story 2.18 lands the dnsmasq `nftset=` fix. **This is the bug actively biting; do not be surprised when it bites your iteration too.**
