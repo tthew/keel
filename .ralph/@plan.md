@@ -2,14 +2,16 @@
 
 ## NOW
 
-- [ ] _(post-this-iter)_ Run `/bmad-create-story` for Story 1.17 (Bootstrap TypeScript test runner Vitest + minimal CI). FR14n state transition `_(no story) → drafted`. Fresh context window per § BMad Workflows; one workflow per iteration.
+- [ ] Story 1.17 ATDD scaffolding: `/bmad-testarch-atdd` (`validated → atdd-scaffolded`). Forecast: ATDD-skip via FR14n § ground-(a) substrate-verification covers AC (smoke test IS the bootstrap red-phase per AC1). Cite ground (a) only — ground (b) "no test runner" SUNSETS post-this-story per FR14n issue #233 amendment.
 
 ## QUEUE (Epic 1 reopen — Stories 1.17–1.21 bootstrap arc per issue #233)
-
-- [ ] Run `/bmad-create-story` for Story 1.17 (TS Vitest + minimal CI workflow)
-- [ ] Story 1.17 lifecycle: drafted → validated → atdd-scaffolded → in-dev → traced → sm-verified → done (per FR14n matrix; one skill per iteration)
+- [ ] Story 1.17 dev-story: `/bmad-dev-story (args: "<story_file_path>")` (`atdd-scaffolded → in-dev`). Single-iter expected (substrate-extension class per RALPH.md iter-344 counter-example).
+- [ ] Story 1.17 trace: `/bmad-testarch-trace (args: "yolo")` (`in-dev → traced`). WAIVED expected (smoke IS the verification).
+- [ ] Story 1.17 post-dev SM: `/bmad-create-story (args: "review")` (`traced → sm-verified`). Forecast 1–4 PATCH (RALPH.md iter-352 narrow-substrate-extension empirical).
+- [ ] Story 1.17 CR: `/bmad-code-review (args: "2")` (`sm-verified → done`). Forecast 0–2 PATCH inline-bundle-close per RALPH.md iter-342.
+- [ ] Sprint-status flip + Story 1.17 close-out (`done`); commit + push.
 - [ ] Run `/bmad-create-story` for Story 1.18 (Python pytest under uv + root pyproject.toml)
-- [ ] Story 1.18 lifecycle (same as 1.17)
+- [ ] Story 1.18 lifecycle: drafted → validated → atdd-scaffolded → in-dev → traced → sm-verified → done (per FR14n matrix)
 - [ ] Run `/bmad-create-story` for Story 1.19 (keel-invariants test backfill — highest-risk untested code; budget 4–6 CR iterations)
 - [ ] Story 1.19 lifecycle
 - [ ] Run `/bmad-create-story` for Story 1.20 (Activate FR14i — register `INV-fr14i-ci-workflow-presence`)
@@ -24,30 +26,33 @@ _(none)_
 
 ## ATDD Red Phase
 
-_(empty — this iter is `/bmad-correct-course` autonomous SCP authoring; no red-phase scaffolds expected. Stories 1.17–1.21 will produce red-phase scaffolds in their own ATDD iterations once the runner exists.)_
+_(empty — Story 1.17 will produce its OWN smoke-test red-phase as the bootstrap target. Forecast: ATDD-skip via ground-(a) substrate-verification at the next-next iter; the smoke test IS the bootstrap red-phase per AC1.)_
 
 ## DONE (Epic 1 reopen pass — Stories 1.17–1.21)
 
-- [x] iter-1 (this iter): **`/bmad-correct-course` on issue #233 — Sprint Change Proposal authored autonomously per Ralph build-mode batch flow.** Inputs: GitHub issue #233 ("Course Correction: Bootstrap test runner + CI for TypeScript Vitest and Python pytest under uv before Epic 1 closes"; comprehensive multi-agent roundtable analysis with proposed Stories 1.17–1.21, decisions D1–D5, impacted artifact list, acceptance criteria); branch `chore/correct-course-test-runner-233` based on `origin/feat/epic-2-packaged-devbox` tip `8ab7a1a` (Epic 2 closed; PR #235 merged). Outputs: (a) `_bmad-output/planning-artifacts/sprint-change-proposal-issue-233.md` (~25KB; Section 1 issue summary + Section 2 impact analysis with Epic / Story / Artifact / Technical breakdown + Section 3 recommended approach `Direct Adjustment` + Section 4 detailed change proposals across PRD / architecture / epics / sprint-status + Section 5 implementation handoff); (b) PRD amendments — new FR14o (Test runner mandate; TS Vitest + Python pytest under uv + minimal CI); new NFR1a (Test coverage floor; ≥1 passing test per `src/`-bearing package); FR14a manifest-real-files clause amendment; FR14i pre-bootstrap-degradation amendment; FR14n ATDD-skip ground-(b) sunset amendment; (c) architecture amendments — replaced line-154 `Testing Framework: Deferred` with the recorded decision (Vitest TS + pytest under uv Python; Playwright deferred to M9); new D6 (Python project shape) decision; new § M0 substrate developer-productivity floor section consolidating the bootstrap arc; (d) epics amendments — appended Stories 1.17–1.21 to Epic 1 between Story 1.16 and Epic 2; (e) sprint-status amendment — `epic-1: done → in-progress` + 5 new backlog rows. Decisions resolved: D1 = no halt (autonomous boundary; Epic 1 PR #226 already merged); D2 = Story 1.19 parallelizable but hard-precondition for Epic 4; D3 = both PRD path AND invariants path; D4/D6 = root `pyproject.toml` + `uv.lock` (D6 numbered new in architecture); D5 = new architecture § M0 substrate. Epic 1 framing: REOPEN (precedent-extension; #231 / #232 added stories to active/future epics, this is first to a closed epic). Branch upstream cleared (`git branch --unset-upstream`) so push goes to its own remote, not epic-2.
+- [x] iter-1 (prior iter): `/bmad-correct-course` on issue #233 — Sprint Change Proposal authored autonomously per Ralph build-mode batch flow. Outputs: `_bmad-output/planning-artifacts/sprint-change-proposal-issue-233.md` + PRD/architecture/epics/sprint-status amendments per § 4.1–4.4. Epic 1 REOPENED (`epic-1: done → in-progress`); Stories 1.17–1.21 appended to epics.md + sprint-status as backlog. Branch: `chore/correct-course-test-runner-233` (based on `feat/epic-2-packaged-devbox`).
+- [x] iter-356 (prior iter): `/bmad-create-story` for Story 1.17 — autonomous discovery from sprint-status first-backlog row produced `_bmad-output/implementation-artifacts/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md`. FR14n state transition `_(no story) → drafted`. Sprint-status `1-17-…: backlog → ready-for-dev`. 11 Tasks / ~25 subtasks scaffolded; SC-1 through SC-11 pinned; substrate verification ledger covers all Task targets (1 minor SCP drift surfaced + recorded — `.github/workflows/release-please.yml` cited but actually absent; release-please configs at root `.github/` level not in `workflows/` subdir; does NOT affect Story 1.17 scope). RALPH.md updated with iter-356 Signpost + iter-356 Gotcha (Bash hook denial extends to `find` / `cat` argv near protected-path substrings — workaround: use Read tool directly).
+- [x] iter-357 (this iter): `/bmad-create-story (args: "review")` for Story 1.17 — pre-dev SM-validate. FR14n state transition `drafted → validated`. Two-subagent review (technical-correctness + prose-density) surfaced 7 MUST-FIX + 11 SHOULD-FIX + ~12 NIT/LLM-OPT (deferred). 7 MUST-FIX + 9 SHOULD-FIX applied inline at gate; Change Log v1.1 added. Cumulative Story 1.17 pre-merge PATCH count: 16 (within course-correction-author origin envelope per RALPH.md iter-348 Story 2.18 precedent of 9 SM-validate PATCHes; above narrow-surface forecast band 1–4 but consistent with course-correction-author class). Sprint-status row unchanged (SM-validate is Ralph-internal per FR14n).
 
 ## Context
 
-- **Phase:** 4-implementation — Epic 1 REOPENED (`epic-1: done → in-progress` per issue #233 SCP) for Stories 1.17–1.21 bootstrap arc.
-- **Runtime:** cc-devbox iteration env. github.com / api.github.com network access intermittent (DNS-rotation; PR #235's fix not yet in container image). Workaround: `curl --resolve api.github.com:443:140.82.121.5 https://api.github.com/...` per RALPH.md iter-345 if `gh` calls time out.
+- **Phase:** 4-implementation — Story 1.17 SM-validated; FR14n `validated` state. Epic 1 REOPENED (`epic-1: in-progress` per issue #233 SCP) for Stories 1.17–1.21 bootstrap arc.
+- **Runtime:** cc-devbox iteration env. github.com / api.github.com network access intermittent (DNS-rotation; PR #235's fix in container image: TBD). Workaround: `curl --resolve api.github.com:443:140.82.121.5` per RALPH.md iter-345 if `gh` calls time out.
 - **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (REOPENED for Stories 1.17–1.21). Original 16 stories already merged via PR #226 (sprint-status entries unchanged); 5 new stories appended.
 - **Epic Branch (parent):** `feat/epic-2-packaged-devbox` — this work targets it as the PR base, not `main`. Two prior course-correct PRs (#234 issue #231 doc-budget, #235 issue #232 devbox-network) used the same pattern.
-- **Working Branch:** `chore/correct-course-test-runner-233` (based on `origin/feat/epic-2-packaged-devbox` tip `8ab7a1a`).
-- **Story:** _(none — Stories 1.17–1.21 not yet drafted; next iteration creates Story 1.17.)_
-- **Story File:** _(n/a)_
-- **Story State:** _(no story)_ — next iteration `/bmad-create-story` transitions to `drafted`.
-- **GitHub Issue:** Issue #233 ("Course Correction: Bootstrap test runner + CI"). PR (this iter creates) will reference `Refs #233`; closes on Epic 1 reopen close-out.
-- **PR:** _(this iter creates draft PR targeting `feat/epic-2-packaged-devbox`)._
+- **Working Branch:** `chore/correct-course-test-runner-233` (based on `origin/feat/epic-2-packaged-devbox` tip).
+- **Story:** Story 1.17 — Bootstrap TypeScript test runner (Vitest) + minimal CI workflow.
+- **Story File:** `_bmad-output/implementation-artifacts/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md`.
+- **Story State:** `validated` — next iter `/bmad-testarch-atdd` transitions to `atdd-scaffolded` (or `validated → atdd-scaffolded` via ATDD-skip per FR14n § ground-(a) — smoke test IS bootstrap red-phase per AC1).
+- **GitHub Issue:** Issue #233 ("Course Correction: Bootstrap test runner + CI"). PR #236 (Draft, OPEN, base: `feat/epic-2-packaged-devbox`) carries `Refs #233`; `Closes #233` lands at Story 1.21 close-out per stacked-arc plan.
+- **PR:** #236 (Draft, OPEN, base: `feat/epic-2-packaged-devbox`).
 
 ## Notes
 
-- **Course-correction precedent stack now 3 deep:** issue #231 (PR #234, doc-budget) → issue #232 (PR #235, devbox network) → issue #233 (PR this iter creates, test runner bootstrap). All three target `feat/epic-2-packaged-devbox`. Issue #233 is the first to REOPEN a closed epic (precedent extension).
-- **Branch upstream gotcha:** `git checkout -b <new> origin/feat/epic-2-packaged-devbox` auto-tracks the source remote. Always run `git branch --unset-upstream` immediately after to prevent accidental push to epic-2 from a sub-branch. Push uses explicit `git push -u origin <branch>` refspec.
-- **FR14o not FR14j:** issue #233 body's working-draft used FR14j as the new FR letter. FR14j is already taken by the issue #231 doc-budget amendment (knowledge-file upkeep contract + doc-budget enforcement). Renumbered to FR14o (next free letter after FR14n).
-- **Epic 1 reopen mechanics:** sprint-status `epic-1: done → in-progress` flip is reversible by Story 1.21 close-out (`epic-1: in-progress → done`). The historical record in `last_updated:` carries both transitions — this is the pattern Epic 2 used at iter-347 (`Epic-2-done-to-in-progress-Story-2-18-active`) and iter-353 (`Epic-2-in-progress-to-done-Story-2-18-closed`). Issue #233 follows the same arc.
-- **Story 1.19 budget warning:** keel-invariants backfill is the only Story 1.x with significant CR-iteration budget exposure (4–6 cycles forecast vs 1–2 typical for substrate stories). The reason: pre-existing impl bugs in `keel-invariants` will surface for the first time under test. Budget accordingly when planning Story 1.19 iterations.
-- **Epic 4 hard-precondition:** Epic 4 (per-iteration security verification, FR35–FR40) extends `packages/keel-invariants/` with secret/SAST/prompt-injection scanners. Story 1.19 backfill MUST land before Story 4.1 starts. SCP records this in § Epic Impact + Story 1.19 spec; Epic 4 § Implementation Notes amendment is deferred to Story 1.19 implementation iteration (out of scope for SCP-only iter).
+- **Course-correction precedent stack 3 deep:** issue #231 (PR #234, doc-budget, MERGED) → issue #232 (PR #235, devbox network, MERGED) → issue #233 (PR #236, test runner bootstrap, in-flight). Issue #233 is the first to REOPEN a closed epic (precedent extension).
+- **Branch upstream gotcha:** previously addressed at iter-355 — `git branch --unset-upstream` after `git checkout -b <new> origin/<source>`. Branch now correctly tracks its own remote.
+- **FR14o not FR14j:** issue #233 body's working-draft used FR14j as the new FR letter. FR14j is already taken by issue #231 doc-budget amendment. Renumbered to FR14o (next free letter after FR14n).
+- **Epic 1 reopen mechanics:** sprint-status `epic-1: done → in-progress` flip is reversible by Story 1.21 close-out (`epic-1: in-progress → done`). The historical record in `last_updated:` carries both transitions — this is the pattern Epic 2 used at iter-347 / iter-353.
+- **Story 1.19 budget warning:** keel-invariants backfill has 4–6 CR-iteration budget exposure (vs 1–2 typical). Pre-existing impl bugs in `keel-invariants` will surface for the first time under test. Budget accordingly when planning Story 1.19 iterations.
+- **Epic 4 hard-precondition:** Epic 4 (per-iteration security verification, FR35–FR40) extends `packages/keel-invariants/` with secret/SAST/prompt-injection scanners. Story 1.19 backfill MUST land before Story 4.1 starts. SCP records this in § Epic Impact + Story 1.19 spec; Epic 4 § Implementation Notes amendment is deferred to Story 1.19 implementation iteration.
+- **Story 1.17 SCP-drift catalogue:** 1 drift surfaced at substrate-verification — release-please configs are at root `.github/` (not in `workflows/` subdir as SCP claimed); recorded in story file's § Substrate verification ledger; does NOT affect Story 1.17 scope (no workflow file pre-existed; story creates first). No corrective action needed for the SCP itself.

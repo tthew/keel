@@ -76,6 +76,7 @@
 # last_updated: 2026-04-25 Story-2-18-done-iter-353 UTC
 # last_updated: 2026-04-25 Epic-2-in-progress-to-done-Story-2-18-closed-iter-353 UTC
 # last_updated: 2026-04-25 Epic-1-reopened-stories-1-17-to-1-21-appended-correct-course-issue-233 UTC
+# last_updated: 2026-04-25 Story-1-17-create-story-drafted-iter-1 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -135,7 +136,7 @@ development_status:
   1-14-release-please-monorepo-config-single-bundled-mode: done
   1-15-renovate-config-with-version-pinning-rules-i7: done
   1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold: done
-  1-17-bootstrap-typescript-test-runner-vitest-minimal-ci: backlog
+  1-17-bootstrap-typescript-test-runner-vitest-minimal-ci: ready-for-dev
   1-18-bootstrap-python-test-runner-pytest-under-uv: backlog
   1-19-backfill-keel-invariants-test-coverage: backlog
   1-20-activate-fr14i-for-real-end-vacuous-pass: backlog
