@@ -2,11 +2,10 @@
 
 ## NOW
 
-- [ ] Run `/bmad-create-story (args: "review")` — Story 2.18 pre-dev SM validation. Reads `_bmad-output/implementation-artifacts/2-18-devbox-network-whitelist-dnsmasq-nftset-rotating-ip-fix.md` v1.0 (canonical drafted spec from iter-347). Lifecycle transition `drafted → validated`. Forecast: 0–3 PATCH at gate (course-correction-author had Sprint Change Proposal in fresh context; iter-347 canonicalisation already corrected path drift).
+- [ ] Run `/bmad-testarch-atdd` OR ATDD-skip via FR14n § Story Lifecycle Decision Matrix ATDD-skip clause — fifteenth cumulative precedent projected (10 Epic-1 + 2.1 + 2.2 + 2.3 + 2.4 + 2.18). Hybrid ground-(c)+(ii)+(iii) skip applies: no test runner at substrate; downstream Epic 13 harness owns regression coverage; SM review + CR substitute for adversarial coverage. Lifecycle transition `validated → atdd-scaffolded`.
 
 ## QUEUE (Story 2.18)
 
-- [ ] Run `/bmad-testarch-atdd` OR ATDD-skip via FR14n § Story Lifecycle Decision Matrix ATDD-skip clause — fifteenth cumulative precedent projected (10 Epic-1 + 2.1 + 2.2 + 2.3 + 2.4 + 2.18). Hybrid ground-(c)+(ii)+(iii) skip applies: no test runner at substrate; downstream Epic 13 harness owns regression coverage; SM review + CR substitute for adversarial coverage.
 - [ ] Run `/bmad-dev-story (args: "_bmad-output/implementation-artifacts/2-18-devbox-network-whitelist-dnsmasq-nftset-rotating-ip-fix.md")`.
 - [ ] Run `/bmad-testarch-trace (args: "yolo")` — AC→test coverage gate.
 - [ ] Run `/bmad-create-story (args: "review")` — post-dev SM verification (`traced → sm-verified`).
@@ -25,7 +24,8 @@ _(empty until Story 2.18 atdd-scaffolded; ATDD-skip is the projected outcome.)_
 ## DONE
 
 - [x] iter-345 (course-correction): `/bmad-correct-course` for issue #232 — Sprint Change Proposal + Story 2.18 v0.1 spec + epics.md stanza + sprint-status row + Story 2.3/2.4 Change Log forward-pointers staged.
-- [x] iter-347 (this iter): `/bmad-create-story` canonical drafted pass — Status `backlog → ready-for-dev`; sprint-status `2-18-…: backlog → ready-for-dev` + `epic-2: done → in-progress` (manual since /bmad-create-story only auto-flips epic on first story); path-drift corrections at Tasks 3 + 4 (`KEEL_EGRESS_ALLOWLIST_MARKER_{START,END}` in `dnsmasq.conf:70-72` not inline `# === BEGIN dnsmasq dynamic block ===`; `nftables/egress.nft` not `templates/egress.nft`; chain-injection sites pinned at `egress.nft:68` + `:96`); Task 2 Subtask 2.4 sharpened with classifier-sidecar primitive (`.classification` byte-identical across both composers — SC-11 extending Story 2.4 SC-14); Project Structure Notes + canonical References (line-range pinned) + Dev Agent Record skeleton added; Change Log v1.0 entry recorded the canonicalisation pass.
+- [x] iter-347: `/bmad-create-story` canonical drafted pass — Status `backlog → ready-for-dev`; sprint-status `2-18-…: backlog → ready-for-dev` + `epic-2: done → in-progress` (manual since /bmad-create-story only auto-flips epic on first story); path-drift corrections at Tasks 3 + 4 (`KEEL_EGRESS_ALLOWLIST_MARKER_{START,END}` in `dnsmasq.conf:70-72` not inline `# === BEGIN dnsmasq dynamic block ===`; `nftables/egress.nft` not `templates/egress.nft`; chain-injection sites pinned at `egress.nft:68` + `:96`); Task 2 Subtask 2.4 sharpened with classifier-sidecar primitive (`.classification` byte-identical across both composers — SC-11 extending Story 2.4 SC-14); Project Structure Notes + canonical References (line-range pinned) + Dev Agent Record skeleton added; Change Log v1.0 entry recorded the canonicalisation pass.
+- [x] iter-348 (this iter): `/bmad-create-story (args: "review")` pre-dev SM validation pass — FR14n `Story State drafted → validated`. Two-subagent SM-review fan-out (technical-correctness + prose-density) returned 21 substrate citations checked / 19 OK / 2 MINOR drift, plus 14 prose findings (2 must-fix, 7 should-fix, 5 nit). Nine PATCHes applied at gate (must-fix + should-fix + MINOR drift; 5 nits deferred): AC2 marker token drift, AC3 N+1 ambiguity, AC4 three-way ordering, AC5 recipe pointer, Task 2.4 `.classification` schema, Task 3.1 awk render sample, Task 5 simplification, Task 9.5 SC-7 reload-round-trip smoke, SC-6 CIDR-inclusion cross-ref, sprint-status line pins `:151→:153` + `:133→:135`. Story file Change Log v1.1 entry added. Forecast carried forward unchanged (2–4 PATCH at CR opener, 4–6 iter chain length).
 
 ## Context
 
@@ -35,8 +35,8 @@ _(empty until Story 2.18 atdd-scaffolded; ATDD-skip is the projected outcome.)_
 - **Epic Branch (parent):** `feat/epic-2-packaged-devbox` (PR #230 OPEN).
 - **Working Branch:** `chore/devbox-network-whitelist-232` (course-correction host; PR #235 Draft).
 - **Story:** Story 2.18 — Devbox network whitelist DNS-rotation fix (dnsmasq nftset= + GitHub CIDR fallback).
-- **Story File:** `_bmad-output/implementation-artifacts/2-18-devbox-network-whitelist-dnsmasq-nftset-rotating-ip-fix.md` (v1.0 canonical drafted form via `/bmad-create-story` iter-347).
-- **Story State:** `drafted` — `/bmad-create-story (args: "review")` next iter transitions to `validated`.
+- **Story File:** `_bmad-output/implementation-artifacts/2-18-devbox-network-whitelist-dnsmasq-nftset-rotating-ip-fix.md` (v1.1 SM-validated form via `/bmad-create-story (args: "review")` iter-348).
+- **Story State:** `validated` — next iter runs `/bmad-testarch-atdd` OR ATDD-skip per FR14n § Story Lifecycle Decision Matrix ATDD-skip clause (transition `validated → atdd-scaffolded`).
 - **GitHub Issue:** [#232](https://github.com/tthew/ralph-bmad/issues/232) — devbox network whitelist DNS-rotation.
 - **PR:** [#235](https://github.com/tthew/ralph-bmad/pull/235) Draft — targets `feat/epic-2-packaged-devbox`. Stays Draft until Story 2.18 done.
 
