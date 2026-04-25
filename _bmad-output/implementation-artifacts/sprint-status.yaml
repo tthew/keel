@@ -66,6 +66,7 @@
 # last_updated: 2026-04-24 Story-2-16-done-CR-PATCH-2-bundled-close-iter-308 UTC
 # last_updated: 2026-04-24 Story-2-17-review-iter-339 UTC
 # last_updated: 2026-04-25 Story-2-17-done-CR-PATCH-3-bundled-close-iter-342 UTC
+# last_updated: 2026-04-25 Epic-2-done-PR-230-Draft-to-Open-final-CI-gate-iter-343 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -101,7 +102,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-25 Story-2-17-done-CR-PATCH-3-bundled-close-iter-342 UTC
+last_updated: 2026-04-25 Epic-2-done-PR-230-Draft-to-Open-final-CI-gate-iter-343 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -127,7 +128,7 @@ development_status:
   1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access: done
   2-2-envrc-parameterisation-contract: done
   2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: done
