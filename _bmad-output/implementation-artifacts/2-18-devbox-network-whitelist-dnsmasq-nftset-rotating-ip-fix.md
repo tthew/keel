@@ -1,6 +1,6 @@
 # Story 2.18: Devbox network whitelist DNS-rotation fix (dnsmasq nftset= + GitHub CIDR fallback)
 
-Status: backlog
+Status: ready-for-dev
 
 ## Story
 
@@ -64,22 +64,22 @@ So that `gh` / `git fetch` / `git push` / `curl` to GitHub do not intermittently
   - [ ] Subtask 1.2: pin `dnsmasq` package version in `VERSIONS.md` per Story 2.3 v1.5 SC-14 precedent.
 
 - [ ] **Task 2 — Define the "rotating" annotation contract for whitelist entries.**
-  - [ ] Subtask 2.1: pin annotation format. Two candidates: (a) per-line `# rotating` comment after the domain, or (b) per-fragment filename suffix `*-rotating.txt`. Recommendation: (b) — clean separation, no per-line parsing, composable with Story 2.4's per-fork override.
-  - [ ] Subtask 2.2: rename `packages/devbox/whitelist/github.txt` → `packages/devbox/whitelist/github-rotating.txt` (and any other rotating-IP fragments — `anthropic.txt` if Anthropic API rotates, etc.).
-  - [ ] Subtask 2.3: document the contract in `packages/devbox/whitelist.default.txt` header.
-  - [ ] Subtask 2.4: extend Story 2.4's `compose_whitelist()` (in `start-egress.sh`) and `compose_whitelist_into()` (in `whitelist.sh`) to track which fragment a domain came from — needed at directive-render time to flag rotating vs static.
+  - [ ] Subtask 2.1: pin annotation format = **per-fragment filename suffix `*-rotating.txt`** (per SC-2). Per-line annotation REJECTED to avoid LDH regex surface change in `whitelist.sh validate_sources` (Story 2.4 SC-5 line-bound regex contract holds byte-identical).
+  - [ ] Subtask 2.2: rename `packages/devbox/whitelist/github.txt` → `packages/devbox/whitelist/github-rotating.txt`. Verify no other fragments require rotation flagging at this story scope (Anthropic API + npm registry deferred to a future story when their rotation behaviour is observed).
+  - [ ] Subtask 2.3: document the rotating-fragment contract in `packages/devbox/whitelist.default.txt` header (currently the file is comment-only — append a "Per-fragment rotating annotation: see `whitelist/<name>-rotating.txt`" paragraph).
+  - [ ] Subtask 2.4: **classifier-sidecar implementation primitive.** Both `compose_whitelist()` (`packages/devbox/scripts/start-egress.sh:87-130`) and `compose_whitelist_into()` (`packages/devbox/scripts/whitelist.sh:87-114`) MUST emit a parallel sidecar manifest at compose time mapping `domain<TAB>type` (type ∈ `{rotating, static}`) — write to a deterministic path next to the composed whitelist (e.g. `${COMPOSED_WHITELIST}.classification` for `start-egress.sh`; analogous for `whitelist.sh`). Classification rule: every domain originating from a `*-rotating.txt` fragment is `rotating`; everything else (default + non-rotating fragments + per-fork override) is `static`. The `.classification` sidecar MUST be byte-identical across both composers (SC-11 extension of Story 2.4 SC-14 dual-composer parity contract).
 
-- [ ] **Task 3 — Extend `dnsmasq.conf` rendering in `reload-egress.sh`.**
-  - [ ] Subtask 3.1: between marker `# === BEGIN dnsmasq dynamic block ===` and `# === END dnsmasq dynamic block ===`, emit `nftset=/<domain>/4#inet#keel_egress#gh_v4` (and IPv6 equivalent) for every domain sourced from a `*-rotating.txt` fragment.
-  - [ ] Subtask 3.2: continue emitting existing `server=/<domain>/${KEEL_DEVBOX_DNS_UPSTREAM}` for ALL domains (rotating + static) — DNS forwarding posture is unchanged.
-  - [ ] Subtask 3.3: ensure rendering is deterministic + alphabetical by domain (matches existing render convention).
+- [ ] **Task 3 — Extend dnsmasq render in `packages/devbox/scripts/reload-egress.sh:282-301` to emit `nftset=` directives.**
+  - [ ] Subtask 3.1: read the classifier sidecar (Task 2 Subtask 2.4 output) at the start of the dnsmasq render block (currently `dnsmasq_server_block=""` loop at `reload-egress.sh:282`). For every domain whose classification is `rotating`, append `nftset=/<domain>/4#inet#keel_egress#gh_v4` AND `nftset=/<domain>/6#inet#keel_egress#gh_v6` to the substitution block alongside the existing `server=/<domain>/${UPSTREAM_RESOLVER}` line. The block is injected by the existing awk substitution at `reload-egress.sh:287-301` between `KEEL_EGRESS_ALLOWLIST_MARKER_START` and `KEEL_EGRESS_ALLOWLIST_MARKER_END` in `packages/devbox/dnsmasq/dnsmasq.conf:70-72` — no new marker needed.
+  - [ ] Subtask 3.2: continue emitting existing `server=/<domain>/${UPSTREAM_RESOLVER}` for ALL domains (rotating + static) — DNS forwarding posture is unchanged. dnsmasq combines `server=` (forwarding) + `nftset=` (population) in a single resolution pass.
+  - [ ] Subtask 3.3: render order is deterministic + alphabetical by domain (the composed whitelist is already `LC_ALL=C sort -u`'d at `start-egress.sh:128` — preserve that order; emit `server=` then `nftset=v4` then `nftset=v6` for each rotating domain so per-domain block grouping is stable).
 
-- [ ] **Task 4 — Extend `egress.nft` template with named sets + accept rules + static CIDR fallback.**
-  - [ ] Subtask 4.1: declare `set gh_v4 { type ipv4_addr; flags timeout; }` and `set gh_v6 { type ipv6_addr; flags timeout; }` in the `inet keel_egress` table block.
-  - [ ] Subtask 4.2: add `ip daddr @gh_v4 accept comment "Story 2.18 dnsmasq nftset= dynamic accept (Option A)"` to `output_v4` BEFORE the static-pin marker.
-  - [ ] Subtask 4.3: add `ip6 daddr @gh_v6 accept comment "Story 2.18 dnsmasq nftset= dynamic accept (Option A)"` to `output_v6` BEFORE the static-pin marker.
-  - [ ] Subtask 4.4: add static CIDR fallback rules per AC4 with citing comments.
-  - [ ] Subtask 4.5: verify `nft -c -f egress.nft` syntax check passes (deferred to operator workstation per Story 2.3 backend-B carve-out).
+- [ ] **Task 4 — Extend `packages/devbox/nftables/egress.nft` with named sets + accept rules + static CIDR fallback.**
+  - [ ] Subtask 4.1: declare `set gh_v4 { type ipv4_addr; flags timeout; timeout 600s; }` and `set gh_v6 { type ipv6_addr; flags timeout; timeout 600s; }` at TABLE scope in the `inet keel_egress` table block — between `egress.nft:38` (`table inet keel_egress {`) and `egress.nft:48` (`chain output_v4 {`). Set declarations sit at table scope, NOT inside any chain. The `flush table` at `egress.nft:36` re-creates sets on every reload; dnsmasq re-fills them on next DNS query (SC-7).
+  - [ ] Subtask 4.2: in `chain output_v4`, add `ip daddr @gh_v4 accept comment "Story 2.18 dnsmasq nftset= dynamic accept (Option A)"` BEFORE `KEEL_EGRESS_V4_MARKER_START` at `egress.nft:68` (i.e. as the last static rule before the marker block).
+  - [ ] Subtask 4.3: in `chain output_v6`, add `ip6 daddr @gh_v6 accept comment "Story 2.18 dnsmasq nftset= dynamic accept (Option A)"` BEFORE `KEEL_EGRESS_V6_MARKER_START` at `egress.nft:96` (mirror placement of Subtask 4.2).
+  - [ ] Subtask 4.4: in `chain output_v4`, add static CIDR fallback rules BEFORE the @gh_v4 accept (so they short-circuit during the boot-time-to-first-DNS-reply window): `ip daddr 140.82.112.0/20 accept comment "Story 2.18 GitHub web/api CIDR fallback (Option B)"` + `ip daddr 192.30.252.0/22 accept comment "Story 2.18 GitHub legacy CIDR fallback (Option B)"`. Add a header comment block citing `https://api.github.com/meta` as the authority (per AC4).
+  - [ ] Subtask 4.5: verify `nft -c -f egress.nft` syntax check passes (deferred to operator workstation per Story 2.3 backend-B carve-out; iteration-env smoke at Subtask 9.2 is config-render verification only).
 
 - [ ] **Task 5 — Set lifecycle on reload.**
   - [ ] Subtask 5.1: confirm that `flush table inet keel_egress` in `egress.nft` wipes the named set on every reload (acceptable — dnsmasq re-fills on next DNS query, plus Option B static-CIDR fallback covers the gap).
@@ -193,19 +193,52 @@ The boot-time loop was correct as designed for stable-IP services. Removing it w
 - **Push availability is the bug under fix.** Best-effort `git push` from the iteration that lands Story 2.18; document in IP if blocked. Dual mechanism — `curl --resolve api.github.com:443:140.82.121.5` workaround for `gh` calls — recorded in IP § Notes.
 - **Story 2.4 SC-14 dual-composer parity extension.** New classification metadata MUST be byte-identical across both composers; Subtask 7.4 (Story 2.4) parity-smoke harness extension required at impl time.
 
-### Source citations
+### Project Structure Notes
 
-- `_bmad-output/planning-artifacts/sprint-change-proposal-issue-232.md` — full proposal authority.
-- `_bmad-output/planning-artifacts/course-correction-issue-232-briefing.md` — synthesised root-cause + evidence + fix options briefing.
-- `_bmad-output/implementation-artifacts/2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload.md` — sibling story; reload-egress.sh primitive author + IPv4/IPv6 chain pattern + atomic-reload contract.
-- `_bmad-output/implementation-artifacts/2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli.md` — sibling story; whitelist composer + per-fork override pattern.
-- `_bmad-output/planning-artifacts/epics.md § Story 2.18` — epic-level user-outcome statement (added by this course-correction).
-- `docs/invariants/devbox-egress.md` — invariant doc destination for rotating-IP services subsection.
-- `https://api.github.com/meta` — authoritative source for GitHub published CIDR ranges (Option B).
+- Alignment with unified project structure: substrate edits land under `packages/devbox/` (scripts + nftables + dnsmasq + whitelist fragments + .envrc.example + VERSIONS.md + README), `docs/invariants/devbox-egress.md` (invariant doc extension), `packages/keel-invariants/src/invariants.manifest.ts` (single contentHash refresh entry), `INVARIANTS.md` (agent-readable bullet extension), `AGENTS.md` (devbox section pointer extension). No new packages or directories.
+- Detected conflicts: none. Story 2.18 touch-set is additive over Story 2.3 + Story 2.4 substrate. Both prior stories remain `done`; their Change Log gains a forward-pointer entry only (no substrate change at this gate).
+- Naming convention: rotating-fragment annotation = filename suffix `-rotating.txt` (per SC-2). nftables set names = `gh_v<family>` per SC-4 (single shared pair across all rotating GitHub-class domains). Comment citations on new rules = `Story 2.18 …` prefix to make grep-by-story trivial during future audits.
+- Dual-composer parity discipline (SC-11) extends Story 2.4's SC-14 byte-identity contract: the `.classification` sidecar manifest MUST also be byte-identical across `compose_whitelist()` and `compose_whitelist_into()`. Subtask 9.2 should grow a parity smoke that diffs both composers' sidecars in addition to the existing whitelist.composed parity check.
+
+### References
+
+- `_bmad-output/planning-artifacts/sprint-change-proposal-issue-232.md` — full Sprint Change Proposal (authoritative; § 4.4 elects Option C combo A+B, § 5.2 + § 5.3 author the Story 2.3 + 2.4 forward-pointer Change Log amendments).
+- `_bmad-output/planning-artifacts/course-correction-issue-232-briefing.md` — synthesised root-cause + live-evidence + fix-options briefing produced by `/bmad-correct-course`.
+- `_bmad-output/planning-artifacts/epics.md:1775-1813` — Story 2.18 epic stanza (user outcome + 5 ACs verbatim).
+- `_bmad-output/implementation-artifacts/2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload.md` — sibling story (`done`); authoritative for `reload-egress.sh` atomic-reload contract, IPv4/IPv6 chain pattern, `INV-devbox-egress-contract` consolidated invariant + Change Log v1.9 forward-pointer to Story 2.18.
+- `_bmad-output/implementation-artifacts/2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli.md` — sibling story (`done`); authoritative for whitelist composer + per-fork override pattern + SC-14 dual-composer byte-identity contract + Change Log v2.3 forward-pointer to Story 2.18.
+- `packages/devbox/scripts/reload-egress.sh:282-301` — current dnsmasq render block (existing `server=` substitution; Story 2.18 extends to also emit `nftset=` for rotating-flagged domains).
+- `packages/devbox/scripts/start-egress.sh:87-130` — `compose_whitelist()` (Task 2 Subtask 2.4 extension target).
+- `packages/devbox/scripts/whitelist.sh:87-114` — `compose_whitelist_into()` (Task 2 Subtask 2.4 parallel extension target; SC-11 byte-identity).
+- `packages/devbox/scripts/whitelist.sh:121-173` — `validate_sources()` (touched by SC-2 indirectly — confirm regex scope unchanged after rename).
+- `packages/devbox/dnsmasq/dnsmasq.conf:65-72` — substitution marker block `KEEL_EGRESS_ALLOWLIST_MARKER_{START,END}` (single shared marker; same block carries both `server=` and new `nftset=` directives).
+- `packages/devbox/nftables/egress.nft:36` — `flush table inet keel_egress` (sets are re-declared every reload).
+- `packages/devbox/nftables/egress.nft:38-100` — `inet keel_egress` table block (Subtask 4.1 inserts set declarations between `:38` and chain `output_v4` at `:48`; Subtasks 4.2 + 4.4 inject rules in `output_v4` BEFORE `KEEL_EGRESS_V4_MARKER_START` at `:68`; Subtask 4.3 mirrors in `output_v6` BEFORE `KEEL_EGRESS_V6_MARKER_START` at `:96`).
+- `packages/devbox/whitelist/github.txt` — current static-pin GitHub fragment (Subtask 2.2 renames to `github-rotating.txt`).
+- `packages/devbox/whitelist.default.txt` — header annotation target (Subtask 2.3).
+- `packages/devbox/.envrc.example:43-44` — current `KEEL_DEVBOX_DNS_UPSTREAM` knob (Subtask 5.x adds `KEEL_DEVBOX_NFTSET_TIMEOUT` retunable per SC-5).
+- `packages/devbox/VERSIONS.md` — pinned package versions (Subtask 1.2 captures dnsmasq version + `--enable-nftset` confirmation).
+- `docs/invariants/devbox-egress.md:24` — `## Mechanism` heading (Subtask 6.1 inserts `## Rotating-IP services` subsection beneath; Subtask 6.3 refreshes `INV-devbox-egress-contract` contentHash via Story 1.9 sync-gate protocol).
+- `packages/keel-invariants/src/invariants.manifest.ts:298` — `INV-devbox-egress-contract` entry (single contentHash refresh; SC-8 — invariant is NOT split).
+- `INVARIANTS.md:96-100` — `### Devbox egress (Story 2.3)` H3 with `INV-devbox-egress-contract` bullet (Subtask 7.1 extends bullet body with "+ Story 2.18 rotating-IP fix" suffix).
+- `packages/devbox/README.md:230` — `## Egress policy (Story 2.3)` heading (Subtask 10.1 adds `### Rotating-IP services` H3 beneath).
+- `AGENTS.md:77` — `## Devbox iteration environment` section (Subtask 10.2 appends one-line pointer to the README H3 + invariant doc subsection).
+- `_bmad-output/implementation-artifacts/sprint-status.yaml:151` — `2-18-…: backlog` row (`/bmad-create-story` flips to `ready-for-dev` at this gate; epic-2 row at `:133` requires manual `done → in-progress` flip — see Change Log v1.0).
+- `https://api.github.com/meta` — authoritative source for GitHub published CIDR ranges (Option B static-CIDR fallback per AC4).
 
 ## Dev Agent Record
 
-(Empty until `/bmad-dev-story` lands at Story State `atdd-scaffolded → in-dev`.)
+### Agent Model Used
+
+(Populated at `/bmad-dev-story` landing.)
+
+### Debug Log References
+
+- iter-347 `/bmad-create-story` (this iteration): canonicalised v0.1 course-correction draft into `drafted` form. Path-drift corrections applied at Tasks 3 + 4 (subagent-verified actual marker names + file paths against substrate: `KEEL_EGRESS_ALLOWLIST_MARKER_{START,END}` in `packages/devbox/dnsmasq/dnsmasq.conf:70-72`, NOT inline-in-reload-egress.sh; `packages/devbox/nftables/egress.nft`, NOT `packages/devbox/templates/egress.nft`). Task 2 Subtask 2.4 sharpened with classifier-sidecar implementation primitive (the existing composers produce flat sorted-deduped lists with no source-fragment metadata; rotating-vs-static classification REQUIRES a parallel `.classification` sidecar emitted byte-identically by both composers — extending SC-14 dual-composer parity to SC-11). Project Structure Notes + canonical References sections added per Story 2.17 precedent. Status `backlog → ready-for-dev`. Sprint-status row flipped (Task 11.1); epic-2 row also flipped `done → in-progress` manually since `/bmad-create-story` only auto-flips epic status when creating the FIRST story of an epic (Story 2.18 ≠ 2.1).
+
+### Completion Notes List
+
+(Populated at `/bmad-dev-story` landing.)
 
 ## File List
 
@@ -213,4 +246,5 @@ The boot-time loop was correct as designed for stable-IP services. Removing it w
 
 ## Change Log
 
+- **v1.0** (2026-04-25 iter-347): **Canonical drafted form via `/bmad-create-story` (fresh context).** FR14n `Story State` transitions `_(no story) → drafted`. Status `backlog → ready-for-dev`. Sprint-status `2-18-devbox-network-whitelist-dnsmasq-nftset-rotating-ip-fix: backlog → ready-for-dev` + `# last_updated: 2026-04-25 Story-2-18-ready-for-dev-iter-347 UTC` timestamp. Sprint-status `epic-2: done → in-progress` flipped manually (`/bmad-create-story` only auto-flips epic status when creating the FIRST story of an epic per workflow.md step 1; Story 2.18 ≠ 2.1, so the auto-flip branch is skipped — manual flip reflects reality that Epic 2 has work remaining). **Path-drift corrections applied at Tasks 3 + 4** (subagent-verified actual substrate vs v0.1 references): (a) Task 3 marker name corrected from non-existent `# === BEGIN dnsmasq dynamic block ===` to actual `KEEL_EGRESS_ALLOWLIST_MARKER_{START,END}` in `packages/devbox/dnsmasq/dnsmasq.conf:70-72`, with the awk substitution surface pinned at `reload-egress.sh:282-301` (single shared marker block carries both `server=` and new `nftset=` directives — no new marker needed); (b) Task 4 file path corrected from non-existent `packages/devbox/templates/egress.nft` to actual `packages/devbox/nftables/egress.nft`; (c) Task 4.2 + 4.3 chain-injection sites pinned at `egress.nft:68` (BEFORE `KEEL_EGRESS_V4_MARKER_START`) and `egress.nft:96` (BEFORE `KEEL_EGRESS_V6_MARKER_START`) respectively; (d) Task 4.1 set-declaration scope clarified — sets sit at TABLE scope between `egress.nft:38` (`table inet keel_egress {`) and `egress.nft:48` (`chain output_v4 {`), NOT inside any chain; the `flush table` at `egress.nft:36` re-creates sets every reload. **Task 2 Subtask 2.4 sharpened with classifier-sidecar implementation primitive.** The existing `compose_whitelist()` (`start-egress.sh:87-130`) and `compose_whitelist_into()` (`whitelist.sh:87-114`) produce a flat sorted-deduped domain list with NO source-fragment metadata; the rotating-vs-static classification REQUIRES a parallel `.classification` sidecar manifest emitted byte-identically by both composers — extending Story 2.4 SC-14 dual-composer parity into Story 2.18 SC-11. **Project Structure Notes + canonical References sections** added per Story 2.17 precedent (substrate references carry line-range pins for downstream `/bmad-dev-story` consumption). **No substrate touched at this gate** — pure planning-artefact lifecycle transition; substrate landings happen at `/bmad-dev-story` (FR14n `atdd-scaffolded → in-dev`). Forecast carried forward unchanged: 2–4 PATCH opener, 4–6 iter chain length per the iter-155 fix-chain equation (0 carve-out + backend-B live-smoke defer +3 + ~200 LOC +2 = ~5 ceiling).
 - **v0.1** (2026-04-25 iter-correct-course-issue-232): **Initial spec drafted by `/bmad-correct-course`.** Issue #232 course-correction produced this spec from the synthesised briefing + sprint-change-proposal. Status `backlog`. ACs (5) + Tasks (12 / ~50 subtasks) + Dev Notes (11 SCs) authored. Forecast 2–4 PATCH opener, 4–6 iter chain length per the iter-155 fix-chain equation. Next: `/bmad-create-story` invocation in fresh context per § Story Lifecycle Decision Matrix `_(no story) → drafted` to refine into the canonical drafted format. Substrate not touched at this entry; this is the planning artefact only.
