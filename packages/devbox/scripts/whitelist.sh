@@ -231,7 +231,9 @@ cmd_sync() {
 	local tempfile
 	tempfile="$(mktemp /run/keel-whitelist-sync.XXXXXX)"
 	# shellcheck disable=SC2064
-	trap "rm -f '${tempfile}'" EXIT
+	# compose_whitelist_into writes BOTH ${tempfile} AND ${tempfile}.classification (SC-11);
+	# trap MUST clean both on early exit so /run does not accumulate orphan sidecars.
+	trap "rm -f '${tempfile}' '${tempfile}.classification'" EXIT
 
 	# Validate first; SC-6 fail-closed — no reload on validation failure.
 	if ! validate_sources; then
@@ -272,9 +274,12 @@ cmd_sync() {
 	fi
 
 	# Atomic swap onto canonical composed-whitelist path (SC-9 same-fs rename).
+	# Story 2.18 SC-11: classification sidecar MUST land at ${COMPOSED_WHITELIST}.classification
+	# so reload-egress.sh reads the freshly synced sidecar (not stale start-egress boot output).
 	mv "${tempfile}" "${COMPOSED_WHITELIST}"
-	chmod 0644 "${COMPOSED_WHITELIST}"
-	# Tempfile consumed; clear the trap.
+	mv "${tempfile}.classification" "${COMPOSED_WHITELIST}.classification"
+	chmod 0644 "${COMPOSED_WHITELIST}" "${COMPOSED_WHITELIST}.classification"
+	# Tempfiles consumed; clear the trap.
 	trap - EXIT
 
 	# Invoke reload primitive — propagate exit codes 5/6/7 verbatim (SC-11).
