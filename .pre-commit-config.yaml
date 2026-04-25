@@ -28,7 +28,7 @@ repos:
         entry: pnpm keel-invariants:no-committed-dotfiles
         language: system
         pass_filenames: true
-        files: '(^|/)\.(envrc|envrc\.local|secrets)$'
+        files: '(^|/)\.(envrc|envrc\.local|secrets|claude/settings\.local\.json)$'
       - id: claude-hook-syntax
         name: Claude PreToolUse hook syntax check (@keel/keel-invariants; Story 2.17 Task 12)
         entry: pnpm keel-invariants:claude-hook-syntax

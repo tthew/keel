@@ -144,7 +144,7 @@ export async function runSyncGate(repoRoot: string): Promise<DriftReport> {
       }
       // Fall through to hash comparison using result.hash.
     }
-    const actualHash = result.kind === 'hash' ? result.hash : result.hash;
+    const actualHash = result.hash;
     if (actualHash !== entry.contentHash) {
       drifts.push({
         kind: 'content-hash-mismatch',
