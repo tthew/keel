@@ -1,0 +1,23 @@
+{
+  "_comment": "Doc-budget thresholds — issue #231 / PRD FR14j amendment (2026-04-25). Single source of truth: ralph.py _build_doc_budget_block AND tools/check-ralph-doc-budget.sh BOTH read this file. Edit values via PR with sizes.jsonl evidence (≥20 healthy iters, P90 ≥30% below cap, FP <5%) before promoting Phase 2 to halt-in-prompt mode.",
+  "files": {
+    "RALPH.md": {
+      "max_bytes": 200000,
+      "max_lines": 500,
+      "max_bullet_words": 60
+    },
+    ".ralph/@plan.md": {
+      "max_bytes": 8000,
+      "max_lines": 60,
+      "max_done_bullet_words": 25
+    },
+    ".ralph/PROMPT_build.md": {
+      "max_bytes": 30000,
+      "max_lines": 320
+    },
+    ".ralph/PROMPT_plan.md": {
+      "max_bytes": 8000,
+      "max_lines": 160
+    }
+  }
+}

@@ -67,6 +67,7 @@
 # last_updated: 2026-04-24 Story-2-17-review-iter-339 UTC
 # last_updated: 2026-04-25 Story-2-17-done-CR-PATCH-3-bundled-close-iter-342 UTC
 # last_updated: 2026-04-25 Epic-2-done-PR-230-Draft-to-Open-final-CI-gate-iter-343 UTC
+# last_updated: 2026-04-25 Epic-3-Story-3-34-appended-doc-budget-correct-course-issue-231 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -182,6 +183,7 @@ development_status:
   3-31-llm-as-judge-pattern-contract-lib-llm-review-ts-growth-tier-default: backlog
   3-32-hook-self-protection-halt-threshold-wire-up: backlog
   3-33-default-textual-tui-chrome-epic-7-re-theme-seam: backlog
+  3-34-ralph-doc-budget-orient-gate-pre-commit-gate: done
   epic-3-retrospective: optional
 
   epic-4: backlog
