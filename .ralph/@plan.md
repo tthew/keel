@@ -2,16 +2,15 @@
 
 ## NOW
 
-- [x] iter-344: One-shot RALPH.md + @plan.md prune (issue #231 follow-up) — RALPH.md 1.15MB→17KB / 633→93 lines; @plan.md condensed; doc-budget warn-in-prompt baseline silent.
+- [ ] § Cross-epic transition: next invocation re-evaluate `gh pr view 230 --json state,mergedAt`. MERGED + Epic 3 row `3-1-…: backlog` → `Run /bmad-create-story`. Otherwise re-fire `EPIC_DONE`.
 
 ## QUEUE (Epic 3 — Ralph package + multi-iteration loop, 33 stories)
 
-- [ ] § Cross-epic transition: re-evaluate `gh pr view 230 --json state,mergedAt` next invocation. If MERGED + Epic 3 backlog row `3-1-…: backlog` present → NOW = `Run /bmad-create-story` (skill auto-marks Epic 3 in-progress + produces Story 3.1 file). Otherwise re-write `EPIC_DONE` halt.
 - [ ] _(after every push)_ Monitor PR CI — queue fix tasks for any failures.
 
 ## BLOCKED
 
-_(empty — iter-343 close-out clean; iter-344 prune clean.)_
+_(empty — iter-345 EPIC_DONE re-fire clean.)_
 
 ## ATDD Red Phase
 
@@ -19,6 +18,7 @@ _(empty — substrate coverage at Epic 2 close: 7 persistent `node:test` unit te
 
 ## DONE
 
+- [x] iter-345: PR #230 still OPEN — re-fired idempotent `EPIC_DONE` halt; awaiting human merge.
 - [x] iter-344: RALPH.md + @plan.md prune; doc-budget hook silent in warn-mode.
 - [x] iter-343: Epic-2 close-out — PR #230 Draft→Open + EPIC_DONE halt.
 - [x] iter-342: Story 2.17 CR LANDING — sm-verified → done; 3 PATCH bundle-close + 25 DEFER.
@@ -35,10 +35,10 @@ _(prior DONE detail in commits + story-file Status HTML comment chain + story-fi
 - **Story State:** `done` (Story 2.17).
 - **Next-Epic Story:** Epic 3 Story 3.1 = `3-1-packages-ralph-package-install-boundary-via-uv-tool-install` (sprint-status line 153, `backlog`).
 - **GitHub Issue:** no GH Project configured; `RALPH_ISSUE_NUMBER` unset.
-- **PR:** #230 Open / mergeStateStatus=CLEAN / mergeable=MERGEABLE — https://github.com/tthew/ralph-bmad/pull/230.
-- **Working branch (this iter):** `chore/course-correct-doc-budget-231` — issue #231 doc-budget harness landed iter-344-prev (commit 9716ca5); RALPH.md prune lands here.
+- **PR:** #230 Open / mergeStateStatus=CLEAN / mergeable=MERGEABLE / mergedAt=null at iter-345 — https://github.com/tthew/ralph-bmad/pull/230.
 
 ## Notes
 
 - iter-344 prune routed via `/bmad-quick-dev` one-shot path (zero blast radius — RALPH.md is private journal; git log preserves full history per Paige's roundtable rejection of archive files).
 - Doc-budget halt-in-prompt mode promotion gates on baseline FP-rate proof: ≥20 healthy iters in `sizes.jsonl` + P90 ≥30% below cap + Phase-1 FP <5%. Stays in warn-in-prompt until then.
+- iter-345 first exercise of § Cross-epic transition idempotent re-entry — `gh pr view 230` showed `state=OPEN, mergedAt=null`; halt sentinel rewritten with same payload as iter-343, no other artifact mutated.
