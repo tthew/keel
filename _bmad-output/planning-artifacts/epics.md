@@ -1772,6 +1772,46 @@ So that even if the in-session hook self-protection is somehow circumvented (nov
 **Then** a dedicated dashboard panel (or nightly report — Epic 14 research corpus terrain) surfaces the event count trend
 **And** an unusually high bypass-attempt rate is a leading signal of Claude-prompt-injection attack or Ralph regression worth investigating.
 
+##### Story 2.18: Devbox network whitelist DNS-rotation fix (dnsmasq nftset= + GitHub CIDR fallback)
+
+_Appended via `/bmad-correct-course` for issue [#232](https://github.com/tthew/ralph-bmad/issues/232) on 2026-04-25 — see [`sprint-change-proposal-issue-232.md`](./sprint-change-proposal-issue-232.md)._
+
+As a fork operator running Ralph inside the devbox,
+I want whitelisted multi-A DNS rotating-IP services (`github.com`, `api.github.com`) to remain reachable across DNS rotation,
+So that `gh` / `git fetch` / `git push` / `curl` to GitHub do not intermittently time out at the firewall layer mid-iteration.
+
+**Acceptance Criteria:**
+
+**Given** the `dnsmasq.conf` template + rotating-flagged whitelist entries,
+**When** `reload-egress.sh` renders the dnsmasq config,
+**Then** one `nftset=` directive is emitted per rotating-flagged domain (IPv4: `nftset=/<domain>/4#inet#keel_egress#gh_v4`; IPv6: `nftset=/<domain>/6#inet#keel_egress#gh_v6`)
+**And** non-rotating domains keep the existing static-pin path (no behavioural regression for stable-IP services).
+
+**Given** `egress.nft` on a clean container,
+**When** `start-egress.sh` applies the rendered nft ruleset,
+**Then** named sets `gh_v4` and `gh_v6` exist with `flags timeout` and a sane default TTL (proposed 600s),
+**And** the `output_v4` chain contains `ip daddr @gh_v4 accept` BEFORE the existing static-pin marker block,
+**And** the `output_v6` chain contains `ip6 daddr @gh_v6 accept` BEFORE the existing static-pin marker block,
+**And** the chain `policy drop` rule remains the final fall-through.
+
+**Given** a clean container with `github.com` resolving to N rotating IPs,
+**When** N+1 distinct `curl https://github.com/` probes complete over a short window,
+**Then** `nft list set inet keel_egress gh_v4` shows N+1 distinct IPs accumulated in the set,
+**And** no static `ip daddr <addr> accept` rule is added to the chain for `github.com` (set replaces snapshot),
+**And** the set self-prunes via `flags timeout` (default 600s).
+
+**Given** GitHub's published public IP ranges (per `https://api.github.com/meta`),
+**When** `start-egress.sh` applies the rendered nft ruleset,
+**Then** the `output_v4` chain contains static fallback rules `ip daddr 140.82.112.0/20 accept` and `ip daddr 192.30.252.0/22 accept` with comments citing this story
+**And** these rules apply BEFORE the marker block to short-circuit any in-flight requests during the dnsmasq-to-nftset propagation window.
+
+**Given** the operator-workstation smoke recipe (or replay-fixture suite when one lands at Epic 13),
+**When** a fixture / smoke simulates multiple `getent` returns over time + sequential `curl` probes against `github.com`,
+**Then** the named set fills correctly across multiple rotation rounds,
+**And** the accept rule short-circuits the would-be drop,
+**And** no static IP is added to the chain for those domains (set replaces snapshot),
+**And** an iteration-env config-render-only smoke verifies `nftset=` directives are emitted by `reload-egress.sh` (full kernel-state verification deferred to operator workstation per Story 2.3 backend-B precedent).
+
 ---
 
 ### Epic 3: Autonomous Agent Loop (Ralph harness)
