@@ -1,66 +1,55 @@
-# Implementation Plan
+# Implementation Plan — `chore/pr-230-review`
+
+> **Branch context:** `chore/pr-230-review` is the synthesizer / PR-review-tracking branch for PR #230 (Epic 2). IP + RALPH.md commits live here; QUEUE-fix code commits land directly on `feat/epic-2-packaged-devbox` (PR #230 head) via `git -C /workspace/ralph-bmad ...` per worktree-locking workaround (RALPH.md § Gotchas).
 
 ## NOW
 
-_(empty — iter-435 EPIC 1 RECLOSE close-out complete; halt JSON `{"reason":"EPIC_DONE","epic":1,"pr":236}` written to `$RALPH_BASE_DIR/halt`. On next invocation post-merge of PR #236 → `feat/epic-2-packaged-devbox`, § Cross-epic transition step 1-3 branches autonomously: queries `gh pr view 236 --json state,mergedAt`; if MERGED + sprint-status has next epic backlog story `3.1` → NOW = `Run /bmad-create-story`, Epic = `Epic 3 - <title>`, Story = `3.1`, Story State = `_(no story)_`, PR: n/a; if not yet merged → re-writes EPIC_DONE halt; if no next epic in sprint-status → ALL_EPICS_DONE terminal halt. Sprint-status confirms epic-3 in backlog with rows 3.1..3.17+ at lines 182-203, so post-merge auto-advance to Story 3.1 expected.)_
+- [ ] **2.7 AC3 docker-exec semantics** Amend AC3 in `_bmad-output/implementation-artifacts/2-7-…md` OR add Change Log entry. Inline rationale already at `packages/devbox/scripts/ralph-build-host.sh:6-12`. Ref: `discussion_r3143866791`.
 
-## QUEUE (post-EPIC_DONE re-entry)
+## QUEUE (PR #230 review fix-arc)
 
-_(empty — § Cross-epic transition handles re-entry post-merge autonomously per § Cross-epic transition step 1-3 branch logic; no pre-queued tasks needed for the post-merge iteration.)_
+Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-4322595769>. One per iter; commit on `feat/epic-2-packaged-devbox`.
+- [ ] **2.13 healthcheck timeout** `packages/devbox/docker-compose.yml:282`: `nc -z 127.0.0.1 2222` → `nc -z -w 2 127.0.0.1 ${KEEL_DEVBOX_SSH_PORT:-2222}`. Ref: `discussion_r3143864797`.
+- [ ] **2.13 probe-domain three-site lockstep** `api.github.com` hardcoded in 3 files; add pre-commit grep asserting literal matches across `docker-compose.yml:281`, `docs/invariants/devbox-healthcheck.md`, `packages/devbox/README.md` § Healthcheck.
+- [ ] **2.14 absorption-SHA reachability** Add sync-gate step `git rev-parse 5278738^{commit} >/dev/null 2>&1 || fail` to guard `docs/invariants/devbox-legacy-branch-retention.md:108-128`. Ref: `discussion_r3143866586`.
+- [ ] **2.12 sshd liveness comment** Add 1-line comment at `packages/devbox/entrypoint.sh:207-211`: "Verify sshd is listening before exec'ing the operator shell."
+- [ ] **2.7 arg-passthrough comment (NIT)** Brief comment near `packages/devbox/scripts/ralph-build-host.sh:90` on `"$@"` passthrough contract.
+
+### Out-of-PR follow-ups (track elsewhere)
+
+- 2.13 operator-workstation healthcheck smoke (mid-run service-death) → Epic 13 nightly.
+- 2.18 IPv6 static CIDR fallback → revisit if egress-during-boot incidents recur.
+- 2.11 manifest description drift at `invariants.manifest.ts:275` → deferred per Epic 2 close-out (SC-17).
+- **Pre-existing `INV-package-test-coverage-floor` contentHash drift** (manifest declares `57555cb…`, file hashes `4d24479d…`); present at `fed3161` (iter-390) + every Epic-2 commit since. Not in 2.5b scope. Sync-gate is not yet wired to pre-commit/CI so it doesn't block; Story 1.9 follow-up.
 
 ## BLOCKED
 
-_(none)_
+_(none — all findings are MINOR/NIT)_
 
-## ATDD Red Phase
+## DONE (PR #230 review iter-1..4 — 2026-04-26)
 
-_(empty — Story 1.21 ATDD-skipped iter-400 via FR14n § ATDD-skip pure ground (a) substrate-verification per IP § ATDD Skip Rationale; no red-phase tests authored.)_
-
-## DONE (current story phase only — pruned at iter-435; older fix-arc detail in RALPH.md signposts)
-
-- [x] iter-435: **EPIC 1 RECLOSE LANDED — issue #233 SCP REOPEN-ARC complete.** All 5 REOPEN-ARC stories DONE: 1.17 (iter-220) + 1.18 (iter-260) + 1.19 (iter-330) + 1.20 (iter-397) + 1.21 (iter-434 CR-pass-5 PASS). Sprint-status `epic-1: in-progress → done` at line 137 (was 136 per IP — operative-grep-pattern-vs-line-ref reconciliation per iter-428 14th-class carry-rule; +1 line drift from iter-434 last_updated header prepend) + last_updated header prepended per iter-401 dev-story precedent (commit `480ceff`). PR #236 transitioned Draft→Open via `gh pr ready 236` (graphql clean first-try). PR body `Refs #233` → `Closes #233` via REST `gh api repos/.../pulls/236 --method PATCH --input <jq -Rs body>` (graphql LADDER step 1 i/o-timeout 4 consecutive vs same-host curl 200 — NEW api-egress-flake sub-class g: gh-CLI-graphql-vs-curl-divergence; REST LADDER step 2 cleared after 1 retry). Final CI gate PR #236 SHA `480ceff` PASS via `gh pr checks 236`: node 1m12s + python 11s; run 24961982720; reviews=0 + issue-comments=0 + pr-line-comments=0 → no PR review feedback to address per § PR Transition & Final CI Gate item 2. EPIC_DONE halt JSON `{"reason":"EPIC_DONE","epic":1,"pr":236}` written. Path: human merges PR #236 → next invocation § Cross-epic transition step 1-3 → branch (MERGED + epic-3 in sprint-status backlog) → NOW = `Run /bmad-create-story` for Story 3.1 in fresh context. **NEW api-egress-flake sub-class g landed iter-435 (gh-CLI-graphql-vs-curl-divergence; 47th cumulative datapoint of class):** `gh pr edit/view --json` graphql calls fail with `dial tcp 140.82.121.6:443: i/o timeout` while same-host `curl https://api.github.com/zen` returns 200 — gh CLI's graphql HTTP path uses different cached IP / TCP destination than ad-hoc curl. **NEW LADDER carry-rule sub-step:** when `gh pr edit --body-file` graphql times out, fall back to `gh api repos/<o>/<r>/pulls/<N> --method PATCH --input <jsonfile>` REST PATCH with `jq -Rs '{body: .}'` body wrapper. All gates GREEN at step 4: typecheck 16/16 (FULL TURBO 146ms), lint 16/16 (FULL TURBO 176ms), keel-invariants 10 files / 52 tests (270ms; 4-drift baseline UNCHANGED — 0 NEW drift from sprint-status .yaml edit), pytest 4/4 (0.22s).
-
-- [x] iter-434: **CR-pass-5 PASS — 0 NEW PATCH (33 raw findings → 0 PATCH + 0 DEFER + 33 DISMISSED) — CONVERGENCE EVENT — FR14n `fixes-pending → done`.** First 0-PATCH CR pass in the 5-CR-pass audit-trail; matrix exit condition met. NEW carry-rule landed iter-434 (16th class — convergence-detection at-FIRST-zero-PATCH-CR-pass): the FR14n `fixes-pending` row exit condition is satisfied at the FIRST 0-PATCH CR pass, NOT a 2-consecutive-zero-PATCH alternative.
-
-- [x] iter-433: PATCH-19 LANDED at commit `3c5216b` — line 513 `forecast-table line 240` → `line 234` + Change Log v1.12 + self-flip at line 551.
-
-- [x] iter-432: PATCH-18 LANDED at commit `b3aa46a` — 2 sites period→hyphen at story-file lines 80 + 89 + Change Log v1.11 + self-flip at line 549.
-
-- [x] iter-430..431: CR-pass-4 LANDED — 2 PATCH (PATCH-18 + PATCH-19) + 1 DEFER + ~12 DISMISSED across 3 parallel review layers; CI cleared on PR #236 SHA `cba5e3e`.
-
-- [x] iter-425..429: CR-pass-3 LANDED — 3 PATCH (PATCH-14/16/17) + 1 DEFER + ~14 DISMISSED. NEW carry-rules: 13th-class IP-planner sweep-count vs operative-grep + 14th-class operative-grep-pattern-vs-target-set + 15th-class CR-pass-(N+1) forecast must NOT extrapolate "0 residual".
-
-- [x] iter-421..424: CR-pass-2 LANDED — 3 PATCH (PATCH-10/11/12) + 1 DEFER + 5 DISMISSED. NEW carry-rule: Sweep-completion carry-rule.
-
-- [x] iter-409..420: CR-pass-1 fix-arc PATCH-1..9 (9 of 9 LANDED).
-
-- [x] iter-404..408: CR-pass-1 raised — 23 findings → 9 PATCH + 6 DEFER + 8 DISMISSED. FR14n `sm-verified → fixes-pending`.
-
-- [x] iter-398..403: Story 1.21 drafted → SM-validated (7 PATCH) → ATDD-skipped pure ground (a) → dev-story (0 PATCH) → trace (0 PATCH) → SM-verify (2 PATCH).
-
-- [x] iter-1: `/bmad-correct-course` on issue #233 — Sprint Change Proposal; Epic 1 REOPENED for Stories 1.17–1.21.
+- [x] [iter-1] Posted PR #230 review — 6 MINOR + 2 NIT, APPROVE — `20ee582`.
+- [x] [iter-2] Re-poll clean + branch posture resolved — `d8cc35c`.
+- [x] [iter-2b] Push-defer annotation (SSH-egress timeout) — `6c8cbc1`.
+- [x] [iter-3] 2.5 AC2 5-cap enumeration landed on feat-2 — `e555425` (PR #230).
+- [x] [iter-3] Close-out + 2.5b/2.5c discovered — `c4aa62d`.
+- [x] [iter-4] Prune RALPH.md + @plan.md back under doc-budget cap — `2d156c9`.
+- [x] [iter-4b] Push-defer annotation — SSH-egress port-22 timeout (exit 124).
+- [x] [iter-5] 2.5b devbox-hardening.md 5-cap + iter-238 narrative — `04858c6` (PR #230; push deferred).
+- [x] [iter-5b] Push retry succeeded — feat-2 + chore/pr-230-review both at origin.
+- [x] [iter-6] 2.5c Change Log v1.10 — pin iter-238 SETUID/SETGID 5-cap — `7390020` (PR #230).
+- [x] [iter-6b] feat-2 push retry resolved — both branches at origin (`04858c6..7390020 feat-2`, `b16113c..7410ca0 chore`).
 
 ## Context
 
-- **Phase:** 4-implementation — **EPIC 1 RECLOSE LANDED at iter-435; issue #233 SCP REOPEN-ARC complete.** EPIC_DONE halt JSON written to `$RALPH_BASE_DIR/halt`. Path: human merges PR #236 → next invocation § Cross-epic transition advances to Story 3.1 (epic-3 backlog confirmed at sprint-status lines 182-203) OR re-writes EPIC_DONE halt if PR not yet merged.
-- **Runtime:** cc-devbox iteration env. `uv 0.11.7` + `pnpm` available. Python 3.12.3 satisfies `requires-python = ">=3.10"`. github.com / api.github.com network access intermittent (api-egress-flake class — **47 cumulative datapoints at iter-435**; iter-435 introduced NEW sub-class g: gh-CLI-graphql-vs-curl-divergence — `gh pr edit/view --json` graphql i/o-timeout while same-host curl 200; REST `gh api ... --method PATCH --input` workaround landed). ssh-egress-flake class **22 cumulative datapoints at iter-433** UNCHANGED at iter-434/435 (iter-435 step 5 push of `480ceff` cleared first-try — no flake).
-- **Epic:** Epic 1 — Substrate Foundation & Machine-Enforced Invariants (RECLOSED at iter-435; **all 5 REOPEN-ARC stories DONE**: 1.17/1.18/1.19/1.20/1.21).
-- **Epic Branch (parent):** `feat/epic-2-packaged-devbox` — PR #236 base.
-- **Working Branch:** `chore/correct-course-test-runner-233` (based on `origin/feat/epic-2-packaged-devbox`).
-- **Story:** 1.21 — Sweep prior `ATDD deferred` stories into `test-debt:` follow-ups (DONE at iter-434).
-- **Story File:** `_bmad-output/implementation-artifacts/1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups.md`.
-- **Story State:** `done` (Epic 1 RECLOSED at iter-435 via § PR Transition & Final CI Gate; halt fired).
-- **GitHub Issue:** Issue #233 ("Course Correction: Bootstrap test runner + CI"). PR #236 (OPEN, ready-for-review) carries `Closes #233` (body PATCHed at iter-435 via REST workaround); auto-closes issue on merge.
-- **PR:** #236 (OPEN, ready-for-review, base: `feat/epic-2-packaged-devbox`; final CI gate PASS SHA `480ceff` run 24961982720).
+- **Phase:** PR-review (Epic 2 close-out, post-implementation).
+- **Epic:** Epic 2 — Sandboxed Execution Environment (devbox); PR #230 Open, awaiting review-feedback resolution + merge.
+- **Epic Branch (target of fix iterations):** `feat/epic-2-packaged-devbox` (PR #230 head).
+- **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
+- **Story:** _(no story — review iteration)._
+- **Story State:** _(no story — synthesizer mode)._
+- **PR:** #230 **Open**. Iter-6 landed `7390020` (2.5c Change Log v1.10); iter-6b retry resolved both pushes after first SSH:22 silent-block (gotcha re-confirmed; LADDER first-retry-resolves rate held at ~82%). Both branches at origin: feat-2 `04858c6..7390020`, chore `b16113c..7410ca0`. New CI run will trigger on PR #230 from the `7390020` push (HTTPS:443 was timing out at end of iter-6; api.github.com flake LADDER expected to clear by iter-7); iter-7 0h check should re-poll.
 
-## Notes
+## Halt criterion
 
-- **Story 1.21 forecast envelope FINAL (post-iter-434 CR-pass-5 PASS — convergence event; iter-435 EPIC 1 RECLOSE close-out non-PATCH):** Cumulative pre-merge PATCH **26 FINAL**. Stage breakdown: 7 SM-validate + 2 SM-verify + 9 CR-pass-1 + 3 CR-pass-2 + 3 CR-pass-3 + 2 CR-pass-4 + 0 CR-pass-5 = 26. Future audit + sweep stories inherit envelope dev-story 0–3 / trace 0–2 / SM-verify 1–4 / CR-pass-1 0–9 / CR-pass-N≥2 0–3 (N≥5 trends to 0 — convergence).
-- **NEW carry-rule iter-435 (sub-class g — gh-CLI-graphql-vs-curl-divergence; LADDER carry-rule extension):** when `gh pr edit --body-file` graphql times out with `dial tcp 140.82.121.6:443: i/o timeout` while same-host `curl https://api.github.com/zen` returns 200, fall back to REST `gh api repos/<owner>/<repo>/pulls/<N> --method PATCH --input <jsonfile>` with `jq -Rs '{body: .}' < body.md > patch.json`. Reference incident: iter-435 PR #236 body `Refs #233` → `Closes #233` edit.
-- **NEW carry-rule iter-434 (16th class — convergence-detection at-FIRST-zero-PATCH-CR-pass):** the FR14n `fixes-pending` row exit condition is satisfied at the FIRST 0-PATCH CR pass.
-- **NEW carry-rules iter-427/428/425/421/432:** see RALPH.md signposts for full carry-rule lineage (13th-15th-class + iter-421 sweep-completion + iter-432 15a-class replace_all-narrative-quoted-preservation).
-- **api.github.com network class (47 cumulative datapoints at iter-435):** Sub-classes: (a) endpoint-split graphql-only; (b) joint-endpoint cross-iter; (c) joint-endpoint within-iter recovery; (d) 4-endpoint within-iter joint-flake NO-recovery; **(g) NEW iter-435 — gh-CLI-graphql-vs-curl-divergence**. LADDER carry-rule: (1) `gh pr checks <PR> --watch --fail-fast`; (2) REST `gh api repos/<owner>/<repo>/commits/<sha>/check-runs`; (3) graphql `gh pr checks <PR>` one-shot; (4) defer push; **(5 NEW iter-435):** for body edits use REST `gh api ... --method PATCH --input <jsonfile>`.
-- **Course-correction precedent stack 3 deep (1st 2 MERGED + 3rd RECLOSED at iter-435):** issue #231 (PR #234 MERGED) → issue #232 (PR #235 MERGED) → issue #233 (PR #236 OPEN ready-for-review, awaiting human merge).
-- **Epic 4 hard-precondition:** UNBLOCKED at iter-435 EPIC 1 RECLOSE — all Stories 1.19 + 1.20 + 1.21 DONE + Epic 1 reclosed + PR #236 awaiting merge. Post-merge → Story 3.1 (next epic per sprint-status).
-- **iter-372 SSH-egress flake carry-rule (22 cumulative datapoints; UNCHANGED at iter-435):** kill-after-hang + retry-fail sub-class. First-retry-resolves carry-rule applies ~82% of time per iter-433 extension. iter-435 step 5 push cleared first-try (no flake — datapoint 23 NOT raised).
-- **Iter-358 INV-git-hooks-preservation worktree-mode drift carry-rule (carry-forward to Epic 4 hardening):** Story 1.17 + 1.18 + 1.19 + 1.20 + 1.21 disposition (c) carry-forward unchanged. 4-drift sync-gate baseline persists.
+When QUEUE empty AND `gh pr view 230 --json reviews,comments` shows all PR threads resolved → write `EPIC_DONE` halt with `note` field per § Halt § Autonomy guardrail: `echo '{"reason":"EPIC_DONE","epic":2,"pr":230,"note":"PR review feedback addressed"}' > "$RALPH_BASE_DIR/halt"`. Do NOT introduce new halt reasons.
