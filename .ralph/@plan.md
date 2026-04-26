@@ -39,6 +39,7 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-5b] Push retry succeeded — feat-2 + chore/pr-230-review both at origin.
 - [x] [iter-6] 2.5c Change Log v1.10 — pin iter-238 SETUID/SETGID 5-cap — `7390020` (PR #230).
 - [x] [iter-6b] feat-2 push retry resolved — both branches at origin (`04858c6..7390020 feat-2`, `b16113c..7410ca0 chore`).
+- [x] [iter-7] PRUNE-FIRST advisory — feat-2 RALPH.md+@plan.md back under cap (`b9dfce1`; push deferred SSH:22 ×2).
 
 ## Context
 
@@ -48,7 +49,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-6 landed `7390020` (2.5c Change Log v1.10); iter-6b retry resolved both pushes after first SSH:22 silent-block (gotcha re-confirmed; LADDER first-retry-resolves rate held at ~82%). Both branches at origin: feat-2 `04858c6..7390020`, chore `b16113c..7410ca0`. New CI run will trigger on PR #230 from the `7390020` push (HTTPS:443 was timing out at end of iter-6; api.github.com flake LADDER expected to clear by iter-7); iter-7 0h check should re-poll.
+- **PR:** #230 **Open**. Iter-7 landed `b9dfce1` on feat-2 (PRUNE-FIRST: post-PR236-merge cleanup; pre-push CI gate green on `7390020`). Push deferred — SSH:22 timed out twice (LOUD timeout this round, exit 128 + `ssh: connect to host github.com port 22: Connection timed out`; distinct from iter-6 silent-block). Chore-branch IP push also expected to fail same iter; retry both at iter-7b. Carry-forward unpushed: feat-2 `b9dfce1` + chore `<this-commit>`.
 
 ## Halt criterion
 
