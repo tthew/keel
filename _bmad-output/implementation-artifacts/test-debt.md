@@ -375,7 +375,7 @@ This section captures non-per-story gaps surfaced during the Epic 1 REOPEN-ARC t
 
 ## Out-of-Scope (Stories that landed full ATDD red-phase coverage)
 
-The following 8 stories landed full ATDD red-phase coverage at the time and are excluded from the per-story catalog above:
+The following 7 stories landed full ATDD red-phase coverage at the time and are excluded from the per-story catalog above:
 
 - **Story 1.1** (Monorepo scaffold): structural verification (pnpm install + typecheck cache + file-invariants) + manual `git ls-files` checks at land time.
 - **Story 1.3** (ESLint import-boundary rules): ephemeral smoke probes verifying rule-fire + exit codes before/after rule landing.
@@ -397,7 +397,7 @@ Each per-story entry above carries a back-pointer in the originating story file'
 grep -l 'test-debt.md#story-' _bmad-output/implementation-artifacts/*.md
 ```
 
-Expected return: 26 story files (one per IN-SCOPE Epic 1 + Epic 2 entry above) + this `test-debt.md` itself.
+Expected return: 27 story files (one per IN-SCOPE Epic 1 + Epic 2 entry above) + this `test-debt.md` itself + Story 1.21 self-reference (29 total `grep -l` matches).
 
 ---
 
