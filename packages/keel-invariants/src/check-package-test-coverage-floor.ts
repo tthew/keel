@@ -58,8 +58,15 @@ async function main(): Promise<void> {
   let pkgs: string[];
   try {
     pkgs = await readdir(PACKAGES_DIR);
-  } catch {
-    process.exit(0);
+  } catch (e) {
+    // CR-2 (iter-379): only ENOENT (no `packages/` dir) silently exits 0.
+    // EACCES / EIO / ENOTDIR / EMFILE etc. surface as NDJSON error + exit 1
+    // so genuine I/O failures don't masquerade as "no violations".
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
+      process.exit(0);
+    }
+    process.stderr.write(`${JSON.stringify({ status: 'error', message: String(e) })}\n`);
+    process.exit(1);
   }
   pkgs.sort();
   const violations: Violation[] = [];

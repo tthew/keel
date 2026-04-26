@@ -108,6 +108,27 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
     });
   });
 
+  // CR-2 (iter-379) regression: non-ENOENT readdir(PACKAGES_DIR) failures (EACCES,
+  // EIO, ENOTDIR, EMFILE…) MUST NOT masquerade as "no violations". Pre-fix the
+  // catch-all silently exited 0; post-fix only ENOENT is swallowed, everything else
+  // surfaces as NDJSON {status:'error',message} on stderr + exit 1. Synthesised by
+  // staging `packages/` as a regular FILE (readdir → ENOTDIR), portable across
+  // root/non-root test environments where chmod-based EACCES is not enforceable.
+  it('red: non-ENOENT readdir error surfaces NDJSON {status:error} + exit 1 (CR-2)', async () => {
+    // Stage CLI under a SIBLING tree so REPO_ROOT resolves to {root} but
+    // {root}/packages is free for us to clobber as a file.
+    const root = await mkdtemp(join(tmpdir(), 'keel-cov-floor-cr2-'));
+    const distDir = join(root, 'sibling', 'keel-invariants', 'dist');
+    await mkdir(distDir, { recursive: true });
+    const cli = join(distDir, 'check-package-test-coverage-floor.js');
+    await copyFile(sourceDist, cli);
+    await writeFile(join(root, 'packages'), 'not-a-directory');
+    await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringMatching(/"status":"error"/),
+    });
+  });
+
   // CR-1 DEFER-5 fold-in (iter-378): `*.test.ts` inside a `node_modules/` (or
   // `dist`, `coverage`, `.next`, `.turbo`) subtree under `src/` MUST NOT count.
   it('red: *.test.ts inside src/node_modules/ does NOT count (DEFER-5 traversal exclusion)', async () => {
