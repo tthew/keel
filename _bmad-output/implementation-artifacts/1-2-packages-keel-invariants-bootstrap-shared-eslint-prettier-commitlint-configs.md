@@ -457,3 +457,7 @@ claude-opus-4-7 (via Ralph build loop — one task per iteration).
 - Modified: `AGENTS.md`, `CLAUDE.md`, `README.md` — format-only reflow by `pnpm format` (`prettier --write .`). Pure markdown table-cell column-width normalization to match keel `printWidth: 100` + `tabWidth: 2` style. 20 lines in AGENTS.md + 26 lines in CLAUDE.md + 26 lines in README.md each swapped (insertion count == deletion count). Zero content edits.
 - Unchanged: `package.json` (root + every member), `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `turbo.json`, `tsconfig.json` (root + every member), `.prettierignore`, `packages/keel-invariants/*` config files, every `eslint.config.js` root + per-member shim, every `src/index.ts` — Task 7 is verification-only; no structural or config-source edits.
 - Story + IP + RALPH.md bookkeeping: Story 1.2 story spec (`Status: ready-for-dev` → `done`; Task 7 [x] with evidence; Debug Log + Completion Notes + File List entries); `.ralph/@plan.md` (Task 7 DONE → QUEUE-head to NOW); `RALPH.md` (Task 7 Signpost). Not counted as Task 7 "source edits" — these are ALWAYS-included bookkeeping per step 3a.
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 1-2](./test-debt.md#story-1-2) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

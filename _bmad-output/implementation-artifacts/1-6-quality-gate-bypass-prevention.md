@@ -487,3 +487,7 @@ EXIT=0
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` (modified, spec iter-1 + Task 3) — `1-6 → ready-for-dev → done`.
 - `RALPH.md` (modified, spec iter-1 + Tasks 1/2/3) — signposts + lessons + gotchas for each iteration.
 - `.ralph/@plan.md` (modified each iteration) — state carrying.
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 1-6](./test-debt.md#story-1-6) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

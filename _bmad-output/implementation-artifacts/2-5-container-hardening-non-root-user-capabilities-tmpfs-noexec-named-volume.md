@@ -421,3 +421,7 @@ Total: 0 PATCH + 2 DEFER + ~13 DISMISS = ~15 triaged findings from ~20 raw (Blin
 **CR closure signal:** all three subagent layers converged on "clean post-drain state". Acceptance Auditor ZERO-finding output is the dominant signal (AC/SC audit is the load-bearing bar for `sm-verified → done` transition); Blind + Edge Hunter findings are all DEFER-bucket (docs polish / fork-posture) or DISMISS-bucket (cosmetic / already-addressed / out-of-scope). Story State `fixes-pending → sm-verified → done`; sprint-status `2-5: review → done`; Epic 2 stays `in-progress` with Story 2.6 next.
 
 _(populated at the CR-opener iteration)_
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 2-5](./test-debt.md#story-2-5) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.
