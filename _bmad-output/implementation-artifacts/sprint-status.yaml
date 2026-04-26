@@ -1,4 +1,5 @@
 # generated: 2026-04-19 17:43 UTC
+# last_updated: 2026-04-26 Story-1-21-done-CR-pass-5-iter-434-0-PATCH-0-DEFER-33-DISMISS UTC
 # last_updated: 2026-04-26 Story-1-21-review UTC
 # last_updated: 2026-04-21 Story-2-1-fixes-pending-AR-1-landed UTC
 # last_updated: 2026-04-21 Story-2-1-fixes-pending UTC
@@ -154,7 +155,7 @@ development_status:
   1-18-bootstrap-python-test-runner-pytest-under-uv: done
   1-19-backfill-keel-invariants-test-coverage: done
   1-20-activate-fr14i-for-real-end-vacuous-pass: done
-  1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups: review
+  1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups: done
   epic-1-retrospective: optional
 
   epic-2: done
