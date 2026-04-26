@@ -2,7 +2,7 @@
 
 ## NOW
 
-- [ ] `/bmad-create-story (args: "review")` post-dev SM-verify per FR14n matrix `traced → sm-verified`. Story 1.21 — Sweep prior `ATDD deferred` stories into `test-debt:` follow-ups. Forecast 1–4 PATCH per audit + sweep class first SM-verify datapoint envelope. ~small-medium.
+- [ ] `/bmad-create-story (args: "review")` post-dev SM-verify per FR14n matrix `traced → sm-verified`. Story 1.21 — Sweep prior `ATDD deferred` stories into `test-debt:` follow-ups. Forecast 1–4 PATCH per audit + sweep class first SM-verify datapoint envelope. ~small-medium. **Carry-from iter-402:** local commit `cc4e5f7` PUSH-DEFERRED via api.github.com timeout flake (9th cumulative class datapoint at iter-402 step 0h + step 5 retries; signature `Post "https://api.github.com/graphql": dial tcp 140.82.121.6:443: i/o timeout`); pre-push gate cannot see CI state per IP § Notes api.github.com class carry-rule ("defer push if still down"); next iter step-5 push will land iter-402 + iter-402b commits together per iter-385/388/395/401 push-deferred precedent.
 
 ## QUEUE (Story 1.21 lifecycle, then Epic 1 close)
 
