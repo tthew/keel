@@ -37,6 +37,7 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-4] Prune RALPH.md + @plan.md back under doc-budget cap — `2d156c9`.
 - [x] [iter-4b] Push-defer annotation — SSH-egress port-22 timeout (exit 124).
 - [x] [iter-5] 2.5b devbox-hardening.md 5-cap + iter-238 narrative — `04858c6` (PR #230; push deferred).
+- [x] [iter-5b] Push retry succeeded — feat-2 + chore/pr-230-review both at origin.
 
 ## Context
 
@@ -46,7 +47,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-5 landed `04858c6` (2.5b) locally on feat-2; push deferred (SSH-egress port-22 timeout — `git ls-remote origin` exit 124 at iter-5; same pattern as iter-4b). Two unpushed feat-2 commits = e555425 + 04858c6 + the worktree's iter-4/4b/5 bookkeeping. Re-attempt at next iter start; first-retry-resolves ~82% per RALPH.md § Gotchas.
+- **PR:** #230 **Open**. Iter-5 landed `04858c6` (2.5b) on feat-2 + iter-5b retry pushed BOTH branches: `e555425..04858c6 feat/epic-2-packaged-devbox` and `c4aa62d..3fae4e9 chore/pr-230-review`. SSH-egress was silent-blocked at first attempt then cleared on retry (gotcha logged). New CI run will trigger on PR #230 from the `04858c6` push — next iter's 0h check should monitor.
 
 ## Halt criterion
 
