@@ -163,7 +163,7 @@ const raw: Invariant[] = [
     description:
       'ralph.py resolves .ralph/{halt,@plan.md,PROMPT_*.md,logs/} against the worktree path when --worktree X is set (else cwd-relative .ralph/); absolute path exported as RALPH_BASE_DIR. Normative spec in docs/invariants/ralph-execute.md § Path Resolution (FR14k + NFR33a).',
     sourcePath: 'docs/invariants/ralph-execute.md',
-    contentHash: '78fb480a754d56d3eb0d1fd21fa6e932ce665cd5d894f5e1bfd04888c57809a4',
+    contentHash: 'd98601865892ef73cf0413e1b81a054245ff0f675350ca14b6f1729546cc9a45',
     anchors: ['INV-ralph-halt-path-resolution'],
   },
   {
@@ -171,7 +171,7 @@ const raw: Invariant[] = [
     description:
       '.ralph/halt sentinel reason is a closed 7-reason enum at 1.0 (EPIC_DONE, ALL_EPICS_DONE, AWAIT_MERGE, BUDGET_EXHAUSTED, CI_BLOCKED, SECURITY_CRITICAL, RALPH_STAGE_REGRESSION). Autonomy constraint (non-toggle-able): every reason is bounded — self-resolving or triggered by a concrete external condition; no reason may block on open-ended human input; Ralph does not invoke AskUserQuestion from the runtime loop; inconsistent state falls back to EPIC_DONE with diagnostic note rather than introducing a new waiting reason. A hypothetical AWAITING_USER reason is rejected by design. Normative spec: docs/invariants/ralph-execute.md § Halt schema (FR14k + FR14n 2026-04-21 amendment adding ALL_EPICS_DONE and the autonomy guardrail).',
     sourcePath: 'docs/invariants/ralph-execute.md',
-    contentHash: '78fb480a754d56d3eb0d1fd21fa6e932ce665cd5d894f5e1bfd04888c57809a4',
+    contentHash: 'd98601865892ef73cf0413e1b81a054245ff0f675350ca14b6f1729546cc9a45',
     anchors: ['INV-ralph-halt-reason-enum'],
   },
   {
@@ -434,6 +434,14 @@ const raw: Invariant[] = [
     sourcePath: 'packages/keel-invariants/src/check-package-test-coverage-floor.ts',
     contentHash: '57555cb453e7cc46569874befb28d7faa2c5689f458da2b8c11303c8f4cfa32e',
     anchors: ['INV-package-test-coverage-floor'],
+  },
+  {
+    id: 'INV-fr14i-ci-workflow-presence',
+    description:
+      'FR14i pre-push CI gate activation invariant — pins existence + content of .github/workflows/ci.yml so the gate operates non-vacuously. Whole-file sha256 catches workflow deletion (removed-from-source-only) + content edits (content-hash-mismatch) at Story 1.9 pre-merge sync-gate. Trigger filter covers main + feat/epic-* PR bases (Story 1.20 expansion ending vacuous-pass mode per iter-371 gotcha). Pre-bootstrap degradation per PRD FR14i amendment (issue #233): when workflow absent, gate no-ops + orient surfaces vacuous-pass notice. Story 1.20 Task 4.',
+    sourcePath: '.github/workflows/ci.yml',
+    contentHash: '5754ab12462ea9073d5642e158d753815d3cdb52e4f682c984127ebffd5a8d86',
+    anchors: ['INV-fr14i-ci-workflow-presence'],
   },
 ];
 

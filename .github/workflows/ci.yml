@@ -2,9 +2,9 @@ name: ci
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/epic-*']
   push:
-    branches: [main]
+    branches: [main, 'feat/epic-*']
 
 permissions:
   contents: read
