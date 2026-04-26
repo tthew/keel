@@ -20,7 +20,7 @@ The close-of-Epic-1-reopen-window goal is that NO post-Story-1.21 story carries 
 
 ### Audit methodology
 
-Walked 34 stories total: Epic 1 stories 1.1–1.16 (16) + Epic 2 stories 2.1–2.18 (18). Stories 1.17–1.21 are EXCLUDED — they constitute the bootstrap arc that landed AFTER the FR14n amendment per issue #233. Each story's `### ATDD red-phase posture` section + `### Lessons applied` + Dev Notes were inspected for ATDD-skip events. Stories that landed full ATDD red-phase coverage at the time (e.g. Story 1.7's SCP-mandated ground-(a) substrate-verification + in-test fixtures pattern; Stories with ephemeral shell-smoke probes verified at time of merge) are listed under § Out-of-Scope below.
+Walked 34 stories total: Epic 1 stories 1.1–1.16 (16) + Epic 2 stories 2.1–2.18 (18). Stories 1.17–1.21 are EXCLUDED — they constitute the bootstrap arc that landed AFTER the FR14n amendment per issue #233. Each story's `### ATDD red-phase posture` section + `### Lessons applied` + Dev Notes were inspected for ATDD-skip events. Stories that landed full ATDD red-phase coverage at the time (e.g. Story 1.8's `invariants.manifest.ts` Zod-schema-validation probes; Stories with ephemeral shell-smoke probes verified at time of merge) are listed under § Out-of-Scope below.
 
 ### Skip-ground taxonomy (FR14n matrix row 3 lettering)
 
