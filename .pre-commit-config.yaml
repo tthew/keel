@@ -59,6 +59,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: probe-domain-lockstep
+        name: Devbox dnsmasq probe-domain three-site lockstep (Story 2.13 PR #230 review iter-10)
+        entry: tools/check-probe-domain-lockstep.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: commitlint
         name: commitlint (conventional commits)
         entry: pnpm exec commitlint --edit
