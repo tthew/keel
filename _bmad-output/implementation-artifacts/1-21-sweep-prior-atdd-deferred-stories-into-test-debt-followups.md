@@ -171,7 +171,7 @@ So that the test-debt is visible (not invisible accumulating drift), prioritisab
 
 The Story 1.21 audit walks **34 stories** total (Epic 1: 1.1–1.16 = 16 stories; Epic 2: 2.1–2.18 = 18 stories; Stories 1.17–1.21 are EXCLUDED — they are the bootstrap arc that landed AFTER the FR14n amendment per issue #233; their ATDD posture is post-amendment, not pre-bootstrap-grandfathered). The catalog body (the SUBSET that actually ATDD-skipped) is 27 entries (per Subtask 9.6 actual count; 30+ pre-audit prediction superseded by ground-truth at dev-story); divergence between walked-count (34) and catalog-count (27) reflects 7 stories that landed full ATDD red-phase coverage at the time (1.1, 1.3, 1.4, 1.8, 1.9, 1.10, 2.6 — listed under § Out-of-Scope).
 
-The walk SHOULD surface ~30 ATDD-skip events (per RALPH.md iter-389 entry "31st cumulative project ATDD-skip" — most events correspond 1:1 to a story but some stories may have multi-event skips, e.g. Story 2.6 had 3 CR-RE-RUN passes per `deferred-work.md` headers).
+The walk SHOULD surface ~30 ATDD-skip events (per RALPH.md iter-389 entry "31st cumulative project ATDD-skip" — most events correspond 1:1 to a story but some stories may have multi-event skips; per-story event counts are recorded in the test-debt.md catalogue rows).
 
 **Classification per row (AC1 sub-fields):**
 
