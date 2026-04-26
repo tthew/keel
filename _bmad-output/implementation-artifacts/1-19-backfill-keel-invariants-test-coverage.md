@@ -1,0 +1,325 @@
+# Story 1.19: Backfill `keel-invariants` test coverage
+
+Status: ready-for-dev
+
+## Story
+
+As a substrate operator who relies on `packages/keel-invariants/` to gate merges via FR42 / FR43 / FR43a,
+I want test coverage for every ESLint rule, every per-rule `check-*.ts` enforcer, the sync-gate CLI, and the `invariants.manifest.ts` Zod-shape contract,
+So that the highest-priority untested code in the repo is no longer untested before Epic 4 (per-iteration security verification) starts extending it (NFR1a; closes issue #233 D2 sequencing decision; reopened-Epic-1 arc Story 3 of 5).
+
+## Acceptance Criteria
+
+**AC1 — Each ESLint rule has positive + negative test coverage; tests pass under `pnpm --filter @keel/keel-invariants test`.**
+
+**Given** each ESLint rule shipped by `packages/keel-invariants/src/eslint-rules/` (currently exactly one rule: `no-verify-bypass.js` registered in `eslint-rules/index.js` as the `keel-invariants/no-verify-bypass` plugin entry per substrate ledger),
+**When** Story 1.19 lands,
+**Then** there exists at least one positive test (rule fires on offending input) AND one negative test (rule does NOT fire on compliant input) per rule under `packages/keel-invariants/src/eslint-rules/__tests__/`
+**And** all tests pass via `pnpm --filter @keel/keel-invariants test`.
+
+**AC2 — Each per-rule `check-*.ts` enforcer has a CLI integration test exercising green-path exit-0 + red-path exit-1 + structured stderr.**
+
+**Given** the three per-rule `check-*.ts` enforcers in scope per epics.md:1218–1221 (`check-claude-hook-syntax.ts`, `check-nfr5a-minimum.ts`, `check-no-committed-dotfiles.ts`),
+**When** Story 1.19 lands,
+**Then** there exists at least one integration test per enforcer at `packages/keel-invariants/src/__tests__/check-{claude-hook-syntax,nfr5a-minimum,no-committed-dotfiles}.test.ts` invoking the enforcer's CLI entry point (`node dist/check-*.js`) against a fixture directory tree
+**And** each test asserts both the green-path exit-code-0 (compliant input → no stderr or empty stderr) AND the red-path exit-code-1 + structured-stderr drift report (the JSON / prefixed text shape each enforcer already emits per its source — see Dev Notes § Enforcer stderr shapes for the per-enforcer contract).
+
+(Diverges from epics.md:1221's "structured JSON drift report" generic phrasing per SC-2: the three enforcers do NOT all emit JSON. `check-no-committed-dotfiles.ts:35-38` emits prose lines (`"Refusing to commit gitignored secret file: ..."`); `check-claude-hook-syntax.ts:88-97` emits prose with per-failure indentation; `check-nfr5a-minimum.ts:42-44` emits a single-line JSON object. Tests assert the EXACT shape each enforcer ships, not a normalised JSON across all three. This is a diff-vs-epic-spec for fidelity, not a scope cut.)
+
+**AC3 — Sync-gate CLI integration tests exercise each of the four canonical drift classes with the expected exit-code-1 + DriftReport JSON shape.**
+
+**Given** the sync-gate CLI (`packages/keel-invariants/src/check.ts` invoking `runSyncGate` from `sync-gate.ts` via `manifest-reader.ts` per substrate ledger),
+**When** Story 1.19 lands,
+**Then** there exists at least one integration test exercising each of the four drift classes named in epics.md:1225 (`added-to-source-only` / `removed-from-source-only` / `removed-from-docs-only` / `content-hash-mismatch`) at `packages/keel-invariants/src/__tests__/sync-gate.test.ts`
+**And** each drift class produces the expected `report.status === 'drift'` + `drifts[].kind === <class>` + structured DriftReport JSON shape per `sync-gate.ts:21-34` (`Drift` / `DriftReport` interfaces).
+
+(The two additional drift classes `git-hook-missing` / `git-hook-shebang-mismatch` defined at `sync-gate.ts:18-19` are OUT OF SCOPE per SC-3; the epic-spec four-class enumeration governs. SM-validate may absorb them via DEFER or expand AC3 if budget permits.)
+
+**AC4 — Manifest Zod schema rejection tests cover each malformed-input class.**
+
+**Given** the `invariants.manifest.ts` Zod schemas (`HashScopeSchema`, `InvariantSchema`, `InvariantsSchema` per substrate ledger),
+**When** Story 1.19 lands,
+**Then** there exists at least one schema-rejection test per malformed-input class at `packages/keel-invariants/src/__tests__/invariants.manifest.test.ts`:
+1. **Bad ID format** — id failing `/^INV-[a-z0-9]+(-[a-z0-9]+)+$/` (e.g. `"BadID"`, `"INV-UPPER"`, `"inv-lower"`, `"INV-singleton"` per single-segment).
+2. **Missing required field** — invariant object lacking `description` (or any of: `id` / `sourcePath` / `contentHash` / `anchors`).
+3. **Content-hash regex violation** — contentHash failing `/^[0-9a-f]{64}$/` (wrong length, uppercase hex, non-hex chars).
+4. **Empty anchors array** — `anchors: []` violating `z.array(...).min(1)`.
+5. **sourcePath shape violation** — sourcePath failing the `.refine(...)` no-absolute / no-traversal / no-backslash check (e.g. `/abs/path`, `..⁄traversal`, `back\\slash`).
+**And** each malformed input produces a Zod parse error (`InvariantSchema.safeParse(...).success === false` with a usable `error.issues[]` shape).
+
+(Diverges from epics.md:1230's literal phrasing "non-existent sourcePath" per SC-2: the Zod schema validates *string shape*, not *file existence on disk*. Filesystem-existence is the sync-gate's job (surfaced as `removed-from-source-only` per AC3). Reinterpreted here as "sourcePath SHAPE violation"; the existence-check coverage lives in AC3's drift-class-2 fixture. SM-validate may dispute.)
+
+**AC5 — `INV-package-test-coverage-floor` invariant registered in `invariants.manifest.ts` + `INVARIANTS.md` index; enforcer ships as a `check-*.ts` CLI bin; sync-gate stays clean.**
+
+**Given** the new invariant `INV-package-test-coverage-floor` (NFR1a substrate-side enforcer per architecture.md:221 + PRD line 1068),
+**When** Story 1.19 registers it in `packages/keel-invariants/src/invariants.manifest.ts` + `INVARIANTS.md` index,
+**Then** Story 1.9's sync-gate (`pnpm keel-invariants:check`) passes against the registered manifest entry (no `added-to-source-only` / `removed-from-docs-only` / `content-hash-mismatch` for this entry)
+**And** a new enforcer `packages/keel-invariants/src/check-package-test-coverage-floor.ts` ships with `bin` + `scripts` registration in `packages/keel-invariants/package.json` (mirroring the existing `check-no-committed-dotfiles` / `check-nfr5a-minimum` / `check-claude-hook-syntax` shape)
+**And** the enforcer walks `packages/*` workspace entries with a `src/` subdir, asserts presence of ≥ 1 `*.test.ts` file under `src/` (recursive glob), reports `coverage-floor-violation` with the offending package name to stderr + exits 1 for any non-exempt `src/`-bearing package without coverage
+**And** the enforcer respects the NFR1a pre-bootstrap exemption list (`keel-templates`, `devbox`) — Story 1.21 lands their backfill follow-ups; Story 1.19 backfills `keel-invariants` itself so it is NOT exempt.
+**And** the enforcer has its own integration test at `packages/keel-invariants/src/__tests__/check-package-test-coverage-floor.test.ts` covering green-path (exempt package + covered package) + red-path (non-exempt `src/`-bearing fixture without `*.test.ts`).
+
+**AC6 — All Story 1.19 CR action items addressed in QUEUE fix iterations OR explicitly deferred with `defer:` rationale; story transitions `sm-verified → done` cleanly.**
+
+**Given** Story 1.19's CR pass per the FR14n § Story Lifecycle Decision Matrix `sm-verified → done` row,
+**When** `/bmad-code-review (args: "2")` runs,
+**Then** every CR action item is either addressed in a QUEUE fix iteration OR explicitly deferred with `defer: <rationale>` per item per RALPH.md iter-353 inline-bundle-close + iter-362 mid-arc narrow-band recipe + iter-369 first-CI-workflow-job hardening residual class
+**And** Story 1.19 transitions `sm-verified → done` with no un-addressed CR findings.
+
+## Tasks / Subtasks
+
+- [ ] **Task 1 — Migrate `prompt-injection-rules/hook-settings-tamper.test.ts` from `node:test` to vitest; remove vitest.config.ts exclude.** (AC: 1, 2, 3, 4, 5 — precondition; baked into `vitest.config.ts:10-13` comment "migrated to vitest in Story 1.19 keel-invariants backfill")
+  - [ ] Subtask 1.1: Edit `packages/keel-invariants/src/prompt-injection-rules/hook-settings-tamper.test.ts` (lines 1–127 per substrate ledger). Replace `import { test } from 'node:test'; import assert from 'node:assert/strict';` (lines 12–13) with `import { describe, test, expect } from 'vitest';`. Convert assertion calls: `assert.ok(x)` → `expect(x).toBeTruthy()`; `assert.equal(a, b)` → `expect(a).toBe(b)`; `assert.deepEqual(a, b)` → `expect(a).toEqual(b)`; `assert.match(s, re)` → `expect(s).toMatch(re)`. Wrap top-level `test(...)` calls in a `describe('S4 prompt-injection rules', () => { ... })` block per Story 1.19 SC-4 vitest-house-style (matches existing `__tests__/smoke.test.ts:4` `describe('keel-invariants smoke', ...)` shape).
+  - [ ] Subtask 1.2: Edit `packages/keel-invariants/vitest.config.ts` lines 7–14 — REMOVE the `exclude: ['**/dist/**', '**/node_modules/**', '**/prompt-injection-rules/*.test.ts']` array (lines 7–14 inclusive). Replace with `exclude: ['**/dist/**', '**/node_modules/**']` (drop the third entry only; preserve the dist + node_modules excludes per SC-4 byte-minimum-edit). The accompanying 3-line comment block at lines 10–13 also goes.
+  - [ ] Subtask 1.3: Verify `pnpm --filter @keel/keel-invariants test` discovers and passes `hook-settings-tamper.test.ts` under vitest (8 tests pre-edit per `node:test` count — should be 8 post-edit under vitest). Capture vitest summary line in Dev Agent Record § Completion Notes.
+
+- [ ] **Task 2 — ESLint rule positive + negative tests for `no-verify-bypass`.** (AC: 1)
+  - [ ] Subtask 2.1: Create directory `packages/keel-invariants/src/eslint-rules/__tests__/` (ABSENT pre-edit per substrate ledger). Author `no-verify-bypass.test.ts`. Use ESLint's RuleTester API:
+    - `import { RuleTester } from 'eslint';`
+    - `import rule from '../no-verify-bypass.js';`
+    - `const ruleTester = new RuleTester({ languageOptions: { ecmaVersion: 2024, sourceType: 'module' } });`
+    - `ruleTester.run('no-verify-bypass', rule, { valid: [...], invalid: [...] });`
+  - [ ] Subtask 2.2: Populate `valid` (negative) cases — at minimum 4 cases:
+    - `"const x = '--verify';"` (different flag, not bypass — substring miss prevented by lookahead `(?![\w-])`)
+    - `"const y = 'no-verify';"` (substring miss prevented by lookbehind `(?<![\w-])` — would match `--no-verify` only)
+    - `` "const z = `npm install`;" `` (template literal, no bypass token)
+    - `"const a = '';"` (empty string)
+  - [ ] Subtask 2.3: Populate `invalid` (positive) cases — at minimum 4 cases (one per BYPASS_PATTERN × literal-vs-template):
+    - `"const x = '--no-verify';"` → expects `messageId: 'bypass'` + data.token: `'--no-verify'`
+    - `"const y = '--dangerously-skip-permissions';"` → expects `messageId: 'bypass'` + data.token: `'--dangerously-skip-permissions'`
+    - `` "const z = `git commit --no-verify`;" `` (template literal cooked value contains the token)
+    - `` "const a = `claude --dangerously-skip-permissions test`;" `` (template literal multi-token line)
+    - Each invalid case asserts `errors: [{ messageId: 'bypass', data: { token: '<expected>' } }]`.
+  - [ ] Subtask 2.4: Verify `pnpm --filter @keel/keel-invariants test` runs the new test file (vitest globs `src/**/*.test.ts` per `vitest.config.ts:6` — `eslint-rules/__tests__/no-verify-bypass.test.ts` matches) AND all 8+ ruleTester cases pass.
+
+- [ ] **Task 3 — `check-no-committed-dotfiles.ts` integration test.** (AC: 2)
+  - [ ] Subtask 3.1: Author `packages/keel-invariants/src/__tests__/check-no-committed-dotfiles.test.ts`. Use vitest + `node:child_process` `execFile` (promisified) to invoke the compiled CLI:
+    - `import { execFile } from 'node:child_process'; import { promisify } from 'node:util';`
+    - `const execFileAsync = promisify(execFile);`
+    - `import { resolve } from 'node:path';`
+    - `const cliPath = resolve(__dirname, '../../dist/check-no-committed-dotfiles.js');` — note: vitest runs under ESM so use `import.meta.dirname` instead of `__dirname` (vitest 3.x supports `import.meta.dirname` per Node 22 baseline; SM-validate confirm).
+  - [ ] Subtask 3.2: Test cases (3 minimum):
+    - `it('exits 0 with no staged files (vacuous green path)')` — `execFileAsync('node', [cliPath])` → expects `{ stdout: '', stderr: '', code: 0 }` via `await` (resolves on exit-0).
+    - `it('exits 0 with compliant staged file paths')` — `execFileAsync('node', [cliPath, 'src/foo.ts', 'package.json', '.envrc.example'])` → expects `code: 0` (`.envrc.example` is the schema-companion exempt per `check-no-committed-dotfiles.ts:18-22` denylist anchors).
+    - `it('exits 1 with .envrc in staged files')` — `execFileAsync('node', [cliPath, '.envrc'])` → expects `.rejected` Promise with `error.code === 1` AND `error.stderr` matching `/Refusing to commit gitignored secret file: \.envrc/`.
+    - `it('exits 1 with .claude/settings.local.json in staged files')` — `execFileAsync('node', [cliPath, '.claude/settings.local.json'])` → expects `.rejected` with `error.code === 1` + stderr matching `/\.claude\/settings\.local\.json/`.
+  - [ ] Subtask 3.3: Verify `pnpm --filter @keel/keel-invariants build && pnpm --filter @keel/keel-invariants test` runs end-to-end (build precedes test so `dist/check-no-committed-dotfiles.js` exists per turbo `dependsOn: ["^build"]` per Story 1.17 substrate).
+
+- [ ] **Task 4 — `check-nfr5a-minimum.ts` integration test.** (AC: 2)
+  - [ ] Subtask 4.1: Author `packages/keel-invariants/src/__tests__/check-nfr5a-minimum.test.ts`. The enforcer reads `.claude/settings.json` from a fixed path `${REPO_ROOT}/.claude/settings.json` (per `check-nfr5a-minimum.ts:24-28`) — no CLI args / cwd indirection. Test pattern: spawn child process with overridden cwd? No — the path is computed via `import.meta.url` resolving to `dist/check-nfr5a-minimum.js`'s parent's parent's parent = REPO_ROOT. To override REPO_ROOT in tests, we must run the enforcer in a fixture directory tree where the same path-resolution lands on a fixture `.claude/settings.json`.
+  - [ ] Subtask 4.2: Strategy A (preferred per SC-5 Subtask brevity): copy `dist/check-nfr5a-minimum.js` (or import its source) into a tmpdir at `{tmp}/packages/keel-invariants/dist/`, populate `{tmp}/.claude/settings.json` with fixture content per case, then `execFile node {tmp}/packages/keel-invariants/dist/check-nfr5a-minimum.js`. Verify `import.meta.url` math (`DIR/../../..` → `tmp`). Test cases (4 minimum):
+    - `green: 13 deny + 6 allow exits 0` — fixture contains the substrate-baseline minimum.
+    - `red: 12 deny + 6 allow exits 1 + JSON stderr matches deny-min message` — assert stderr parsed as JSON has `status: 'violation'` + `message` matching `/13/` deny-minimum.
+    - `red: 13 deny + 5 allow exits 1 + JSON stderr matches allow-min message`.
+    - `red: missing .permissions.deny exits 1 + JSON stderr matches "missing or not an array"`.
+  - [ ] Subtask 4.3: Strategy B (fallback if `import.meta.url` math is brittle to relocate): factor the path-resolution into a helper export + spy; OR mark this enforcer's "fixture cwd" approach DEFERRED with rationale (e.g. ground-(c) covered by `check-no-committed-dotfiles`/`check-claude-hook-syntax`) — pin the choice at SM-validate per RALPH.md iter-357 lock-don't-defer rule. **Decision held until SM-validate** — Strategy A is the spec lock; Strategy B is the fallback if dev-story finds Strategy A blocked.
+  - [ ] Subtask 4.4: Verify `pnpm --filter @keel/keel-invariants build && test` runs the new test file end-to-end.
+
+- [ ] **Task 5 — `check-claude-hook-syntax.ts` integration test.** (AC: 2)
+  - [ ] Subtask 5.1: Author `packages/keel-invariants/src/__tests__/check-claude-hook-syntax.test.ts`. Same Strategy A as Subtask 4.2: tmpdir `{tmp}` containing `{tmp}/packages/keel-invariants/dist/check-claude-hook-syntax.js` + `{tmp}/.claude/hooks/<fixture>.sh`. The enforcer scans `${REPO_ROOT}/.claude/hooks/*.sh` (per `check-claude-hook-syntax.ts:64-65`).
+  - [ ] Subtask 5.2: Test cases (4 minimum):
+    - `green: bash-shebang script with valid syntax exits 0` — fixture `#!/usr/bin/env bash\necho ok\n`.
+    - `green: sh-shebang script that's also bash-compatible exits 0` — fixture `#!/bin/sh\necho ok\n` (passes both `bash -n` and `dash -n`).
+    - `red: bash-shebang script with `if-fi` mismatch exits 1` — fixture `#!/bin/bash\nif true\necho oops\n` (no `then`/`fi`).
+    - `red: sh-shebang script using bashism `[[ ... ]]` fails dash check exits 1` — fixture `#!/bin/sh\n[[ "x" == "x" ]]\n` (passes bash but fails dash; per `check-claude-hook-syntax.ts:43-46` `sh` shebang dispatches to BOTH bash and dash).
+    - Each red case asserts stderr matches `/syntax failure\(s\) in \.claude\/hooks\/\*\.sh/`.
+  - [ ] Subtask 5.3: Skip-on-missing-bash/dash guard: at the top of the test file, check `which bash && which dash` availability; if either missing, mark the affected tests `it.skip(...)` with rationale captured in Completion Notes (cc-devbox baseline carries both per substrate probe — verify at SM-validate).
+  - [ ] Subtask 5.4: Verify `pnpm --filter @keel/keel-invariants build && test` runs the new test file end-to-end.
+
+- [ ] **Task 6 — sync-gate four-drift-class integration test.** (AC: 3)
+  - [ ] Subtask 6.1: Author `packages/keel-invariants/src/__tests__/sync-gate.test.ts`. Strategy: invoke `runSyncGate(repoRoot)` PROGRAMMATICALLY (per `sync-gate.ts:99` exports — no CLI spawn needed) against fixture cwd directories. Each test creates a fresh `mkdtemp` containing `{tmp}/INVARIANTS.md` + a fixture invariants array.
+  - [ ] Subtask 6.2: Wrinkle — `runSyncGate` reads `invariants` from `manifest-reader.ts` which re-exports from `invariants.manifest.ts` at module-load time, NOT from a configurable path. To inject a fixture invariants array, the test must EITHER (Strategy A) `vi.mock('../manifest-reader.js', ...)` per-test to override the `invariants` export OR (Strategy B) use `vi.doMock(...)` + dynamic `await import(...)` per fixture. **Strategy A is the spec lock per SC-5 subtask brevity** — pin per RALPH.md iter-357 lock-don't-defer rule; Strategy B is fallback if dev-story finds vi.mock module-spec brittle.
+  - [ ] Subtask 6.3: Test cases (4 minimum, one per drift class per AC3):
+    - **`added-to-source-only`** — fixture: invariants array contains entry `{ id: 'INV-test-fixture', sourcePath: '<tmp-file>', contentHash: '<correct>', anchors: ['INV-test-fixture'] }`; INVARIANTS.md is EMPTY (no anchors). Expect `report.status === 'drift'` + at least one drift `{ kind: 'added-to-source-only', id: 'INV-test-fixture', sourcePath: '<tmp-file>' }`.
+    - **`removed-from-source-only`** — fixture: invariants array entry points at `sourcePath: 'nonexistent/path.ts'`; INVARIANTS.md contains the matching anchor. Expect drift `{ kind: 'removed-from-source-only', id, sourcePath: 'nonexistent/path.ts' }` (file-read fails → `read-error` branch per `sync-gate.ts:120-127`).
+    - **`removed-from-docs-only`** — fixture: invariants array EMPTY; INVARIANTS.md contains an orphan anchor `- **\`INV-orphan\`**` matching the ANCHOR_REGEX at `sync-gate.ts:36`. Expect drift `{ kind: 'removed-from-docs-only', anchor: 'INV-orphan' }`.
+    - **`content-hash-mismatch`** — fixture: invariants array entry `contentHash: 'a'.repeat(64)` (deliberately wrong) + matching INVARIANTS.md anchor + real source file with different actual hash. Expect drift `{ kind: 'content-hash-mismatch', id, sourcePath, expectedHash: 'aaaa...', actualHash: '<actual>' }`.
+  - [ ] Subtask 6.4: Bonus test (optional, defer-able): `it('returns clean status when manifest + docs + source are aligned')` — fixture with one well-formed entry where hash matches + anchor present.
+  - [ ] Subtask 6.5: Verify `pnpm --filter @keel/keel-invariants test` runs the new test file end-to-end.
+
+- [ ] **Task 7 — manifest Zod schema rejection tests.** (AC: 4)
+  - [ ] Subtask 7.1: Author `packages/keel-invariants/src/__tests__/invariants.manifest.test.ts`. Import `InvariantSchema` and `InvariantsSchema` from `../invariants.manifest.js`. Use `safeParse(...)` to assert rejection without throwing.
+  - [ ] Subtask 7.2: Test cases (5 minimum, one per malformed-input class per AC4):
+    - **bad ID format** — `InvariantSchema.safeParse({ id: 'BadID', description: 'x', sourcePath: 'a/b.ts', contentHash: 'a'.repeat(64), anchors: ['INV-x'] })` → assert `success === false`. Sub-cases: `'INV-UPPER'`, `'inv-lower'`, `'INV-singleton'` (missing trailing-segment), `'INV-bad_underscore'`. **Note:** the schema regex `/^INV-[a-z0-9]+(-[a-z0-9]+)+$/` REQUIRES at least one `-` after the leading `INV-` segment (`(-[a-z0-9]+)+` quantifier `+` = one or more); a singleton `INV-foo` with no second segment fails.
+    - **missing required field** — `safeParse({ id: 'INV-x-y', sourcePath: 'a/b.ts', contentHash: 'a'.repeat(64), anchors: ['INV-x'] })` (no description) → assert `success === false`. Sub-cases per missing field (id / sourcePath / contentHash / anchors).
+    - **content-hash regex violation** — `contentHash: 'short'` (length 5) → assert `success === false`. Sub-cases: `'a'.repeat(63)` (one short), `'a'.repeat(65)` (one long), `'A'.repeat(64)` (uppercase rejected by `/[0-9a-f]/`), `'g'.repeat(64)` (non-hex char).
+    - **empty anchors** — `anchors: []` → assert `success === false` (schema `z.array(...).min(1)`).
+    - **sourcePath shape violation** — sub-cases via the `.refine(...)` validator at `invariants.manifest.ts:38-44`: `sourcePath: '/abs/path.ts'` (leading `/`), `sourcePath: '../traversal.ts'` (contains `..`), `sourcePath: 'back\\slash.ts'` (contains `\`). Each → `success === false`.
+  - [ ] Subtask 7.3: Bonus test (optional, defer-able): `InvariantsSchema` superRefine — duplicate `id` rejection (two entries with same id) + duplicate `(sourcePath, hashScope)` with different `contentHash` rejection per `invariants.manifest.ts:54-87`.
+  - [ ] Subtask 7.4: Verify `pnpm --filter @keel/keel-invariants test` runs the new test file end-to-end.
+
+- [ ] **Task 8 — Author `check-package-test-coverage-floor.ts` enforcer + integration test.** (AC: 5)
+  - [ ] Subtask 8.1: Create `packages/keel-invariants/src/check-package-test-coverage-floor.ts`. Shape (mirror `check-no-committed-dotfiles.ts:1-42`):
+    - Shebang `#!/usr/bin/env node`.
+    - JSDoc header: "Story 1.19 Task 8 — NFR1a coverage-floor gate (`INV-package-test-coverage-floor`). Asserts every workspace package with a `src/` subdir has ≥ 1 `*.test.ts` file under `src/` (recursive). Pre-bootstrap exempt list: `keel-templates`, `devbox` (per NFR1a; backfilled by Story 1.21)."
+    - Resolve `REPO_ROOT` via `path.resolve(import.meta.dirname, '..', '..', '..')` (matches existing enforcers per `check-nfr5a-minimum.ts:24-27`).
+    - Read `${REPO_ROOT}/packages/` directory entries via `fs.readdir(... , { withFileTypes: true })`; filter directories.
+    - For each package dir: check `${REPO_ROOT}/packages/<name>/src/` exists via `fs.stat(...).then(s => s.isDirectory()).catch(() => false)`. Skip packages without `src/`.
+    - For each package WITH `src/`: skip if `name in EXEMPT_LIST = new Set(['keel-templates', 'devbox'])`. Else recursively glob `src/**/*.test.ts` via `fs.readdir({ recursive: true })` (Node 20+) OR a custom `walk` helper; report `coverage-floor-violation` if zero matches.
+    - Emit violations to stderr as one JSON-line per violation: `{ status: 'violation', package: '<name>', message: 'coverage-floor-violation: no *.test.ts under packages/<name>/src/' }`. Exit 1 if any violations; else exit 0.
+  - [ ] Subtask 8.2: Register `bin` + `scripts` in `packages/keel-invariants/package.json` (mirror existing `keel-invariants:no-committed-dotfiles` shape per `package.json:23,35`):
+    - `"bin": { ..., "keel-invariants:package-test-coverage-floor": "./dist/check-package-test-coverage-floor.js" }`.
+    - `"scripts": { ..., "keel-invariants:package-test-coverage-floor": "node dist/check-package-test-coverage-floor.js" }`.
+  - [ ] Subtask 8.3: Author `packages/keel-invariants/src/__tests__/check-package-test-coverage-floor.test.ts`. Strategy A from Subtask 4.2 (tmpdir + relocated dist + execFile). Test cases (3 minimum):
+    - **green: workspace with one covered package** — fixture `{tmp}/packages/foo/src/index.ts` + `{tmp}/packages/foo/src/foo.test.ts` → exit 0, empty stderr.
+    - **green: workspace with exempt package without coverage** — fixture `{tmp}/packages/devbox/src/index.ts` (no `*.test.ts`) → exit 0 (exempt per EXEMPT_LIST).
+    - **red: workspace with non-exempt `src/`-bearing package without coverage** — fixture `{tmp}/packages/bar/src/index.ts` (no `*.test.ts`) → exit 1, stderr JSON line matches `/coverage-floor-violation: no \*\.test\.ts under packages\/bar\/src\//`.
+
+- [ ] **Task 9 — Register `INV-package-test-coverage-floor` in `invariants.manifest.ts` + `INVARIANTS.md` index.** (AC: 5)
+  - [ ] Subtask 9.1: Compute the contentHash of `packages/keel-invariants/src/check-package-test-coverage-floor.ts` (post-Subtask-8.1 final form) via `sha256sum < check-package-test-coverage-floor.ts | head -c 64`. Capture in Completion Notes per RALPH.md iter-358 sync-gate-hash-pinning recipe.
+  - [ ] Subtask 9.2: Append entry to the `raw: Invariant[]` array in `packages/keel-invariants/src/invariants.manifest.ts` (insert near the other `check-*` enforcer entries; see existing `INV-no-verify-bypass` at `invariants.manifest.ts:153-159` as the structural template):
+    ```typescript
+    {
+      id: 'INV-package-test-coverage-floor',
+      description:
+        'NFR1a substrate-side coverage floor enforcer — walks packages/* with src/ subdirs and reports coverage-floor-violation for any non-exempt package without ≥ 1 *.test.ts under src/. Exempt list (pre-bootstrap, per NFR1a): keel-templates, devbox. Invocation: pnpm keel-invariants:package-test-coverage-floor.',
+      sourcePath: 'packages/keel-invariants/src/check-package-test-coverage-floor.ts',
+      contentHash: '<resolved at dev-story per Subtask 9.1>',
+      anchors: ['INV-package-test-coverage-floor'],
+    },
+    ```
+  - [ ] Subtask 9.3: Append a new section + entry to `INVARIANTS.md` under a new section header `### Test coverage floor (Story 1.19)`:
+    - Section entry: `- **\`INV-package-test-coverage-floor\`** — NFR1a substrate-side coverage floor enforcer. Walks `packages/*` workspace entries with a `src/` subdir; reports `coverage-floor-violation` to stderr + exits 1 for any non-exempt package without ≥ 1 `*.test.ts` under `src/` (recursive). Pre-bootstrap exempt list (per NFR1a): `keel-templates`, `devbox` (Story 1.21 lands their backfill follow-ups). Invocation: `pnpm keel-invariants:package-test-coverage-floor`. Source: `packages/keel-invariants/src/check-package-test-coverage-floor.ts`.`
+    - Insertion point: ALPHABETICAL by Story number per existing INVARIANTS.md convention — Story 1.19 section lands AFTER `### Hook-bypass prevention (Story 1.6)` at line 40 and BEFORE `### Ralph loop contracts (halt-schema + path-resolution)` at line 44 (verify line ranges at dev-story; the substrate ledger captures the post-Story-1.18 baseline).
+
+- [ ] **Task 10 — Iter-env smoke validation + sync-gate clean.** (AC: 1, 2, 3, 4, 5)
+  - [ ] Subtask 10.1: `pnpm --filter @keel/keel-invariants build && pnpm --filter @keel/keel-invariants test` → all new + pre-existing tests pass; capture vitest summary line + post-build dist artifact list in Completion Notes per AC1/2/3/4/5.
+  - [ ] Subtask 10.2: `pnpm typecheck && pnpm lint && pnpm format:check` all exit 0 across the monorepo (covers Story 1.19's TS surface — `check-package-test-coverage-floor.ts` + 7 new `*.test.ts` files + manifest + INVARIANTS.md).
+  - [ ] Subtask 10.3: `pnpm keel-invariants:check` (Story 1.9 sync-gate) exits 0 for the NEW `INV-package-test-coverage-floor` entry. **Note (PARTIAL acceptable):** the three pre-existing `INV-git-hooks-preservation` drifts on `feat/epic-2-packaged-devbox` head (RALPH.md iter-358 gotcha; SCP IP § Notes line 53 "Address before Story 1.20 close-out") may persist unchanged — Story 1.19 does NOT touch the prek-hook surface. AC5 satisfied because the sync-gate passes for the NEW entry attributable to this story; pre-existing drifts are explicitly carved out per SC-9 (matches Story 1.18 SC-9 + AC2 precedent).
+  - [ ] Subtask 10.4: `pnpm keel-invariants:package-test-coverage-floor` (NEW) exits 0 against the live worktree — `keel-invariants` package now has coverage per Tasks 1–7; `keel-templates` + `devbox` are exempt; all other workspace packages with `src/` should satisfy via existing tests OR the enforcer gracefully reports them as violations (Story 1.21 follow-up). **If the enforcer reports red on packages outside the exempt list, hold per RALPH.md iter-358 carve-out recipe — those become Story 1.21 backfill candidates, NOT Story 1.19 fixes.** Capture report in Completion Notes.
+  - [ ] Subtask 10.5: `uv run pytest` (Story 1.18 substrate) still GREEN — no Python-side regression from this story.
+
+- [ ] **Task 11 — Sprint-status flip + Change Log v1.0 (lifecycle hygiene at story creation).** (no direct AC — process; executed at `/bmad-create-story` iter — DO NOT re-execute at dev-story time)
+  - [ ] Subtask 11.1: Sprint-status flip `1-19-backfill-keel-invariants-test-coverage: backlog → ready-for-dev` lands at `/bmad-create-story` iter (this iteration; skill-handled per workflow.md step 6).
+  - [ ] Subtask 11.2: Change Log v1.0 entry lands at create-story iter (see § Change Log).
+  - [ ] Subtask 11.3 (informational, no dev-story action): subsequent versions follow Story 1.18 precedent — v1.1 pre-dev SM-validate, v1.2 ATDD-scaffold (FULL red-phase per FR14n § ATDD-skip ground-(b) sunset; Story 1.19 is the first reopen-arc story to re-introduce ATDD), v1.3 dev-story landing, v1.4 trace, v1.5 post-dev SM, v1.6+ CR (4–6 expected per IP § Notes).
+
+## Success Criteria
+
+- **SC-1 — Test framework consistency.** All new tests authored under vitest (matches Story 1.17 substrate). The `prompt-injection-rules/hook-settings-tamper.test.ts` `node:test` outlier is migrated to vitest (Task 1) so the package has ONE runner.
+- **SC-2 — AC-vs-spec divergence honoured per AC2 + AC4 deliberate reinterpretations.** `check-*.ts` enforcer stderr shapes are tested AS-SHIPPED (prose for hook-syntax + dotfiles, JSON for nfr5a-minimum) — NOT normalised to a single JSON across all three. AC4's "non-existent sourcePath" reinterpreted as "sourcePath SHAPE violation" (Zod path-shape `.refine(...)`); file-existence coverage lives in AC3's `removed-from-source-only` drift fixture. SM-validate may dispute either reinterpretation.
+- **SC-3 — Sync-gate four-class scope lock.** AC3 scope is the FOUR drift classes named in epics.md:1225 (`added-to-source-only` / `removed-from-source-only` / `removed-from-docs-only` / `content-hash-mismatch`). The two `git-hook-*` drift classes from `sync-gate.ts:18-19` are OUT OF SCOPE for AC3 (deferred or absorbed at SM-validate).
+- **SC-4 — Vitest config minimum-edit.** `vitest.config.ts` only loses the `prompt-injection-rules/*.test.ts` exclude line (Task 1.2); the dist + node_modules excludes are byte-identical post-edit.
+- **SC-5 — Subtask brevity policy.** Strategy A is the spec lock at every "A vs B" decision point (Subtasks 4.3, 6.2). Strategy B is documented as fallback if dev-story finds Strategy A blocked, NOT pre-decided here per RALPH.md iter-357 lock-don't-defer rule.
+- **SC-6 — Branch-protection out of scope.** `INV-package-test-coverage-floor` enforcer is wired as a CLI bin + npm script. Pre-commit registration (the prek `pre-commit` config) lands in Story 1.21 audit OR is deferred to Epic 4; Story 1.19 ships the enforcer, NOT its pre-commit invocation. Mirrors Story 1.18 SC-6 (branch protection out of substrate scope).
+- **SC-7 — No `.python-version` analogue ships.** Coverage-floor enforcer reads workspace state from filesystem; no per-package metadata file required. `package.json` `bin` registration is THE registration surface.
+- **SC-8 — `INV-package-test-coverage-floor` is the SINGLE invariant added by this story.** `INV-fr14i-ci-workflow-presence` is Story 1.20's job (SCP § 4.4 separator). Story 1.19 does NOT preempt.
+- **SC-9 — Pre-existing `INV-git-hooks-preservation` drifts carved out.** The 3× pre-existing drifts on `feat/epic-2-packaged-devbox` head (RALPH.md iter-358) are NOT Story 1.19 fixes; Subtask 10.3 explicitly carves them out per Story 1.18 precedent.
+- **SC-10 — `pnpm format:check` idempotence holds.** prettier 3.8.3 idempotent against the new `*.test.ts` files + manifest insertion + INVARIANTS.md section addition (Story 1.17 SC-10 + Story 1.18 AC5 precedent).
+- **SC-11 — ATDD red-phase MANDATORY.** Story 1.19 is the FIRST reopen-arc story where ATDD red-phase scaffolding is in scope (Stories 1.17 + 1.18 ATDD-skipped via FR14n § ATDD-skip ground-(b) sunset). The runner now exists (Story 1.17 + 1.18 substrate); Story 1.19's AC class is "test backfill of untested impl" — exactly the case ground-(b) was hiding. `/bmad-testarch-atdd` MUST run; ATDD-skip with ground (a)/(b)/(c)/(d) is REJECTED per the SCP § 4.3 explicit directive ("full ATDD red-phase scaffolding (the runner now exists; Story 1.19's AC class is exactly the kind that ground-(b) was hiding); budget 4–6 CR iterations").
+- **SC-12 — Forecast envelope (handoff-fidelity).** **PATCH count expected per stage:** SM-validate 14–22 (vs Story 1.18 final 14 — wider because 5+5+4+5+3+4=26 distinct test surfaces vs Story 1.18's 5 ACs; expect higher-than-baseline polish at SM-validate); ATDD-scaffold N/A (red-phase produced via `/bmad-testarch-atdd`, NOT manual PATCH count); dev-story 0–4 (clean landing if SM-validate locks tightly; PATCHes only if substrate ledger gaps surface at dev-time per Story 1.18 iter-366 substrate-probe-gap class precedent); trace 0–2 (waivers per coverage gaps if any, but coverage IS the deliverable so traceability should be FULL); SM-verify 1–4 (matches Story 1.18 4-PATCH datapoint for substrate-extension class); CR 4–12 across 4–6 CR iterations (per IP § Notes line 54 / SCP § risk assessment "Medium — Story 1.19 backfill exposes pre-existing impl bugs in `keel-invariants`. Fix-loop iterations expected per the FR14n CR cycle. Budget 4–6 CR iterations"). **Cumulative pre-merge PATCH count target: 18–44** (vs Story 1.18 final 21 — wider envelope because adversarial backfill of untested code is the explicit class).
+
+## Dev Notes
+
+**Story State at create-story:** `_(no story) → drafted` per FR14n § Story Lifecycle Decision Matrix (this iteration). Sprint-status row `1-19-backfill-keel-invariants-test-coverage: backlog → ready-for-dev` flipped at this iter per Subtask 11.1.
+
+**Substrate readiness (per substrate ledger built at create-story time):**
+
+- `packages/keel-invariants/package.json` v0.0.0 — `"test": "vitest run"` script + `vitest 3.2.4` devDep + 5 existing `bin` entries (`keel-invariants-check` + 4 per-rule enforcers; per `package.json:19-26`).
+- `packages/keel-invariants/vitest.config.ts` — vitest 3.x config; `include: ['src/**/*.test.ts']`; `exclude: ['**/dist/**', '**/node_modules/**', '**/prompt-injection-rules/*.test.ts']`. The third exclude line (lines 7–14 inclusive of comment) is REMOVED in Task 1.2.
+- `packages/keel-invariants/src/__tests__/smoke.test.ts` — single-test file (1 `describe` + 1 `it`); the existing test passes per Story 1.17 baseline. Story 1.19 adds 7 new `*.test.ts` files alongside it (no rename, no remove).
+- `packages/keel-invariants/src/eslint-rules/no-verify-bypass.js` — single ESLint rule; 2 BYPASS_PATTERNS (`--no-verify` + `--dangerously-skip-permissions`); `messageId: 'bypass'` + `data: { token }` payload.
+- `packages/keel-invariants/eslint.config.keel-invariants.js:78,86,88` — `keel-invariants/no-verify-bypass: 'error'` in sharedBase + `'off'` override for `**/eslint-rules/**`, `**/keel-invariants/test/**`, `**/prompt-injection-rules/**`. **Implication:** the new test file at `__tests__/no-verify-bypass.test.ts` is INSIDE `eslint-rules/__tests__/` — covered by the `**/eslint-rules/**` glob (rule disabled inside test fixtures). Bypass tokens used as test fixtures will NOT trip lint.
+- `packages/keel-invariants/src/check-no-committed-dotfiles.ts:18-22` — denylist of 4 patterns (`.envrc` / `.envrc.local` / `.secrets` / `.claude/settings.local.json`) + 2 schema-companion exemptions (`.envrc.example`, `.secrets.example` per source comment).
+- `packages/keel-invariants/src/check-claude-hook-syntax.ts:43-46` — shebang-dispatch checker (`bash` for bash shebang; `bash` + `dash` for sh shebang; `bash` default).
+- `packages/keel-invariants/src/check-nfr5a-minimum.ts:30-31` — `DENY_MIN = 13`, `ALLOW_MIN = 6`. Reads `${REPO_ROOT}/.claude/settings.json` via `import.meta.url` math.
+- `packages/keel-invariants/src/sync-gate.ts:13-19` — 6 DriftKinds total; AC3 scope is the 4 named in epics.md:1225 (the 2 `git-hook-*` are out of scope per SC-3).
+- `packages/keel-invariants/src/sync-gate.ts:36` — `ANCHOR_REGEX = /^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` — INVARIANTS.md anchor matcher; fixture INVARIANTS.md must use this exact `- **\`INV-...\`**` shape.
+- `packages/keel-invariants/src/invariants.manifest.ts:35-48` — `InvariantSchema` shape: id (regex `/^INV-[a-z0-9]+(-[a-z0-9]+)+$/`), description (min 1), sourcePath (refine no-abs / no-traversal / no-backslash), contentHash (regex `/^[0-9a-f]{64}$/`), anchors (array min 1), hashScope (optional `HashScopeSchema`).
+- `packages/keel-invariants/src/prompt-injection-rules/hook-settings-tamper.test.ts:12-13` — uses `node:test` + `node:assert/strict`; 8 tests (5 positive S4-claude/git/skip + 3 negative across the 3 rules + a sweep). Migrated to vitest in Task 1.
+- `packages/keel-invariants/src/__tests__/smoke.test.ts:1` — vitest import shape (`import { describe, it, expect } from 'vitest'`) — copy-paste this header into all new test files for consistency.
+- Workspace EXEMPT list per NFR1a (PRD line 1068): `keel-invariants` (this story IS the backfill — NOT exempt at end-of-story), `keel-templates`, `devbox` (Story 1.21 backfill follow-up).
+
+**Enforcer stderr shapes (substrate ledger; AC2 honours AS-SHIPPED per SC-2):**
+
+- `check-no-committed-dotfiles.ts:35-38` — prose lines: `"Refusing to commit gitignored secret file: <file> (matches <pattern-name>).\n  See Story 2.2 AC 5 + ...\n"`. NOT JSON.
+- `check-claude-hook-syntax.ts:88-97` — prose with per-failure indent: header `"check-claude-hook-syntax: N syntax failure(s) in .claude/hooks/*.sh\n"` + per-failure lines `"  <checker> -n <file>:\n    <stderr>\n"` + closing prose. NOT JSON.
+- `check-nfr5a-minimum.ts:42-44` — single-line JSON: `{"status":"violation","path":"<settings-path>","message":"<msg>"}`. JSON ONLY (use `JSON.parse(stderr.trim())` in tests).
+
+**Build pipeline order (turbo + tsc):**
+
+- `pnpm --filter @keel/keel-invariants build` runs `tsc -b` (per `package.json:28`) → emits `dist/check-*.js` + `dist/sync-gate.js` + `dist/manifest-reader.js` + `dist/invariants.manifest.js`.
+- `pnpm --filter @keel/keel-invariants test` runs `vitest run` (per `package.json:31`) which globs `src/**/*.test.ts`. Tests that `execFile node dist/check-*.js` REQUIRE a prior `build` — chain via `pnpm --filter @keel/keel-invariants build && test` per turbo `dependsOn: ["^build"]` (Story 1.17 substrate).
+- Root `pnpm test` resolves to `pnpm turbo run test` (Story 1.17 substrate). Turbo handles the per-package build → test ordering.
+
+**Vitest 3.x ESM specifics (substrate probe at create-story):**
+
+- `vitest.config.ts:1` — `import { defineConfig } from 'vitest/config';` (not `'vitest'` — sub-export).
+- Test files use ESM (`type: 'module'` in `package.json:5`); `import.meta.dirname` is available (Node 20.11+ baseline; cc-devbox runs Node 20+ per substrate ledger).
+- `vi.mock(...)` is supported per vitest 3.x; the path argument is RESOLVED at hoist time (the mock is hoisted to the top of the file before imports). Use `vi.doMock(...)` for per-test dynamic mocks (Subtask 6.2 Strategy B fallback).
+
+**Pre-existing INV-git-hooks-preservation drifts (carve-out per SC-9):**
+
+- 3× drifts on `feat/epic-2-packaged-devbox` head (`INV-git-hooks-preservation` content-hash + `git-hook-missing` × 2 per RALPH.md iter-358). Sync-gate's `git-hook-*` walker hardcodes `<repoRoot>/.git/hooks` which is empty in worktree mode (worktree carries its `.git` as a file pointing at the main-repo gitdir, not a directory).
+- Story 1.19's edits do NOT touch `.git/hooks` or `INV-git-hooks-preservation` source. Subtask 10.3 confirms PARTIAL sync-gate clean (NEW entry green; pre-existing drifts persist unchanged) is acceptable per AC5 carve-out.
+
+**ATDD red-phase scaffolding (FR14n § ATDD-skip ground-(b) sunset):**
+
+- Per IP § QUEUE Story 1.19 lifecycle + per RALPH.md FR14n state matrix `validated → atdd-scaffolded`, the next iteration after SM-validate runs `/bmad-testarch-atdd` to author RED-phase tests for AC1–AC5 (FULL coverage).
+- Story 1.18 was ATDD-SKIPPED via ground-(a) substrate-verification. Story 1.19 must NOT skip — the SCP § risk assessment + IP § Notes line 54 explicitly forecast 4–6 CR iterations driven by "pre-existing impl bugs in `keel-invariants` will surface for the first time under test." That surfacing IS the value of the ATDD red phase here.
+- Red-phase output goes to IP § ATDD Red Phase. Tests turn GREEN as `/bmad-dev-story` iterations land per AC; Ralph removes each from § ATDD Red Phase as it goes GREEN per Ralph step 4 guardrail 4.
+
+### Project Structure Notes
+
+- All new test files under `packages/keel-invariants/src/` (co-located with source per existing `__tests__/smoke.test.ts` + `prompt-injection-rules/*.test.ts` precedent).
+- New enforcer at `packages/keel-invariants/src/check-package-test-coverage-floor.ts` (alongside the 5 pre-existing `check-*.ts` enforcers).
+- `packages/keel-invariants/package.json` gains 1 bin entry + 1 script entry (mirror existing 5; matches NFR5a minimum-extension policy).
+- `INVARIANTS.md` gains 1 new section header `### Test coverage floor (Story 1.19)` + 1 entry under it.
+- `invariants.manifest.ts` gains 1 entry in the `raw: Invariant[]` array.
+- `vitest.config.ts` loses 1 exclude entry + 4 lines of comment (Task 1.2).
+
+### References
+
+- `_bmad-output/planning-artifacts/epics.md:1205-1241` — Story 1.19 ACs source-of-truth (epic-spec).
+- `_bmad-output/planning-artifacts/sprint-change-proposal-issue-233.md:69,103,125,164,206,211,228,326-362,433,471,481-483` — SCP context, scope, risk forecast (4–6 CR iterations), implementation footprint forecast (~20 test files), invariant registration plan, NFR1a + Epic 4 hard-precondition.
+- `_bmad-output/planning-artifacts/architecture.md:198-240` — § M0 substrate developer-productivity floor: TS + Python runtime substrate, CI integration, coverage floor (NFR1a), Stories 1.17–1.21 bootstrap arc.
+- `_bmad-output/planning-artifacts/prd.md:969,1015-1016,1068` — FR14o (test runner mandate), FR42 (`INVARIANTS.md` agent-readable index), FR43 (sync-gate), NFR1a (test coverage floor; pre-bootstrap exempt list).
+- `_bmad-output/implementation-artifacts/1-18-bootstrap-python-test-runner-pytest-under-uv.md` — Story 1.18 (sibling; immediate predecessor; substrate-extension class precedent).
+- `_bmad-output/implementation-artifacts/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md` — Story 1.17 (TS substrate; vitest pin + smoke test pattern + CI workflow YAML; CR iter-362 = 2-PATCH inline-bundle-close datapoint).
+- `packages/keel-invariants/src/eslint-rules/no-verify-bypass.js` — single ESLint rule under test (AC1).
+- `packages/keel-invariants/src/check-{claude-hook-syntax,nfr5a-minimum,no-committed-dotfiles}.ts` — three enforcers under test (AC2).
+- `packages/keel-invariants/src/{check,sync-gate,manifest-reader}.ts` — sync-gate CLI under test (AC3); `runSyncGate()` programmatic API per `sync-gate.ts:99`.
+- `packages/keel-invariants/src/invariants.manifest.ts:35-48` — Zod schemas under test (AC4).
+- `packages/keel-invariants/src/__tests__/smoke.test.ts` — vitest import-style template for new test files.
+- `packages/keel-invariants/src/prompt-injection-rules/hook-settings-tamper.test.ts` — `node:test` migrated to vitest in Task 1.
+- `INVARIANTS.md:40-42` — `### Hook-bypass prevention (Story 1.6)` section + `INV-no-verify-bypass` entry; structural template for the new Story 1.19 section + entry.
+- `INVARIANTS.md:44-47` — adjacent `### Ralph loop contracts` section anchoring the alphabetical-by-Story-number insertion point for the new section.
+
+## Dev Agent Record
+
+### Agent Model Used
+
+`claude-opus-4-7` (`claude-opus-4-7[1m]`)
+
+### Debug Log References
+
+### Completion Notes List
+
+- Story file authored at `/bmad-create-story` iter via the bmad-create-story workflow (Ultimate Story Context Engine). Story State `_(no story) → drafted` per FR14n § Story Lifecycle Decision Matrix.
+- Substrate ledger built at create-story time via Glob + Read against `packages/keel-invariants/src/**/*` + `vitest.config.ts` + `eslint.config.keel-invariants.js` + `package.json` + `INVARIANTS.md` + `invariants.manifest.ts`. Per-AC source-of-truth line refs pinned for SM-validate (no spec wandering at SM gate per RALPH.md iter-357 lock-don't-defer rule).
+- 6 ACs / 11 Tasks / ~38 subtasks scaffolded; all 12 SCs pinned. Forecast envelope SC-12 set 18–44 cumulative pre-merge PATCH (vs Story 1.18 final 21) with 4–6 CR iterations expected per IP § Notes line 54.
+- ATDD red-phase MANDATORY (SC-11) — first reopen-arc story to re-introduce ATDD post-Stories-1.17/1.18 ATDD-skip era. Tests authored RED via `/bmad-testarch-atdd`, GREEN as dev-story lands.
+- Sync-gate carve-out (SC-9 + Subtask 10.3): pre-existing `INV-git-hooks-preservation` drifts (3×) persist unchanged; Story 1.19 edits do NOT touch `.git/hooks` or that invariant's source.
+- Two AC-vs-spec deliberate reinterpretations recorded per SC-2: AC2 honours per-enforcer stderr shape AS-SHIPPED (NOT normalised); AC4 reinterprets "non-existent sourcePath" as "sourcePath SHAPE violation" (file-existence covered by AC3's `removed-from-source-only` drift fixture). SM-validate may dispute either.
+
+### File List
+
+To be populated at dev-story iter — anticipated:
+
+- `packages/keel-invariants/vitest.config.ts` (modify — Task 1.2)
+- `packages/keel-invariants/src/prompt-injection-rules/hook-settings-tamper.test.ts` (modify — Task 1.1; node:test → vitest)
+- `packages/keel-invariants/src/eslint-rules/__tests__/no-verify-bypass.test.ts` (NEW — Task 2)
+- `packages/keel-invariants/src/__tests__/check-no-committed-dotfiles.test.ts` (NEW — Task 3)
+- `packages/keel-invariants/src/__tests__/check-nfr5a-minimum.test.ts` (NEW — Task 4)
+- `packages/keel-invariants/src/__tests__/check-claude-hook-syntax.test.ts` (NEW — Task 5)
+- `packages/keel-invariants/src/__tests__/sync-gate.test.ts` (NEW — Task 6)
+- `packages/keel-invariants/src/__tests__/invariants.manifest.test.ts` (NEW — Task 7)
+- `packages/keel-invariants/src/check-package-test-coverage-floor.ts` (NEW — Task 8)
+- `packages/keel-invariants/src/__tests__/check-package-test-coverage-floor.test.ts` (NEW — Task 8)
+- `packages/keel-invariants/package.json` (modify — Task 8.2; +1 bin +1 script)
+- `packages/keel-invariants/src/invariants.manifest.ts` (modify — Task 9.2; +1 array entry)
+- `INVARIANTS.md` (modify — Task 9.3; +1 section +1 entry)
+
+## Change Log
+
+- v1.0 (2026-04-26, iter-370): `/bmad-create-story` autonomous discovery from sprint-status first-backlog row (`1-19-backfill-keel-invariants-test-coverage`). FR14n state transition `_(no story) → drafted`. Sprint-status row `backlog → ready-for-dev`. 6 ACs / 11 Tasks / ~38 subtasks scaffolded; SC-1 through SC-12 pinned. Forecast envelope: SM-validate 14–22 PATCH, dev-story 0–4, trace 0–2, SM-verify 1–4, CR 4–12 across 4–6 iterations; cumulative pre-merge PATCH count target 18–44 (vs Story 1.18 final 21 — wider band per adversarial-backfill-of-untested-code class). ATDD red-phase MANDATORY (SC-11; first reopen-arc story to re-introduce ATDD post-Stories-1.17/1.18 ATDD-skip era). Two AC-vs-spec reinterpretations honoured per SC-2 (AC2 enforcer stderr shapes AS-SHIPPED; AC4 sourcePath SHAPE violation in lieu of file-existence). Pre-existing `INV-git-hooks-preservation` drifts (3×) carved out per SC-9.
