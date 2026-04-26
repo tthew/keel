@@ -218,7 +218,7 @@ Story 1.21 is a **pure documentation/audit story** — no behaviour change, no n
 
 ATDD-skip ground for Story 1.21: **(a) substrate-verification** — every AC is verifiable via filesystem state (file exists at canonical path; cross-link grep returns N matches; sync-gate output count <= baseline) WITHOUT runtime test execution. The `test-debt.md` artefact IS the deliverable; verifying its contents IS the verification.
 
-This makes Story 1.21 the **second post-bootstrap ATDD-skip ground-(a) story** (after Stories 1.20's hybrid (a)+(c) — Story 1.20 was the first to invoke the post-bootstrap ground-discrimination protocol; Story 1.21 follows with pure ground-(a) since there is no behaviour-side AC to cover).
+This makes Story 1.21 the **first pure-ground-(a) post-bootstrap story** — Story 1.20 (the first post-bootstrap ATDD-skip overall) was hybrid (a)+(c), with ground (c) covering the INV-git-hooks-preservation contentHash carry-forward on AC6, so Story 1.21 is the 2nd post-bootstrap ATDD-skip in chronological order but the 1st with pure ground (a) (every AC verifiable via filesystem state alone, no carry-forward leg). Story 1.20 was the first to invoke the post-bootstrap ground-discrimination protocol; Story 1.21 follows as the first pure-ground-(a) instance since there is no behaviour-side AC to cover.
 
 **Skill-mode-determination prompt incompatible with autonomous Ralph operation per guardrail 3** — past-Ralph practice (iter-358 Story 1.17 + iter-365 Story 1.18 + iter-389 Story 1.20) skips skill invocation entirely, recording rationale in IP § ATDD Skip Rationale only. Story 1.21 follows this precedent.
 
