@@ -22,19 +22,21 @@
     "keel-invariants:tokens-contrast": "./dist/check-tokens-contrast.js",
     "keel-invariants:no-committed-dotfiles": "./dist/check-no-committed-dotfiles.js",
     "keel-invariants:claude-hook-syntax": "./dist/check-claude-hook-syntax.js",
-    "keel-invariants:nfr5a-minimum": "./dist/check-nfr5a-minimum.js"
+    "keel-invariants:nfr5a-minimum": "./dist/check-nfr5a-minimum.js",
+    "keel-invariants:package-test-coverage-floor": "./dist/check-package-test-coverage-floor.js"
   },
   "scripts": {
     "build": "tsc -b",
     "typecheck": "tsc -b --noEmit",
     "lint": "eslint .",
-    "test": "node --test dist/prompt-injection-rules/hook-settings-tamper.test.js",
+    "test": "vitest run",
     "check": "node dist/check.js",
     "keel-invariants:tokens-schema": "node dist/check-tokens-schema.js",
     "keel-invariants:tokens-contrast": "node dist/check-tokens-contrast.js",
     "keel-invariants:no-committed-dotfiles": "node dist/check-no-committed-dotfiles.js",
     "keel-invariants:claude-hook-syntax": "node dist/check-claude-hook-syntax.js",
-    "keel-invariants:nfr5a-minimum": "node dist/check-nfr5a-minimum.js"
+    "keel-invariants:nfr5a-minimum": "node dist/check-nfr5a-minimum.js",
+    "keel-invariants:package-test-coverage-floor": "node dist/check-package-test-coverage-floor.js"
   },
   "dependencies": {
     "ajv": "8.17.1",
@@ -49,6 +51,7 @@
     "eslint": "10.2.1",
     "globals": "17.5.0",
     "prettier": "3.8.3",
-    "typescript-eslint": "8.58.2"
+    "typescript-eslint": "8.58.2",
+    "vitest": "3.2.4"
   }
 }

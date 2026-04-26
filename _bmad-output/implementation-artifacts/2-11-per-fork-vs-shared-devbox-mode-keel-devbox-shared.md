@@ -434,3 +434,7 @@ claude-opus-4-7[1m] orchestrating `/bmad-dev-story` skill directly (Ralph build 
 - **Substrate composition.** Story 2.11 depends on Stories 2.1 (compose), 2.2 (`.envrc.example` knob publication), 2.5 (named volume), 2.6 (shim pattern + env-check), 2.7 (ralph shims), 2.8 (claude-host), 2.9 (gh-auth-host), 2.10 (prereq-check). Resolver extension pattern, Compose `name:` parameterisation, and env-check orphan-container warning all compose cleanly on precedent patterns.
 - **No PRD amendment.** FR4 at `prd.md:930` + architecture § Workspace mount at `architecture.md:547` verbatim matches Story 2.11's contract; substrate-only delivery.
 - **Status:** `ready-for-dev` (sprint-row); Ralph-internal Story State `drafted`. Next iter: pre-dev `/bmad-create-story (args: "review")` gate (`drafted → validated`).
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 2-11](./test-debt.md#story-2-11) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

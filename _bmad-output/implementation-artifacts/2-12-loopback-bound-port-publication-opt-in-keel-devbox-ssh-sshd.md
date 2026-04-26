@@ -677,3 +677,7 @@ Four parallel Sonnet subagents re-analysed story against sources. Ralph triage p
 3. Compose v2 `ports:` merge REPLACE-vs-CONCATENATE claim (per compose-spec.io, `ports` IS in the additive-sequence key list alongside `expose`, `external_links`, `dns`, `dns_search`, `tmpfs`, `volumes` — the original spec claim was correct).
 
 **Outcome.** Story State `drafted → validated`. 8 PATCH applied in-place; 8 DEFER + 3 DISMISS logged. Next gate: `/bmad-testarch-atdd` for `validated → atdd-scaffolded` (forecast: NON-SKIP for ACs 1-3 via `docker compose config` + entrypoint behaviour smokes; ACs 4-5 operator-workstation-deferred per iter-256/258 precedent). Pre-dev SM review PATCH-count (8) lands slightly above iter-221 LESSON's ~5-ceiling — driven by the two CRITICAL substantive findings (F3 liveness + F4 userland-proxy) that are NOT density-amortisable; the three additional non-blocker PATCHes (7, 8, and half of 2) are narrow pins.
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 2-12](./test-debt.md#story-2-12) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

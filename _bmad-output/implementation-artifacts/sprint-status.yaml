@@ -1,4 +1,7 @@
 # generated: 2026-04-19 17:43 UTC
+# last_updated: 2026-04-26 Epic-1-reclosed-iter-435-issue-233-SCP-REOPEN-ARC-complete-Stories-1-17-to-1-21-done UTC
+# last_updated: 2026-04-26 Story-1-21-done-CR-pass-5-iter-434-0-PATCH-0-DEFER-33-DISMISS UTC
+# last_updated: 2026-04-26 Story-1-21-review UTC
 # last_updated: 2026-04-21 Story-2-1-fixes-pending-AR-1-landed UTC
 # last_updated: 2026-04-21 Story-2-1-fixes-pending UTC
 # last_updated: 2026-04-21 Story-2-1-done UTC
@@ -75,6 +78,11 @@
 # last_updated: 2026-04-25 Story-2-18-review-iter-350 UTC
 # last_updated: 2026-04-25 Story-2-18-done-iter-353 UTC
 # last_updated: 2026-04-25 Epic-2-in-progress-to-done-Story-2-18-closed-iter-353 UTC
+# last_updated: 2026-04-25 Epic-1-reopened-stories-1-17-to-1-21-appended-correct-course-issue-233 UTC
+# last_updated: 2026-04-25 Story-1-17-create-story-drafted-iter-1 UTC
+# last_updated: 2026-04-25 Story-1-17-ready-for-dev-to-review-iter-359 UTC
+# last_updated: 2026-04-25 Story-1-17-review-to-done-iter-362 UTC
+# last_updated: 2026-04-25 Story-1-18-create-story-drafted-iter-363 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -110,14 +118,24 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-25 Epic-2-done-to-in-progress-Story-2-18-active-iter-347 UTC
+last_updated: 2026-04-26 Story-1-18-done-cr-iter-369 UTC
+last_updated: 2026-04-26 Story-1-19-create-story-drafted-iter-370 UTC
+last_updated: 2026-04-26 Story-1-19-in-progress-iter-374 UTC
+last_updated: 2026-04-26 Story-1-19-review-iter-374 UTC
+last_updated: 2026-04-26 Story-1-19-fixes-pending-CR-iter-377-8-PATCH-7-DEFER UTC
+last_updated: 2026-04-26 Story-1-19-done-CR-iter-386-1-PATCH-housekeeping-6-DEFER UTC
+last_updated: 2026-04-26 Story-1-20-create-story-drafted-iter-387 UTC
+last_updated: 2026-04-26 Story-1-20-in-progress-iter-390 UTC
+last_updated: 2026-04-26 Story-1-20-review-iter-390 UTC
+last_updated: 2026-04-26 Story-1-20-done-CR-pass-1-iter-397-0-PATCH-3-DEFER-16-DISMISS UTC
+last_updated: 2026-04-26 Story-1-21-create-story-drafted-iter-398 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
-  epic-1: done
+  epic-1: done  # reclosed iter-435 after Story 1.21 done at iter-434 CR-pass-5 PASS — issue #233 SCP REOPEN-ARC complete
   1-1-monorepo-scaffold-typescript-project-references: done
   1-2-packages-keel-invariants-bootstrap-shared-eslint-prettier-commitlint-configs: done
   1-3-eslint-no-restricted-imports-import-boundary-rules: done
@@ -134,6 +152,11 @@ development_status:
   1-14-release-please-monorepo-config-single-bundled-mode: done
   1-15-renovate-config-with-version-pinning-rules-i7: done
   1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold: done
+  1-17-bootstrap-typescript-test-runner-vitest-minimal-ci: done
+  1-18-bootstrap-python-test-runner-pytest-under-uv: done
+  1-19-backfill-keel-invariants-test-coverage: done
+  1-20-activate-fr14i-for-real-end-vacuous-pass: done
+  1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups: done
   epic-1-retrospective: optional
 
   epic-2: done

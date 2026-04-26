@@ -385,3 +385,7 @@ _Dismissed as noise per iter-36 + iter-52 + iter-59 two-layer convergence doctri
 - EH CRLF vs LF line-ending portability — DISMISS (emitter emits explicit `\n` strings; `writeFileSync` without `encoding` default is utf-8 lf; Windows consumers would see expected LF).
 - EH non-Error thrown value with circular structure — DISMISS (Node stdlib handles; not a Story 1.12 AC requirement).
 - EH deep alias-chain stack overflow — DISMISS (current max chain depth is 2 hops: `state.in-progress → accent.default → accent.500 → literal`; stack-safe).
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 1-12](./test-debt.md#story-1-12) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

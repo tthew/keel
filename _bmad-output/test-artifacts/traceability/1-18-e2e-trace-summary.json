@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-26T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "f2d15fc",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "1.18",
+    "label": "Bootstrap Python test runner (pytest under uv) + root pyproject.toml"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-18-bootstrap-python-test-runner-pytest-under-uv.md (AC1–AC5)"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 1,
+    "partially_covered": 4,
+    "uncovered": 0,
+    "overall_coverage_pct": 20,
+    "priority_breakdown": {
+      "P0": { "total": 2, "covered": 1, "pct": 50 },
+      "P1": { "total": 1, "covered": 0, "pct": 0 },
+      "P2": { "total": 2, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 4, "criteria_covered": 1 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 3,
+    "cases": 4,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 1,
+    "medium_gaps": 2,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "partial",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "50%",
+    "p0_status": "NOT_MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "0%",
+    "p1_status": "NOT_MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "20%",
+    "overall_status": "NOT_MET"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "HIGH",
+      "action": "Story 1.20 activates FR14i (INV-fr14i-ci-workflow-presence) covering both node + python jobs and discharges AC3's behavioural half",
+      "requirements": ["AC3"]
+    },
+    {
+      "priority": "HIGH",
+      "action": "Story 1.20 OR 1.21 extends INV-deps-version-pinning to cover uv.lock (SC-9 two-path deferral) — discharges AC2 manifest gap",
+      "requirements": ["AC2"]
+    },
+    {
+      "priority": "HIGH",
+      "action": "Story 1.21 audit registers INV-pytest-pin + resolves INV-git-hooks-preservation worktree-mode resolver bug",
+      "requirements": ["AC2"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 1.21 audit (or future Python coverage backfill story) adds adversarial test coverage beyond the four smoke literals — discharges AC1 happy-path-only minimality",
+      "requirements": ["AC1"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review at Story 1.21 to assess test quality post-backfill across both runtimes",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-18-bootstrap-python-test-runner-pytest-under-uv.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}

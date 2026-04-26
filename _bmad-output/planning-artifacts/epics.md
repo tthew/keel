@@ -1137,6 +1137,166 @@ So that forks can layer rules on top of substrate without touching `packages/kee
 **Then** `INVARIANTS.fork.md` is NOT auto-created
 **And** the pattern + template are documented for fork operators to opt into manually.
 
+##### Story 1.17: Bootstrap TypeScript test runner (Vitest) + minimal CI workflow
+
+As a substrate operator who needs Ralph's pre-push CI gate (FR14i) to be non-vacuous and `Required tests:` (FR14a) to reference real files,
+I want Vitest installed at the workspace root, pinned per I7, with one smoke test wiring `packages/keel-invariants/` and a `.github/workflows/ci.yml` running `pnpm turbo run test lint typecheck`,
+So that every subsequent Ralph iteration can validate behaviour against running tests rather than against vacuous "no checks reported" CI passes (FR14o; closes the architecture.md:154 deferral; resolves issue #233 for the TS runtime).
+
+**Acceptance Criteria:**
+
+**Given** a fresh devbox checkout of `feat/epic-2-packaged-devbox` post-Story 1.17,
+**When** I run `pnpm install --frozen-lockfile && pnpm test`,
+**Then** Vitest discovers and runs `packages/keel-invariants/src/__tests__/smoke.test.ts`
+**And** the smoke test passes
+**And** the exit code is 0.
+
+**Given** the Vitest pin in `packages/config/package.json` and `pnpm.overrides` in root `package.json`,
+**When** Story 1.9's sync-gate runs (`pnpm keel-invariants:check`),
+**Then** the manifest's `INV-deps-version-pinning` row remains green (Vitest + transitive deps version-pinned per I7 exact-version policy).
+
+**Given** the `.github/workflows/ci.yml` workflow,
+**When** a PR is opened against `main`,
+**Then** the `node` job runs `pnpm install --frozen-lockfile && pnpm turbo run test lint typecheck`
+**And** the workflow is marked as a required check on `main`.
+
+**Given** the `turbo.json` `test` task,
+**When** `pnpm test` runs,
+**Then** the task uses `dependsOn: ["^build"]` (build prerequisites resolve first)
+**And** declares `outputs: ["coverage/**"]` for Turbo cache fidelity.
+
+**Given** the AGENTS.md + CLAUDE.md common-commands tables,
+**When** I run `pnpm test` from the repo root,
+**Then** the table row exists documenting the command.
+
+##### Story 1.18: Bootstrap Python test runner (pytest under uv) + project shape
+
+As a substrate operator with Python tooling (`ralph.py`, `scripts/`, `packages/devbox/tui/`) currently bootstrapped only via PEP 723 inline-script metadata,
+I want a root `pyproject.toml` + `uv.lock` declaring shared dev deps (pytest, pytest-asyncio, ruff, mypy) and pytest test scaffolds for each Python module,
+So that Python code has the same test-validation discipline as TypeScript code (FR14o; new architectural decision per architecture.md § M0 substrate developer-productivity floor; resolves issue #233 for the Python runtime).
+
+**Acceptance Criteria:**
+
+**Given** the root `pyproject.toml` declaring `[tool.pytest.ini_options]` testpaths,
+**When** I run `uv sync && uv run pytest`,
+**Then** pytest discovers and runs the test scaffolds (`tests/test_ralph.py` + `scripts/tests/test_bootstrap_bmad_agents.py` + `packages/devbox/tui/tests/test_theme.py`)
+**And** all scaffolds pass
+**And** the exit code is 0.
+
+**Given** the `.github/workflows/ci.yml` workflow extension,
+**When** a PR is opened against `main`,
+**Then** a `python` job runs `uv sync && uv run pytest`
+**And** the job is marked as a required check on `main` alongside the `node` job from Story 1.17.
+
+**Given** the `uv.lock` pinning,
+**When** `uv sync` runs,
+**Then** the lockfile resolves deterministically (identical versions across CI runs)
+**And** Story 1.9's sync-gate (extended in Story 1.20 to cover Python deps if applicable) does not flag drift.
+
+**Given** the AGENTS.md + CLAUDE.md common-commands tables,
+**When** I run `uv run pytest` from the repo root,
+**Then** the table row exists documenting the command.
+
+**Given** existing PEP 723 inline-metadata in `ralph.py` (declaring `textual>=1.0.0` etc.),
+**When** root `pyproject.toml` declares overlapping deps,
+**Then** the test scaffolds run successfully under both invocation paths
+**And** the migration plan (single source vs dual source) is recorded in the story's Dev Agent Record.
+
+##### Story 1.19: Backfill `keel-invariants` test coverage
+
+As a substrate operator who relies on `packages/keel-invariants/` to gate merges via FR42 / FR43 / FR43a,
+I want test coverage for every ESLint rule, every per-rule `check-*.ts` enforcer, the sync-gate CLI, and the `invariants.manifest.ts` Zod-shape contract,
+So that the highest-priority untested code in the repo is no longer untested before Epic 4 (per-iteration security verification) starts extending it (NFR1a; closes issue #233 D2 sequencing decision).
+
+**Acceptance Criteria:**
+
+**Given** each ESLint rule in `packages/keel-invariants/src/`,
+**When** Story 1.19 lands,
+**Then** there exists at least one positive test (rule fires on offending input) AND one negative test (rule does NOT fire on compliant input) per rule
+**And** all tests pass via `pnpm --filter @keel/keel-invariants test`.
+
+**Given** each per-rule `check-*.ts` enforcer (`check-claude-hook-syntax.ts`, `check-nfr5a-minimum.ts`, `check-no-committed-dotfiles.ts`),
+**When** Story 1.19 lands,
+**Then** there exists at least one integration test invoking the enforcer's CLI entry point against a fixture directory tree
+**And** the test asserts both the green-path exit-code-0 and the red-path exit-code-1 + structured JSON drift report.
+
+**Given** the sync-gate CLI (`packages/keel-invariants/src/check.ts` + `manifest-reader.ts` + `sync-gate.ts`),
+**When** Story 1.19 lands,
+**Then** there exists at least one integration test exercising each of the four drift classes (added-to-source-only / removed-from-source-only / removed-from-docs-only / content-hash-mismatch)
+**And** each drift class produces the expected exit-code-1 + DriftReport JSON shape.
+
+**Given** the `invariants.manifest.ts` Zod schema,
+**When** Story 1.19 lands,
+**Then** there exists at least one schema-rejection test per malformed-input class (bad ID format, missing required field, content-hash regex violation, empty anchors, non-existent sourcePath)
+**And** each malformed input produces a Zod parse error.
+
+**Given** the new invariant `INV-package-test-coverage-floor`,
+**When** Story 1.19 registers it in `invariants.manifest.ts` + `INVARIANTS.md` index,
+**Then** Story 1.9's sync-gate passes against the registered manifest entry
+**And** the invariant's check-*.ts enforcer (or sync-gate built-in check) walks workspace packages and reports `coverage-floor-violation` for any `src/`-bearing package without ≥ 1 passing test.
+
+**Given** Story 1.19's CR pass,
+**When** `/bmad-code-review (args: "2")` runs,
+**Then** all action items are addressed in QUEUE fix iterations OR explicitly deferred with `defer:` rationale
+**And** Story 1.19 transitions `sm-verified → done` with no un-addressed CR findings.
+
+##### Story 1.20: Activate FR14i for real (end vacuous-pass mode)
+
+As a Ralph operator whose pre-push CI gate (FR14i) has been passing vacuously across every Story 1.x and 2.x iteration,
+I want the gate to operate as specified once `.github/workflows/ci.yml` exists, with explicit substrate-side verification that the workflow file is registered in the invariants manifest,
+So that future Ralph iterations cannot regress the gate to vacuous-pass mode by accidentally deleting or renaming the workflow file (FR14i amendment per issue #233; new invariant `INV-fr14i-ci-workflow-presence`).
+
+**Acceptance Criteria:**
+
+**Given** Story 1.17 + 1.18 have landed (`.github/workflows/ci.yml` exists),
+**When** Story 1.20 registers `INV-fr14i-ci-workflow-presence` in `packages/keel-invariants/src/invariants.manifest.ts`,
+**Then** the manifest entry's `sourcePath` is `.github/workflows/ci.yml`
+**And** the entry's `contentHash` matches the file's sha256
+**And** Story 1.9's sync-gate passes.
+
+**Given** the workflow file is deleted or moved,
+**When** the sync-gate runs,
+**Then** the gate fails with `content-hash-mismatch` OR `source-not-found` per the manifest semantics
+**And** the failure blocks pre-merge-fast.
+
+**Given** RALPH.md's execute-spine documentation (orient step 0h, execute step 5),
+**When** Story 1.20 amends the doc,
+**Then** the orient step explicitly references "FR14i operates non-vacuously when `INV-fr14i-ci-workflow-presence` is green"
+**And** the execute step references the activation as in-effect post-Story 1.20.
+
+**Given** the `INVARIANTS.md` index entry for `INV-fr14i-ci-workflow-presence`,
+**When** Story 1.20 lands,
+**Then** the entry references the manifest row + the docs/invariants/fr14i.md note (or inline anchor in docs/invariants/ralph-execute.md if no dedicated doc exists)
+**And** Story 1.9's sync-gate's anchor-walker resolves the entry.
+
+##### Story 1.21: Sweep prior `ATDD deferred` stories into `test-debt:` follow-ups
+
+As a substrate operator who has accumulated 10+ ATDD-skip precedents across Stories 1.7–1.16 (RALPH.md § ATDD-skip-precedents) plus an unmeasured count across Stories 2.1–2.18,
+I want a single audit pass producing `test-debt:` follow-up entries cataloguing each pre-bootstrap story's coverage gap with the ground (a/b/c) it cited at skip time,
+So that the test-debt is visible (not invisible accumulating drift), prioritisable (we can rank by risk), and bounded (no further ATDD-skip ground (b) accrues post-bootstrap per FR14n amendment per issue #233).
+
+**Acceptance Criteria:**
+
+**Given** the audit walks Stories 1.1–1.16 + 2.1–2.18,
+**When** Story 1.21 lands,
+**Then** there exists `_bmad-output/implementation-artifacts/test-debt.md` with one entry per story carrying an ATDD-skip
+**And** each entry records (a) the skip ground cited (a/b/c per FR14n matrix row 3); (b) the AC class skipped (functional / RLS / security / contract / docs); (c) the back-fill estimated effort (S / M / L); (d) the risk class (P0 highest-risk substrate enforcement code / P1 / P2).
+
+**Given** post-bootstrap stories,
+**When** any future story drafts an ATDD-skip with bare ground (b),
+**Then** the FR14n amendment per issue #233 makes this insufficient (must cite ground (a) or (c))
+**And** the `bmad-create-story (args: "review")` pre-dev gate flags the violation per its existing AC-coverage check.
+
+**Given** Story 1.21 catalogues each pre-bootstrap story's gap,
+**When** the test-debt file is committed,
+**Then** each entry is referenced from the originating story file's § Deferred Work section (cross-link to `test-debt.md` anchor)
+**And** Story 1.21's CR pass verifies the cross-links.
+
+**Given** the test-debt file's intended consumer,
+**When** future epic-planning iterations (Epic 4 prep, Epic 13 prep) read the file,
+**Then** they can prioritise backfill alongside their own scope
+**And** the file is not retroactively re-opened mid-epic (pre-bootstrap skips are grandfathered; only NEW skips post-Story 1.21 are subject to the FR14n amendment).
+
 ---
 
 ### Epic 2: Sandboxed Execution Environment (devbox)

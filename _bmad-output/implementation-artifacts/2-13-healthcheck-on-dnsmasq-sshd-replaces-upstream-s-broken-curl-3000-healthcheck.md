@@ -434,3 +434,7 @@ Four parallel Sonnet subagents (citation audit + AC+Task implementability + cros
 ### v1.0 — iter-280 `/bmad-create-story` — `_(no story) → drafted`
 
 Story 2.13 drafted per `/bmad-create-story` workflow. Sprint-status row `2-13-…: backlog → ready-for-dev` at `_bmad-output/implementation-artifacts/sprint-status.yaml:126`; `last_updated` appended `2026-04-24 Story-2-13-ready-for-dev-iter-280 UTC`. 5 ACs (1 negative-assertion + 2 positive + 1 mid-run + 1 timing-documented); 5 Tasks (compose healthcheck block + probe-tooling verification + `INV-devbox-healthcheck` invariant + README/AGENTS doc + optional Story 2.12 iter-279 D-1 absorption); Dev Notes (13 entries); References (19 source citations with `file:line` anchors). Epic-2 row UNCHANGED at `in-progress` (workflow Step 1 "first story in epic" check does not fire — Story 2.13 is 13/17; epic already `in-progress` since Story 2.1 iter-128). See commit `985aee0`.
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 2-13](./test-debt.md#story-2-13) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

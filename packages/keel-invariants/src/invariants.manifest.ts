@@ -139,7 +139,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: 'e410d9cab2c77e0525b37e3775029e6bd3565efe9b7e7ed42a5ced58bc5198fd',
+    contentHash: '74237244a3a2b2ce676754a26640c59b3afb56aa9937b1ab901fd41d1d03b525',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -163,7 +163,7 @@ const raw: Invariant[] = [
     description:
       'ralph.py resolves .ralph/{halt,@plan.md,PROMPT_*.md,logs/} against the worktree path when --worktree X is set (else cwd-relative .ralph/); absolute path exported as RALPH_BASE_DIR. Normative spec in docs/invariants/ralph-execute.md § Path Resolution (FR14k + NFR33a).',
     sourcePath: 'docs/invariants/ralph-execute.md',
-    contentHash: '78fb480a754d56d3eb0d1fd21fa6e932ce665cd5d894f5e1bfd04888c57809a4',
+    contentHash: 'd98601865892ef73cf0413e1b81a054245ff0f675350ca14b6f1729546cc9a45',
     anchors: ['INV-ralph-halt-path-resolution'],
   },
   {
@@ -171,7 +171,7 @@ const raw: Invariant[] = [
     description:
       '.ralph/halt sentinel reason is a closed 7-reason enum at 1.0 (EPIC_DONE, ALL_EPICS_DONE, AWAIT_MERGE, BUDGET_EXHAUSTED, CI_BLOCKED, SECURITY_CRITICAL, RALPH_STAGE_REGRESSION). Autonomy constraint (non-toggle-able): every reason is bounded — self-resolving or triggered by a concrete external condition; no reason may block on open-ended human input; Ralph does not invoke AskUserQuestion from the runtime loop; inconsistent state falls back to EPIC_DONE with diagnostic note rather than introducing a new waiting reason. A hypothetical AWAITING_USER reason is rejected by design. Normative spec: docs/invariants/ralph-execute.md § Halt schema (FR14k + FR14n 2026-04-21 amendment adding ALL_EPICS_DONE and the autonomy guardrail).',
     sourcePath: 'docs/invariants/ralph-execute.md',
-    contentHash: '78fb480a754d56d3eb0d1fd21fa6e932ce665cd5d894f5e1bfd04888c57809a4',
+    contentHash: 'd98601865892ef73cf0413e1b81a054245ff0f675350ca14b6f1729546cc9a45',
     anchors: ['INV-ralph-halt-reason-enum'],
   },
   {
@@ -426,6 +426,22 @@ const raw: Invariant[] = [
       kind: 'names-and-shebangs',
       enumeratorPath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
     },
+  },
+  {
+    id: 'INV-package-test-coverage-floor',
+    description:
+      'NFR1a substrate-side coverage-floor enforcer — walks packages/* workspace entries with a src/ subdir and reports coverage-floor-violation for any non-exempt package without >= 1 *.test.ts file under src/ (recursive). Pre-bootstrap exempt list per NFR1a (PRD line 1068): keel-templates, devbox (Story 1.21 lands their backfill follow-ups). Invocation: pnpm keel-invariants:package-test-coverage-floor. Standalone CLI; NOT invoked transitively by runSyncGate.',
+    sourcePath: 'packages/keel-invariants/src/check-package-test-coverage-floor.ts',
+    contentHash: '57555cb453e7cc46569874befb28d7faa2c5689f458da2b8c11303c8f4cfa32e',
+    anchors: ['INV-package-test-coverage-floor'],
+  },
+  {
+    id: 'INV-fr14i-ci-workflow-presence',
+    description:
+      'FR14i pre-push CI gate activation invariant — pins existence + content of .github/workflows/ci.yml so the gate operates non-vacuously. Whole-file sha256 catches workflow deletion (removed-from-source-only) + content edits (content-hash-mismatch) at Story 1.9 pre-merge sync-gate. Trigger filter covers main + feat/epic-* PR bases (Story 1.20 expansion ending vacuous-pass mode per iter-371 gotcha). Pre-bootstrap degradation per PRD FR14i amendment (issue #233): when workflow absent, gate no-ops + orient surfaces vacuous-pass notice. Story 1.20 Task 4.',
+    sourcePath: '.github/workflows/ci.yml',
+    contentHash: '5754ab12462ea9073d5642e158d753815d3cdb52e4f682c984127ebffd5a8d86',
+    anchors: ['INV-fr14i-ci-workflow-presence'],
   },
 ];
 

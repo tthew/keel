@@ -151,7 +151,7 @@ git clone https://github.com/tthew/cc-devbox packages/devbox
 
 **Build Tooling:** Vite for `apps/web`; Turborepo for monorepo task orchestration (content-aware caching + incremental builds + dependency-graph-aware task running); `tsconfig.base.json` + TypeScript project references for compile-time package-boundary enforcement alongside ESLint `no-restricted-imports`.
 
-**Testing Framework:** Deferred — to be decided in architectural decisions phase. Natural fits: Vitest (aligns with Vite+TS workspace), Playwright (PRD pins it for end-to-end + devbox bakes browser deps at image build).
+**Testing Framework:** **Vitest** for TypeScript (aligned with Vite + TS workspace; pinned per I7 in `packages/config` + `pnpm.overrides`; Story 1.17 implementation). **pytest under uv** for Python tooling (`ralph.py`, `scripts/`, `packages/devbox/tui/`; root `pyproject.toml` + `uv.lock`; Story 1.18 implementation). **Playwright** is deferred to Epic 13 / M9 (E2E + visual-regression tier; devbox already bakes browser deps at image build per PRD M0.5). See § M0 substrate developer-productivity floor for the bootstrap arc (Stories 1.17–1.21; 2026-04-25 amendment per issue #233 closes this previously-deferred decision).
 
 **Code Organization:** 14-package topology per PRD § API surface — `apps/web` + `packages/{db, contracts, config, core, billing, email, jobs, flags, audit, ui, keel-invariants, devbox, keel-generator, keel-templates}`. ESLint `no-restricted-imports` + TS project references enforce boundaries at compile time (rules hardwired in `packages/keel-invariants/`, static across shapes).
 
@@ -192,6 +192,52 @@ git clone https://github.com/tthew/cc-devbox packages/devbox
 **Affects:** pre-merge-fast CI, pre-merge-slow CI, `packages/db/test-utils`, M9.
 
 **D4. §RLS-Performance-Budget (PRD handoff; refines NFR3 placeholder).** Budget is a **p95 wall-clock delta** measured via benchmark harness running the same query with and without RLS on a seeded dataset. Seed: 10k rows across 100 tenants (`team` template, 100 rows/tenant) + 10k rows across 10k tenants (`user` template, 1 row/tenant). Benchmark lives in nightly (≤60min, stable timing). Monthly review via NFR28c cadence; p95 delta > 20% for two consecutive monthly baselines flags NFR3 breach → triage. **Affects:** nightly CI, `packages/db/bench`, NFR3 architecture-ref.
+
+**D6. §Python project shape (issue #233 amendment, 2026-04-25).** Python tooling (`ralph.py`, `scripts/bootstrap-bmad-agents.py`, `packages/devbox/tui/`) is currently bootstrapped via PEP 723 inline-script metadata; pytest discovery + dev-dep sharing across modules is awkward under that pattern. **Decision:** root `pyproject.toml` + `uv.lock` declaring shared dev deps (pytest, pytest-asyncio, ruff, mypy); pytest discovers from repo root via `[tool.pytest.ini_options]` `testpaths` block; coexists with existing PEP 723 inline-metadata (uv reads both — root `pyproject.toml` for shared deps; per-script blocks for runtime deps). Per-Python-package `pyproject.toml` mirroring the TS workspace shape rejected as heavyweight for ~3 modules. **Affects:** `pyproject.toml` (root, NEW), `uv.lock` (root, NEW), `tests/` (root, NEW), `packages/devbox/tui/tests/` (NEW), Story 1.18 implementation, § M0 substrate developer-productivity floor.
+
+### M0 substrate developer-productivity floor
+
+The minimum testable substrate state below which all FRs / NFRs that depend on test execution operate vacuously (FR14a, FR14a2, FR14a3, FR14i, FR14o, FR29, FR42-side enforcement, NFR1a). Bootstrapped via the issue #233 course correction (Stories 1.17–1.21; reopened Epic 1 cleanup pass).
+
+**TypeScript runtime substrate:**
+
+- **Runner:** Vitest, pinned exactly per I7 in `packages/config` + root `pnpm.overrides`.
+- **Workspace discovery:** root `vitest.workspace.ts` globbing `packages/*/vitest.config.ts`.
+- **Per-package configuration:** each workspace package with `src/` ships `vitest.config.ts` (node env or jsdom env per package needs) + a `"test": "vitest run"` script.
+- **Turbo orchestration:** `turbo.json` `test` task with `dependsOn: ["^build"]` + `outputs: ["coverage/**"]`.
+- **Canonical entry point:** `pnpm test` (resolves to `pnpm turbo run test`).
+
+**Python runtime substrate:**
+
+- **Project shape (D6):** root `pyproject.toml` + `uv.lock` declaring shared dev deps (pytest, pytest-asyncio, ruff, mypy). Resolves the per-script PEP 723 inline-metadata pattern's discovery + dep-sharing limits.
+- **Discovery:** pytest's default collection across the repo with explicit `[tool.pytest.ini_options]` `testpaths` block in `pyproject.toml` listing project test roots.
+- **Canonical entry point:** `uv run pytest`.
+
+**CI integration:**
+
+- **Workflow:** single `.github/workflows/ci.yml` running on PR + push-to-main. Two jobs: (a) `node` — `pnpm install --frozen-lockfile && pnpm turbo run test lint typecheck`; (b) `python` — `uv sync && uv run pytest`. Required check on `main`.
+- **Tier scope:** this is the **minimal** CI workflow — single tier, deterministic, no live-network. The full decomposed CI pyramid (pre-merge-fast / pre-merge-slow / nightly / release-gated per NFR1) lands in Epic 13 / M9. Bootstrap does NOT pull the pyramid forward.
+
+**Coverage floor:** NFR1a (≥ 1 passing test per package with `src/`); enforced via `INV-package-test-coverage-floor` invariant registered in Story 1.19. Percentage thresholds deferred to Epic 14 / M10 per NFR28b empirical-baseline methodology.
+
+**FR14i activation:** Story 1.20 registers `INV-fr14i-ci-workflow-presence` in `invariants.manifest.ts` so future-Ralph cannot silently regress the gate by deleting/renaming the workflow file.
+
+**Stories 1.17–1.21** form the bootstrap arc:
+
+- Story 1.17 — TS runner + minimal CI;
+- Story 1.18 — Python runner + uv project shape;
+- Story 1.19 — `keel-invariants` test backfill (highest-risk untested code, gates merges via FR42 / FR43 / FR43a);
+- Story 1.20 — activate FR14i for real (end vacuous-pass mode);
+- Story 1.21 — audit + sweep prior ATDD-deferred stories into `test-debt:` follow-ups.
+
+**Decisions held at M9 / M10 (not pulled forward by bootstrap):**
+
+- D3 (synthetic-schema strategy: pglite at pre-merge-fast + testcontainers at pre-merge-slow) — M9.
+- D4 (RLS p95 perf-budget benchmark harness) — M9 nightly.
+- C4 (`T-\d{4}` stable test-id ESLint rule + `packages/keel-invariants/eslint-rules/stable-test-id.cjs`) — M9.
+- M3 (flake-log schema freeze; Murat's Round 1 amendment) — M10 (Epic 14).
+
+**Affects:** PRD § FR14a / FR14i / FR14n / FR14o / NFR1a; this section consolidates the substrate-floor handoff for the Stories 1.17–1.21 implementation arc.
 
 ### Authentication & Security
 

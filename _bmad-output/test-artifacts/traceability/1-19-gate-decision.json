@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-26T00:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.19",
+    "label": "Backfill keel-invariants test coverage"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "PASS",
+  "rationale": "P0 coverage is 100%, P1 coverage is 100% (target: 90%), and overall coverage is 83% (minimum: 80%). All five test-covered ACs (AC1 ESLint rule + AC2 three enforcers + AC3 sync-gate four drift classes + AC4 Zod schema rejections + AC5 NEW INV-package-test-coverage-floor enforcer + manifest registration) are FULL. AC6 is a process-only AC discharged at /bmad-code-review iteration per FR14n state matrix sm-verified -> done; PARTIAL at trace gate by construction.",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-19-backfill-keel-invariants-test-coverage.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}
