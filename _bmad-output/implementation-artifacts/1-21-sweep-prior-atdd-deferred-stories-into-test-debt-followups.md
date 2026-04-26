@@ -171,7 +171,7 @@ So that the test-debt is visible (not invisible accumulating drift), prioritisab
 
 The Story 1.21 audit walks **34 stories** total (Epic 1: 1.1–1.16 = 16 stories; Epic 2: 2.1–2.18 = 18 stories; Stories 1.17–1.21 are EXCLUDED — they are the bootstrap arc that landed AFTER the FR14n amendment per issue #233; their ATDD posture is post-amendment, not pre-bootstrap-grandfathered). The catalog body (the SUBSET that actually ATDD-skipped) is 27 entries (per Subtask 9.6 actual count; 30+ pre-audit prediction superseded by ground-truth at dev-story); divergence between walked-count (34) and catalog-count (27) reflects 7 stories that landed full ATDD red-phase coverage at the time (1.1, 1.3, 1.4, 1.8, 1.9, 1.10, 2.6 — listed under § Out-of-Scope).
 
-The walk SHOULD surface ~30 ATDD-skip events (per RALPH.md iter-389 entry "31st cumulative project ATDD-skip" — most events correspond 1:1 to a story but some stories may have multi-event skips; per-story event counts are recorded in the test-debt.md catalogue rows).
+The walk SHOULD surface ~30 ATDD-skip events (per RALPH.md iter-389 entry "31st cumulative project ATDD-skip" — most events correspond 1:1 to a story but some stories may have multi-event skips).
 
 **Classification per row (AC1 sub-fields):**
 
@@ -478,7 +478,7 @@ _Recorded at iter-421 `/bmad-code-review (args: "2")` CR-pass-2 re-pass after PA
 
 - [x] [Review][Patch] PATCH-10: § Substrate-extension-class forecast SM-validate row sweep "23-DEFER inherited list" → "24-DEFER inherited list" + "30 cross-links" → "27 cross-links" [`1-21-…md:233`] — extends PATCH-9 + PATCH-8 sweep to forecast-rationale prose; v1.1 SM-validate corrected count drift in 5 sites + CR-pass-1 PATCH-8/9 fixed lines 282/294 but missed this 6th occurrence inside the SM-validate forecast-row rationale. Source: Edge#2 (CR-pass-2). Landed iter-422.
 - [x] [Review][Patch] PATCH-11: § Test-surface decomposition "~30 cross-link edits" → "27 cross-link edits" [`1-21-…md:241`] — twin sweep to PATCH-8 (`× ~30` → `× 27` at line 282); same parallel claim at line 241 was missed at CR-pass-1. Source: Edge#3 (CR-pass-2). Landed iter-423.
-- [ ] [Review][Patch] PATCH-12: § Audit methodology line 174 deflection "per-story event counts are recorded in the test-debt.md catalogue rows" misleading [`1-21-…md:174`] — `test-debt.md` row schema (Skip ground / AC class / Effort / Risk class / Source / Carry-to) has no event-count field; deflection promises non-existent data. Replace with simpler statement (e.g. drop trailing clause; end sentence at "multi-event skips.") to remove the false forward-pointer. Source: Edge#1 (CR-pass-2).
+- [x] [Review][Patch] PATCH-12: § Audit methodology line 174 deflection "per-story event counts are recorded in the test-debt.md catalogue rows" misleading [`1-21-…md:174`] — `test-debt.md` row schema (Skip ground / AC class / Effort / Risk class / Source / Carry-to) has no event-count field; deflection promises non-existent data. Replace with simpler statement (e.g. drop trailing clause; end sentence at "multi-event skips.") to remove the false forward-pointer. Source: Edge#1 (CR-pass-2). Landed iter-424.
 
 #### Deferred — accepted-as-NIT (1)
 
