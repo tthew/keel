@@ -234,6 +234,7 @@ if [[ "${KEEL_DEVBOX_SSH:-false}" == "true" ]]; then
     # verification contract).
     gosu dev /usr/sbin/sshd -D -e 2>>/var/log/sshd.log &
     SSHD_PID="$!"
+    # Verify sshd is listening before exec'ing the operator shell.
     sleep 0.5
     if ! kill -0 "${SSHD_PID}" 2>/dev/null; then
       echo "entrypoint: sshd failed to start; tail /var/log/sshd.log:" >&2

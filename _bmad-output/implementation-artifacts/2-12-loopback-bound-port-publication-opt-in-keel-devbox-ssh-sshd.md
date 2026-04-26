@@ -524,6 +524,14 @@ claude-opus-4-7[1m] (Claude Opus 4.7, 1M-context)
 
 ## Change Log
 
+### v1.9 — iter-pr-review-14 PR #230 NIT closure (sshd liveness post-spawn comment)
+
+Single-line code-readability comment added at `packages/devbox/entrypoint.sh:237` directly before the post-spawn liveness probe (`sleep 0.5` → `kill -0 "${SSHD_PID}"`): `# Verify sshd is listening before exec'ing the operator shell.` Closes synthesizer's MINOR finding from PR #230 review (`#issuecomment-4322595769` § "Story 2.12 — sshd liveness post-spawn comment"). The reviewer's wording is preserved verbatim. Reviewer cited line range `:207-211` referenced the iter-268 file shape pre-PATCH-6; the iter-278 rc-capture rewrite shifted the verification block down to `:235-242`. Comment placed at the actual liveness-probe site (between `SSHD_PID="$!"` capture and `sleep 0.5` settle-window) — the launch-block comment at L228-234 already explains the WHY of post-spawn verification; the new line names the WHAT at the probe site itself.
+
+`entrypoint.sh` is NOT contentHash-tracked in `invariants.manifest.ts` (verified iter-278 v1.7 Change Log; only `docs/invariants/devbox-ssh.md` at sourcePath:333 holds the substrate-hash). No sync-gate recompute required. Substrate smokes: `bash -n packages/devbox/entrypoint.sh` clean; `pnpm keel-invariants:check` carries iter-13's GREEN posture (pre-existing `INV-package-test-coverage-floor` drift unchanged from `fed3161` baseline; out-of-PR per IP § Out-of-PR follow-ups). No AC change, no SC change, no behaviour change — pure code-readability NIT.
+
+**Story State:** UNCHANGED (`done` since iter-279). PR #230 review-iteration QUEUE advance: `2.12 sshd liveness comment` → `2.7 arg-passthrough comment NIT` (last item).
+
 ### v1.8 — iter-279 `/bmad-code-review (args: "2")` closure re-run #2 (`fixes-pending → done`; ZERO-PATCH)
 
 Three-layer Ralph-hosted adversarial fan-out (Blind Hunter `general-purpose` diff-only, 6 raw 0H/3M/3L; Edge Case Hunter `general-purpose` diff+project-read, 6 raw 1H/2M/3L; Acceptance Auditor `bmad-agent-architect` Winston diff+spec+context, ZERO-PATCH HIGH-confidence verdict). Diff scope: `HEAD~1..HEAD` = iter-278 PATCH-6 landing commit `947cbce` (175 insertions / 115 deletions across 5 files; substantive change = `packages/devbox/entrypoint.sh:141-248` rc-capture rewrite). **Triage: 0 PATCH + 4 DEFER + 7 DISMISS.**
