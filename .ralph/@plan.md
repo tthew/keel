@@ -37,7 +37,8 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-4b] Push-defer annotation — SSH-egress port-22 timeout (exit 124).
 - [x] [iter-5] 2.5b devbox-hardening.md 5-cap + iter-238 narrative — `04858c6` (PR #230; push deferred).
 - [x] [iter-5b] Push retry succeeded — feat-2 + chore/pr-230-review both at origin.
-- [x] [iter-6] 2.5c Change Log v1.10 — pin iter-238 SETUID/SETGID 5-cap — `7390020` (PR #230).
+- [x] [iter-6] 2.5c Change Log v1.10 — pin iter-238 SETUID/SETGID 5-cap — `7390020` (PR #230; feat-2 push deferred — SSH-egress silent-block).
+- [x] [iter-6b] feat-2 push retry — defer to iter-7 0h check (SIGTERM'd hung `git push`; chore branch pushed).
 
 ## Context
 
@@ -47,7 +48,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-6 landed `7390020` (2.5c Change Log v1.10) on feat-2; push pending at end of this iter. Prior pushes: iter-5 `04858c6` (2.5b devbox-hardening.md) + iter-5b retry pushed both branches. CI runs on `pull_request: branches: [main]` only — stacked-epic PR base `main` qualifies; previously empty rollup at iter-5b time per RALPH.md gotcha (`statusCheckRollup: []` BY DESIGN). 0h-check at iter-7 should re-poll.
+- **PR:** #230 **Open**. Iter-6 landed `7390020` (2.5c Change Log v1.10) on feat-2 LOCALLY in main repo; push to origin DEFERRED — SSH:22 silent-blocked (gotcha re-confirmed: `git push` hung with no output until SIGTERM'd; ls-remote confirms origin still at `04858c6`). chore/pr-230-review pushed cleanly (`b16113c` at origin). Next iter (iter-7) 0h check should retry feat-2 push (iter-5b precedent: 1-retry-resolves) and verify with ls-remote, then re-poll CI via gh-CLI LADDER once HTTPS:443 clears.
 
 ## Halt criterion
 
