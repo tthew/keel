@@ -12,6 +12,7 @@
  */
 
 import { readdir, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import path from 'node:path';
 
 const FILE = path.resolve(import.meta.dirname, 'check-package-test-coverage-floor.js');
@@ -73,6 +74,11 @@ async function main(): Promise<void> {
   for (const pkg of pkgs) {
     const pkgDir = path.join(PACKAGES_DIR, pkg);
     if (!(await isDir(pkgDir))) continue;
+    // CR-3 (iter-380): only directories with a `package.json` are pnpm workspace
+    // members. Without this guard, transient siblings under `packages/` (e.g.
+    // `node_modules/.cache/...`, vendored fixtures, dist outputs) get treated as
+    // packages and produce spurious coverage-floor violations.
+    if (!existsSync(path.join(pkgDir, 'package.json'))) continue;
     const srcDir = path.join(pkgDir, 'src');
     if (!(await isDir(srcDir))) continue;
     if (EXEMPT_LIST.has(pkg)) continue;

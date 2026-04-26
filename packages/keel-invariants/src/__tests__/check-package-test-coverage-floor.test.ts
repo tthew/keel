@@ -47,6 +47,7 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
       {
         name: 'foo',
         files: [
+          { path: 'package.json', body: '{"name":"foo"}\n' },
           { path: 'src/index.ts', body: 'export const x = 1;\n' },
           { path: 'src/foo.test.ts', body: "import {} from 'vitest';\n" },
         ],
@@ -61,7 +62,10 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
     const cli = await buildFixture([
       {
         name: 'devbox',
-        files: [{ path: 'src/index.ts', body: 'export const x = 1;\n' }],
+        files: [
+          { path: 'package.json', body: '{"name":"devbox"}\n' },
+          { path: 'src/index.ts', body: 'export const x = 1;\n' },
+        ],
       },
     ]);
     const { stdout, stderr } = await execFileAsync('node', [cli]);
@@ -73,7 +77,10 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
     const cli = await buildFixture([
       {
         name: 'bar',
-        files: [{ path: 'src/index.ts', body: 'export const x = 1;\n' }],
+        files: [
+          { path: 'package.json', body: '{"name":"bar"}\n' },
+          { path: 'src/index.ts', body: 'export const x = 1;\n' },
+        ],
       },
     ]);
     await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
@@ -93,6 +100,7 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
       {
         name: 'baz',
         files: [
+          { path: 'package.json', body: '{"name":"baz"}\n' },
           { path: 'src/index.ts', body: 'export const x = 1;\n' },
           // A directory entry whose name ends in `.test.ts` — buildFixture creates
           // the parent dir as a side-effect of writing the placeholder file inside.
@@ -129,6 +137,25 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
     });
   });
 
+  // CR-3 (iter-380) regression: a directory under `packages/` lacking
+  // `package.json` is NOT a pnpm workspace member (transient
+  // `node_modules/.cache/...`, vendored fixtures, dist outputs) and MUST be
+  // silently skipped — no stderr, exit 0. Pre-fix the loop treated any sub-dir
+  // of `packages/` with a `src/` subtree as a workspace package, producing
+  // spurious violations. Discriminator vs the bar/baz/qux red tests: identical
+  // src/ shape, only difference is the absence of `package.json`.
+  it('green: directory without package.json is silently skipped (CR-3 workspace-member guard)', async () => {
+    const cli = await buildFixture([
+      {
+        name: 'not-a-package',
+        files: [{ path: 'src/index.ts', body: 'export const x = 1;\n' }],
+      },
+    ]);
+    const { stdout, stderr } = await execFileAsync('node', [cli]);
+    expect(stdout).toBe('');
+    expect(stderr).toBe('');
+  });
+
   // CR-1 DEFER-5 fold-in (iter-378): `*.test.ts` inside a `node_modules/` (or
   // `dist`, `coverage`, `.next`, `.turbo`) subtree under `src/` MUST NOT count.
   it('red: *.test.ts inside src/node_modules/ does NOT count (DEFER-5 traversal exclusion)', async () => {
@@ -136,6 +163,7 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
       {
         name: 'qux',
         files: [
+          { path: 'package.json', body: '{"name":"qux"}\n' },
           { path: 'src/index.ts', body: 'export const x = 1;\n' },
           { path: 'src/node_modules/somepkg/foo.test.ts', body: '' },
         ],
