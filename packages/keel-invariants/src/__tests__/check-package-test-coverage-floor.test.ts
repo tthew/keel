@@ -83,4 +83,48 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
       ),
     });
   });
+
+  // CR-1 (iter-378) regression: directory whose name ends in `.test.ts` MUST NOT
+  // satisfy the floor. Pre-fix `readdir(... { recursive: true })` returned string[]
+  // including directory paths; `entry.endsWith('.test.ts')` matched a directory entry
+  // as if it were a file. Post-fix uses `withFileTypes` + `.isFile()`.
+  it('red: directory whose name ends in ".test.ts" does NOT count as a test file (CR-1 isFile guard)', async () => {
+    const cli = await buildFixture([
+      {
+        name: 'baz',
+        files: [
+          { path: 'src/index.ts', body: 'export const x = 1;\n' },
+          // A directory entry whose name ends in `.test.ts` — buildFixture creates
+          // the parent dir as a side-effect of writing the placeholder file inside.
+          { path: 'src/sub.test.ts/keep.txt', body: '' },
+        ],
+      },
+    ]);
+    await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringMatching(
+        /coverage-floor-violation: no \*\.test\.ts under packages\/baz\/src\//,
+      ),
+    });
+  });
+
+  // CR-1 DEFER-5 fold-in (iter-378): `*.test.ts` inside a `node_modules/` (or
+  // `dist`, `coverage`, `.next`, `.turbo`) subtree under `src/` MUST NOT count.
+  it('red: *.test.ts inside src/node_modules/ does NOT count (DEFER-5 traversal exclusion)', async () => {
+    const cli = await buildFixture([
+      {
+        name: 'qux',
+        files: [
+          { path: 'src/index.ts', body: 'export const x = 1;\n' },
+          { path: 'src/node_modules/somepkg/foo.test.ts', body: '' },
+        ],
+      },
+    ]);
+    await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
+      code: 1,
+      stderr: expect.stringMatching(
+        /coverage-floor-violation: no \*\.test\.ts under packages\/qux\/src\//,
+      ),
+    });
+  });
 });

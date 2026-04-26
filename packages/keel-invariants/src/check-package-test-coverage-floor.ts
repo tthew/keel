@@ -36,10 +36,20 @@ async function isDir(absPath: string): Promise<boolean> {
   }
 }
 
+// CR-1 (iter-378): `withFileTypes` + `.isFile()` guard closes the directory-named-`*.test.ts`
+// false-positive class. DEFER-5 fold-in: skip matches whose ancestor walk crosses
+// `node_modules` / `dist` / `coverage` / `.next` / `.turbo` (generated or dependency trees).
+const SKIP_DIR_NAMES = new Set(['node_modules', 'dist', 'coverage', '.next', '.turbo']);
+
 async function hasTestFile(srcDir: string): Promise<boolean> {
-  const entries = await readdir(srcDir, { recursive: true });
+  const entries = await readdir(srcDir, { recursive: true, withFileTypes: true });
   for (const entry of entries) {
-    if (entry.endsWith('.test.ts')) return true;
+    if (!entry.isFile()) continue;
+    if (!entry.name.endsWith('.test.ts')) continue;
+    const parent = entry.parentPath ?? srcDir;
+    const segments = path.relative(srcDir, parent).split(path.sep).filter(Boolean);
+    if (segments.some((s) => SKIP_DIR_NAMES.has(s))) continue;
+    return true;
   }
   return false;
 }
