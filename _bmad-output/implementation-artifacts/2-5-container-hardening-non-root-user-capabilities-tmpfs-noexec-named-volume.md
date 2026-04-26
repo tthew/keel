@@ -20,7 +20,7 @@ So that a runtime compromise faces meaningful layered barriers to escape or pers
 2. **Given** `docker-compose.yml`,
    **When** I inspect it,
    **Then** `cap_drop: [ALL]` is set
-   **And** `cap_add` lists only `NET_ADMIN` and `NET_RAW` (required by nftables in Story 2.3) plus `NET_BIND_SERVICE` (required by dnsmasq's bind to :53 under `cap_drop: [ALL]`, per SC-4)
+   **And** `cap_add` lists `NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID` per SC-4 reconciliation (rationale: `NET_ADMIN` + `NET_RAW` for nftables in Story 2.3; `NET_BIND_SERVICE` for dnsmasq's bind to :53 under `cap_drop: [ALL]`; `SETUID` + `SETGID` for gosu's root→dev drop in `entrypoint.sh` — added iter-238 when ambient-cap propagation across the image-`USER` boundary under `no-new-privileges=1` proved unreliable on Docker 29.2 + linux/arm64; see comment block at `packages/devbox/docker-compose.yml:171-220` and the canonical capability bounding-set rationale in `docs/invariants/devbox-hardening.md` § Capability bounding set)
    **And** `security_opt: [no-new-privileges:true]` is set.
 
 3. **Given** tmpfs mounts in compose,
