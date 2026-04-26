@@ -66,8 +66,14 @@ async function main(): Promise<void> {
     if ((e as NodeJS.ErrnoException).code === 'ENOENT') {
       process.exit(0);
     }
+    // CR-4 (iter-381): `process.exit(1)` immediately after a stderr write can
+    // race the stdio drain on piped-stderr CI containers (and any non-TTY
+    // stderr where Node treats writes as async). Set `process.exitCode` and
+    // return so the event loop drains naturally — `await main()` resolves and
+    // Node exits with the recorded code.
     process.stderr.write(`${JSON.stringify({ status: 'error', message: String(e) })}\n`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   pkgs.sort();
   const violations: Violation[] = [];
@@ -95,7 +101,10 @@ async function main(): Promise<void> {
   for (const v of violations) {
     process.stderr.write(`${JSON.stringify({ status: 'violation', ...v })}\n`);
   }
-  process.exit(1);
+  // CR-4 (iter-381): see catch-block above — `process.exitCode = 1; return;`
+  // lets stderr drain before exit. Critical here because every violation is a
+  // separate stderr.write and the loop may emit several lines per run.
+  process.exitCode = 1;
 }
 
 await main();
