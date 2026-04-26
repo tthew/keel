@@ -291,7 +291,7 @@ Distinct from SSH-egress class (which manifests as `Connection timed out` ~75s).
 - [Source: `_bmad-output/planning-artifacts/sprint-change-proposal-issue-233.md#Story-1.21`] — implementation handoff routing (lines 393–421, 71, 89, 103–105, 158, 213, 251–255).
 - [Source: `_bmad-output/planning-artifacts/prd.md#FR14n`] — pre-dev gate AC-coverage check normative spec + issue #233 amendment (the post-bootstrap ground-(b) sunset).
 - [Source: `_bmad-output/planning-artifacts/prd.md#FR14a`] — `Required tests:` manifest semantics + post-bootstrap clause per issue #233 amendment.
-- [Source: `_bmad-output/implementation-artifacts/deferred-work.md` §§ Story 1.18 / 1.19 CR-pass-1 / 1.19 CR-pass-2 / Story 1.20 dev-story / Story 1.20 CR-pass-1] — 23 inherited DEFER entries (Subtask 1.2 ground-truth).
+- [Source: `_bmad-output/implementation-artifacts/deferred-work.md` §§ Story 1.18 / 1.19 CR-pass-1 / 1.19 CR-pass-2 / Story 1.20 dev-story / Story 1.20 CR-pass-1] — 24 inherited DEFER entries (Subtask 1.2 ground-truth).
 - [Source: `RALPH.md` iter-358 + iter-359 + iter-367] — `INV-git-hooks-preservation` worktree-mode drift root cause + persistence datapoints (Subtask 7.1 disposition (b) decision input).
 - [Source: `RALPH.md` iter-389] — 31st cumulative project ATDD-skip count (Subtask 1.3 ground-truth).
 - [Source: `RALPH.md` iter-391 § Notes + iter-392 entry] — `results-receiver.actions.githubusercontent.com` whitelist gap (AC6 + Subtask 6.1 source-of-truth).
@@ -443,7 +443,7 @@ _Recorded at iter-404 `/bmad-code-review (args: "2")` CR-pass-1 (Blind Hunter + 
 - [ ] [Review][Patch] "second post-bootstrap ATDD-skip ground-(a) story" wording [`1-21-…md:221`] — internally contradicts § ATDD red-phase posture line 219 ("This makes Story 1.21 the second...") AND § Change Log v1.0 + IP claim "1st pure-ground-(a)-class skip post-bootstrap". Story 1.20 was hybrid (a)+(c), not pure ground-(a); Story 1.21 IS the first pure-ground-(a) post-bootstrap. Replace "second" with "first pure-ground-(a)" + clarify Story 1.20 hybrid relationship. Source: Blind#11.
 - [ ] [Review][Patch] Change Log version ordering broken — v1.0 → v1.2 → v1.3 → v1.1 in file order [`1-21-…md:432-437`] — v1.1 (iter-399 SM-validate) sits below v1.3 (iter-403 SM-verify) but is chronologically earlier. Reorder to chrono: v1.0 → v1.1 → v1.2 → v1.3. Source: Blind#12.
 - [ ] [Review][Patch] § Project Structure Notes cross-link estimate "× ~30" → "× 27" [`1-21-…md:282`] — actual landed count is 27 per File List + AC1 evidence + Subtask 9.6 ground-truth. v1.1 SM-validate fixed comparable "30 stories → 34 stories" math elsewhere; this estimate was missed. Source: Blind#13.
-- [ ] [Review][Patch] § References annotation "23 inherited DEFER entries" → "24" [`1-21-…md:294`] — v1.1 SM-validate corrected 23 → 24 in 5 other places (AC5 Given / Subtask 1.2 / § Inherited DEFER scope total / Story 1.19 CR-pass-2 count / § Audit methodology); this Reference line was missed. Source: Blind#3.
+- [x] [Review][Patch] § References annotation "23 inherited DEFER entries" → "24" [`1-21-…md:294`] — v1.1 SM-validate corrected 23 → 24 in 5 other places (AC5 Given / Subtask 1.2 / § Inherited DEFER scope total / Story 1.19 CR-pass-2 count / § Audit methodology); this Reference line was missed. Source: Blind#3.
 
 ### Deferred — out-of-scope or accepted-as-NIT (6)
 
