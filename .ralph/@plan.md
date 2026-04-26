@@ -4,12 +4,11 @@
 
 ## NOW
 
-- [ ] **2.5c** Add `## Change Log` entry to `_bmad-output/implementation-artifacts/2-5-…md` pinning iter-238 SETUID/SETGID extension; cross-link to AC2 + `docs/invariants/devbox-hardening.md`. ~small.
+- [ ] **2.7 AC3 docker-exec semantics** Amend AC3 in `_bmad-output/implementation-artifacts/2-7-…md` OR add Change Log entry. Inline rationale already at `packages/devbox/scripts/ralph-build-host.sh:6-12`. Ref: `discussion_r3143866791`.
 
 ## QUEUE (PR #230 review fix-arc)
 
 Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-4322595769>. One per iter; commit on `feat/epic-2-packaged-devbox`.
-- [ ] **2.7 AC3 docker-exec semantics** Amend AC3 in `_bmad-output/implementation-artifacts/2-7-…md` OR add Change Log entry. Inline rationale already at `packages/devbox/scripts/ralph-build-host.sh:6-12`. Ref: `discussion_r3143866791`.
 - [ ] **2.13 healthcheck timeout** `packages/devbox/docker-compose.yml:282`: `nc -z 127.0.0.1 2222` → `nc -z -w 2 127.0.0.1 ${KEEL_DEVBOX_SSH_PORT:-2222}`. Ref: `discussion_r3143864797`.
 - [ ] **2.13 probe-domain three-site lockstep** `api.github.com` hardcoded in 3 files; add pre-commit grep asserting literal matches across `docker-compose.yml:281`, `docs/invariants/devbox-healthcheck.md`, `packages/devbox/README.md` § Healthcheck.
 - [ ] **2.14 absorption-SHA reachability** Add sync-gate step `git rev-parse 5278738^{commit} >/dev/null 2>&1 || fail` to guard `docs/invariants/devbox-legacy-branch-retention.md:108-128`. Ref: `discussion_r3143866586`.
@@ -38,6 +37,7 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-4b] Push-defer annotation — SSH-egress port-22 timeout (exit 124).
 - [x] [iter-5] 2.5b devbox-hardening.md 5-cap + iter-238 narrative — `04858c6` (PR #230; push deferred).
 - [x] [iter-5b] Push retry succeeded — feat-2 + chore/pr-230-review both at origin.
+- [x] [iter-6] 2.5c Change Log v1.10 — pin iter-238 SETUID/SETGID 5-cap — `7390020` (PR #230).
 
 ## Context
 
@@ -47,7 +47,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-5 landed `04858c6` (2.5b) on feat-2 + iter-5b retry pushed BOTH branches: `e555425..04858c6 feat/epic-2-packaged-devbox` and `c4aa62d..3fae4e9 chore/pr-230-review`. SSH-egress was silent-blocked at first attempt then cleared on retry (gotcha logged). New CI run will trigger on PR #230 from the `04858c6` push — next iter's 0h check should monitor.
+- **PR:** #230 **Open**. Iter-6 landed `7390020` (2.5c Change Log v1.10) on feat-2; push pending at end of this iter. Prior pushes: iter-5 `04858c6` (2.5b devbox-hardening.md) + iter-5b retry pushed both branches. CI runs on `pull_request: branches: [main]` only — stacked-epic PR base `main` qualifies; previously empty rollup at iter-5b time per RALPH.md gotcha (`statusCheckRollup: []` BY DESIGN). 0h-check at iter-7 should re-poll.
 
 ## Halt criterion
 
