@@ -1,4 +1,5 @@
 # generated: 2026-04-19 17:43 UTC
+# last_updated: 2026-04-26 Epic-1-reclosed-iter-435-issue-233-SCP-REOPEN-ARC-complete-Stories-1-17-to-1-21-done UTC
 # last_updated: 2026-04-26 Story-1-21-done-CR-pass-5-iter-434-0-PATCH-0-DEFER-33-DISMISS UTC
 # last_updated: 2026-04-26 Story-1-21-review UTC
 # last_updated: 2026-04-21 Story-2-1-fixes-pending-AR-1-landed UTC
@@ -134,7 +135,7 @@ tracking_system: file-system
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
-  epic-1: in-progress  # was: done — reopened by issue #233 SCP for Stories 1.17–1.21 (test runner bootstrap pass)
+  epic-1: done  # reclosed iter-435 after Story 1.21 done at iter-434 CR-pass-5 PASS — issue #233 SCP REOPEN-ARC complete
   1-1-monorepo-scaffold-typescript-project-references: done
   1-2-packages-keel-invariants-bootstrap-shared-eslint-prettier-commitlint-configs: done
   1-3-eslint-no-restricted-imports-import-boundary-rules: done
