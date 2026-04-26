@@ -47,6 +47,7 @@ _(empty — Story 1.18 ATDD-skipped at iter-365 via FR14n § ATDD-skip ground-(a
 
 ## Notes
 
+- **Iter-369 push deferred to next iteration:** `git push` failed twice with `ssh: connect to host github.com port 22: Connection timed out` per IP § Context line 38 cc-devbox network-intermittency notice (DNS-rotation; PR #235's container-image fix TBD). Local commit `4f7c84b` (Story 1.18 done CR) carries forward; next iteration's Ralph step 5 will pick it up alongside the create-story commit and push both. NO commit re-attempt needed at iteration start; just `git push` again at step 5. Per Ralph step-5 + iter-365 ATDD-skip-iter precedent (also pushed in single shot at next iter): not a halt, just a deferred push.
 - **Course-correction precedent stack 3 deep:** issue #231 (PR #234, doc-budget, MERGED) → issue #232 (PR #235, devbox network, MERGED) → issue #233 (PR #236, test runner bootstrap, in-flight). Issue #233 is the first to REOPEN a closed epic.
 - **Story 1.17 → 1.18 inheritance:** Story 1.18 inherits the `.github/workflows/ci.yml` substrate (Story 1.17 shipped it) and the AGENTS.md `## Testing` section (Story 1.17 inserted it with a forward-pointer). Story 1.18 EXTENDED both additively per SC-5 + AC5 — both edits landed cleanly at iter-366.
 - **Pre-existing INV-git-hooks-preservation drifts:** 3× drifts persist on `feat/epic-2-packaged-devbox` head (RALPH.md iter-358 gotcha — sync-gate hardcodes `<repoRoot>/.git/hooks` which is empty in worktree mode). Out of scope for Story 1.18 per SC-9 carve-out; address before Story 1.20 close-out.
