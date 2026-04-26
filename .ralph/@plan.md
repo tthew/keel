@@ -2,9 +2,10 @@
 
 ## NOW
 
-- [ ] Run `/bmad-create-story (args: "review")` for Story 1.19 — pre-dev SM-validate (FR14n state transition `drafted → validated`; forecast envelope 14–22 PATCH per Story 1.19 SC-12; substrate-probe-gap carry-rule from iter-366 applies — explicit grep for all non-stdlib top-level imports + spec-ledger AC2 enforcer-stderr-shape verification AS-SHIPPED)
+- [ ] Monitor PR #236 CI — queue fix tasks for any failures (`gh pr checks 236 --watch --fail-fast`; Story 1.17 `node` job + Story 1.18 `python` job both run on push; first iteration where CI is real per RALPH.md iter-370 prune of iter-344 `.github/workflows/` does-not-exist gotcha)
 
 ## QUEUE (Epic 1 reopen — Stories 1.19–1.21 bootstrap arc per issue #233)
+- [ ] Run `/bmad-create-story (args: "review")` for Story 1.19 — pre-dev SM-validate (FR14n state transition `drafted → validated`; forecast envelope 14–22 PATCH per Story 1.19 SC-12; substrate-probe-gap carry-rule from iter-366 applies)
 - [ ] Story 1.19 lifecycle: `validated → atdd-scaffolded` (`/bmad-testarch-atdd` — FULL red-phase MANDATORY per Story 1.19 SC-11; first reopen-arc story to re-introduce ATDD post-Stories-1.17/1.18 ATDD-skip era)
 - [ ] Story 1.19 lifecycle: `atdd-scaffolded → in-dev` (`/bmad-dev-story` — 6 ACs / 11 Tasks / ~38 subtasks; budget 4–6 CR iterations per IP § Notes line 54)
 - [ ] Story 1.19 lifecycle: `in-dev → traced` (`/bmad-testarch-trace (args: "yolo")`)
