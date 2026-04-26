@@ -238,7 +238,7 @@ Story 1.21 is the **first audit + sweep class story** in the project — no hist
 | CR             | 0–6 across 1–2 iters | Audit + sweep class CR is design-class concerns + classification-correctness; Story 1.20 CR-pass-1 0-PATCH sets the lower-band precedent. Wider envelope than 1.20 due to first-datapoint-of-class uncertainty.                                                                              |
 | **Cumulative** | **13–43**   | First datapoint of audit + sweep class; envelope width reflects unknown empirical baseline. Lower bound from "audit-as-pure-add" minimum + SM-validate floor; upper bound from "classification-methodology-disputes-at-SM-validate-and-CR" maximum.                                                                                                                              |
 
-**Test-surface decomposition:** Story 1.21 produces ZERO new test files (audit-class story; no test surface to add). The deliverable is `test-debt.md` itself + ~30 cross-link edits across pre-bootstrap story files + 0–4 manifest contentHash adjustments per AC5 disposition tree.
+**Test-surface decomposition:** Story 1.21 produces ZERO new test files (audit-class story; no test surface to add). The deliverable is `test-debt.md` itself + 27 cross-link edits across pre-bootstrap story files + 0–4 manifest contentHash adjustments per AC5 disposition tree.
 
 ### Inherited DEFER scope (per IP iter-397; ground-truth at dev-story Subtask 1.2)
 
@@ -477,7 +477,7 @@ _Recorded at iter-421 `/bmad-code-review (args: "2")` CR-pass-2 re-pass after PA
 #### Patch action items (3 — sweep extensions to PATCH-8 / PATCH-9 + line 174 deflection)
 
 - [x] [Review][Patch] PATCH-10: § Substrate-extension-class forecast SM-validate row sweep "23-DEFER inherited list" → "24-DEFER inherited list" + "30 cross-links" → "27 cross-links" [`1-21-…md:233`] — extends PATCH-9 + PATCH-8 sweep to forecast-rationale prose; v1.1 SM-validate corrected count drift in 5 sites + CR-pass-1 PATCH-8/9 fixed lines 282/294 but missed this 6th occurrence inside the SM-validate forecast-row rationale. Source: Edge#2 (CR-pass-2). Landed iter-422.
-- [ ] [Review][Patch] PATCH-11: § Test-surface decomposition "~30 cross-link edits" → "27 cross-link edits" [`1-21-…md:241`] — twin sweep to PATCH-8 (`× ~30` → `× 27` at line 282); same parallel claim at line 241 was missed at CR-pass-1. Source: Edge#3 (CR-pass-2).
+- [x] [Review][Patch] PATCH-11: § Test-surface decomposition "~30 cross-link edits" → "27 cross-link edits" [`1-21-…md:241`] — twin sweep to PATCH-8 (`× ~30` → `× 27` at line 282); same parallel claim at line 241 was missed at CR-pass-1. Source: Edge#3 (CR-pass-2). Landed iter-423.
 - [ ] [Review][Patch] PATCH-12: § Audit methodology line 174 deflection "per-story event counts are recorded in the test-debt.md catalogue rows" misleading [`1-21-…md:174`] — `test-debt.md` row schema (Skip ground / AC class / Effort / Risk class / Source / Carry-to) has no event-count field; deflection promises non-existent data. Replace with simpler statement (e.g. drop trailing clause; end sentence at "multi-event skips.") to remove the false forward-pointer. Source: Edge#1 (CR-pass-2).
 
 #### Deferred — accepted-as-NIT (1)
