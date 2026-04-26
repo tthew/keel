@@ -70,4 +70,22 @@ describe('InvariantSchema rejections (Story 1.19 AC4 RED-phase)', () => {
     expect(result.success).toBe(false);
     expect(JSON.stringify(result)).toMatch(/duplicate invariant id: INV-dup-id/);
   });
+
+  // Story 1.19 CR-6 (iter-383): second `superRefine` block at `invariants.manifest.ts:63-87`
+  // requires entries sharing (sourcePath, hashScope canonical-form) to share contentHash.
+  // Distinct from the duplicate-id check above — the two records here have DIFFERENT ids
+  // (so the first superRefine passes) but identical sourcePath + (absent) hashScope and
+  // differing contentHash, exercising ONLY the second block's mismatch path.
+  it('superRefine: rejects duplicate (sourcePath, hashScope) with differing contentHash', async () => {
+    const { InvariantsSchema } = await import('../invariants.manifest.js');
+    const mismatch = [
+      { ...baseEntry, id: 'INV-scope-a', contentHash: 'a'.repeat(64) },
+      { ...baseEntry, id: 'INV-scope-b', contentHash: 'b'.repeat(64) },
+    ];
+    const result = InvariantsSchema.safeParse(mismatch);
+    expect(result.success).toBe(false);
+    expect(JSON.stringify(result)).toMatch(
+      /contentHash mismatch across entries sharing sourcePath a\/b\.ts/,
+    );
+  });
 });
