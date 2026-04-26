@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-26T00:00:00.000Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.20",
+    "label": "Activate FR14i for real (end vacuous-pass mode)"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "PASS",
+  "rationale": "P0 coverage is 100% (3/3), P1 coverage is 100% (2/2; >= 90% target), and overall coverage is 100% (>= 80% minimum). All six Story 1.20 ACs are FULL via the hybrid (a)+(c) coverage governance: 5 vitest cases cover AC1+AC2 (registration shape + narrowed SEMANTIC contract); AC3+AC4+AC5 are substrate-verification (grep-output / sync-gate anchor-walker output / git diff byte-identical clause + sha256 + AC1 contentHash lockstep); AC6 is documentation-side carve-out (option-b-defer with deferred-work.md Story 1.20 + Subtask 9.4 sync-gate output proving 0 NEW drift introduced).",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-20-activate-fr14i-for-real-end-vacuous-pass.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}

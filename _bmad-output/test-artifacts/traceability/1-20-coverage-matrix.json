@@ -1,0 +1,475 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-26T00:00:00.000Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.20",
+    "label": "Activate FR14i for real (end vacuous-pass mode)"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-20-activate-fr14i-for-real-end-vacuous-pass.md (AC1-AC6)"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC1",
+      "title": "Manifest registration of INV-fr14i-ci-workflow-presence with whole-file sha256 + sync-gate green",
+      "priority": "P0",
+      "coverage": "FULL",
+      "tests": [
+        {
+          "id": "1.20-UNIT-001",
+          "title": "entry exists in manifest",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 7,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-002",
+          "title": "sourcePath is .github/workflows/ci.yml",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 11,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-003",
+          "title": "whole-file hashScope (no hashScope field)",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 15,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-004",
+          "title": "anchors array contains the canonical id",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 19,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-005",
+          "title": "contentHash matches /^[0-9a-f]{64}$/",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 23,
+          "level": "unit",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "AC2",
+      "title": "Drift detection on workflow-file delete/move/edit blocks pre-merge-fast (narrowed scope; generic mechanic inherited from Story 1.19 sync-gate.test.ts)",
+      "priority": "P1",
+      "coverage": "FULL",
+      "tests": [
+        {
+          "id": "1.20-UNIT-001",
+          "title": "entry exists in manifest (SEMANTIC contract)",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 7,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-002",
+          "title": "sourcePath is .github/workflows/ci.yml (SEMANTIC contract)",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 11,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-003",
+          "title": "whole-file hashScope (SEMANTIC contract)",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 15,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-004",
+          "title": "anchors canonical id (SEMANTIC contract)",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 19,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-005",
+          "title": "contentHash sha256 shape (SEMANTIC contract)",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 23,
+          "level": "unit",
+          "status": "active"
+        },
+        {
+          "id": "1.19-INT-013",
+          "title": "added-to-source-only (inherited generic drift mechanic)",
+          "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+          "line": 27,
+          "level": "api",
+          "status": "active"
+        },
+        {
+          "id": "1.19-INT-014",
+          "title": "removed-from-source-only (inherited; covers AC2 file-deleted/moved sub-clause)",
+          "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+          "line": 56,
+          "level": "api",
+          "status": "active"
+        },
+        {
+          "id": "1.19-INT-015",
+          "title": "removed-from-docs-only (inherited generic drift mechanic)",
+          "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+          "line": 87,
+          "level": "api",
+          "status": "active"
+        },
+        {
+          "id": "1.19-INT-016",
+          "title": "content-hash-mismatch (inherited; covers AC2 file-edited sub-clause)",
+          "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+          "line": 103,
+          "level": "api",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "AC3",
+      "title": "RALPH.md execute-spine documentation amended to cite FR14i activation",
+      "priority": "P2",
+      "coverage": "FULL",
+      "tests": [
+        {
+          "id": "1.20-SUBSTRATE-001",
+          "title": "RALPH.md grep verification: INV-fr14i-ci-workflow-presence token present (>=2 hits per Subtask 6.3)",
+          "file": "RALPH.md",
+          "line": null,
+          "level": "other",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "AC4",
+      "title": "INVARIANTS.md index entry for INV-fr14i-ci-workflow-presence at canonical insertion point + sync-gate anchor-walker resolves it",
+      "priority": "P0",
+      "coverage": "FULL",
+      "tests": [
+        {
+          "id": "1.20-SUBSTRATE-002",
+          "title": "INVARIANTS.md anchor-walker resolution: sync-gate Subtask 9.4 output reports 0 NEW drift on this id",
+          "file": "INVARIANTS.md",
+          "line": 96,
+          "level": "other",
+          "status": "active"
+        },
+        {
+          "id": "1.19-INT-013",
+          "title": "added-to-source-only (inherited anchor-walker mechanic)",
+          "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+          "line": 27,
+          "level": "api",
+          "status": "active"
+        },
+        {
+          "id": "1.19-INT-015",
+          "title": "removed-from-docs-only (inherited anchor-walker mechanic)",
+          "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+          "line": 87,
+          "level": "api",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "AC5",
+      "title": ".github/workflows/ci.yml trigger filter expanded to cover feat/epic-* PR bases (byte-identical clause + sha256 lockstep)",
+      "priority": "P0",
+      "coverage": "FULL",
+      "tests": [
+        {
+          "id": "1.20-SUBSTRATE-003",
+          "title": "git diff exactness: 2 changed lines (both branches: arrays); all other surfaces byte-identical (Subtask 9.6)",
+          "file": ".github/workflows/ci.yml",
+          "line": null,
+          "level": "other",
+          "status": "active"
+        },
+        {
+          "id": "1.20-SUBSTRATE-004",
+          "title": "Post-edit sha256 5754ab12... matches manifest INV-fr14i-ci-workflow-presence contentHash (AC1 lockstep)",
+          "file": ".github/workflows/ci.yml",
+          "line": null,
+          "level": "other",
+          "status": "active"
+        },
+        {
+          "id": "1.20-UNIT-005",
+          "title": "contentHash sha256 shape (AC1 lockstep — covers AC5 substrate stability)",
+          "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+          "line": 23,
+          "level": "unit",
+          "status": "active"
+        }
+      ]
+    },
+    {
+      "id": "AC6",
+      "title": "Pre-existing 3x INV-git-hooks-preservation family drifts addressed (option-b-defer chosen; FR14n ATDD-skip ground (c) variant-(ii) precedent)",
+      "priority": "P1",
+      "coverage": "FULL",
+      "tests": [
+        {
+          "id": "1.20-SUBSTRATE-005",
+          "title": "deferred-work.md Story 1.20 carve-out: 4 rows (3 AC6-scope + 1 inherited) per Subtask 3.1",
+          "file": "_bmad-output/implementation-artifacts/deferred-work.md",
+          "line": null,
+          "level": "other",
+          "status": "active"
+        },
+        {
+          "id": "1.20-SUBSTRATE-006",
+          "title": "Subtask 9.4 sync-gate output: 0 NEW drift introduced (4 deferred drifts identical to Subtask 1.2 baseline)",
+          "file": "packages/keel-invariants/src/sync-gate.ts",
+          "line": null,
+          "level": "other",
+          "status": "active"
+        }
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 6,
+    "fully_covered": 6,
+    "partially_covered": 0,
+    "uncovered": 0,
+    "overall_coverage_percentage": 100,
+    "priority_breakdown": {
+      "P0": { "total": 3, "covered": 3, "percentage": 100 },
+      "P1": { "total": 2, "covered": 2, "percentage": 100 },
+      "P2": { "total": 1, "covered": 1, "percentage": 100 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 4,
+      "cases": 13,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 4, "criteria_covered": 2 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 5, "criteria_covered": 2 },
+        "other": { "tests": 4, "criteria_covered": 4 }
+      }
+    },
+    "tests": [
+      {
+        "id": "1.20-UNIT-001",
+        "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+        "line": 7,
+        "title": "entry exists in manifest",
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-UNIT-002",
+        "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+        "line": 11,
+        "title": "sourcePath is .github/workflows/ci.yml",
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-UNIT-003",
+        "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+        "line": 15,
+        "title": "whole-file hashScope (no hashScope field)",
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-UNIT-004",
+        "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+        "line": 19,
+        "title": "anchors array contains the canonical id",
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-UNIT-005",
+        "file": "packages/keel-invariants/src/__tests__/invariants.manifest.fr14i.test.ts",
+        "line": 23,
+        "title": "contentHash matches /^[0-9a-f]{64}$/",
+        "level": "unit",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.19-INT-013",
+        "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+        "line": 27,
+        "title": "added-to-source-only (inherited)",
+        "level": "api",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.19-INT-014",
+        "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+        "line": 56,
+        "title": "removed-from-source-only (inherited; covers AC2 file-deleted/moved sub-clause)",
+        "level": "api",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.19-INT-015",
+        "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+        "line": 87,
+        "title": "removed-from-docs-only (inherited)",
+        "level": "api",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.19-INT-016",
+        "file": "packages/keel-invariants/src/__tests__/sync-gate.test.ts",
+        "line": 103,
+        "title": "content-hash-mismatch (inherited; covers AC2 file-edited sub-clause)",
+        "level": "api",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-SUBSTRATE-001",
+        "file": "RALPH.md",
+        "line": null,
+        "title": "RALPH.md grep verification: INV-fr14i-ci-workflow-presence token present (>=2 hits per Subtask 6.3)",
+        "level": "other",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-SUBSTRATE-002",
+        "file": "INVARIANTS.md",
+        "line": 96,
+        "title": "INVARIANTS.md anchor-walker resolution: sync-gate Subtask 9.4 output reports 0 NEW drift on this id",
+        "level": "other",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-SUBSTRATE-003",
+        "file": ".github/workflows/ci.yml",
+        "line": null,
+        "title": "git diff exactness: 2 changed lines (both branches: arrays); all other surfaces byte-identical (Subtask 9.6)",
+        "level": "other",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      },
+      {
+        "id": "1.20-SUBSTRATE-004",
+        "file": ".github/workflows/ci.yml",
+        "line": null,
+        "title": "Post-edit sha256 5754ab12... matches manifest INV-fr14i-ci-workflow-presence contentHash (AC1 lockstep)",
+        "level": "other",
+        "status": "active",
+        "skipped": false,
+        "fixme": false,
+        "pending": false,
+        "blocker_reason": ""
+      }
+    ],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "LOW",
+      "action": "Story 1.20 trace gate is PASS; next FR14n state matrix step: traced -> sm-verified via /bmad-create-story (args: \"review\") post-dev SM verification, then sm-verified -> done via /bmad-code-review (args: \"2\")",
+      "requirements": []
+    }
+  ]
+}
