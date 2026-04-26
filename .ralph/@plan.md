@@ -37,7 +37,8 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-2b] Push-defer annotation (SSH-egress timeout) — `6c8cbc1`.
 - [x] [iter-3] 2.5 AC2 5-cap enumeration landed on feat-2 — `e555425` (PR #230).
 - [x] [iter-3] Close-out + 2.5b/2.5c discovered — `c4aa62d`.
-- [x] [iter-4] Prune RALPH.md + @plan.md back under doc-budget cap — _this commit_.
+- [x] [iter-4] Prune RALPH.md + @plan.md back under doc-budget cap — `2d156c9`.
+- [x] [iter-4b] Push-defer annotation — SSH-egress port-22 timeout (exit 124).
 
 ## Context
 
