@@ -279,7 +279,7 @@ Distinct from SSH-egress class (which manifests as `Connection timed out` ~75s).
 - Files **created**:
   - `_bmad-output/implementation-artifacts/test-debt.md` (NEW; Tasks 2 + 3 + 4 + 6 + 7 cluster rows authored here).
 - Files **modified**:
-  - `_bmad-output/implementation-artifacts/<story-slug>.md` × ~30 (Task 5 back-pointers; one per test-debt.md per-story entry).
+  - `_bmad-output/implementation-artifacts/<story-slug>.md` × 27 (Task 5 back-pointers; one per test-debt.md per-story entry).
   - `packages/keel-invariants/src/invariants.manifest.ts` (Subtask 7.1 disposition (b) branch IFF resolved-in-flight contentHash re-bump lands; uses L1-protection workaround).
   - `_bmad-output/implementation-artifacts/deferred-work.md` (Subtask 8.3 follow-up IFF AC2 gate-edit gap surfaces).
   - `_bmad-output/implementation-artifacts/sprint-status.yaml` (Step 6 of `bmad-create-story` workflow flips `1-21-...: backlog → ready-for-dev`; subsequent state transitions per FR14n matrix tracked in IP § Context Story State, NOT in sprint-status row).
