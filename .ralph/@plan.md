@@ -4,12 +4,11 @@
 
 ## NOW
 
-- [ ] **2.13 healthcheck timeout** `packages/devbox/docker-compose.yml:282`: `nc -z 127.0.0.1 2222` → `nc -z -w 2 127.0.0.1 ${KEEL_DEVBOX_SSH_PORT:-2222}`. Ref: `discussion_r3143864797`.
+- [ ] **2.13 probe-domain three-site lockstep** `api.github.com` hardcoded in 3 files; add pre-commit grep asserting literal matches across `docker-compose.yml:281`, `docs/invariants/devbox-healthcheck.md`, `packages/devbox/README.md` § Healthcheck.
 
 ## QUEUE (PR #230 review fix-arc)
 
 Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-4322595769>. One per iter; commit on `feat/epic-2-packaged-devbox`.
-- [ ] **2.13 probe-domain three-site lockstep** `api.github.com` hardcoded in 3 files; add pre-commit grep asserting literal matches across `docker-compose.yml:281`, `docs/invariants/devbox-healthcheck.md`, `packages/devbox/README.md` § Healthcheck.
 - [ ] **2.14 absorption-SHA reachability** Add sync-gate step `git rev-parse 5278738^{commit} >/dev/null 2>&1 || fail` to guard `docs/invariants/devbox-legacy-branch-retention.md:108-128`. Ref: `discussion_r3143866586`.
 - [ ] **2.12 sshd liveness comment** Add 1-line comment at `packages/devbox/entrypoint.sh:207-211`: "Verify sshd is listening before exec'ing the operator shell."
 - [ ] **2.7 arg-passthrough comment (NIT)** Brief comment near `packages/devbox/scripts/ralph-build-host.sh:90` on `"$@"` passthrough contract.
@@ -25,21 +24,11 @@ Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-43225957
 
 _(none — all findings are MINOR/NIT)_
 
-## DONE (PR #230 review iter-1..4 — 2026-04-26)
+## DONE (PR #230 review iter-1..9 — 2026-04-26)
 
-- [x] [iter-1] Posted PR #230 review — 6 MINOR + 2 NIT, APPROVE — `20ee582`.
-- [x] [iter-2] Re-poll clean + branch posture resolved — `d8cc35c`.
-- [x] [iter-2b] Push-defer annotation (SSH-egress timeout) — `6c8cbc1`.
-- [x] [iter-3] 2.5 AC2 5-cap enumeration landed on feat-2 — `e555425` (PR #230).
-- [x] [iter-3] Close-out + 2.5b/2.5c discovered — `c4aa62d`.
-- [x] [iter-4] Prune RALPH.md + @plan.md back under doc-budget cap — `2d156c9`.
-- [x] [iter-4b] Push-defer annotation — SSH-egress port-22 timeout (exit 124).
-- [x] [iter-5] 2.5b devbox-hardening.md 5-cap + iter-238 narrative — `04858c6` (PR #230; push deferred).
-- [x] [iter-5b] Push retry succeeded — feat-2 + chore/pr-230-review both at origin.
-- [x] [iter-6] 2.5c Change Log v1.10 — pin iter-238 SETUID/SETGID 5-cap — `7390020` (PR #230).
-- [x] [iter-6b] feat-2 push retry resolved — both branches at origin (`04858c6..7390020 feat-2`, `b16113c..7410ca0 chore`).
-- [x] [iter-7] PRUNE-FIRST advisory — feat-2 RALPH.md+@plan.md back under cap (`b9dfce1`; push deferred SSH:22 ×2).
-- [x] [iter-8] 2.7 AC3 Change Log v1.7 — pin `docker attach → docker exec` evolution (`d3aecde` on feat-2; PR #230). feat-2 push retry resolved (`7390020..d3aecde`).
+- [x] [iter-1..7] (pruned for budget — see RALPH.md § Signposts iter-pr-review-4..6 for synthesis).
+- [x] [iter-8] 2.7 AC3 Change Log v1.7 — `docker attach → docker exec` evolution (`d3aecde` on feat-2; PR #230).
+- [x] [iter-9] **2.13 D-9 closure (`nc -z -w 2`)** — six-site lockstep substrate sweep + Change Log v1.5 + manifest contentHash refresh (`ae0ac4b3 → b8a420a4`); reviewer's `${KEEL_DEVBOX_SSH_PORT:-2222}` half DISMISSED with rationale (host-side-publish vs container-internal-bind semantics) — `350f4cd` on feat-2; PR #230. Sync-gate clean for INV-devbox-healthcheck (pre-existing INV-package-test-coverage-floor drift unchanged).
 
 ## Context
 
@@ -49,7 +38,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-8 landed `d3aecde` on feat-2 (2.7 AC3 docker-exec Change Log v1.7; pre-push CI gate green via REST step-2 LADDER fallback after graphql i/o-timeout flake). feat-2 pushed (`7390020..d3aecde`); chore-branch push retry pending in this commit. Carry-forward unpushed (chore-only): `7308978` (iter-6c retry-success record) + `44aa8f8` (iter-7 prune) + `<this-commit>`.
+- **PR:** #230 **Open**. Iter-9 landed `350f4cd` on feat-2 (2.13 D-9 nc -z -w 2 lockstep). At iter start CI was 4/4 GREEN; this iter's push triggers a new CI run — pre-push CI gate observed clear at orient. Carry-forward unpushed (chore-only): `<this-commit>`.
 
 ## Halt criterion
 
