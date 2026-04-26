@@ -28,7 +28,7 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-1..7] (pruned for budget — see RALPH.md § Signposts iter-pr-review-4..6 for synthesis).
 - [x] [iter-8] 2.7 AC3 Change Log v1.7 — `docker attach → docker exec` evolution (`d3aecde` on feat-2; PR #230).
 - [x] [iter-9] **2.13 D-9 closure (`nc -z -w 2`)** — six-site lockstep substrate sweep + Change Log v1.5 + manifest contentHash refresh (`ae0ac4b3 → b8a420a4`); reviewer's `${KEEL_DEVBOX_SSH_PORT:-2222}` half DISMISSED with rationale (host-side-publish vs container-internal-bind semantics) — `350f4cd` on feat-2; PR #230. Sync-gate clean for INV-devbox-healthcheck (pre-existing INV-package-test-coverage-floor drift unchanged).
-- [x] [iter-10] **2.13 probe-domain three-site lockstep gate** — new `tools/check-probe-domain-lockstep.sh` extracts dnsmasq probe-domain from `packages/devbox/docker-compose.yml` healthcheck and asserts literal in `docs/invariants/devbox-healthcheck.md` + `packages/devbox/README.md`; wired as `always_run` pre-commit hook in `.pre-commit-config.yaml`; manifest INV-prek-pre-commit-config + INV-prek-commit-msg-config contentHashes refreshed in lockstep (`4d894156 → 9bb763d4`, whole-file sha256 shared per duplicate-sourcePath schema rule). Local commit `24ac971` on feat-2; **push deferred (SSH-egress port-22 timeout, retry also failed) — carry-forward unpushed to next iter retry per iter-5 precedent**.
+- [x] [iter-10] **2.13 probe-domain three-site lockstep gate** — new `tools/check-probe-domain-lockstep.sh` extracts dnsmasq probe-domain from `packages/devbox/docker-compose.yml` healthcheck and asserts literal in `docs/invariants/devbox-healthcheck.md` + `packages/devbox/README.md`; wired as `always_run` pre-commit hook in `.pre-commit-config.yaml`; manifest INV-prek-pre-commit-config + INV-prek-commit-msg-config contentHashes refreshed in lockstep (`4d894156 → 9bb763d4`, whole-file sha256 shared per duplicate-sourcePath schema rule). LANDED `350f4cd..24ac971` on feat-2 after two SSH-egress port-22 timeouts (3rd attempt succeeded — network flake, not sustained block). PR #230 push retriggers CI.
 
 ## Context
 
@@ -38,7 +38,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-9 landed `350f4cd` on feat-2 (2.13 D-9 nc -z -w 2 lockstep) — pushed; at iter-10 orient CI was 4/4 GREEN against `350f4cd`. Iter-10 commit `24ac971` (2.13 probe-domain three-site lockstep gate) is local-only on feat-2 — push deferred (SSH-egress port-22 timeout × 2 attempts). Next iter retries push.
+- **PR:** #230 **Open**. Iter-9 landed `350f4cd` on feat-2 (2.13 D-9 nc -z -w 2 lockstep). Iter-10 landed `24ac971` on feat-2 (2.13 probe-domain three-site lockstep gate) — push succeeded on 3rd attempt after two port-22 timeouts; this triggered a new CI run on PR #230. Next iter monitors CI before any new feat-2 push.
 
 ## Halt criterion
 
