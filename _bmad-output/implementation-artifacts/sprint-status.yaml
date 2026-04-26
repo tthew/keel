@@ -115,7 +115,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-26 Story-1-18-dev-story-review-iter-366 UTC
+last_updated: 2026-04-26 Story-1-18-done-cr-iter-369 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -140,7 +140,7 @@ development_status:
   1-15-renovate-config-with-version-pinning-rules-i7: done
   1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold: done
   1-17-bootstrap-typescript-test-runner-vitest-minimal-ci: done
-  1-18-bootstrap-python-test-runner-pytest-under-uv: review
+  1-18-bootstrap-python-test-runner-pytest-under-uv: done
   1-19-backfill-keel-invariants-test-coverage: backlog
   1-20-activate-fr14i-for-real-end-vacuous-pass: backlog
   1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups: backlog
