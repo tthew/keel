@@ -73,6 +73,12 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
     expect(stderr).toBe('');
   });
 
+  // CR-8 (iter-385): the AC5 red-path assertion previously substring-matched the
+  // human-prose `message` value via `expect.stringMatching`, so a refactor that
+  // dropped the JSON envelope or renamed `status`/`package` would have escaped
+  // detection. Tighten by capturing the rejection once, then `JSON.parse` the
+  // last NDJSON line and assert the structured `{status, package, message}`
+  // shape per Subtask 8.1 wire-format contract.
   it('red: non-exempt package missing coverage exits 1; stderr is NDJSON {status: violation, package, message}', async () => {
     const cli = await buildFixture([
       {
@@ -83,12 +89,23 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
         ],
       },
     ]);
-    await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
-      code: 1,
-      stderr: expect.stringMatching(
-        /coverage-floor-violation: no \*\.test\.ts under packages\/bar\/src\//,
-      ),
-    });
+    const err = await execFileAsync('node', [cli]).then(
+      () => {
+        throw new Error('expected CLI to reject with exit 1');
+      },
+      (e: { code?: number; stderr?: string }) => e,
+    );
+    expect(err.code).toBe(1);
+    const lastLine = (err.stderr ?? '').trim().split('\n').pop() ?? '';
+    const parsed = JSON.parse(lastLine) as {
+      status: string;
+      package: string;
+      message: string;
+    };
+    expect(parsed).toMatchObject({ status: 'violation', package: 'bar' });
+    expect(parsed.message).toMatch(
+      /coverage-floor-violation: no \*\.test\.ts under packages\/bar\/src\//,
+    );
   });
 
   // CR-1 (iter-378) regression: directory whose name ends in `.test.ts` MUST NOT
