@@ -4,14 +4,13 @@
 
 ## NOW
 
-- [ ] **Monitor PR CI on PR #230** — verify `27d4c7b` (iter-13 absorption-SHA reachability gate) clears 4/4 SUCCESS before landing 2.12. Per Guardrail 14, do NOT push the next fix while CI is in-progress.
+- [ ] **2.7 arg-passthrough comment (NIT)** — final QUEUE item. Brief 1-line comment near `packages/devbox/scripts/ralph-build-host.sh:90` on `"$@"` passthrough contract per synthesizer NIT (`#issuecomment-4322595769` § "Story 2.7 — `\"$@\"` arg passthrough undocumented"). **Gate per Guardrail 14:** iter-15 orient (step 0h) — if CI on `e9a0c5d` (iter-14 head) is GREEN, execute directly; else step 0h preempts to monitor before resuming. Per iter-pr-review-4 LESSON Monitor-bookkeeping-loop-break: treat monitor-resolution as precondition gate, not separate task. After 2.7 lands and CI clears, QUEUE empties → write `EPIC_DONE` halt per § Halt criterion.
 
 ## QUEUE (PR #230 review fix-arc)
 
 Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-4322595769>. One per iter; commit on `feat/epic-2-packaged-devbox`.
 
-- [ ] **2.12 sshd liveness comment** Add 1-line comment at `packages/devbox/entrypoint.sh:207-211`: "Verify sshd is listening before exec'ing the operator shell." (gate on CI GREEN for `27d4c7b`)
-- [ ] **2.7 arg-passthrough comment (NIT)** Brief comment near `packages/devbox/scripts/ralph-build-host.sh:90` on `"$@"` passthrough contract.
+_(empty — 2.7 is sole NIT, currently in NOW; halt forecast on closure)_
 
 ### Out-of-PR follow-ups (track elsewhere)
 
@@ -24,7 +23,7 @@ Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-43225957
 
 _(none — all findings are MINOR/NIT)_
 
-## DONE (PR #230 review iter-1..10 — 2026-04-26)
+## DONE (PR #230 review iter-1..14 — 2026-04-26)
 
 - [x] [iter-1..7] (pruned for budget — see RALPH.md § Signposts iter-pr-review-4..6 for synthesis).
 - [x] [iter-8] 2.7 AC3 Change Log v1.7 — `docker attach → docker exec` evolution (`d3aecde` on feat-2; PR #230).
@@ -33,6 +32,7 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-11] **CI-monitor deferred on api.github.com flake** — gh-CLI HTTPS:443 graphql + REST both timed out (3 attempts × 2 backoff windows; LADDER steps 1+2+3 exhausted). Independent SSH:22 reachability verified via `git ls-remote origin chore/pr-230-review` (returned head SHA, exit 0) — origin still pushable, only api.github.com path blocked. Per LADDER step 4: defer to next iter. NOW rotated to "Monitor PR CI on PR #230"; original NOW (2.14 absorption-SHA reachability) demoted to top of QUEUE — only land after CI on `24ac971` is GREEN per Guardrail 14. RALPH.md gh-CLI flake LADDER gotcha refreshed with iter-11 datapoint (step-2 REST can also fail when api.github.com path is fully blocked, not just graphql-overloaded).
 - [x] [iter-12] **Monitor PR CI on PR #230 — CLEARED.** LADDER step 1 succeeded on first attempt (`gh pr checks 230` returned 4/4 SUCCESS in <2s). Independent confirmation via `gh pr view 230 --json headRefOid,statusCheckRollup,state,isDraft,mergeable`: head=`24ac9719` (matches iter-10's `24ac971` ✓), state=OPEN, mergeable=MERGEABLE, draft=false, all 4 checks (node ×2, python ×2) conclusion=SUCCESS, status=COMPLETED. api.github.com HTTPS:443 flake from iter-11 self-resolved (~1 iteration of latency). 2.14 absorption-SHA reachability rotated NOW; QUEUE → 2.12 sshd liveness comment, 2.7 arg-passthrough comment NIT.
 - [x] [iter-13] **2.14 absorption-SHA reachability gate LANDED `27d4c7b` on feat-2** — closes reviewer comment `discussion_r3143866586`. New `tools/check-absorption-sha-reachable.sh` runs `git rev-parse --verify --quiet "${ABSORPTION_SHA}^{commit}"` against inline constant `5278738`; fails loud with three-line diagnostic + AMEND-path guidance if unreachable. Wired in `.pre-commit-config.yaml` as `id: absorption-sha-reachable`, `language: system`, `always_run: true` (whole-file sha256 `9bb763d4 → ba264ac9`). Both `INV-prek-pre-commit-config` + `INV-prek-commit-msg-config` contentHashes refreshed in lockstep (shared sourcePath per duplicate-sourcePath schema rule). Story 2.14 implementation-artifact Change Log v1.4 row pins the closure. Quality gates GREEN: typecheck/lint/format:check/probe-domain-lockstep/ralph-doc-budget/**absorption-sha-reachable** all PASS at commit-time; sync-gate drift only on pre-existing `INV-package-test-coverage-floor` (out-of-PR). Push first-attempt success (no retry — contra iter-10 SSH-egress flake). PR #230 push retriggers CI.
+- [x] [iter-14] **CI cleared on `27d4c7b` + 2.12 sshd liveness comment LANDED `e9a0c5d` on feat-2** (monitor + execute collapsed per iter-pr-review-4 LESSON Monitor-bookkeeping-loop-break — ~small task gated on precondition, not separate task). LADDER step 1 returned 4/4 SUCCESS in <2s on `27d4c7b` (no api.github.com flake this iter); confirmation via `gh pr view 230 --json` showed head=`27d4c7b23d…6f098d6`, state=OPEN, mergeable=MERGEABLE, mergeStateStatus=CLEAN, isDraft=false. 2.12 NIT add: 1-line `# Verify sshd is listening before exec'ing the operator shell.` at `packages/devbox/entrypoint.sh:237` directly before the post-spawn liveness probe (`sleep 0.5` → `kill -0 "${SSHD_PID}"`); reviewer's wording preserved verbatim. Reviewer cited `:207-211` referenced iter-268 file shape pre-PATCH-6; iter-278 rc-capture rewrite shifted block to `:235-242` — comment placed at the actual probe site. Story 2.12 implementation-artifact Change Log v1.9 row pins closure. `entrypoint.sh` is NOT contentHash-tracked (only `docs/invariants/devbox-ssh.md` is) — no sync-gate recompute. All pre-commit hooks PASSED at commit-time including probe-domain-lockstep + absorption-sha-reachable + ralph-doc-budget; pre-existing `INV-package-test-coverage-floor` drift unchanged. Push first-attempt success. PR #230 push retriggers CI on `e9a0c5d`. QUEUE → 2.7 arg-passthrough NIT (sole final item).
 
 ## Context
 
@@ -42,7 +42,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**, MERGEABLE, head=`27d4c7b` (was `24ac9719`); iter-13 landed 2.14 absorption-SHA reachability gate. CI re-running on push; iter-14 monitors per Guardrail 14 before landing 2.12. Iter-9 landed `350f4cd` (2.13 D-9 nc -z -w 2 lockstep). Iter-10 landed `24ac971` (2.13 probe-domain three-site lockstep gate). Iter-12 monitor-cleared CI on `24ac971`.
+- **PR:** #230 **Open**, MERGEABLE, head=`e9a0c5d` (was `27d4c7b`); iter-14 collapsed CI-monitor on `27d4c7b` (4/4 SUCCESS, CLEAN) + 2.12 sshd liveness comment landing per iter-pr-review-4 LESSON Monitor-bookkeeping-loop-break (~small NIT gated on precondition). CI re-running on push; iter-15 orient (step 0h) gates 2.7 NIT on `e9a0c5d` GREEN per Guardrail 14. Iter-9 `350f4cd` (2.13 D-9). Iter-10 `24ac971` (2.13 probe-domain). Iter-12 monitor-cleared `24ac971`. Iter-13 `27d4c7b` (2.14). Iter-14 `e9a0c5d` (2.12).
 
 ## Halt criterion
 
