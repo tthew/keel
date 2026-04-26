@@ -10,7 +10,7 @@
 The devbox container's process posture is **minimum-privilege**, with **layered barriers** that a runtime compromise must cross before reaching persistence, host escape, or lateral privilege:
 
 1. Processes run as a non-root `dev` user (UID/GID 1000) — a container break-out that lands at the shell does not start from UID 0.
-2. The kernel capability bounding set is reduced to three narrow substrate-operational caps (NET_ADMIN + NET_RAW + NET_BIND_SERVICE) via `cap_drop: [ALL]` + explicit `cap_add`.
+2. The kernel capability bounding set is reduced to five narrow substrate-operational caps (NET_ADMIN + NET_RAW + NET_BIND_SERVICE + SETUID + SETGID) via `cap_drop: [ALL]` + explicit `cap_add`.
 3. `no-new-privileges:true` sets `PR_SET_NO_NEW_PRIVS=1` on PID 1 — the kernel masks file-cap `F(effective)` bits on exec + disables setuid-bit privilege elevation, so even a setuid-root binary cannot escalate.
 4. `/tmp` and `/var/tmp` mount as tmpfs with `noexec,nosuid` — a dropped-in executable in those directories cannot be executed; setuid bits in those paths are honored by neither mount nor NNP.
 5. Persistent state for `/home/dev` (Claude Code tokens per Story 2.8, `gh` tokens per Story 2.9, shell history) lives in a named Docker volume `keel_home_dev` — never a host bind-mount. A host compromise cannot read tokens via filesystem traversal; a container compromise cannot persist outside the named volume.
@@ -25,15 +25,17 @@ Dockerfile creates `dev` with `groupadd --gid 1000 dev && useradd --uid 1000 --g
 
 ### Capability bounding set
 
-`docker-compose.yml` declares `cap_drop: [ALL]` (strips every kernel capability including those inherited from the executable's bounding set) plus `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]`. Each cap has a distinct substrate-operational rationale:
+`docker-compose.yml` declares `cap_drop: [ALL]` (strips every kernel capability including those inherited from the executable's bounding set) plus `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID]`. Each cap has a distinct substrate-operational rationale:
 
 - `NET_ADMIN` — nftables rule load via netlink (Story 2.3 egress policy; `reload-egress.sh` invokes `nft -f <tempfile>` which requires netlink write).
 - `NET_RAW` — raw-socket probes dnsmasq may issue during health/connectivity checks.
 - `NET_BIND_SERVICE` — dnsmasq binds port 53 under `cap_drop: [ALL]`. The bounding set without this cap excludes `NET_BIND_SERVICE` even from root-equivalent processes (Linux kernel kernel-strips a cap from the bounding set even if the process has `geteuid() == 0`). The `:<1024` port-bind requirement (kernel-enforced) has no alternative under `cap_drop: [ALL]` except an explicit cap_add — OR running dnsmasq on a high port + rewriting `resolv.conf` (rejected: breaks Story 2.3's `nameserver 127.0.0.1` contract).
+- `SETUID` — `gosu`'s root→`dev` drop in `entrypoint.sh` calls `setuid(2)`. Under `cap_drop: [ALL]`, even root-owned processes lose `CAP_SETUID`, so the syscall fails with `EPERM`. Re-adding `SETUID` preserves the privileged-init → drop-to-`dev` posture; `gosu` issues `setuid()` directly before `exec()`, and NNP only masks privilege elevation on `exec()`, not direct `setuid()` calls by a privileged process. Added at iter-238 reconciliation when ambient-cap propagation across the image-`USER` boundary under NNP was empirically falsified on Docker 29.2 + linux/arm64.
+- `SETGID` — companion to `SETUID`: `gosu` calls `setgid(2)` to set the primary + supplementary group context to `dev:dev` before `exec()`. Same `cap_drop: [ALL]` + iter-238 rationale as `SETUID`.
 
-This is a Story 2.5 reconciliation of AC 2's drafted "only NET_ADMIN and NET_RAW" language — the drafted parenthetical "(required by nftables in Story 2.3)" was the RATIONALE for those two caps, not an exclusivity clause. The three-cap list is the minimum viable bounding set under the story's `cap_drop: [ALL]` + dnsmasq :53-bind + USER dev posture. Companion PRD NFR7 "NET_ADMIN/NET_RAW-only kernel caps" text predates the bounding-set × port-bind interaction analysis; this doc supersedes the PRD text per FR44 manifest-authority discipline.
+This is a Story 2.5 reconciliation of AC 2's drafted "only NET_ADMIN and NET_RAW" language — the drafted parenthetical "(required by nftables in Story 2.3)" was the RATIONALE for those two caps, not an exclusivity clause. The five-cap list is the minimum viable bounding set under the story's `cap_drop: [ALL]` + dnsmasq :53-bind + `user: '0:0'` + gosu-drop-to-`dev` posture (iter-238 reconciliation: USER dev + NNP empties the ambient set on Docker 29.2 + linux/arm64, so privileged init runs as root with the bounding set in its effective set, then ends with `exec gosu dev "$@"` to drop to the operator user — `gosu` requires `setuid(2)` / `setgid(2)`, gated on `CAP_SETUID` / `CAP_SETGID` under `cap_drop: [ALL]`). Companion PRD NFR7 "NET_ADMIN/NET_RAW-only kernel caps" text predates the bounding-set × port-bind interaction analysis; this doc supersedes the PRD text per FR44 manifest-authority discipline.
 
-`security_opt: [no-new-privileges:true]` sets `PR_SET_NO_NEW_PRIVS=1` on PID 1. Under NNP, file-cap `F(effective)` bits are kernel-disabled on exec per capabilities(7) ("any bits that would ordinarily grant greater privileges are ignored"), and the setuid bit is similarly masked. The **load-bearing capability propagation path** is Docker ≥19.03's ambient-capability automation: when `cap_add` is declared alongside USER non-root, Docker raises each bounded cap into PID 1's ambient set via `prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, ...)`. Ambient caps survive `exec()` regardless of NNP (this is ambient's kernel-design purpose); PID 1 → entrypoint.sh → start-egress.sh → dnsmasq/nft all inherit the three caps without file-cap action. File caps via `setcap +eip` in the Dockerfile remain as a portability fallback for runtimes without Docker's ambient-cap automation (older Docker, some Podman-compat forks) — harmless no-ops under the primary NNP+ambient path.
+`security_opt: [no-new-privileges:true]` sets `PR_SET_NO_NEW_PRIVS=1` on PID 1. Under NNP, file-cap `F(effective)` bits are kernel-disabled on exec per capabilities(7) ("any bits that would ordinarily grant greater privileges are ignored"), and the setuid bit is similarly masked. The **load-bearing capability propagation path** is `user: '0:0'` + a gosu drop at the end of `entrypoint.sh`: the container's main process starts as root with the five-cap bounding set materialised in its effective set (kernel grants the bounded subset to root regardless of file caps), runs privileged init (nftables rule load, dnsmasq :53 bind, `/etc/resolv.conf` pin, `/run` chown), and ends with `exec gosu dev "$@"` to drop to the operator UID for CMD. The `gosu` drop calls `setuid(2)` / `setgid(2)` before `exec()`, so NNP does NOT mask the privilege drop — NNP only masks privilege *elevation* on `exec()`, not `setuid()` calls issued directly by a privileged process before `exec()`. `docker exec` commands against the running container reuse the container's bounding+effective set under root by default; passing `--user dev` (or invoking `gosu dev` inside an exec) reproduces the operator-shell posture. **Why not Docker's ambient-capability automation?** Docker ≥19.03 nominally raises `cap_add` into PID 1's ambient set (`prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, ...)`) when a non-root `USER` directive is in effect, so ambient caps would survive `exec()` regardless of NNP. iter-238 falsified this assumption empirically on Docker 29.2 + linux/arm64: under USER dev + NNP=1, `CapAmb=0x0` regardless of the `cap_add` set. The `user: '0:0'` + gosu pattern is the cross-runtime-portable substitute. File caps via `setcap +eip` in the Dockerfile remain as a portability fallback for runtimes where neither root-effective propagation nor ambient-cap automation reach a target binary — harmless no-ops under the primary `user: '0:0'` + gosu path.
 
 ### tmpfs posture
 
@@ -74,7 +76,7 @@ Story 1.9's pre-merge sync-gate (FR43) computes this doc's `sha256` and compares
 Parsing `docker-compose.yml` at runtime (or at `pnpm devbox:start`), asserting:
 
 - `services.devbox.cap_drop` contains `ALL`.
-- `services.devbox.cap_add` is exactly `[NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` (unordered set equality).
+- `services.devbox.cap_add` is exactly `[NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID]` (unordered set equality).
 - `services.devbox.security_opt` contains `no-new-privileges:true`.
 - `services.devbox.tmpfs` contains two entries, both with `noexec,nosuid`, paths `/tmp` and `/var/tmp`.
 - `services.devbox.volumes` contains a `type: volume, source: keel_home_dev, target: /home/dev` entry.
@@ -99,7 +101,7 @@ docker exec keel-devbox id
 
 ```sh
 docker exec keel-devbox sh -c 'capsh --print'
-# Expect 'Bounding set =cap_net_bind_service,cap_net_raw,cap_net_admin' (order not guaranteed; set equality)
+# Expect 'Bounding set =cap_setgid,cap_setuid,cap_net_bind_service,cap_net_raw,cap_net_admin' (order not guaranteed; set equality)
 docker inspect keel-devbox --format '{{ .HostConfig.SecurityOpt }}'
 # Expect: [no-new-privileges]
 ```
@@ -148,16 +150,20 @@ docker exec keel-devbox sh -c 'grep ^NoNewPrivs /proc/self/status'
 # directly at the kernel interface.
 ```
 
-### Capability-exercise smoke (SC-15 ambient-cap verification)
+### Capability-exercise smoke (SC-15 root-effective-set verification)
 
 ```sh
 docker exec keel-devbox nft list table inet keel_egress
 # Expect: nftables ruleset loaded (Story 2.3 egress policy active under
 # cap-dropped posture). A successful load proves NET_ADMIN is in PID 1's
-# ambient set (ambient cap propagation working).
+# effective set under `user: '0:0'` (root sees the five-cap bounding set
+# in its effective set; ambient propagation under USER dev was falsified
+# at iter-238, so this smoke verifies the root-effective path instead).
 docker exec keel-devbox sh -c 'ss -tlnp | grep :53'
 # Expect: dnsmasq bound on 127.0.0.1:53. A successful bind proves
-# NET_BIND_SERVICE is in dnsmasq's effective set via ambient propagation.
+# NET_BIND_SERVICE is in dnsmasq's effective set — dnsmasq is launched
+# from start-egress.sh by PID 1 (root) before the gosu drop, so the
+# bind happens under root's effective set, not via ambient propagation.
 ```
 
 ## Backend compatibility
@@ -175,7 +181,7 @@ Together these three form the Epic-2 substrate-security trio: environment (DinD 
 
 ## Amendment
 
-This invariant is **substrate-authoritative**. Fork-extension via `INVARIANTS.fork.md` (FR45; `docs/invariants/fork.md` § Precedence) MAY add per-fork hardening (e.g. additional cap drops for stricter postures, larger tmpfs caps, additional tmpfs mounts) but MUST NOT relax the dev-user posture, the three-cap bounding set (except to narrow it further), the `no-new-privileges:true` posture, the tmpfs `noexec,nosuid` flags, or the `/home/dev` named-volume-only contract. A fork that needs to weaken any of those pursues the AMEND path (source-level PR against this doc + `invariants.manifest.ts` + `INVARIANTS.md` anchor together — the Story 1.6 + 1.9 source-level fork path). Substrate-wins precedence per `docs/invariants/fork.md` § Precedence.
+This invariant is **substrate-authoritative**. Fork-extension via `INVARIANTS.fork.md` (FR45; `docs/invariants/fork.md` § Precedence) MAY add per-fork hardening (e.g. additional cap drops for stricter postures, larger tmpfs caps, additional tmpfs mounts) but MUST NOT relax the dev-user posture, the five-cap bounding set (except to narrow it further), the `no-new-privileges:true` posture, the tmpfs `noexec,nosuid` flags, or the `/home/dev` named-volume-only contract. A fork that needs to weaken any of those pursues the AMEND path (source-level PR against this doc + `invariants.manifest.ts` + `INVARIANTS.md` anchor together — the Story 1.6 + 1.9 source-level fork path). Substrate-wins precedence per `docs/invariants/fork.md` § Precedence.
 
 ## Consumption
 
@@ -183,7 +189,7 @@ This invariant is **substrate-authoritative**. Fork-extension via `INVARIANTS.fo
 - **`AGENTS.md` § Devbox iteration environment → Container hardening (Story 2.5):** operator-readable summary pointing back to this invariant doc.
 - **`packages/devbox/README.md` § Hardening (Story 2.5):** operator-quickstart with copy-paste verification commands.
 - **`_bmad-output/planning-artifacts/architecture.md` § Execution environment (lines 73, 542-548):** references this invariant for the hardening posture narrative.
-- **`_bmad-output/planning-artifacts/prd.md` § NFR7 / NFR8 / NFR8a / NFR10:** this doc supersedes the drafted NFR7 cap list per FR44 manifest-authority; the SC-4 three-cap rationale is the load-bearing reconciliation.
+- **`_bmad-output/planning-artifacts/prd.md` § NFR7 / NFR8 / NFR8a / NFR10:** this doc supersedes the drafted NFR7 cap list per FR44 manifest-authority; the SC-4 five-cap rationale is the load-bearing reconciliation.
 - **Story 1.9 sync-gate:** at pre-merge, asserts this file's content hash in `invariants.manifest.ts` matches its on-disk hash AND that the `INVARIANTS.md` anchor bullet names the matching backtick-wrapped stable ID.
 
 ## Extension (FR44)
