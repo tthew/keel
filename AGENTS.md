@@ -42,7 +42,7 @@ Where content belongs, by audience and scope. When you learn something new durin
 
 ## Testing
 
-Run `pnpm test` from the worktree root to execute the workspace-wide Vitest suite (same entry point documented in `CLAUDE.md § Common commands`). Python tests under `uv run pytest` arrive with Story 1.18. See `_bmad-output/planning-artifacts/architecture.md § M0 substrate developer-productivity floor` for the canonical rationale behind the M0 test-runner substrate.
+Run `pnpm test` from the worktree root to execute the workspace-wide Vitest suite (same entry point documented in `CLAUDE.md § Common commands`). Run `uv run pytest` from the worktree root for the workspace-wide pytest suite covering `ralph.py` (`tests/`), `scripts/bootstrap-bmad-agents.py` (`scripts/tests/`), and `packages/devbox/tui/` (`packages/devbox/tui/tests/`); dev deps + Python 3.10+ are pinned in root `pyproject.toml` + `uv.lock` (D6). See `_bmad-output/planning-artifacts/architecture.md § M0 substrate developer-productivity floor` for the canonical rationale behind the M0 test-runner substrate.
 
 ## Project conventions
 

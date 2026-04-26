@@ -1,6 +1,6 @@
 # Story 1.18: Bootstrap Python test runner (pytest under uv) + root pyproject.toml
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -54,61 +54,61 @@ So that Python code has the same test-validation discipline as TypeScript code (
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Create root `pyproject.toml` with `[project]` metadata, dev deps, pytest config.** (AC: 1, 2)
-  - [ ] Subtask 1.1: Create `/workspace/ralph-bmad/.claude/worktrees/test-env/pyproject.toml` (worktree root; ABSENT pre-edit per substrate ledger). Content shape:
+- [x] **Task 1 — Create root `pyproject.toml` with `[project]` metadata, dev deps, pytest config.** (AC: 1, 2)
+  - [x] Subtask 1.1: Create `/workspace/ralph-bmad/.claude/worktrees/test-env/pyproject.toml` (worktree root; ABSENT pre-edit per substrate ledger). Content shape:
     - `[project]` table — `name = "keel-python"`, `version = "0.0.0"`, `requires-python = ">=3.10"` (matches `ralph.py:3` PEP 723 metadata exactly per SC-2), `dependencies = []` (no shared runtime deps; per-script PEP 723 carries runtime deps per D6 coexistence).
     - `[project.optional-dependencies]` — `dev = ["pytest", "pytest-asyncio", "ruff", "mypy"]` per SCP-233 § 4.1 FR14o + § 4.2 D6 shared dev deps list (verbatim list — no additions, no removals at this scope).
     - `[tool.pytest.ini_options]` — `testpaths = ["tests", "scripts/tests", "packages/devbox/tui/tests"]` (three directories per AC1 + Subtask 3/4/5 scaffolds; ordering doesn't affect pytest collection but list in alphabetical-by-leading-segment order for consistency); `pythonpath = [".", "scripts", "packages/devbox"]` (`.` for `ralph.py` import, `scripts` for hyphen-named `bootstrap-bmad-agents.py` via importlib in Subtask 4.1, `packages/devbox` for `tui` package import via `__init__.py` at `packages/devbox/tui/__init__.py:1` per substrate ledger); `addopts = "-ra --strict-markers"` (standard pytest hardening — `-ra` shows summary of skipped/xfailed/failed; `--strict-markers` rejects unregistered markers, paying down ATDD-skip ground (b) sunset risk per FR14n amendment).
-  - [ ] Subtask 1.2: Resolve exact pytest 8.x patch + pytest-asyncio 0.x + ruff 0.x + mypy 1.x version literals at dev-story time via `uv pip compile --python 3.10 --resolution=highest --extra dev pyproject.toml` (verified against `uv 0.11.7` at SM-validate; `--extra dev` ensures the dev optional-deps group is resolved). Pin the resolved literals exactly (no `^` / `~` / `>=`) in `[project.optional-dependencies] dev`. Record the resolved versions in Dev Agent Record § Completion Notes BEFORE commit so post-dev SM can verify the pins per SC-3 + I7 exact-version policy.
-  - [ ] Subtask 1.3: Verify the file passes a TOML round-trip (`python -c "import tomllib; tomllib.load(open('pyproject.toml','rb'))"`) — guards against syntax errors before Subtask 2.1's `uv sync` runs.
+  - [x] Subtask 1.2: Resolve exact pytest 8.x patch + pytest-asyncio 0.x + ruff 0.x + mypy 1.x version literals at dev-story time via `uv pip compile --python 3.10 --resolution=highest --extra dev pyproject.toml` (verified against `uv 0.11.7` at SM-validate; `--extra dev` ensures the dev optional-deps group is resolved). Pin the resolved literals exactly (no `^` / `~` / `>=`) in `[project.optional-dependencies] dev`. Record the resolved versions in Dev Agent Record § Completion Notes BEFORE commit so post-dev SM can verify the pins per SC-3 + I7 exact-version policy.
+  - [x] Subtask 1.3: Verify the file passes a TOML round-trip (`python -c "import tomllib; tomllib.load(open('pyproject.toml','rb'))"`) — guards against syntax errors before Subtask 2.1's `uv sync` runs.
 
-- [ ] **Task 2 — Run `uv sync` to materialize `.venv` + generate `uv.lock`; commit `uv.lock`.** (AC: 1, 2)
-  - [ ] Subtask 2.1: From the worktree root run `uv sync --extra dev`. The command (a) creates `.venv/` (gitignored per `.gitignore:66` `.venv/`), (b) installs the dev deps resolved in Subtask 1.2, (c) emits `uv.lock` at the worktree root. Verify exit code 0; capture `uv sync --frozen` re-run exit code 0 in Completion Notes per AC2's deterministic-resolution clause.
-  - [ ] Subtask 2.2: Add `uv.lock` to git index alongside `pyproject.toml`. Both files are committed (the lockfile IS the pin source per SC-3 — analogue of `pnpm-lock.yaml` for the TS half). `.venv/` stays gitignored; `.python-version` is NOT shipped (uv reads `requires-python` from `pyproject.toml`; no separate `.python-version` file is needed at this scope per SC-7).
+- [x] **Task 2 — Run `uv sync` to materialize `.venv` + generate `uv.lock`; commit `uv.lock`.** (AC: 1, 2)
+  - [x] Subtask 2.1: From the worktree root run `uv sync --extra dev`. The command (a) creates `.venv/` (gitignored per `.gitignore:66` `.venv/`), (b) installs the dev deps resolved in Subtask 1.2, (c) emits `uv.lock` at the worktree root. Verify exit code 0; capture `uv sync --frozen` re-run exit code 0 in Completion Notes per AC2's deterministic-resolution clause.
+  - [x] Subtask 2.2: Add `uv.lock` to git index alongside `pyproject.toml`. Both files are committed (the lockfile IS the pin source per SC-3 — analogue of `pnpm-lock.yaml` for the TS half). `.venv/` stays gitignored; `.python-version` is NOT shipped (uv reads `requires-python` from `pyproject.toml`; no separate `.python-version` file is needed at this scope per SC-7).
 
-- [ ] **Task 3 — Create `tests/test_ralph.py` smoke covering `ralph.py:format_duration`.** (AC: 1)
-  - [ ] Subtask 3.1: Create directory `tests/` at worktree root (ABSENT pre-edit per substrate ledger). Author `tests/test_ralph.py` as a single-module pytest file:
+- [x] **Task 3 — Create `tests/test_ralph.py` smoke covering `ralph.py:format_duration`.** (AC: 1)
+  - [x] Subtask 3.1: Create directory `tests/` at worktree root (ABSENT pre-edit per substrate ledger). Author `tests/test_ralph.py` as a single-module pytest file:
     - `import ralph` (importable because `pythonpath` includes `.` per Subtask 1.1 + because `ralph.py:2015-2016` guards Textual app instantiation behind `if __name__ == "__main__":` so module-level import has no side-effects per substrate probe).
     - One `def test_format_duration_basic():` asserting `ralph.format_duration(0.0) == "0s"` (or whatever the function returns for zero seconds — exact return-shape verified at dev-story time via reading `ralph.py:89-98` and capturing the canonical zero-input output in Completion Notes BEFORE the assertion is written).
     - Optionally a second assertion that `ralph.format_duration(3725.0).endswith("s")` (a one-hour-plus input still produces a string ending in `s` — minimal smoke shape per SC-1 NOT a behavioural test).
-  - [ ] Subtask 3.2: Verify the test passes locally: `uv run pytest tests/test_ralph.py -v`.
+  - [x] Subtask 3.2: Verify the test passes locally: `uv run pytest tests/test_ralph.py -v`.
 
-- [ ] **Task 4 — Create `scripts/tests/test_bootstrap_bmad_agents.py` smoke.** (AC: 1)
-  - [ ] Subtask 4.1: Create directory `scripts/tests/` (ABSENT pre-edit per substrate ledger). Author `scripts/tests/test_bootstrap_bmad_agents.py`. Because the source filename `scripts/bootstrap-bmad-agents.py` carries hyphens (not a valid Python module identifier), use `importlib.util.spec_from_file_location` to load the module:
+- [x] **Task 4 — Create `scripts/tests/test_bootstrap_bmad_agents.py` smoke.** (AC: 1)
+  - [x] Subtask 4.1: Create directory `scripts/tests/` (ABSENT pre-edit per substrate ledger). Author `scripts/tests/test_bootstrap_bmad_agents.py`. Because the source filename `scripts/bootstrap-bmad-agents.py` carries hyphens (not a valid Python module identifier), use `importlib.util.spec_from_file_location` to load the module:
     - `from pathlib import Path; import importlib.util`
     - `spec = importlib.util.spec_from_file_location("bootstrap_bmad_agents", Path(__file__).resolve().parent.parent / "bootstrap-bmad-agents.py")`
     - `module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)`
     - One `def test_module_loads_with_constants():` asserting `"Edit" in module.EXECUTION_TOOLS` AND `"Read" in module.ADVISORY_TOOLS` (both lists declared at `scripts/bootstrap-bmad-agents.py:24-25` per substrate probe — pure module-level constants, no I/O at import time per `bootstrap-bmad-agents.py:1-7` PEP 723 metadata + module body).
     - Note: `tests/__init__.py`, `scripts/tests/__init__.py`, and `packages/devbox/tui/tests/__init__.py` are NOT required and NOT shipped at this scope — pytest 8.x `--import-mode=prepend` (default) collects test files by unique basename, and the three test basenames (`test_ralph.py`, `test_bootstrap_bmad_agents.py`, `test_theme.py`) do not collide. Locked at SM-validate per RALPH.md iter-357 lock-don't-defer rule. If a future smoke addition introduces a basename collision, that story adds `__init__.py` markers — Story 1.18 does NOT preempt.
-  - [ ] Subtask 4.2: Verify the test passes locally: `uv run pytest scripts/tests/test_bootstrap_bmad_agents.py -v`.
+  - [x] Subtask 4.2: Verify the test passes locally: `uv run pytest scripts/tests/test_bootstrap_bmad_agents.py -v`.
 
-- [ ] **Task 5 — Create `packages/devbox/tui/tests/test_theme.py` smoke.** (AC: 1)
-  - [ ] Subtask 5.1: Create directory `packages/devbox/tui/tests/` (ABSENT pre-edit per substrate ledger). Author `packages/devbox/tui/tests/test_theme.py`:
+- [x] **Task 5 — Create `packages/devbox/tui/tests/test_theme.py` smoke.** (AC: 1)
+  - [x] Subtask 5.1: Create directory `packages/devbox/tui/tests/` (ABSENT pre-edit per substrate ledger). Author `packages/devbox/tui/tests/test_theme.py`:
     - `from tui.theme import theme` (importable because `pythonpath` includes `packages/devbox` per Subtask 1.1 + `packages/devbox/tui/__init__.py` exists as an empty package marker per substrate ledger making `tui` a proper Python package).
     - One `def test_theme_neutral_500():` asserting `theme.colors.neutral_500 == "oklch(52% 0 0)"` — exact literal verified at substrate ledger via reading `packages/devbox/tui/theme.py:15`. Locked at SM-validate per RALPH.md iter-357 lock-don't-defer rule (no `from tui import theme` + `theme.theme.colors...` alternative — picked the cleaner direct-import shape).
     - The `theme.py` file is `AUTOGENERATED from packages/ui/tokens.json` per its header comment (`theme.py:1`); the smoke test asserts a pinned literal that survives token regeneration (neutral_500 has been stable since Story 1.13). If a future token regen changes the literal, the smoke test fails — that's correct fail-loud behaviour, not a fragility bug.
-  - [ ] Subtask 5.2: Verify the test passes locally: `uv run pytest packages/devbox/tui/tests/test_theme.py -v`.
+  - [x] Subtask 5.2: Verify the test passes locally: `uv run pytest packages/devbox/tui/tests/test_theme.py -v`.
 
-- [ ] **Task 6 — Extend `.github/workflows/ci.yml` with `python` job.** (AC: 3)
-  - [ ] Subtask 6.1: Edit `.github/workflows/ci.yml` (lines 1–29 pre-edit per substrate ledger; Story 1.17 substrate; convention: `node` job = lines 17–29). The edit is ADDITIVE per SC-5 — the existing `node` job (lines 17–29) is byte-identical post-edit; a new `python` job is appended at the same `jobs:` indentation level. Pre-edit `jobs:` block ends at line 29 (`- run: pnpm turbo run test lint typecheck`); post-edit, the `python` job follows on a new line after the `node:` job's last step.
-  - [ ] Subtask 6.2: `python` job shape: `runs-on: ubuntu-latest`; steps in this exact order — (1) `actions/checkout@v4` (matches Story 1.17's `node` job major-pin per SC-4), (2) `astral-sh/setup-uv@v6` with `version: "0.11.7"` (exact-version pin per I7 + SC-3 — matches iter-env `uv` per substrate ledger; do NOT use `latest`/floating tag — locked at SM-validate per RALPH.md iter-357 lock-don't-defer rule), (3) `uv sync --extra dev --frozen` (uses `uv.lock` deterministically per AC2), (4) `uv run pytest` (the canonical entry point per FR14o). Pin all GitHub Action versions per I7 using `@v4` / `@v6` major-pin for first-party + verified-publisher actions; avoid third-party actions (Story 1.17 CR iter-362 deferred SHA-pinning of third-party actions to Story 1.20/1.21 per its Change Log v1.6).
-  - [ ] Subtask 6.3: Verify `actionlint .github/workflows/ci.yml` exits 0 if `actionlint` is available in the iter env. If absent (per RALPH.md iter-359 — `actionlint` was unavailable for Story 1.17), fall back to GH Actions ingestion-side validation post-push per AC3 + Story 1.17 Subtask 10.4 precedent. Branch protection / required-check is GH-UI / admin-scope (out of substrate per SC-6).
+- [x] **Task 6 — Extend `.github/workflows/ci.yml` with `python` job.** (AC: 3)
+  - [x] Subtask 6.1: Edit `.github/workflows/ci.yml` (lines 1–29 pre-edit per substrate ledger; Story 1.17 substrate; convention: `node` job = lines 17–29). The edit is ADDITIVE per SC-5 — the existing `node` job (lines 17–29) is byte-identical post-edit; a new `python` job is appended at the same `jobs:` indentation level. Pre-edit `jobs:` block ends at line 29 (`- run: pnpm turbo run test lint typecheck`); post-edit, the `python` job follows on a new line after the `node:` job's last step.
+  - [x] Subtask 6.2: `python` job shape: `runs-on: ubuntu-latest`; steps in this exact order — (1) `actions/checkout@v4` (matches Story 1.17's `node` job major-pin per SC-4), (2) `astral-sh/setup-uv@v6` with `version: "0.11.7"` (exact-version pin per I7 + SC-3 — matches iter-env `uv` per substrate ledger; do NOT use `latest`/floating tag — locked at SM-validate per RALPH.md iter-357 lock-don't-defer rule), (3) `uv sync --extra dev --frozen` (uses `uv.lock` deterministically per AC2), (4) `uv run pytest` (the canonical entry point per FR14o). Pin all GitHub Action versions per I7 using `@v4` / `@v6` major-pin for first-party + verified-publisher actions; avoid third-party actions (Story 1.17 CR iter-362 deferred SHA-pinning of third-party actions to Story 1.20/1.21 per its Change Log v1.6).
+  - [x] Subtask 6.3: Verify `actionlint .github/workflows/ci.yml` exits 0 if `actionlint` is available in the iter env. If absent (per RALPH.md iter-359 — `actionlint` was unavailable for Story 1.17), fall back to GH Actions ingestion-side validation post-push per AC3 + Story 1.17 Subtask 10.4 precedent. Branch protection / required-check is GH-UI / admin-scope (out of substrate per SC-6).
 
-- [ ] **Task 7 — Update CLAUDE.md `## Common commands` table with `uv run pytest` row.** (AC: 4)
-  - [ ] Subtask 7.1: Edit `CLAUDE.md` `## Common commands` table — currently spans lines 11–25 post-Story-1.17 (the three rows added by Story 1.17 Task 8 are at lines 23–25 for `pnpm test` / `pnpm typecheck` / `pnpm lint`; verified at create-story time against current substrate). Append a new row `| Run Python tests | \`uv run pytest\` |` immediately after line 25, preserving the blank line before the prose paragraph that follows. Maintain alignment via prettier-friendly spacing (Subtask 9.4 confirms idempotence).
+- [x] **Task 7 — Update CLAUDE.md `## Common commands` table with `uv run pytest` row.** (AC: 4)
+  - [x] Subtask 7.1: Edit `CLAUDE.md` `## Common commands` table — currently spans lines 11–25 post-Story-1.17 (the three rows added by Story 1.17 Task 8 are at lines 23–25 for `pnpm test` / `pnpm typecheck` / `pnpm lint`; verified at create-story time against current substrate). Append a new row `| Run Python tests | \`uv run pytest\` |` immediately after line 25, preserving the blank line before the prose paragraph that follows. Maintain alignment via prettier-friendly spacing (Subtask 9.4 confirms idempotence).
 
-- [ ] **Task 8 — Update AGENTS.md `## Testing` section to active-tense `uv run pytest` language.** (AC: 5)
-  - [ ] Subtask 8.1: Edit `AGENTS.md § Testing` (currently at lines 43–45 post-Story-1.17 per substrate ledger). Replace the existing forward-pointer sentence ("Python tests under `uv run pytest` arrive with Story 1.18.") with this EXACT byte-pinned wording (locked at SM-validate per RALPH.md iter-357 lock-don't-defer rule — no dev-story-time wording slack): "Run `uv run pytest` from the worktree root for the workspace-wide pytest suite covering `ralph.py` (`tests/`), `scripts/bootstrap-bmad-agents.py` (`scripts/tests/`), and `packages/devbox/tui/` (`packages/devbox/tui/tests/`); dev deps + Python 3.10+ are pinned in root `pyproject.toml` + `uv.lock` (D6)." The first sentence (re `pnpm test`) is BYTE-IDENTICAL — Story 1.18 only edits the second sentence. Cross-reference to `architecture.md § M0 substrate developer-productivity floor` (the third sentence) is BYTE-IDENTICAL.
-  - [ ] Subtask 8.2: Verify prettier idempotence (`pnpm format:check` exits 0 against AGENTS.md) per AC5 + Story 1.17 SC-10 precedent.
+- [x] **Task 8 — Update AGENTS.md `## Testing` section to active-tense `uv run pytest` language.** (AC: 5)
+  - [x] Subtask 8.1: Edit `AGENTS.md § Testing` (currently at lines 43–45 post-Story-1.17 per substrate ledger). Replace the existing forward-pointer sentence ("Python tests under `uv run pytest` arrive with Story 1.18.") with this EXACT byte-pinned wording (locked at SM-validate per RALPH.md iter-357 lock-don't-defer rule — no dev-story-time wording slack): "Run `uv run pytest` from the worktree root for the workspace-wide pytest suite covering `ralph.py` (`tests/`), `scripts/bootstrap-bmad-agents.py` (`scripts/tests/`), and `packages/devbox/tui/` (`packages/devbox/tui/tests/`); dev deps + Python 3.10+ are pinned in root `pyproject.toml` + `uv.lock` (D6)." The first sentence (re `pnpm test`) is BYTE-IDENTICAL — Story 1.18 only edits the second sentence. Cross-reference to `architecture.md § M0 substrate developer-productivity floor` (the third sentence) is BYTE-IDENTICAL.
+  - [x] Subtask 8.2: Verify prettier idempotence (`pnpm format:check` exits 0 against AGENTS.md) per AC5 + Story 1.17 SC-10 precedent.
 
-- [ ] **Task 9 — Iter-env smoke validation.** (AC: 1, 2, 3, 4, 5)
-  - [ ] Subtask 9.1: `uv sync --extra dev && uv run pytest` produces exit code 0 in the iteration environment + the three smoke tests are reported in pytest output. Capture the pytest summary line (e.g., `===== 3 passed in 0.12s =====`) as evidence in Dev Agent Record § Completion Notes per AC1.
-  - [ ] Subtask 9.2: `uv sync --frozen` exits 0 (lockfile-pin verified deterministic) per AC2.
-  - [ ] Subtask 9.3: `pnpm keel-invariants:check` (Story 1.9 sync-gate) exits 0 — no NEW manifest drift introduced by Story 1.18's edits. **Note (PARTIAL):** the three pre-existing `INV-git-hooks-preservation` drifts on `feat/epic-2-packaged-devbox` head (RALPH.md iter-358 gotcha; out-of-scope per "Address before Story 1.20 close-out") persist unchanged — Story 1.18 does NOT inadvertently touch the prek-hook surface. AC2 satisfied (the AC's specific check is "no NEW drift attributable to Story 1.18 edits"); pre-existing drifts are explicitly carved out per SC-9.
-  - [ ] Subtask 9.4: `pnpm typecheck && pnpm lint && pnpm format:check` all exit 0 (Story 1.18's TS-side surface is null — `pyproject.toml`, `uv.lock`, `tests/`, `scripts/tests/`, `packages/devbox/tui/tests/` are all .py / .toml / .lock; `format:check` covers the `.github/workflows/ci.yml` YAML edit + the AGENTS / CLAUDE markdown edits per Story 1.17 precedent).
-  - [ ] Subtask 9.5: `actionlint .github/workflows/ci.yml` if available (else GH ingestion-side validation per AC3 fallback) — Subtask 6.3.
+- [x] **Task 9 — Iter-env smoke validation.** (AC: 1, 2, 3, 4, 5)
+  - [x] Subtask 9.1: `uv sync --extra dev && uv run pytest` produces exit code 0 in the iteration environment + the three smoke tests are reported in pytest output. Capture the pytest summary line (e.g., `===== 3 passed in 0.12s =====`) as evidence in Dev Agent Record § Completion Notes per AC1.
+  - [x] Subtask 9.2: `uv sync --frozen` exits 0 (lockfile-pin verified deterministic) per AC2.
+  - [x] Subtask 9.3: `pnpm keel-invariants:check` (Story 1.9 sync-gate) exits 0 — no NEW manifest drift introduced by Story 1.18's edits. **Note (PARTIAL):** the three pre-existing `INV-git-hooks-preservation` drifts on `feat/epic-2-packaged-devbox` head (RALPH.md iter-358 gotcha; out-of-scope per "Address before Story 1.20 close-out") persist unchanged — Story 1.18 does NOT inadvertently touch the prek-hook surface. AC2 satisfied (the AC's specific check is "no NEW drift attributable to Story 1.18 edits"); pre-existing drifts are explicitly carved out per SC-9.
+  - [x] Subtask 9.4: `pnpm typecheck && pnpm lint && pnpm format:check` all exit 0 (Story 1.18's TS-side surface is null — `pyproject.toml`, `uv.lock`, `tests/`, `scripts/tests/`, `packages/devbox/tui/tests/` are all .py / .toml / .lock; `format:check` covers the `.github/workflows/ci.yml` YAML edit + the AGENTS / CLAUDE markdown edits per Story 1.17 precedent).
+  - [x] Subtask 9.5: `actionlint .github/workflows/ci.yml` if available (else GH ingestion-side validation per AC3 fallback) — Subtask 6.3.
 
-- [ ] **Task 10 — Sprint-status flip + Change Log v1.0 (lifecycle hygiene at story creation).** (no direct AC — process; executed at `/bmad-create-story` iter — DO NOT re-execute at dev-story time)
+- [x] **Task 10 — Sprint-status flip + Change Log v1.0 (lifecycle hygiene at story creation).** (no direct AC — process; executed at `/bmad-create-story` iter — DO NOT re-execute at dev-story time)
   - [x] Subtask 10.1: Sprint-status flip `1-18-bootstrap-python-test-runner-pytest-under-uv: backlog → ready-for-dev` lands at `/bmad-create-story` iter (this iteration; skill-handled per `workflow.md` step 6).
   - [x] Subtask 10.2: Change Log v1.0 entry lands at create-story iter (see § Change Log).
   - [ ] Subtask 10.3 (informational, no dev-story action): subsequent versions follow Story 1.17 precedent — v1.1 pre-dev SM-validate, v1.2 ATDD-skip-or-scaffold, v1.3 dev-story landing, v1.4 trace, v1.5 post-dev SM, v1.6+ CR.
@@ -225,22 +225,88 @@ No conflicts with `pnpm-workspace.yaml` (Python is OUT of pnpm workspace). No co
 
 ### Agent Model Used
 
-(populated at `/bmad-dev-story` time)
+claude-opus-4-7 (Ralph build-mode iter-366; single-iter dev-story landing per RALPH.md iter-344 substrate-extension class + iter-359 Story 1.17 second confirmation).
 
 ### Debug Log References
 
-(populated at `/bmad-dev-story` time)
+- `uv pip compile --python 3.10 --resolution=highest --extra dev pyproject.toml` (Subtask 1.2 resolution; Python 3.10 download from python-build-standalone failed network — fell back to system Python 3.12.3 for compile-time resolution; runtime `requires-python = ">=3.10"` constraint preserved)
+- `UV_PYTHON_PREFERENCE=only-system uv sync --extra dev` (Subtask 2.1; exit 0; installed 12 dev-extras packages + transitive deps + textual transitive deps after Subtask 3.1 deviation)
+- `UV_PYTHON_PREFERENCE=only-system uv sync --frozen --extra dev` (Subtask 9.2; exit 0; deterministic re-resolution per AC2)
+- `UV_PYTHON_PREFERENCE=only-system uv run pytest` — `4 passed in 0.97s` (Subtask 9.1; AC1 satisfied; pytest 9.0.3 / pluggy 1.6.0 / asyncio-1.3.0)
+- `pnpm typecheck` exit 0 (Subtask 9.4; 16/16 cached tasks)
+- `pnpm lint` exit 0 (Subtask 9.4; 16/16 cached tasks)
+- `pnpm format:check` initial fail on `.github/workflows/ci.yml` (single-quote vs double-quote on `version: "0.11.7"` line); resolved via `pnpm exec prettier --write .github/workflows/ci.yml` (prettier converted to single-quotes per repo convention); `format:check` re-run exit 0 (Subtask 9.4 + 8.2)
+- `pnpm keel-invariants:check` exit 1 (Subtask 9.3 PARTIAL per SC-9 + AC2 carve-out — three pre-existing `INV-git-hooks-preservation` drifts on `feat/epic-2-packaged-devbox` head per RALPH.md iter-358 gotcha; verified via direct comparison: identical contentHash mismatch `cb27263d… → 42a42b16…` + same two `git-hook-missing` entries observed pre-Story-1.18 at iter-359; ZERO new drifts attributable to Story 1.18)
+- `actionlint .github/workflows/ci.yml` not available in iter env (`command not found`; Subtask 9.5 falls back to GH Actions ingestion-side validation per AC3 + Story 1.17 Subtask 10.4 precedent — workflow's `pull_request: branches: [main]` trigger remains unfired because PR #236 targets `feat/epic-2-packaged-devbox`)
 
 ### Completion Notes List
 
-(populated at `/bmad-dev-story` time per Subtasks 1.2 / 4.1 / 5.1 decision-records)
+**Subtask 1.2 — Resolved dev-dep version pins (captured BEFORE commit per SC-3 + I7 exact-version policy):**
+
+| Dep | Resolved-highest version | Story-spec forecast | Drift class |
+| --- | --- | --- | --- |
+| `pytest` | `9.0.3` | `8.x patch` | major-version drift (story spec was 8.x-stable as of SCP authoring; pytest 9 GA released after SCP) |
+| `pytest-asyncio` | `1.3.0` | `0.x` | major-version drift (1.0 GA released after SCP) |
+| `ruff` | `0.15.12` | `0.x` | within-major (forecast holds) |
+| `mypy` | `1.20.2` | `1.x` | within-major (forecast holds) |
+| `textual` | `8.2.4` | (NOT in spec — see deviation note below) | added at dev-story per substrate-probe gap |
+
+The two major-version drifts (pytest, pytest-asyncio) are explicit consequences of `--resolution=highest` per Subtask 1.2's literal command. SC-3 is policy ("exact-version pinning per I7"); the version values themselves are not policy. pytest 9.x default `--import-mode=prepend` matches Subtask 4.1's pinned assumption (no `__init__.py` files shipped; basenames are unique across `test_ralph.py` / `test_bootstrap_bmad_agents.py` / `test_theme.py`). All four smoke tests collected + passed cleanly under pytest 9.0.3.
+
+**Subtask 3.1 — Substrate-probe gap (textual top-level import deviation from SC-3 four-dev-deps clause):**
+
+Substrate ledger entry "ralph.py smoke target" probed `if __name__ == "__main__":` guard at `ralph.py:2015-2016` (App instantiation guarded) but did NOT probe the unconditional top-level `from textual.app import App, ComposeResult` at `ralph.py:66` (verified at dev-story time via `Grep "^from textual\|^import textual" ralph.py` — five textual imports at lines 66/67/68/71/72, all top-level, none lazy). Importing `ralph` therefore requires `textual` at test time.
+
+Resolution: added `textual==8.2.4` to `[project.optional-dependencies] dev` (5th dev dep — SC-3 clause stated "four dev deps"; this is a +1 deviation). Resolved-highest 8.2.4 imports cleanly against `ralph.py`'s textual usage surface (App / ComposeResult / Container / RichLog / Static / get_current_worker / work — all backward-compatible from textual 1.x to 8.x per the GREEN smoke run). The PEP 723 floor at `ralph.py:5` is `textual>=1.0.0`; pinning textual==8.2.4 in dev deps does NOT mutate the per-script PEP 723 metadata (preserved BYTE-IDENTICAL per SC-10 — root pyproject carries TEST-TIME deps only; per-script PEP 723 carries RUNTIME deps).
+
+This is a substrate-verification correction at dev-story time per Subtask 3.1's "verified at dev-story time" clause — exactly what dev-story is for. SC-3's "four dev deps" wording was forecast, not policy; the policy ("exact-version pinning per I7") is preserved on all five deps. Future Story 1.21 audit may codify a separate `[project.optional-dependencies] tests` group if test-time deps want isolation from lint/type-check deps; Story 1.18 does NOT preempt.
+
+**Subtask 3.1 — Canonical zero-input output for `format_duration` (captured BEFORE assertion per spec):**
+
+`ralph.py:89-96` `format_duration(0.0)` returns `"0s"` — falls through `h>0` and `m>0` branches (both 0); reaches the bare `return f"{s}s"` at line 96 with `s=0`. Smoke test asserts equality against this literal. Second smoke (`format_duration(3725.0).endswith("s")` = `"1h02m05s".endswith("s")` = True) is a one-hour-plus-input shape check per Subtask 3.1's "optionally a second assertion" clause.
+
+**Subtask 4.1 — `__init__.py` decision held (no markers shipped):**
+
+Verified pytest 9.0.3 default `--import-mode=prepend` collects unique-basename test files cleanly without `__init__.py` markers. The four-collected smoke tests (one each in `tests/`, `scripts/tests/`, `packages/devbox/tui/tests/` plus the second `format_duration` assertion in `tests/test_ralph.py`) all collected + passed in a single pytest run. Decision pinned at SM-validate per RALPH.md iter-357 lock-don't-defer rule held in practice.
+
+**Subtask 5.1 — `from tui.theme import theme` direct-import shape held:**
+
+Verified at dev-story time: `pythonpath = ["packages/devbox", ...]` makes `tui` importable as a package; `from tui.theme import theme` resolves to the `theme = SimpleNamespace(...)` at `theme.py:8`; `theme.colors.neutral_500 == "oklch(52% 0 0)"` literal at `theme.py:15` matches assertion. Decision pinned at SM-validate per RALPH.md iter-357 lock-don't-defer rule held in practice.
+
+**Subtask 6.1 — Pre-edit ci.yml line range corrected at dev-story time:**
+
+Substrate ledger cited `.github/workflows/ci.yml:1-30` as Story 1.17 substrate (post-iter-362-CR); verified at dev-story time line ranges are: `name:` line 1; `on:` lines 3-7; `permissions:` lines 9-10; `concurrency:` lines 12-14; `jobs:` line 16; `node:` job lines 17-29 (matches ledger). The append landed at line 30 (post-edit), with prettier-normalized `version: '0.11.7'` (single-quote per repo convention; spec said double-quote in line with story-spec language but prettier configures single-quote — non-blocking).
+
+**Subtask 9.3 — Sync-gate PARTIAL per SC-9 carve-out (AC2 satisfied):**
+
+Pre-existing 3× `INV-git-hooks-preservation` drifts on `feat/epic-2-packaged-devbox` head (RALPH.md iter-358 + iter-359 gotcha). Verified pre-existing by comparing against last-clean-state baseline: contentHash `42a42b16…` matches what was observed at Story 1.17 iter-359 dev-story; `git-hook-missing: commit-msg` + `git-hook-missing: pre-commit` matches (sync-gate hardcodes `<repoRoot>/.git/hooks` empty in worktree mode). ZERO new drifts attributable to Story 1.18 edits — AC2's "no NEW drift attributable to this story's edits" clause satisfied. Address before Story 1.20 close-out per SC-9 + RALPH.md iter-358 carry-rule.
+
+**Subtask 9.5 — actionlint unavailable per RALPH.md iter-359 carry-rule:**
+
+`actionlint` not installed in cc-devbox iter env (`command not found`). Falls back to GH Actions ingestion-side validation per AC3 + Story 1.17 Subtask 10.4 precedent. Workflow `pull_request:branches:[main]` trigger does NOT fire on PR #236 (base: `feat/epic-2-packaged-devbox`); ingestion validation will fire on the eventual base-flip-to-main at PR #230 / #235 / #236 merge cascade.
 
 ### File List
 
-(populated at `/bmad-dev-story` time)
+**Created:**
+
+- `pyproject.toml` (worktree root; 28 lines; `[project]` + `[project.optional-dependencies]` + `[tool.pytest.ini_options]`)
+- `uv.lock` (worktree root; 70159 bytes; deterministic dev-extras + transitive resolution per AC2)
+- `tests/test_ralph.py` (8 lines; 2 smoke assertions on `format_duration`)
+- `scripts/tests/test_bootstrap_bmad_agents.py` (12 lines; importlib-load pattern for hyphen-named source; 1 smoke assertion on `EXECUTION_TOOLS` + `ADVISORY_TOOLS` membership)
+- `packages/devbox/tui/tests/test_theme.py` (5 lines; 1 smoke assertion on `theme.colors.neutral_500` literal)
+
+**Modified:**
+
+- `.github/workflows/ci.yml` (additive; `python` job appended after `node` job per AC3 + SC-5; existing `node` job byte-identical pre/post; prettier auto-normalized `version` to single-quotes)
+- `CLAUDE.md` (additive; `| Run Python tests | \`uv run pytest\` |` row appended to `## Common commands` table per AC4)
+- `AGENTS.md` (rewrites second sentence of `## Testing` section to byte-pinned active-tense wording per AC5; first + third sentences byte-identical pre/post)
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (row 143 `1-18-…: ready-for-dev → in-progress → review`; `last_updated` field bumped to iter-366)
+
+**Sprint-status flow:** `ready-for-dev → in-progress` at Step 4 (dev-story start); `in-progress → review` at Step 9 (dev-story end). Both transitions in-iter; final state `review` post-commit.
 
 ## Change Log
 
+- **v1.3** (2026-04-26, iter-366) — Story dev-story landed via `/bmad-dev-story`; FR14n state transition `atdd-scaffolded → in-dev → review` (single-iter same-iteration per RALPH.md iter-344 substrate-extension class + iter-359 Story 1.17 second confirmation; this is the third confirmation in the substrate-extension subclass — after Story 2.18 iter-350 + Story 1.17 iter-359). All 10 Tasks / 22 subtasks complete; all 5 ACs satisfied (AC1: 4 pytest smokes pass — 2 in `tests/test_ralph.py` + 1 each in the two sibling test files; AC2: `uv sync --frozen --extra dev` exit 0 + sync-gate carve-out per SC-9; AC3: `python` job appended additively + node-job byte-identical + actionlint fallback per Subtask 9.5; AC4: CLAUDE.md row appended; AC5: AGENTS.md byte-pinned sentence rewrite + prettier idempotent). **Substrate-probe gap surfaced + corrected at dev-story time:** SM-validate Subtask 3.1 substrate probe missed `ralph.py:66` top-level `from textual.app import ...` (verified at dev-story via `Grep "^from textual"` = 5 textual imports at `:66/67/68/71/72` all top-level). Resolution: added `textual==8.2.4` as 5th dev dep (SC-3 wording was "four dev deps"; this is a +1 deviation justified by AC1 satisfaction; SC-3 policy ["exact-version pinning per I7"] preserved on all 5). **Resolved-highest version drift vs spec forecast:** pytest 9.0.3 (vs forecast 8.x), pytest-asyncio 1.3.0 (vs forecast 0.x); ruff 0.15.12 + mypy 1.20.2 within forecast. Both major drifts are explicit consequences of `--resolution=highest` per Subtask 1.2's command. 0 fix-task QUEUE entries — direct promotion to `review`. Sprint-status row `ready-for-dev → in-progress → review`; last_updated bumped to iter-366. Cumulative pre-merge PATCH count Story 1.18 lifecycle to date: 14 (unchanged from SM-validate iter-364 — clean dev-story landing, 0 PATCHes at gate; matches Story 1.17 iter-359 zero-PATCH dev-story baseline).
 - **v1.2** (2026-04-25, iter-365) — ATDD-skip applied per FR14n § ATDD-skip clause; FR14n state transition `validated → atdd-scaffolded`. Bare ground-(a) substrate-verification sufficiency (precedent: Story 1.17 iter-358 — 1st post-(b)-sunset ATDD-skip; Story 1.18 is 2nd post-(b)-sunset / 30th cumulative project ATDD-skip / 3rd course-correction-origin ATDD-skip). Rationale: every AC ↔ substrate file 1:1 — AC1 literally declares the three smoke scaffolds (`tests/test_ralph.py`, `scripts/tests/test_bootstrap_bmad_agents.py`, `packages/devbox/tui/tests/test_theme.py`) AS the bootstrap red-phase ("all three scaffolds pass / exit code 0"); AC2 substrate-verifiable via `uv sync --frozen` exit-code 0 + Story 1.9 sync-gate green; AC3 substrate-verifiable via `actionlint` (or GH ingestion-side fallback per Story 1.17 Subtask 10.4 precedent); AC4 + AC5 substrate-verifiable via `pnpm format:check` + structural diff. Ground (b) "no test runner" sunset under issue #233 amendment per FR14n (Story 1.17 IS the test runner for TS; uv exists at `/usr/local/bin/uv` per substrate ledger). Ground (c)-(iii) cross-referenced (AC1's "all three scaffolds pass" is spec-declared CR-substitution) but not primary per Story 1.17 iter-358 IP directive. No skill invocation (matches Story 1.17 iter-358 pattern — FR14n § ATDD-skip authorizes direct rationale-pinning in IP/Change Log without `/bmad-testarch-atdd` execution). 0 fix-task QUEUE entries — direct promotion to `atdd-scaffolded`. Sprint-status row unchanged (ATDD-skip is Ralph-internal per FR14n).
 - **v1.1** (2026-04-25, iter-364) — Story SM-validated via `/bmad-create-story (args: "review")`; FR14n state transition `drafted → validated`. Two-subagent SM review (technical-correctness + prose-density per RALPH.md iter-235 narrow-surface; iter-352 post-dev recipe). Subagent A: 2 MUST-FIX + 2 SHOULD-FIX (sprint-status row drift 142→143 + state, architecture.md § M0 line range 198-237→198-240 ×6 sites, `__init__.py:1` empty-file citation, AC3/Subtask 6.1 line-range 16-29 vs 17-29 internal contradiction). Subagent B: 5 MUST-FIX + 5 SHOULD-FIX + 3 NIT/PASS — all course-correction-author "decide at dev-story time" deferrals locked at SM-validate per RALPH.md iter-357 lock-don't-defer rule (Subtask 1.2 `uv pip compile --extra dev` exact command, Subtask 4.1 NO `__init__.py` ship, Subtask 5.1 `from tui.theme import theme` direct-import shape, Subtask 6.2 `version: "0.11.7"` exact-pin, Subtask 8.1 + AC5 byte-pinned AGENTS.md replacement string). 14 PATCHes applied inline at gate (7 MUST-FIX + 7 SHOULD-FIX/LLM-OPT; 1 SHOULD-FIX bundled with MUST-FIX) — within iter-363 forecast envelope 8–14 (slight overshoot consistent with iter-357's 16-PATCH course-correction-author baseline). 2 deferred (LLM-OPT C.1 Forecast density compression + D.2 Lessons-applied bullet — both deferrable per Subagent B). Sprint-status row unchanged (SM-validate is Ralph-internal per FR14n; row already at `ready-for-dev` from create-story iter-363).
 - **v1.0** (2026-04-25, iter-363) — Story created via `/bmad-create-story` autonomous discovery from `_bmad-output/implementation-artifacts/sprint-status.yaml` first-backlog row (`1-18-bootstrap-python-test-runner-pytest-under-uv`); FR14n state transition `_(no story) → drafted`; sprint-status row `backlog → ready-for-dev`. Substrate verification per RALPH.md iter-347 against Story 1.18 SCP-233 § 4.6 + epics.md:1172-1204 Tasks: **0 SCP-side drifts** (improvement vs Story 1.17 iter-356's 1 drift — Story 1.18 inherits already-shipped CI workflow substrate, no first-creation hazard). 10 Tasks / ~22 subtasks scaffolded. SC-1 through SC-11 pinned (course-correction-author origin yield mitigation per RALPH.md iter-357 — Python version + dev-dep pinning + action versions + smoke targets + PEP 723 coexistence direction all locked at SM-validate, NOT deferred to dev-story time). Forecast envelope: 10–24 cumulative pre-merge PATCH (vs Story 1.17's 22 — narrower scope at substrate-extension class but course-correction-author origin holds). ATDD-skip forecast: ground-(a) substrate-verification (the three smoke scaffolds ARE the bootstrap red-phase per AC1; FR14n § ground-(b) sunset post-Story-1.17 per issue #233 amendment; cite (a) only OR (a)+(c) variant-(iii) hybrid).

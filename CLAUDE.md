@@ -23,6 +23,7 @@ There is no build/test/lint suite yet (nothing to build). The operational surfac
 | Run all tests                     | `pnpm test`                                                     |
 | Run typecheck                     | `pnpm typecheck`                                                |
 | Run lint                          | `pnpm lint`                                                     |
+| Run Python tests                  | `uv run pytest`                                                 |
 
 Ralph writes session logs to `$RALPH_BASE_DIR/logs/` (gitignored). `$RALPH_BASE_DIR/halt` is the halt sentinel (also gitignored). `RALPH_BASE_DIR` is exported by `ralph.py` to every subprocess and resolves to the worktree's `.ralph/` directory when `--worktree X` is set (or cwd-relative `.ralph/` otherwise). See [docs/ralph.md](./docs/ralph.md#halt-path-resolution) for the resolver + invocation-mode table.
 
