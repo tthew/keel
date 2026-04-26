@@ -84,6 +84,7 @@ check_mount_source
 log "launching ralph TUI in ${CONTAINER_NAME} (mode: ${RALPH_MODE}; cwd ${CONTAINER_WORKDIR}; Ctrl+C to exit)"
 # No signal trapping — docker exec -it forwards SIGINT/SIGTERM directly
 # to ralph.py. Defensive trap handlers would break passthrough.
+# "$@" forwards trailing CLI args (e.g. --iterations 5) to ralph.py.
 exec docker exec -it --user dev -w "${CONTAINER_WORKDIR}" \
   -e "KEEL_RALPH_MODE=${RALPH_MODE}" \
   -e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
