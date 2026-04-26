@@ -4,13 +4,12 @@
 
 ## NOW
 
-- [ ] **Monitor PR CI on PR #230** — queue fix tasks for any failures. Iter-10 push (`24ac971`) retriggered CI; iter-11 deferred this gate (api.github.com HTTPS:443 i/o-timeout on graphql + REST; SSH:22 healthy). Re-attempt next iter via LADDER step 1; if still flaking, step 2; ultimately `gh pr checks --watch --fail-fast 230`.
+- [ ] **2.14 absorption-SHA reachability** Add sync-gate step `git rev-parse 5278738^{commit} >/dev/null 2>&1 || fail` to guard `docs/invariants/devbox-legacy-branch-retention.md:108-128`. Ref: `discussion_r3143866586`. (CI on `24ac971` is GREEN per iter-12 monitor-cleared — proceed.)
 
 ## QUEUE (PR #230 review fix-arc)
 
 Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-4322595769>. One per iter; commit on `feat/epic-2-packaged-devbox`.
 
-- [ ] **2.14 absorption-SHA reachability** Add sync-gate step `git rev-parse 5278738^{commit} >/dev/null 2>&1 || fail` to guard `docs/invariants/devbox-legacy-branch-retention.md:108-128`. Ref: `discussion_r3143866586`. (Deferred from iter-11 NOW; only land after CI on `24ac971` is GREEN.)
 - [ ] **2.12 sshd liveness comment** Add 1-line comment at `packages/devbox/entrypoint.sh:207-211`: "Verify sshd is listening before exec'ing the operator shell."
 - [ ] **2.7 arg-passthrough comment (NIT)** Brief comment near `packages/devbox/scripts/ralph-build-host.sh:90` on `"$@"` passthrough contract.
 
@@ -32,6 +31,7 @@ _(none — all findings are MINOR/NIT)_
 - [x] [iter-9] **2.13 D-9 closure (`nc -z -w 2`)** — six-site lockstep substrate sweep + Change Log v1.5 + manifest contentHash refresh (`ae0ac4b3 → b8a420a4`); reviewer's `${KEEL_DEVBOX_SSH_PORT:-2222}` half DISMISSED with rationale (host-side-publish vs container-internal-bind semantics) — `350f4cd` on feat-2; PR #230. Sync-gate clean for INV-devbox-healthcheck (pre-existing INV-package-test-coverage-floor drift unchanged).
 - [x] [iter-10] **2.13 probe-domain three-site lockstep gate** — new `tools/check-probe-domain-lockstep.sh` extracts dnsmasq probe-domain from `packages/devbox/docker-compose.yml` healthcheck and asserts literal in `docs/invariants/devbox-healthcheck.md` + `packages/devbox/README.md`; wired as `always_run` pre-commit hook in `.pre-commit-config.yaml`; manifest INV-prek-pre-commit-config + INV-prek-commit-msg-config contentHashes refreshed in lockstep (`4d894156 → 9bb763d4`, whole-file sha256 shared per duplicate-sourcePath schema rule). LANDED `350f4cd..24ac971` on feat-2 after two SSH-egress port-22 timeouts (3rd attempt succeeded — network flake, not sustained block). PR #230 push retriggers CI.
 - [x] [iter-11] **CI-monitor deferred on api.github.com flake** — gh-CLI HTTPS:443 graphql + REST both timed out (3 attempts × 2 backoff windows; LADDER steps 1+2+3 exhausted). Independent SSH:22 reachability verified via `git ls-remote origin chore/pr-230-review` (returned head SHA, exit 0) — origin still pushable, only api.github.com path blocked. Per LADDER step 4: defer to next iter. NOW rotated to "Monitor PR CI on PR #230"; original NOW (2.14 absorption-SHA reachability) demoted to top of QUEUE — only land after CI on `24ac971` is GREEN per Guardrail 14. RALPH.md gh-CLI flake LADDER gotcha refreshed with iter-11 datapoint (step-2 REST can also fail when api.github.com path is fully blocked, not just graphql-overloaded).
+- [x] [iter-12] **Monitor PR CI on PR #230 — CLEARED.** LADDER step 1 succeeded on first attempt (`gh pr checks 230` returned 4/4 SUCCESS in <2s). Independent confirmation via `gh pr view 230 --json headRefOid,statusCheckRollup,state,isDraft,mergeable`: head=`24ac9719` (matches iter-10's `24ac971` ✓), state=OPEN, mergeable=MERGEABLE, draft=false, all 4 checks (node ×2, python ×2) conclusion=SUCCESS, status=COMPLETED. api.github.com HTTPS:443 flake from iter-11 self-resolved (~1 iteration of latency). 2.14 absorption-SHA reachability rotated NOW; QUEUE → 2.12 sshd liveness comment, 2.7 arg-passthrough comment NIT.
 
 ## Context
 
@@ -41,7 +41,7 @@ _(none — all findings are MINOR/NIT)_
 - **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
 - **Story:** _(no story — review iteration)._
 - **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-9 landed `350f4cd` on feat-2 (2.13 D-9 nc -z -w 2 lockstep). Iter-10 landed `24ac971` on feat-2 (2.13 probe-domain three-site lockstep gate) — push succeeded on 3rd attempt after two port-22 timeouts; this triggered a new CI run on PR #230. Iter-11 attempted to monitor that CI but api.github.com (HTTPS:443) was flaking on both graphql + REST; deferred to iter-12. SSH:22 path remains healthy.
+- **PR:** #230 **Open**, MERGEABLE, head=`24ac9719`, all 4 checks (node×2, python×2) GREEN. Iter-9 landed `350f4cd` on feat-2 (2.13 D-9 nc -z -w 2 lockstep). Iter-10 landed `24ac971` (2.13 probe-domain three-site lockstep gate). Iter-12 monitor-cleared CI on `24ac971` after iter-11's api.github.com flake self-resolved. Ready for 2.14 absorption-SHA reachability fix.
 
 ## Halt criterion
 
