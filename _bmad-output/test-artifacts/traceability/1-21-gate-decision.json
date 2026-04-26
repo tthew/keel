@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-26T00:00:00.000Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.21",
+    "label": "Sweep prior `ATDD deferred` stories into `test-debt:` follow-ups"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "PASS",
+  "rationale": "P0 coverage is 100% (3/3), P1 coverage is 100% (2/2; >= 90% target), and overall coverage is 100% (>= 80% minimum). All six Story 1.21 ACs are FULL via pure ground-(a) substrate-verification (FR14n § ATDD-skip ground discrimination): AC1 ↔ test-debt.md filesystem state + 27-anchor count + per-row schema; AC2 ↔ FR14n amendment text at PRD:968 + create-story workflow's existing AC-coverage gate; AC3 ↔ 27-back-pointer grep cross-link assertion + uniform-suffix-append schema; AC4 ↔ § Preamble + § Grandfather clause + § Net-zero-bare-(b)-skip target prose; AC5 ↔ 24-inherited-DEFER per-disposition checklist + sync-gate-drift baseline UNCHANGED + 6 Substrate-Wide Patterns cluster rows; AC6 ↔ § Substrate-Adjacent Operational Gaps section + iter-391 entry fields + bonus api.github.com timeout class entry. Coverage IS the deliverable — Story 1.21 is the first audit + sweep class story in the project; trace gate at this stage IS the AC-completeness audit. 0 PATCH applied this iteration (lower-edge of audit + sweep class envelope 0–2 PATCH at trace).",
+  "p0_status": "MET",
+  "p1_status": "MET",
+  "overall_status": "MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}
