@@ -65,6 +65,12 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: absorption-sha-reachable
+        name: Story 2.1 absorption-SHA reachability (Story 2.14 PR #230 review iter-13)
+        entry: tools/check-absorption-sha-reachable.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: commitlint
         name: commitlint (conventional commits)
         entry: pnpm exec commitlint --edit
