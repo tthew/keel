@@ -107,4 +107,17 @@ async function main(): Promise<void> {
   process.exitCode = 1;
 }
 
-await main();
+// CR-5 (iter-382): top-level `await main()` rejection bypassed the in-`main`
+// catch-frame's NDJSON-emit + exit-1 contract — pre-CR-5, any synchronous throw
+// or unawaited rejection escaping `main` (e.g. inner `readdir(srcDir, {recursive:true})`
+// hitting ELOOP/EIO/EMFILE; future code-path that throws after the outer-readdir
+// catch frame closes) surfaced as Node's `UnhandledPromiseRejection` trace on
+// stderr — non-NDJSON, so CI consumers parsing per-line JSON would mis-key on
+// the trace text. Wrap with `.catch` so any escapee still produces NDJSON
+// `{status:'error',message}` on stderr + exit 1, preserving the wire-format
+// guarantee. Uses `process.exitCode` (no `process.exit`) to avoid the stderr-
+// flush race documented in CR-4.
+await main().catch((e: unknown) => {
+  process.stderr.write(`${JSON.stringify({ status: 'error', message: String(e) })}\n`);
+  process.exitCode = 1;
+});
