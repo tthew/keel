@@ -7,7 +7,7 @@
 // compiled enforcer into a tmpdir at `{tmp}/packages/keel-invariants/dist/`, populate
 // `{tmp}/.claude/hooks/<fixture>.sh`, then `execFile node ...` against the relocated dist.
 import { describe, it, expect } from 'vitest';
-import { execFile } from 'node:child_process';
+import { execFile, execSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdtemp, mkdir, writeFile, copyFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -15,6 +15,24 @@ import { resolve, join } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 const sourceDist = resolve(import.meta.dirname, '../../dist/check-claude-hook-syntax.js');
+
+// Story 1.19 Subtask 5.3 CR-7 — skip-on-missing-bash/dash guard. The enforcer under test
+// (`check-claude-hook-syntax.ts:43-47`) dispatches on shebang to `bash -n` and (for `sh`
+// shebangs) `dash -n`. Every test in this suite spawns the enforcer, so every test
+// transitively depends on `bash` (always) and on `dash` (for the two `#!/bin/sh` cases).
+// On thinner runtimes that ship only `sh` (minimal CI containers, fork-replacement images
+// per spec note), one or both binaries may be absent. The guard checks `which bash && which
+// dash`; if either is missing, all four it-blocks skip rather than report false failures.
+// Defensive only — cc-devbox carries both — but spec-mandated for portability.
+const HAS_BASH_DASH = (() => {
+  try {
+    execSync('which bash && which dash', { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
+  }
+})();
+const itIfBashDash = HAS_BASH_DASH ? it : it.skip;
 
 async function buildFixture(hooks: { name: string; body: string }[]): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'keel-hook-syntax-'));
@@ -30,7 +48,7 @@ async function buildFixture(hooks: { name: string; body: string }[]): Promise<st
 }
 
 describe('check-claude-hook-syntax CLI (Story 1.19 AC2 RED-phase)', () => {
-  it('exits 0 for bash-shebang script with valid syntax', async () => {
+  itIfBashDash('exits 0 for bash-shebang script with valid syntax', async () => {
     const cli = await buildFixture([
       { name: 'ok-bash.sh', body: '#!/usr/bin/env bash\necho ok\n' },
     ]);
@@ -39,28 +57,34 @@ describe('check-claude-hook-syntax CLI (Story 1.19 AC2 RED-phase)', () => {
     expect(stderr).toBe('');
   });
 
-  it('exits 0 for sh-shebang script that passes both bash AND dash', async () => {
+  itIfBashDash('exits 0 for sh-shebang script that passes both bash AND dash', async () => {
     const cli = await buildFixture([{ name: 'ok-sh.sh', body: '#!/bin/sh\necho ok\n' }]);
     const { stdout, stderr } = await execFileAsync('node', [cli]);
     expect(stdout).toBe('');
     expect(stderr).toBe('');
   });
 
-  it('exits 1 for bash-shebang script with if-fi mismatch; stderr cites syntax failures', async () => {
-    const cli = await buildFixture([
-      { name: 'broken-bash.sh', body: '#!/bin/bash\nif true\necho oops\n' },
-    ]);
-    await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
-      code: 1,
-      stderr: expect.stringMatching(/syntax failure\(s\) in \.claude\/hooks\/\*\.sh/),
-    });
-  });
+  itIfBashDash(
+    'exits 1 for bash-shebang script with if-fi mismatch; stderr cites syntax failures',
+    async () => {
+      const cli = await buildFixture([
+        { name: 'broken-bash.sh', body: '#!/bin/bash\nif true\necho oops\n' },
+      ]);
+      await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
+        code: 1,
+        stderr: expect.stringMatching(/syntax failure\(s\) in \.claude\/hooks\/\*\.sh/),
+      });
+    },
+  );
 
-  it('exits 1 for sh-shebang script using bashism here-string `<<<` (fails dash)', async () => {
-    const cli = await buildFixture([{ name: 'bashism-sh.sh', body: '#!/bin/sh\ncat <<< "x"\n' }]);
-    await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
-      code: 1,
-      stderr: expect.stringMatching(/syntax failure\(s\) in \.claude\/hooks\/\*\.sh/),
-    });
-  });
+  itIfBashDash(
+    'exits 1 for sh-shebang script using bashism here-string `<<<` (fails dash)',
+    async () => {
+      const cli = await buildFixture([{ name: 'bashism-sh.sh', body: '#!/bin/sh\ncat <<< "x"\n' }]);
+      await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
+        code: 1,
+        stderr: expect.stringMatching(/syntax failure\(s\) in \.claude\/hooks\/\*\.sh/),
+      });
+    },
+  );
 });
