@@ -2,7 +2,7 @@
 
 ## NOW
 
-- [ ] `/bmad-testarch-trace (args: "yolo")` per FR14n matrix `in-dev → traced`. Story 1.21 — AC↔test coverage gate + traceability matrix. Forecast 0–2 PATCH at trace per audit + sweep class envelope (coverage IS the deliverable; trace expected FULL — AC1↔test-debt.md catalogue, AC2↔FR14n verification, AC3↔grep cross-link, AC4↔preamble grandfather clause, AC5↔per-DEFER disposition checklist, AC6↔§ Substrate-Adjacent Operational Gaps). ~small-medium.
+- [ ] `/bmad-testarch-trace (args: "yolo")` per FR14n matrix `in-dev → traced`. Story 1.21 — AC↔test coverage gate + traceability matrix. Forecast 0–2 PATCH at trace per audit + sweep class envelope (coverage IS the deliverable; trace expected FULL — AC1↔test-debt.md catalogue, AC2↔FR14n verification, AC3↔grep cross-link, AC4↔preamble grandfather clause, AC5↔per-DEFER disposition checklist, AC6↔§ Substrate-Adjacent Operational Gaps). ~small-medium. **Carry-from iter-401:** local commit `2028f27` PUSH-DEFERRED via SSH-egress flake (14th cumulative class datapoint per RALPH.md iter-372..395 + iter-401; both `git push` attempts at step 5 returned `ssh: connect to host github.com port 22: Connection timed out`); next iter step-5 push will land iter-401 + iter-402 commits together per iter-385/388/395 push-deferred precedent.
 
 ## QUEUE (Story 1.21 lifecycle, then Epic 1 close)
 
