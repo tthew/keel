@@ -125,6 +125,7 @@ last_updated: 2026-04-26 Story-1-20-create-story-drafted-iter-387 UTC
 last_updated: 2026-04-26 Story-1-20-in-progress-iter-390 UTC
 last_updated: 2026-04-26 Story-1-20-review-iter-390 UTC
 last_updated: 2026-04-26 Story-1-20-done-CR-pass-1-iter-397-0-PATCH-3-DEFER-16-DISMISS UTC
+last_updated: 2026-04-26 Story-1-21-create-story-drafted-iter-398 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -152,7 +153,7 @@ development_status:
   1-18-bootstrap-python-test-runner-pytest-under-uv: done
   1-19-backfill-keel-invariants-test-coverage: done
   1-20-activate-fr14i-for-real-end-vacuous-pass: done
-  1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups: backlog
+  1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups: ready-for-dev
   epic-1-retrospective: optional
 
   epic-2: done
