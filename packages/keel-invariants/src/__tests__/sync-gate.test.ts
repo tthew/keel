@@ -24,7 +24,7 @@ async function makeRepoRoot(invariantsMdContent: string): Promise<string> {
 }
 
 describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
-  it.skip('added-to-source-only: manifest entry exists, INVARIANTS.md has no anchor', async () => {
+  it('added-to-source-only: manifest entry exists, INVARIANTS.md has no anchor', async () => {
     const root = await makeRepoRoot('# INVARIANTS\n');
     await writeFile(join(root, 'src.ts'), 'const x = 1;\n');
     const hash = createHash('sha256').update('const x = 1;\n').digest('hex');
@@ -53,7 +53,7 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it.skip('removed-from-source-only: INVARIANTS.md has anchor, sourcePath is missing on disk', async () => {
+  it('removed-from-source-only: INVARIANTS.md has anchor, sourcePath is missing on disk', async () => {
     const root = await makeRepoRoot('# INVARIANTS\n- **`INV-removed`** — gone from source.\n');
     vi.doMock('../manifest-reader.js', async () => {
       const real =
@@ -84,7 +84,7 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it.skip('removed-from-docs-only: INVARIANTS.md has orphan anchor, manifest is empty', async () => {
+  it('removed-from-docs-only: INVARIANTS.md has orphan anchor, manifest is empty', async () => {
     const root = await makeRepoRoot('# INVARIANTS\n- **`INV-orphan-doc`** — orphan.\n');
     vi.doMock('../manifest-reader.js', async () => {
       const real =
@@ -100,7 +100,7 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it.skip('content-hash-mismatch: source file content does not match manifest contentHash', async () => {
+  it('content-hash-mismatch: source file content does not match manifest contentHash', async () => {
     const root = await makeRepoRoot('# INVARIANTS\n- **`INV-hash-drift`** — drift.\n');
     await writeFile(join(root, 'src.ts'), 'actual content\n');
     vi.doMock('../manifest-reader.js', async () => {
@@ -132,9 +132,9 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it.skip('clean baseline: aligned manifest + docs + source returns status: clean', async () => {
+  it('clean baseline: aligned manifest + docs + source returns status: clean', async () => {
     const body = 'aligned content\n';
-    const root = await makeRepoRoot('# INVARIANTS\n- **`INV-aligned`** — aligned.\n');
+    const root = await makeRepoRoot('# INVARIANTS\n- **`INV-aligned-fixture`** — aligned.\n');
     await writeFile(join(root, 'src.ts'), body);
     const hash = createHash('sha256').update(body).digest('hex');
     vi.doMock('../manifest-reader.js', async () => {
@@ -144,11 +144,11 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
         ...real,
         invariants: [
           {
-            id: 'INV-aligned',
+            id: 'INV-aligned-fixture',
             description: 'fixture',
             sourcePath: 'src.ts',
             contentHash: hash,
-            anchors: ['INV-aligned'],
+            anchors: ['INV-aligned-fixture'],
           },
         ],
       };

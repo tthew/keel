@@ -87,6 +87,12 @@ FR44 ESLint-extend pattern (`eslint.config.fork.js` importing `@keel/keel-invari
 - **`INV-fork-extension-rationale`**: docs/invariants/fork.md — FR44 ESLint-extend pattern + FR45 Growth-tier INVARIANTS.fork.md scaffold + substrate-wins precedence + amendment-vs-fork decision tree.
 - **`INV-fork-invariants-scaffold`**: packages/keel-invariants/templates/INVARIANTS.fork.md — Growth-tier fork-invariants template with H1 + § Precedence + § Fork invariants index + § Consumption + § Extension + commented FORK-\<fork-slug\>-\<category\>-\<slug\> naming example.
 
+### Test coverage floor (Story 1.19)
+
+NFR1a substrate-side coverage-floor enforcer. Walks `packages/*` workspace entries with a `src/` subdir and reports `coverage-floor-violation` to stderr + exits 1 for any non-exempt package without ≥ 1 `*.test.ts` file under `src/` (recursive). Pre-bootstrap exempt list (per NFR1a; PRD line 1068): `keel-templates`, `devbox` (Story 1.21 lands their backfill follow-ups). Standalone CLI invocation: `pnpm keel-invariants:package-test-coverage-floor`.
+
+- **`INV-package-test-coverage-floor`** — NFR1a substrate-side coverage-floor enforcer. Walks `packages/*` workspace entries with a `src/` subdir; reports `coverage-floor-violation` to stderr + exits 1 for any non-exempt package without ≥ 1 `*.test.ts` under `src/` (recursive). Pre-bootstrap exempt list (per NFR1a): `keel-templates`, `devbox` (Story 1.21 lands their backfill follow-ups). Invocation: `pnpm keel-invariants:package-test-coverage-floor`. Source: `packages/keel-invariants/src/check-package-test-coverage-floor.ts`.
+
 ### Devbox iteration substrate (Story 2.1)
 
 Docker-in-Docker as a fork-time substrate requirement: every Ralph iteration environment (cc-devbox or equivalent) must provide a functioning Docker daemon. Spec-enforced at 1.0; runtime check (`command -v docker && docker info`) lands as a `packages/keel-invariants/` rule on a later Ralph iteration.

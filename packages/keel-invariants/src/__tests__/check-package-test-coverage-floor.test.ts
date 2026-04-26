@@ -42,7 +42,7 @@ async function buildFixture(pkgs: FixturePackage[]): Promise<string> {
 }
 
 describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () => {
-  it.skip('green: covered package (≥1 *.test.ts under src/) exits 0 with empty stderr', async () => {
+  it('green: covered package (≥1 *.test.ts under src/) exits 0 with empty stderr', async () => {
     const cli = await buildFixture([
       {
         name: 'foo',
@@ -57,7 +57,7 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
     expect(stderr).toBe('');
   });
 
-  it.skip('green: exempt package (devbox) without coverage exits 0 (EXEMPT_LIST recognised)', async () => {
+  it('green: exempt package (devbox) without coverage exits 0 (EXEMPT_LIST recognised)', async () => {
     const cli = await buildFixture([
       {
         name: 'devbox',
@@ -69,7 +69,7 @@ describe('check-package-test-coverage-floor CLI (Story 1.19 AC5 RED-phase)', () 
     expect(stderr).toBe('');
   });
 
-  it.skip('red: non-exempt package missing coverage exits 1; stderr is NDJSON {status: violation, package, message}', async () => {
+  it('red: non-exempt package missing coverage exits 1; stderr is NDJSON {status: violation, package, message}', async () => {
     const cli = await buildFixture([
       {
         name: 'bar',

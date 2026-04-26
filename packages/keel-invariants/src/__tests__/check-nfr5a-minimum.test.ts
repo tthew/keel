@@ -30,7 +30,7 @@ async function buildFixture(settings: unknown): Promise<string> {
 }
 
 describe('check-nfr5a-minimum CLI (Story 1.19 AC2 RED-phase)', () => {
-  it.skip('exits 0 when settings.json carries 13 deny + 6 allow (substrate baseline)', async () => {
+  it('exits 0 when settings.json carries 13 deny + 6 allow (substrate baseline)', async () => {
     const cli = await buildFixture({
       permissions: {
         deny: Array.from({ length: 13 }, (_, i) => ({ tool: `Deny${i}` })),
@@ -42,7 +42,7 @@ describe('check-nfr5a-minimum CLI (Story 1.19 AC2 RED-phase)', () => {
     expect(stderr).toBe('');
   });
 
-  it.skip('exits 1 with deny-min violation; stderr is single-line JSON {status: violation, ...} citing 13', async () => {
+  it('exits 1 with deny-min violation; stderr is single-line JSON {status: violation, ...} citing 13', async () => {
     const cli = await buildFixture({
       permissions: {
         deny: Array.from({ length: 12 }, (_, i) => ({ tool: `Deny${i}` })),
@@ -55,7 +55,7 @@ describe('check-nfr5a-minimum CLI (Story 1.19 AC2 RED-phase)', () => {
     });
   });
 
-  it.skip('exits 1 with allow-min violation; stderr is single-line JSON citing the lower bound', async () => {
+  it('exits 1 with allow-min violation; stderr is single-line JSON citing the lower bound', async () => {
     const cli = await buildFixture({
       permissions: {
         deny: Array.from({ length: 13 }, (_, i) => ({ tool: `Deny${i}` })),
@@ -68,7 +68,7 @@ describe('check-nfr5a-minimum CLI (Story 1.19 AC2 RED-phase)', () => {
     });
   });
 
-  it.skip('exits 1 when .permissions.deny is missing/not-array; stderr cites missing-or-not-an-array', async () => {
+  it('exits 1 when .permissions.deny is missing/not-array; stderr cites missing-or-not-an-array', async () => {
     const cli = await buildFixture({
       permissions: {
         allow: Array.from({ length: 6 }, (_, i) => ({ tool: `Allow${i}` })),

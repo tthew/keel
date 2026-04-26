@@ -30,7 +30,7 @@ async function buildFixture(hooks: { name: string; body: string }[]): Promise<st
 }
 
 describe('check-claude-hook-syntax CLI (Story 1.19 AC2 RED-phase)', () => {
-  it.skip('exits 0 for bash-shebang script with valid syntax', async () => {
+  it('exits 0 for bash-shebang script with valid syntax', async () => {
     const cli = await buildFixture([
       { name: 'ok-bash.sh', body: '#!/usr/bin/env bash\necho ok\n' },
     ]);
@@ -39,14 +39,14 @@ describe('check-claude-hook-syntax CLI (Story 1.19 AC2 RED-phase)', () => {
     expect(stderr).toBe('');
   });
 
-  it.skip('exits 0 for sh-shebang script that passes both bash AND dash', async () => {
+  it('exits 0 for sh-shebang script that passes both bash AND dash', async () => {
     const cli = await buildFixture([{ name: 'ok-sh.sh', body: '#!/bin/sh\necho ok\n' }]);
     const { stdout, stderr } = await execFileAsync('node', [cli]);
     expect(stdout).toBe('');
     expect(stderr).toBe('');
   });
 
-  it.skip('exits 1 for bash-shebang script with if-fi mismatch; stderr cites syntax failures', async () => {
+  it('exits 1 for bash-shebang script with if-fi mismatch; stderr cites syntax failures', async () => {
     const cli = await buildFixture([
       { name: 'broken-bash.sh', body: '#!/bin/bash\nif true\necho oops\n' },
     ]);
@@ -56,10 +56,8 @@ describe('check-claude-hook-syntax CLI (Story 1.19 AC2 RED-phase)', () => {
     });
   });
 
-  it.skip('exits 1 for sh-shebang script using bashism `[[ ... ]]` (fails dash)', async () => {
-    const cli = await buildFixture([
-      { name: 'bashism-sh.sh', body: '#!/bin/sh\n[[ "x" = "x" ]]\n' },
-    ]);
+  it('exits 1 for sh-shebang script using bashism here-string `<<<` (fails dash)', async () => {
+    const cli = await buildFixture([{ name: 'bashism-sh.sh', body: '#!/bin/sh\ncat <<< "x"\n' }]);
     await expect(execFileAsync('node', [cli])).rejects.toMatchObject({
       code: 1,
       stderr: expect.stringMatching(/syntax failure\(s\) in \.claude\/hooks\/\*\.sh/),

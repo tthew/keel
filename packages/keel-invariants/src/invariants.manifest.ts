@@ -427,6 +427,14 @@ const raw: Invariant[] = [
       enumeratorPath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
     },
   },
+  {
+    id: 'INV-package-test-coverage-floor',
+    description:
+      'NFR1a substrate-side coverage-floor enforcer — walks packages/* workspace entries with a src/ subdir and reports coverage-floor-violation for any non-exempt package without >= 1 *.test.ts file under src/ (recursive). Pre-bootstrap exempt list per NFR1a (PRD line 1068): keel-templates, devbox (Story 1.21 lands their backfill follow-ups). Invocation: pnpm keel-invariants:package-test-coverage-floor. Standalone CLI; NOT invoked transitively by runSyncGate.',
+    sourcePath: 'packages/keel-invariants/src/check-package-test-coverage-floor.ts',
+    contentHash: '57555cb453e7cc46569874befb28d7faa2c5689f458da2b8c11303c8f4cfa32e',
+    anchors: ['INV-package-test-coverage-floor'],
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));

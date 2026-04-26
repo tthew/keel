@@ -14,13 +14,13 @@ const execFileAsync = promisify(execFile);
 const cliPath = resolve(import.meta.dirname, '../../dist/check-no-committed-dotfiles.js');
 
 describe('check-no-committed-dotfiles CLI (Story 1.19 AC2 RED-phase)', () => {
-  it.skip('exits 0 with no staged files (vacuous green path)', async () => {
+  it('exits 0 with no staged files (vacuous green path)', async () => {
     const { stdout, stderr } = await execFileAsync('node', [cliPath]);
     expect(stdout).toBe('');
     expect(stderr).toBe('');
   });
 
-  it.skip('exits 0 with compliant staged file paths (incl. .envrc.example schema-companion)', async () => {
+  it('exits 0 with compliant staged file paths (incl. .envrc.example schema-companion)', async () => {
     const { stdout, stderr } = await execFileAsync('node', [
       cliPath,
       'src/foo.ts',
@@ -31,14 +31,14 @@ describe('check-no-committed-dotfiles CLI (Story 1.19 AC2 RED-phase)', () => {
     expect(stderr).toBe('');
   });
 
-  it.skip('exits 1 with .envrc in staged files; stderr matches Refusing-to-commit prose', async () => {
+  it('exits 1 with .envrc in staged files; stderr matches Refusing-to-commit prose', async () => {
     await expect(execFileAsync('node', [cliPath, '.envrc'])).rejects.toMatchObject({
       code: 1,
       stderr: expect.stringMatching(/Refusing to commit gitignored secret file: \.envrc/),
     });
   });
 
-  it.skip('exits 1 with .claude/settings.local.json in staged files; stderr names the offender', async () => {
+  it('exits 1 with .claude/settings.local.json in staged files; stderr names the offender', async () => {
     await expect(
       execFileAsync('node', [cliPath, '.claude/settings.local.json']),
     ).rejects.toMatchObject({

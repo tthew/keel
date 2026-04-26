@@ -18,7 +18,7 @@ const baseEntry = {
 };
 
 describe('InvariantSchema rejections (Story 1.19 AC4 RED-phase)', () => {
-  it.skip('rejects bad ID format: BadID, INV-UPPER, inv-lower, INV-singleton, INV-bad_underscore', async () => {
+  it('rejects bad ID format: BadID, INV-UPPER, inv-lower, INV-singleton, INV-bad_underscore', async () => {
     const { InvariantSchema } = await import('../invariants.manifest.js');
     for (const bad of ['BadID', 'INV-UPPER', 'inv-lower', 'INV-singleton', 'INV-bad_underscore']) {
       const result = InvariantSchema.safeParse({ ...baseEntry, id: bad });
@@ -26,7 +26,7 @@ describe('InvariantSchema rejections (Story 1.19 AC4 RED-phase)', () => {
     }
   });
 
-  it.skip('rejects entry missing required field (description / id / sourcePath / contentHash / anchors)', async () => {
+  it('rejects entry missing required field (description / id / sourcePath / contentHash / anchors)', async () => {
     const { InvariantSchema } = await import('../invariants.manifest.js');
     for (const field of ['description', 'id', 'sourcePath', 'contentHash', 'anchors']) {
       const partial = { ...baseEntry } as Record<string, unknown>;
@@ -36,7 +36,7 @@ describe('InvariantSchema rejections (Story 1.19 AC4 RED-phase)', () => {
     }
   });
 
-  it.skip('rejects contentHash regex violations (length, uppercase hex, non-hex char)', async () => {
+  it('rejects contentHash regex violations (length, uppercase hex, non-hex char)', async () => {
     const { InvariantSchema } = await import('../invariants.manifest.js');
     const bad = ['short', 'a'.repeat(63), 'a'.repeat(65), 'A'.repeat(64), 'g'.repeat(64)];
     for (const contentHash of bad) {
@@ -45,13 +45,13 @@ describe('InvariantSchema rejections (Story 1.19 AC4 RED-phase)', () => {
     }
   });
 
-  it.skip('rejects empty anchors array (z.array(...).min(1))', async () => {
+  it('rejects empty anchors array (z.array(...).min(1))', async () => {
     const { InvariantSchema } = await import('../invariants.manifest.js');
     const result = InvariantSchema.safeParse({ ...baseEntry, anchors: [] });
     expect(result.success).toBe(false);
   });
 
-  it.skip('rejects sourcePath SHAPE violations (absolute, traversal, backslash)', async () => {
+  it('rejects sourcePath SHAPE violations (absolute, traversal, backslash)', async () => {
     const { InvariantSchema } = await import('../invariants.manifest.js');
     const bad = ['/abs/path.ts', '../traversal.ts', 'back\\slash.ts'];
     for (const sourcePath of bad) {
@@ -60,7 +60,7 @@ describe('InvariantSchema rejections (Story 1.19 AC4 RED-phase)', () => {
     }
   });
 
-  it.skip('superRefine: rejects array containing duplicate ids', async () => {
+  it('superRefine: rejects array containing duplicate ids', async () => {
     const { InvariantsSchema } = await import('../invariants.manifest.js');
     const dup = [
       { ...baseEntry, id: 'INV-dup-id' },

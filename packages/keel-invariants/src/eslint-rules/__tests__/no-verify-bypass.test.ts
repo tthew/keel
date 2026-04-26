@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 const RULE_PATH: string = '../no-verify-bypass.js';
 
 describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
-  it.skip('valid: --verify (different flag, lookahead prevents substring miss)', async () => {
+  it('valid: --verify (different flag, lookahead prevents substring miss)', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
@@ -22,7 +22,7 @@ describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
     expect(true).toBe(true);
   });
 
-  it.skip('valid: no-verify (lookbehind prevents partial token match)', async () => {
+  it('valid: no-verify (lookbehind prevents partial token match)', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
@@ -34,7 +34,7 @@ describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
     });
   });
 
-  it.skip('valid: template literal containing no bypass token', async () => {
+  it('valid: template literal containing no bypass token', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
@@ -46,7 +46,7 @@ describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
     });
   });
 
-  it.skip('valid: empty string literal', async () => {
+  it('valid: empty string literal', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
@@ -58,7 +58,7 @@ describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
     });
   });
 
-  it.skip('invalid: --no-verify literal → reports messageId bypass + token data', async () => {
+  it('invalid: --no-verify literal → reports messageId bypass + token data', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
@@ -75,7 +75,7 @@ describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
     });
   });
 
-  it.skip('invalid: --dangerously-skip-permissions literal → reports bypass + token', async () => {
+  it('invalid: --dangerously-skip-permissions literal → reports bypass + token', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
@@ -92,7 +92,7 @@ describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
     });
   });
 
-  it.skip('invalid: template literal cooked-value carries --no-verify', async () => {
+  it('invalid: template literal cooked-value carries --no-verify', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
@@ -109,7 +109,7 @@ describe('eslint-rules/no-verify-bypass (Story 1.19 AC1 RED-phase)', () => {
     });
   });
 
-  it.skip('invalid: template literal multi-token line carries --dangerously-skip-permissions', async () => {
+  it('invalid: template literal multi-token line carries --dangerously-skip-permissions', async () => {
     const { RuleTester } = await import('eslint');
     const { default: rule } = await import(RULE_PATH);
     const tester = new RuleTester({
