@@ -273,6 +273,39 @@ claude-opus-4-7 (1M context) via `/bmad-dev-story` skill invoked by Ralph iter-2
 
 ## Change Log
 
+### v1.5 — iter-pr-review-9 — PR #230 review fix (D-9 closure: `nc -z -w 2` per-probe timeout cap)
+
+Lockstep substrate edit closing iter-286 DEFER **D-9** (`nc -z` lacked an explicit per-probe timeout — TCP edge cases like a `SYN_SENT` storm against a wedged sshd inherited the outer Docker `timeout: 5s` budget instead of failing fast). PR #230 review thread `discussion_r3143864797` re-flagged the same finding as a 🟡 MINOR; this iteration absorbs the partial fix (timeout half) into substrate.
+
+**Operative substrate edits (six sites, lockstep per § Probe domain stability three-site contract extended to substrate-wide for non-domain probe-shape evolutions):**
+
+1. `packages/devbox/docker-compose.yml:282` — probe expression `nc -z 127.0.0.1 2222` → `nc -z -w 2 127.0.0.1 2222`.
+2. `docs/invariants/devbox-healthcheck.md` § Probe contract Clause 2 + § Canonical joined form fenced block + § SSH-conditional branch `KEEL_DEVBOX_SSH=true` mode (3 occurrences via `replace_all`); § Timing parameters `timeout` row rewritten to reflect new `≤2s` ceiling on `nc` (was `~1s` typical with implicit unbounded worst-case).
+3. `packages/devbox/README.md` § Probe shape fenced block + § Clause 2 prose (2 occurrences via `replace_all`); § Timing parameters `timeout` row rewritten parallel to invariant doc.
+4. `AGENTS.md` § Healthcheck (Story 2.13) canonical-probe inline (1 occurrence).
+5. `INVARIANTS.md` § Devbox healthcheck canonical-probe inline (1 occurrence; annotated `-w 2 per-probe cap`).
+6. `packages/keel-invariants/src/invariants.manifest.ts` `INV-devbox-healthcheck` description literal (1 occurrence) + `contentHash` refresh (`ae0ac4b3…` → `b8a420a4…`) reflecting healthcheck.md edits.
+
+**DISMISS for the port-parameterisation half of `discussion_r3143864797`'s suggested literal** (`${KEEL_DEVBOX_SSH_PORT:-2222}` in place of literal `2222`):
+
+- The reviewer's suggested literal `nc -z -w 2 127.0.0.1 ${KEEL_DEVBOX_SSH_PORT:-2222}` confuses container-internal port semantics with host-side port-publish semantics. The healthcheck runs INSIDE the container (probes `127.0.0.1` → loopback → sshd in same netns → fixed bind port `2222`). `KEEL_DEVBOX_SSH_PORT` is a HOST-side knob in `docker-compose.ssh.yml:20` that maps `127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222` — host port → container port `2222`. Parameterising the container-internal probe port would silently break under any non-default `KEEL_DEVBOX_SSH_PORT` (probe would target the host-side port number which sshd does NOT bind inside the container).
+- This DISMISS rationale was previously pinned in v1.4 § Review Findings line 165 ("comment-polish absorbed into D-13 cross-ref scope if refactor pressure surfaces. DISMISS"); iter-pr-review-9 re-confirms.
+
+**Substrate-vs-PR-comment divergence carry-forward (RALPH.md § Lessons learned § IP-vs-spec interpretive divergence):** When a PR review comment includes both a substantive finding (timeout cap) and an incidental nudge (variable parameterisation) that conflicts with substrate-documented semantics, address the substantive half and DISMISS the incidental with explicit rationale linked to prior triage. Do not copy the literal patch verbatim.
+
+**Timing-rationale prose updates (incidental but accuracy-preserving):**
+
+- Old: "Worst-case probe = `dig +time=3 +tries=1` (3s) + `nc -z` (~1s) = ~4s, so 5s has a 1s margin."
+- New: "Worst-case probe = `dig +time=3 +tries=1` (3s) + `nc -z -w 2` (≤2s) = ≤5s, matching the outer cap."
+
+The `1s margin` framing was true for typical-case `nc -z` but false for worst-case (prior implicit bound was the Docker outer 5s kill, indistinguishable in operator-facing diagnostics from a timeout). The new `≤5s ceiling` framing is honest; PR-review prose-block on each timing-table row cites the rationale.
+
+**Sync-gate state (post-edit):** `INV-devbox-healthcheck` content-hash drift cleared (manifest `contentHash` refreshed to `b8a420a4…`); pre-existing `INV-package-test-coverage-floor` drift unchanged from `fed3161` baseline (out-of-PR follow-up, Story 1.9 sync-gate-not-yet-pre-commit-wired). No new drift introduced.
+
+**AC coverage carry-forward:** No AC re-verification required — substrate-functional behavior unchanged (`nc -z -w 2` is strictly an explicit-timeout refinement of `nc -z`'s prior unbounded-with-outer-5s-kill semantics; AC 3 "TCP three-way-handshake completes" assertion holds; AC 5 "timing documented" carries the new rationale prose). Operator-workstation-deferred AC 4 mid-run-transition unchanged (DinD backend B cap-dropped semantics, see v1.2 § Test scope).
+
+**Cumulative Story 2.13 Epic-2 PATCH count:** 6 (iter-281 pre-dev SM) + 2 (iter-285 post-dev SM) + 0 (iter-286 CR) + 1 (iter-pr-review-9 PR review) = **9 PATCH total across Story 2.13 lifecycle**. Within the iter-286 forecast band ("for narrow-diff moderate-novelty story = ~6-10"). PR-review-fix-arc is post-CR-closure — historically Stories 2.5/2.7 also added 1-2 post-CR PATCH from PR-review thread feedback.
+
 ### v1.4 — iter-286 `/bmad-code-review (args: "2")` — CR closure (`sm-verified → done`; 0 PATCH + 6 DEFER + ~14 DISMISS)
 
 Three-layer Ralph-hosted adversarial fan-out per iter-271/iter-277 pattern: Blind Hunter (`general-purpose` diff-only, 15 raw findings) + Edge Case Hunter (`general-purpose` diff+project-read, 12 raw findings) + Acceptance Auditor (`general-purpose` diff+spec+invariant, clean-pass against AC 1/2/3/5; AC 4 operator-workstation-deferred unchanged). Diff scope narrowed to substrate files only: `packages/devbox/docker-compose.yml`, `packages/devbox/Dockerfile`, `docs/invariants/devbox-healthcheck.md`, `packages/keel-invariants/src/invariants.manifest.ts`, `INVARIANTS.md`, `AGENTS.md`, `packages/devbox/README.md`, `_bmad-output/implementation-artifacts/sprint-status.yaml` — story file + trace artefacts excluded (spec + gate artefacts, not subject).

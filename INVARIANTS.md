@@ -137,7 +137,7 @@ Opt-in sshd via `KEEL_DEVBOX_SSH=true` (pubkey-only, root-disabled, loopback-bou
 
 ### Devbox healthcheck (Story 2.13)
 
-Compose-level healthcheck probes dnsmasq liveness (always) + sshd liveness (iff `KEEL_DEVBOX_SSH=true`); replaces upstream cc-devbox's broken `curl :3000`. Timing parameters `interval 10s` / `timeout 5s` / `retries 3` / `start_period 30s` are substrate-authoritative with per-knob rationale. Canonical probe: `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` (dnsmasq) + `nc -z 127.0.0.1 2222` (sshd; conditional). POSIX sh safe (`/bin/sh` is `dash` on Ubuntu 24.04). Probe domain `api.github.com` is three-site lockstep with `packages/devbox/whitelist/github.txt`. Forks MAY add additive fork-specific probes via compose override; MAY NOT weaken the substrate.
+Compose-level healthcheck probes dnsmasq liveness (always) + sshd liveness (iff `KEEL_DEVBOX_SSH=true`); replaces upstream cc-devbox's broken `curl :3000`. Timing parameters `interval 10s` / `timeout 5s` / `retries 3` / `start_period 30s` are substrate-authoritative with per-knob rationale. Canonical probe: `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` (dnsmasq) + `nc -z -w 2 127.0.0.1 2222` (sshd; conditional, `-w 2` per-probe cap). POSIX sh safe (`/bin/sh` is `dash` on Ubuntu 24.04). Probe domain `api.github.com` is three-site lockstep with `packages/devbox/whitelist/github.txt`. Forks MAY add additive fork-specific probes via compose override; MAY NOT weaken the substrate.
 
 - **`INV-devbox-healthcheck`** — Compose healthcheck probes dnsmasq + sshd liveness; never curl :3000; timing parameters + rationale pinned. Source: `docs/invariants/devbox-healthcheck.md`.
 

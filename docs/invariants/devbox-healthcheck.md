@@ -14,12 +14,12 @@ The compose-level `healthcheck:` block reflects actual in-container service heal
 Composed shell expression, POSIX sh safe (Ubuntu 24.04's `/bin/sh` is `dash`, not bash). Two clauses joined by `&&`:
 
 - **Clause 1 (always)** — `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` — probes dnsmasq. Liveness semantics: clause 1 success = dnsmasq RESPONSIVE (NXDOMAIN counts as success; we are measuring whether dnsmasq accepts + replies to the query, not whether the whitelist contains the domain). `+short` truncates output (stdout redirected to `/dev/null` anyway); `+time=3` caps single-query wall time at 3s; `+tries=1` disables the default 2-retry fallback.
-- **Clause 2 (iff `KEEL_DEVBOX_SSH=true`)** — `nc -z 127.0.0.1 2222` — probes sshd TCP listener. Liveness semantics: clause 2 success = TCP three-way-handshake completes (does NOT exercise pubkey auth). Under `KEEL_DEVBOX_SSH=false` (or unset), the `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` short-circuits past `||`, so only dnsmasq probes run.
+- **Clause 2 (iff `KEEL_DEVBOX_SSH=true`)** — `nc -z -w 2 127.0.0.1 2222` — probes sshd TCP listener. Liveness semantics: clause 2 success = TCP three-way-handshake completes (does NOT exercise pubkey auth). Under `KEEL_DEVBOX_SSH=false` (or unset), the `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` short-circuits past `||`, so only dnsmasq probes run.
 
 Canonical joined form (as emitted by `docker compose config § test[1]`):
 
 ```
-dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z 127.0.0.1 2222; }
+dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z -w 2 127.0.0.1 2222; }
 ```
 
 The probe deliberately does NOT exercise whitelist membership or pubkey auth — both would add fragility without adding health signal. Whitelist drift would false-positive the healthcheck; pubkey-auth probing would require committed test keys that weaken the trust model.
@@ -29,7 +29,7 @@ The probe deliberately does NOT exercise whitelist membership or pubkey auth —
 | Key            | Value | Rationale                                                                                                                                                                                                                                                                |
 | -------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `interval`     | `10s` | Probe every 10s. 6 probes/min per service = ~8640 dnsmasq queries/day accruing in `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. Expected baseline; FR37 Epic-4 consumers filter via `jq 'select(.query != "api.github.com")'`.                         |
-| `timeout`      | `5s`  | Kill hung probes at 5s. Worst-case probe = `dig +time=3 +tries=1` (3s) + `nc -z` (~1s) = ~4s, so 5s has a 1s margin.                                                                                                                                                     |
+| `timeout`      | `5s`  | Kill hung probes at 5s. Worst-case probe = `dig +time=3 +tries=1` (3s) + `nc -z -w 2` (≤2s) = ≤5s, matching the outer cap. PR #230 review (iter-9; D-9 closure) added the explicit `nc -z -w 2` cap for belt-and-braces consistency with `dig`'s `+time=3 +tries=1` — typical-case `nc -z` returns in ~1s, but the `-w 2` ceiling guards against TCP edge cases (e.g. `SYN_SENT` storm against a wedged sshd) inheriting the 5s outer kill rather than failing fast.                                                                                                                                                     |
 | `retries`      | `3`   | Container transitions to `unhealthy` after 3 consecutive failures — ~30s detection latency post-`start_period`. Balances transient-glitch tolerance against real-failure detection speed.                                                                                |
 | `start_period` | `30s` | Entrypoint init budget: `start-egress.sh` ~3-5s for nftables + dnsmasq + resolv.conf pin; sshd ~1s under opt-in. 30s comfortably covers cold-boot + first-probe latency; failures during this window don't count against `retries` (Docker `HEALTHCHECK` start-period semantics). |
 
@@ -79,7 +79,7 @@ Automated drift check deferred to Story 2.17 close-out lint (Story 2.13 pre-dev 
 `KEEL_DEVBOX_SSH` env var is populated inside the container by `packages/devbox/docker-compose.yml § environment` sourcing `KEEL_DEVBOX_SSH_RESOLVED` (Story 2.12 iter-273 PATCH-2; `INV-devbox-ssh`). The healthcheck's POSIX-sh `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` check reads the canonical case-folded value — no case-variant drift (raw `True` / `TRUE` / `TrUe` never reach the container; the resolver pre-normalises to strict `"true"` or `"false"`).
 
 - **`KEEL_DEVBOX_SSH=false` (or unset) mode:** `${VAR:-false}` expands to `false`; `[ "false" != "true" ]` exits 0; chain past `||` short-circuits the `nc -z` call. Only dnsmasq probes run.
-- **`KEEL_DEVBOX_SSH=true` mode:** `[ "true" != "true" ]` exits non-zero; falls through to `nc -z 127.0.0.1 2222`. Both probes run; either failure marks unhealthy.
+- **`KEEL_DEVBOX_SSH=true` mode:** `[ "true" != "true" ]` exits non-zero; falls through to `nc -z -w 2 127.0.0.1 2222`. Both probes run; either failure marks unhealthy.
 
 ## No curl :3000
 

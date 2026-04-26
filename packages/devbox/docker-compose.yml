@@ -279,7 +279,7 @@ services:
         - CMD-SHELL
         - >-
           dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
-          && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z 127.0.0.1 2222; }
+          && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z -w 2 127.0.0.1 2222; }
       interval: 10s
       timeout: 5s
       retries: 3

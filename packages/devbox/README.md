@@ -921,7 +921,7 @@ Container-side sshd `ListenAddress` is INTENTIONALLY unset. Container-loopback i
 
 ## Healthcheck (Story 2.13)
 
-Upstream cc-devbox shipped a `healthcheck.test: ["CMD", "curl", "-f", "http://localhost:3000"]` block whose target service does not exist at substrate scope — the container was permanently `unhealthy`, so `pnpm devbox:status` (Story 2.6 `status.sh:54`) and `pnpm devbox:start`'s healthcheck poll (Story 2.6 AC 2.6.4; `start.sh:92-120`) reported meaningless state. Story 2.13 replaces the broken probe with real service-liveness checks: dnsmasq via `dig @127.0.0.1 -p 53` (always) + sshd via `nc -z 127.0.0.1 2222` (when `KEEL_DEVBOX_SSH=true`).
+Upstream cc-devbox shipped a `healthcheck.test: ["CMD", "curl", "-f", "http://localhost:3000"]` block whose target service does not exist at substrate scope — the container was permanently `unhealthy`, so `pnpm devbox:status` (Story 2.6 `status.sh:54`) and `pnpm devbox:start`'s healthcheck poll (Story 2.6 AC 2.6.4; `start.sh:92-120`) reported meaningless state. Story 2.13 replaces the broken probe with real service-liveness checks: dnsmasq via `dig @127.0.0.1 -p 53` (always) + sshd via `nc -z -w 2 127.0.0.1 2222` (when `KEEL_DEVBOX_SSH=true`).
 
 ### Probe shape
 
@@ -931,7 +931,7 @@ healthcheck:
     - CMD-SHELL
     - >-
       dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
-      && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z 127.0.0.1 2222; }
+      && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z -w 2 127.0.0.1 2222; }
   interval: 10s
   timeout: 5s
   retries: 3
@@ -939,16 +939,16 @@ healthcheck:
 ```
 
 - **Clause 1 (AC 2):** `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` — DNS query against the in-container dnsmasq (Story 2.3); exit 0 on any response (including `NXDOMAIN`), exit 9 on timeout / connection refused. Probes dnsmasq RESPONSIVENESS, not whitelist membership.
-- **Clause 2 (AC 3):** `nc -z 127.0.0.1 2222` — TCP three-way-handshake against sshd (Story 2.12); exit 0 on handshake, non-zero on refused / timeout. Gated on `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` short-circuit: in default (`KEEL_DEVBOX_SSH=false`) mode, only clause 1 runs.
+- **Clause 2 (AC 3):** `nc -z -w 2 127.0.0.1 2222` — TCP three-way-handshake against sshd (Story 2.12); exit 0 on handshake, non-zero on refused / timeout. Gated on `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` short-circuit: in default (`KEEL_DEVBOX_SSH=false`) mode, only clause 1 runs.
 
 ### Timing parameters
 
-| Key            | Value | Rationale                                                                                                                                                             |
-| -------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `interval`     | `10s` | 6 probes/min/service = ~8640 dnsmasq queries/day added to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. Expected baseline for FR37 consumers.      |
-| `timeout`      | `5s`  | Kills hung probes. `dig +time=3 +tries=1` (3s worst case) + `nc -z` (~1s) = ~4s combined; 1s margin.                                                                  |
-| `retries`      | `3`   | Container transitions `healthy → unhealthy` after 3 consecutive failures — ~30s post-`start_period` detection latency.                                                |
-| `start_period` | `30s` | Cold-boot budget: `start-egress.sh` ~3-5s (nftables + dnsmasq + resolv.conf pin) + sshd ~1s under opt-in + probe margin. Failures here don't count against `retries`. |
+| Key            | Value | Rationale                                                                                                                                                                                                                                                                                                  |
+| -------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `interval`     | `10s` | 6 probes/min/service = ~8640 dnsmasq queries/day added to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. Expected baseline for FR37 consumers.                                                                                                                                           |
+| `timeout`      | `5s`  | Kills hung probes. `dig +time=3 +tries=1` (3s) + `nc -z -w 2` (≤2s) = ≤5s, matching the outer cap. The explicit `-w 2` cap on `nc` (PR #230 review iter-9; D-9 closure) guards against TCP edge cases (e.g. `SYN_SENT` storm against a wedged sshd) inheriting the 5s outer kill rather than failing fast. |
+| `retries`      | `3`   | Container transitions `healthy → unhealthy` after 3 consecutive failures — ~30s post-`start_period` detection latency.                                                                                                                                                                                     |
+| `start_period` | `30s` | Cold-boot budget: `start-egress.sh` ~3-5s (nftables + dnsmasq + resolv.conf pin) + sshd ~1s under opt-in + probe margin. Failures here don't count against `retries`.                                                                                                                                      |
 
 ### Default-mode walkthrough (`KEEL_DEVBOX_SSH=false`)
 
