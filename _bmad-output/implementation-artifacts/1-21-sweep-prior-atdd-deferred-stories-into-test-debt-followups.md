@@ -69,7 +69,7 @@ So that the test-debt is visible (not invisible accumulating drift), prioritisab
 - [x] **Task 1 — Pre-flight ground-truth substrate probe.** (AC: 1, 3, 5 — precondition)
   - [x] Subtask 1.1: test-debt.md absence confirmed (`ls` exit non-zero) at iter-401 dev-story open.
   - [x] Subtask 1.2: deferred-work.md H2 sections re-grepped at iter-401: 5 Epic-1-REOPEN-ARC sections at lines 805/812/822/831/842 (matches SM-validate iter-399 ground-truth — 4+7+6+4+3 = 24 inherited DEFERs).
-  - [x] Subtask 1.3: RALPH.md ATDD-skip-precedents walk delegated to Explore subagent; 27 IN-SCOPE stories identified (10 Epic 1 + 17 Epic 2) + 8 OUT-OF-SCOPE. Subagent captured skip-ground / AC class / effort / risk per story.
+  - [x] Subtask 1.3: RALPH.md ATDD-skip-precedents walk delegated to Explore subagent; 27 IN-SCOPE stories identified (10 Epic 1 + 17 Epic 2) + 7 OUT-OF-SCOPE. Subagent captured skip-ground / AC class / effort / risk per story.
   - [x] Subtask 1.4: sync-gate baseline at iter-401: 4 inherited drifts UNCHANGED from Story 1.20 dev-story baseline (3 `INV-git-hooks-preservation` family + 1 inherited `INV-package-test-coverage-floor`). Worktree-only env → option-a-resolve blocked → all 4 drifts route to disposition (c) carried-forward-named with target `Epic 4 hardening` per AC5 lock.
   - [x] Subtask 1.5: iter-391/392 whitelist-gap reference confirmed in RALPH.md at iter-392 entry; canonical text "results-receiver.actions.githubusercontent.com whitelist gap per iter-391 § Notes" preserved verbatim in test-debt.md § Substrate-Adjacent Operational Gaps.
 
