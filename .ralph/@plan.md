@@ -2,7 +2,7 @@
 
 ## NOW
 
-- [ ] FIX-1: Refactor hook case-glob arm L231-237 → bash-regex w/ word-boundary + quote-tolerance + interpreter-string-literal scan; 7-vector fixture suite. ~large
+- [ ] FIX-1: Refactor hook case-glob arm L231-237 → bash-regex w/ word-boundary + quote-tolerance + interpreter-string-literal scan; 7-vector fixture suite. Verify per-vector via `printf %s "<cmd>" | jq -Rs '{tool_name:"Bash",tool_input:{command:.}}' | .claude/hooks/block-secret-access.sh` BEFORE/AFTER (AGENTS.md rule 6 sparring-verify). ~large
 
 ## QUEUE (Epic 2 PR #230 review-fix-arc)
 
@@ -28,8 +28,7 @@
 
 ## DONE (this iteration)
 
-- [iter-pr230-redirect] Pruned IP 80→<60 lines under doc-budget cap.
-- [iter-pr230-redirect] Verified PR #230 CLEAN/MERGEABLE; CI green at `f8547dc`.
+- [iter-pr230-monitor] CI green on `e63a671` (`gh pr checks --watch --fail-fast` exit 0; node 47-52s ×2 + python 8s ×2). 12 unresolved review threads confirmed via GraphQL `reviewThreads` — match IP RESOLVE-only (7) + DEFERRED-fixes (FIX-1..FIX-5).
 
 ## Context
 
@@ -39,7 +38,7 @@
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent)._
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `f8547dc`. 12 unresolved threads (7 landed-but-unresolved, 5 deferred per `IC_kwDOSAH0488AAAABBMCAuQ`).
+- **PR:** #230 Open, MERGEABLE=UNSTABLE→CLEAN, CI green at `e63a671` (verified iter-pr230-monitor). 12 unresolved threads (7 landed-but-unresolved, 5 deferred per `IC_kwDOSAH0488AAAABBMCAuQ`).
 
 ### Recipe references
 
