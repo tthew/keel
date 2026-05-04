@@ -248,7 +248,17 @@ RUN set -eux; \
       *) echo "Unsupported arch for prek: $arch" >&2; exit 1 ;; \
     esac; \
     curl -fsSL "https://github.com/j178/prek/releases/download/v0.3.9/prek-${prek_arch}.tar.gz" -o /tmp/prek.tar.gz; \
-    tar -xzf /tmp/prek.tar.gz -C /tmp; \
+    # The v0.3.9 release tarball contains a single top-level dir
+    # `prek-${prek_arch}/` holding the binary at `prek-${prek_arch}/prek`
+    # — confirmed for both x86_64 + aarch64 linux-gnu archives.
+    # `--strip-components=1` flattens the wrapper dir so the binary lands
+    # at /tmp/prek for the subsequent `install`. Without strip the original
+    # `install -m 0755 /tmp/prek …` errored `cannot stat '/tmp/prek'`
+    # because /tmp/prek was a directory, not the binary (introduced by the
+    # iter-333 first-bake of this block; commit 353b9f0 noted "Image
+    # rebake operator-workstation-deferred" so the bug went undetected
+    # until the codex-bake rebuild forced first execution).
+    tar -xzf /tmp/prek.tar.gz -C /tmp --strip-components=1; \
     install -m 0755 /tmp/prek /usr/local/bin/prek; \
     rm -f /tmp/prek.tar.gz /tmp/prek; \
     prek --version
