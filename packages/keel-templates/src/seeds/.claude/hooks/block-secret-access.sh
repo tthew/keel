@@ -265,6 +265,32 @@ case "$tool_name" in
       if [[ "$normalized" =~ $envrc_file_re ]]; then block "secret-access-denylist" "cat-envrc-file"; fi
       if [[ "$normalized" =~ $secrets_file_re ]]; then block "secret-access-denylist" "cat-secrets-file"; fi
       if [[ "$normalized" =~ $env_file_re ]]; then block "secret-access-denylist" "cat-env-file"; fi
+      # FIX-2 (PR #230 review-fix-arc) — Bash-arm symlink-deref. Mirror D-22 Read-arm
+      # `readlink -f` resolution per token. Closes `cat /tmp/symlink-to-/home/dev/.claude/x`
+      # bypass: literal-text case-globs above only see the symlink path; per-token resolve
+      # exposes the secret-bearing target. Verb-gated (already inside `reader_verb_re ||
+      # interp_verb_re` arm) so non-reader commands skip the readlink cost. `[ -L ]`
+      # per-token gate keeps cost bounded to actual symlinks (typical command has 0 hits).
+      read -ra _fix2_tokens <<< "$normalized"
+      for _fix2_tok in "${_fix2_tokens[@]}"; do
+        _fix2_tok="${_fix2_tok#\"}"; _fix2_tok="${_fix2_tok%\"}"
+        _fix2_tok="${_fix2_tok#\'}"; _fix2_tok="${_fix2_tok%\'}"
+        [ -z "$_fix2_tok" ] && continue
+        case "$_fix2_tok" in -*) continue ;; esac
+        [ -L "$_fix2_tok" ] || continue
+        _fix2_resolved="$(readlink -f "$_fix2_tok" 2>/dev/null || printf '')"
+        case "$_fix2_resolved" in
+          /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "bash-resolved-to-oauth-token" ;;
+          /home/dev/.ssh/*) block "secret-access-denylist" "bash-resolved-to-ssh-key" ;;
+          /proc/*/environ|/proc/*/cmdline|/proc/*/mem|/proc/*/status|/proc/*/auxv|/proc/*/maps|/proc/self/*|/proc/kcore|/proc/kmem|/proc/kallsyms)
+            block "secret-access-denylist" "bash-resolved-to-proc-environ" ;;
+        esac
+        case "$_fix2_resolved" in
+          *.env|*.env.*|*/.env|*/.env.*) block "secret-access-denylist" "bash-resolved-to-env-file" ;;
+          *.envrc|*.envrc.*|*/.envrc|*/.envrc.*) block "secret-access-denylist" "bash-resolved-to-envrc-file" ;;
+          *.secrets|*.secrets.*|*/.secrets|*/.secrets.*) block "secret-access-denylist" "bash-resolved-to-secrets-file" ;;
+        esac
+      done
     fi ;;
   Read)
     # D-22 — evaluate resolved path against secret-dir denies first (catches symlink-to-oauth-token

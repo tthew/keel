@@ -2,7 +2,7 @@
 
 ## NOW
 
-- [ ] FIX-2: Hook Bash-arm symlink-deref — token-scan + per-token `readlink -f` against secret-dir denylist; fixture `cat /tmp/symlink-to-secret`. ~medium
+- [ ] Monitor PR #230 CI on FIX-2 push — queue fix tasks for any failures. ~small
 
 ## QUEUE (Epic 2 PR #230 review-fix-arc; landing-summary `IC_kwDOSAH0488AAAABBMCAuQ`)
 
@@ -27,6 +27,7 @@
 
 - [iter-pr230-fix-1] FIX-1 landed: D-38 refactor of L231-237 case-glob arm → bash-regex with token-boundary tolerance (whitespace/quote/paren/path-sep/redirect/backslash-escape). interp_verb_re flag-class widened to `[a-zA-Z0-9]*[ec]` (catches `perl -0ne`). 7-vector fixture suite under positive/ (quoted, chained, trailing-ws, python3-c-stringlit, node-e-stringlit, awk-quoted, bash-c-ansi-c). Substrate + seed byte-parity preserved (manifest hash 8b10e266 → both `INV-claude-hook-secret-denylist` + `-seed`). Fixture suite 81/81 pass; typecheck 16/16; lint 16/16; vitest 52/52.
 - [iter-pr230-monitor-fix-1] CI green at `a4c7bad` (4/4 SUCCESS: node x2 ~40s, python x2 ~11s). Local `8b600f4` IP-advance staged for co-push with FIX-2 to avoid CI retrigger (RALPH.md `Monitor-bookkeeping-loop-break`).
+- [iter-pr230-fix-2] FIX-2 landed: Bash-arm verb-gated token-scan + per-token `readlink -f` mirroring D-22 Read-arm. Closes `cat /tmp/symlink-to-/home/dev/.claude/x` bypass class. 6 new match-strings under `secret-access-denylist`: `bash-resolved-to-{oauth-token,ssh-key,proc-environ,env-file,envrc-file,secrets-file}`. `[ -L ]` per-token gate keeps cost bounded (typical command 0 hits). Substrate + seed byte-parity preserved (manifest hash `8b10e266 → 8350baf2` in lockstep). New positive fixture `secret-access-denylist-bash-resolved-to-oauth-token.sh` builds /tmp symlink → asserts block. Local edge-probe 13/13: canonical/quoted-double/quoted-single/chained/piped/symlink-to-ssh/symlink-to-env-file all block; `[ -L ]` gate correctly approves broken-symlink + non-symlink-token. Known residual: symlink path inside interpreter-string-literal (`python3 -c "open('$SL').read()"`) — symlink is buried inside script-token, not exposed at top-level; out-of-scope per FIX-2 spec (canonical example was raw `cat /tmp/symlink-to-secret`). Hook fixture suite 82/82; typecheck 16/16; lint 16/16; vitest 52/52.
 
 ## Context
 
@@ -36,7 +37,7 @@
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent)._
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `a4c7bad` (FIX-1 push retrigger SUCCESS; next retrigger on FIX-2 push). 12 unresolved threads remaining (8 landed close-out + 4 DEFERRED-fix).
+- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `a4c7bad` (FIX-1 push retrigger SUCCESS; FIX-2 push retriggers next). 11 unresolved threads remaining (8 landed close-out + 3 DEFERRED-fix after FIX-2 lands).
 
 ### Recipe references
 
