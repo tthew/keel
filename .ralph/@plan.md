@@ -2,13 +2,9 @@
 
 ## NOW
 
-- [ ] Monitor PR #230 CI on `a4c7bad` (FIX-1 push) — `gh pr checks --watch --fail-fast` per § CI Monitoring. Pass → advance NOW=FIX-2. Fail → queue fix tasks per failure root-cause.
-
-## QUEUE (Epic 2 PR #230 review-fix-arc)
-
 - [ ] FIX-2: Hook Bash-arm symlink-deref — token-scan + per-token `readlink -f` against secret-dir denylist; fixture `cat /tmp/symlink-to-secret`. ~medium
 
-### DEFERRED-fixes (4 remaining; landing-summary `IC_kwDOSAH0488AAAABBMCAuQ`)
+## QUEUE (Epic 2 PR #230 review-fix-arc; landing-summary `IC_kwDOSAH0488AAAABBMCAuQ`)
 
 - [ ] FIX-3: sync-gate.ts manifest-removal — expected-IDs snapshot so dropping entry + INVARIANTS.md anchor fails closed. **L1-protected**. ~medium
 - [ ] FIX-4: Substrate↔seed byte-parity in invariants.manifest.ts — pair-link `INV-claude-hook-secret-denylist` ↔ `-seed`; `byte-parity` kind OR pair-check in sync-gate. **L1-protected**. ~medium
@@ -27,9 +23,10 @@
 - [ ] Final pre-push CI gate post FIX-5 → monitor green per § PR Lifecycle.
 - [ ] EPIC_DONE halt — note "12 threads addressed; await human merge → § Cross-epic transition".
 
-## DONE (this iteration)
+## DONE (current PR-fix-arc phase)
 
 - [iter-pr230-fix-1] FIX-1 landed: D-38 refactor of L231-237 case-glob arm → bash-regex with token-boundary tolerance (whitespace/quote/paren/path-sep/redirect/backslash-escape). interp_verb_re flag-class widened to `[a-zA-Z0-9]*[ec]` (catches `perl -0ne`). 7-vector fixture suite under positive/ (quoted, chained, trailing-ws, python3-c-stringlit, node-e-stringlit, awk-quoted, bash-c-ansi-c). Substrate + seed byte-parity preserved (manifest hash 8b10e266 → both `INV-claude-hook-secret-denylist` + `-seed`). Fixture suite 81/81 pass; typecheck 16/16; lint 16/16; vitest 52/52.
+- [iter-pr230-monitor-fix-1] CI green at `a4c7bad` (4/4 SUCCESS: node x2 ~40s, python x2 ~11s). Local `8b600f4` IP-advance staged for co-push with FIX-2 to avoid CI retrigger (RALPH.md `Monitor-bookkeeping-loop-break`).
 
 ## Context
 
@@ -39,7 +36,7 @@
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent)._
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `e63a671` (will retrigger on FIX-1 push). 8 unresolved threads remaining (7 landed-but-unresolved minus eiOE which closes this iter, plus 4 DEFERRED-fix threads).
+- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `a4c7bad` (FIX-1 push retrigger SUCCESS; next retrigger on FIX-2 push). 12 unresolved threads remaining (8 landed close-out + 4 DEFERRED-fix).
 
 ### Recipe references
 
