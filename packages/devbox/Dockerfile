@@ -121,6 +121,18 @@ RUN npm install -g pnpm@10.29.2 \
 RUN npm install -g @anthropic-ai/claude-code@2.1.116 \
  && (claude --version || echo "claude version probe failed (install succeeded)" >&2)
 
+# @openai/codex globally — Codex CLI from OpenAI. Pinned to 0.128.0 (npm
+# registry latest captured at image-bake time, 2026-05-04). Renovate (Story
+# 1.15) tracks the npm datasource and raises PRs to bump the pin. Version
+# probe scoped with the same parenthesised `||` pattern as the
+# @anthropic-ai/claude-code block above (CR fix AI-1, iter-129): either
+# `codex --version` succeeds or we emit a diagnostic to stderr while the RUN
+# step stays exit-0 on `npm install` success. Operator entrypoints land via
+# the host-side codex-host.sh + codex-auth-host.sh shims, mirroring the
+# claude-host.sh + gh-auth-host.sh dual-wrapper pattern.
+RUN npm install -g @openai/codex@0.128.0 \
+ && (codex --version || echo "codex version probe failed (install succeeded)" >&2)
+
 # ---------------------------------------------------------------------------
 # GitHub CLI (`gh`) via the official apt repository.
 # Repo URL + signing key pattern per https://github.com/cli/cli — Renovate
@@ -280,8 +292,8 @@ RUN setcap cap_net_admin,cap_net_raw,cap_net_bind_service+eip /usr/sbin/dnsmasq 
 #   adds the non-root `dev` user. Story 2.1 pre-creates the directories so
 #   entrypoint.sh's chown succeeds regardless of whether the volume is empty.
 # ---------------------------------------------------------------------------
-RUN mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh /home/dev/.ssh /home/dev/.ssh/host_keys \
- && chmod 0755 /workspace /home/dev /home/dev/.claude /home/dev/.config /home/dev/.config/gh \
+RUN mkdir -p /workspace /home/dev/.claude /home/dev/.config/gh /home/dev/.codex /home/dev/.ssh /home/dev/.ssh/host_keys \
+ && chmod 0755 /workspace /home/dev /home/dev/.claude /home/dev/.config /home/dev/.config/gh /home/dev/.codex \
  && chmod 0700 /home/dev/.ssh /home/dev/.ssh/host_keys
 
 # Story 2.12: bake the hardened sshd_config at image-build time. Mirrors the

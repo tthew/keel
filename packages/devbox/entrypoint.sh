@@ -107,8 +107,12 @@ fi
 # Named-volume directory bring-up — Stories 2.8 / 2.9 materialise the OAuth
 # token payloads into these paths via compose-level named volumes. The dirs
 # are pre-created by the Dockerfile; re-asserting here is idempotent and
-# safe when the volume arrives empty on first boot.
-for dir in /home/dev/.claude /home/dev/.config/gh; do
+# safe when the volume arrives empty on first boot. /home/dev/.codex/ is
+# the codex CLI's persistence root (auth.json + config.toml + history) per
+# the @openai/codex bake in Dockerfile; it lives under the same keel_home_dev
+# named volume so first-run sign-in survives container restarts without
+# extra wiring.
+for dir in /home/dev/.claude /home/dev/.config/gh /home/dev/.codex; do
   if [[ ! -d "${dir}" ]]; then
     mkdir -p "${dir}"
   fi
