@@ -1,55 +1,40 @@
-# Implementation Plan — `chore/pr-230-review`
-
-> **Branch context:** `chore/pr-230-review` is the synthesizer / PR-review-tracking branch for PR #230 (Epic 2). IP + RALPH.md commits live here; QUEUE-fix code commits land directly on `feat/epic-2-packaged-devbox` (PR #230 head) via `git -C /workspace/ralph-bmad ...` per worktree-locking workaround (RALPH.md § Gotchas).
+# Implementation Plan — Epic 2 close-out
 
 ## NOW
 
-- [ ] **2.7 AC3 docker-exec semantics** Amend AC3 in `_bmad-output/implementation-artifacts/2-7-…md` OR add Change Log entry. Inline rationale already at `packages/devbox/scripts/ralph-build-host.sh:6-12`. Ref: `discussion_r3143866791`.
+_(empty — Epic 2 closed; PR #230 Open, awaiting human merge → § Cross-epic transition halts EPIC_DONE)_
 
-## QUEUE (PR #230 review fix-arc)
+## QUEUE
 
-Sourced from <https://github.com/tthew/ralph-bmad/pull/230#issuecomment-4322595769>. One per iter; commit on `feat/epic-2-packaged-devbox`.
-- [ ] **2.13 healthcheck timeout** `packages/devbox/docker-compose.yml:282`: `nc -z 127.0.0.1 2222` → `nc -z -w 2 127.0.0.1 ${KEEL_DEVBOX_SSH_PORT:-2222}`. Ref: `discussion_r3143864797`.
-- [ ] **2.13 probe-domain three-site lockstep** `api.github.com` hardcoded in 3 files; add pre-commit grep asserting literal matches across `docker-compose.yml:281`, `docs/invariants/devbox-healthcheck.md`, `packages/devbox/README.md` § Healthcheck.
-- [ ] **2.14 absorption-SHA reachability** Add sync-gate step `git rev-parse 5278738^{commit} >/dev/null 2>&1 || fail` to guard `docs/invariants/devbox-legacy-branch-retention.md:108-128`. Ref: `discussion_r3143866586`.
-- [ ] **2.12 sshd liveness comment** Add 1-line comment at `packages/devbox/entrypoint.sh:207-211`: "Verify sshd is listening before exec'ing the operator shell."
-- [ ] **2.7 arg-passthrough comment (NIT)** Brief comment near `packages/devbox/scripts/ralph-build-host.sh:90` on `"$@"` passthrough contract.
+_(empty — all PR #230 review fix-arc items landed: 2.7 AC3 Change Log `d3aecde`; 2.7 arg-passthrough `3f9075e`; 2.12 sshd liveness `e9a0c5d`; 2.13 nc -z -w 2 timeout `350f4cd`; 2.13 probe-domain three-site lockstep gate `24ac971`; 2.14 absorption-SHA reachability gate `27d4c7b`. Post-arc devbox commits to `8d92af2` also landed.)_
 
 ### Out-of-PR follow-ups (track elsewhere)
 
 - 2.13 operator-workstation healthcheck smoke (mid-run service-death) → Epic 13 nightly.
 - 2.18 IPv6 static CIDR fallback → revisit if egress-during-boot incidents recur.
 - 2.11 manifest description drift at `invariants.manifest.ts:275` → deferred per Epic 2 close-out (SC-17).
-- **Pre-existing `INV-package-test-coverage-floor` contentHash drift** (manifest declares `57555cb…`, file hashes `4d24479d…`); present at `fed3161` (iter-390) + every Epic-2 commit since. Not in 2.5b scope. Sync-gate is not yet wired to pre-commit/CI so it doesn't block; Story 1.9 follow-up.
+- Pre-existing `INV-package-test-coverage-floor` contentHash drift (manifest declares `57555cb…`, file hashes `4d24479d…`) → Story 1.9 sync-gate follow-up.
 
 ## BLOCKED
 
-_(none — all findings are MINOR/NIT)_
+_(none)_
 
-## DONE (PR #230 review iter-1..4 — 2026-04-26)
+## DONE (this iteration)
 
-- [x] [iter-1] Posted PR #230 review — 6 MINOR + 2 NIT, APPROVE — `20ee582`.
-- [x] [iter-2] Re-poll clean + branch posture resolved — `d8cc35c`.
-- [x] [iter-2b] Push-defer annotation (SSH-egress timeout) — `6c8cbc1`.
-- [x] [iter-3] 2.5 AC2 5-cap enumeration landed on feat-2 — `e555425` (PR #230).
-- [x] [iter-3] Close-out + 2.5b/2.5c discovered — `c4aa62d`.
-- [x] [iter-4] Prune RALPH.md + @plan.md back under doc-budget cap — `2d156c9`.
-- [x] [iter-4b] Push-defer annotation — SSH-egress port-22 timeout (exit 124).
-- [x] [iter-5] 2.5b devbox-hardening.md 5-cap + iter-238 narrative — `04858c6` (PR #230; push deferred).
-- [x] [iter-5b] Push retry succeeded — feat-2 + chore/pr-230-review both at origin.
-- [x] [iter-6] 2.5c Change Log v1.10 — pin iter-238 SETUID/SETGID 5-cap — `7390020` (PR #230).
-- [x] [iter-6b] feat-2 push retry resolved — both branches at origin (`04858c6..7390020 feat-2`, `b16113c..7410ca0 chore`).
+- [x] Switched worktree onto `feat/epic-2-packaged-devbox` directly (detached main worktree's HEAD; bypasses prior synthesizer-branch + `git -C /workspace/ralph-bmad …` workaround). IP + RALPH.md commits now land on the PR head alongside code.
+- [x] Confirmed PR #230 state: Open, isDraft=false, mergeable=CLEAN, CI green (node + python pass on `8d92af2`); 3 review threads (1 resolved, 2 unresolved — underlying work has landed, only the reviewer can resolve).
+- [x] Synced IP to actual state; pruned stale synthesizer-branch context.
 
 ## Context
 
-- **Phase:** PR-review (Epic 2 close-out, post-implementation).
-- **Epic:** Epic 2 — Sandboxed Execution Environment (devbox); PR #230 Open, awaiting review-feedback resolution + merge.
-- **Epic Branch (target of fix iterations):** `feat/epic-2-packaged-devbox` (PR #230 head).
-- **Working Branch (this branch):** `chore/pr-230-review` — IP + RALPH.md only.
-- **Story:** _(no story — review iteration)._
-- **Story State:** _(no story — synthesizer mode)._
-- **PR:** #230 **Open**. Iter-6 landed `7390020` (2.5c Change Log v1.10); iter-6b retry resolved both pushes after first SSH:22 silent-block (gotcha re-confirmed; LADDER first-retry-resolves rate held at ~82%). Both branches at origin: feat-2 `04858c6..7390020`, chore `b16113c..7410ca0`. New CI run will trigger on PR #230 from the `7390020` push (HTTPS:443 was timing out at end of iter-6; api.github.com flake LADDER expected to clear by iter-7); iter-7 0h check should re-poll.
+- **Phase:** 4-implementation — **Epic 2 CLOSED.** Awaiting human merge of PR #230.
+- **Epic:** Epic 2 — Sandboxed Execution Environment (devbox) — **DONE** at sprint-status iter-353 (Story 2.18). 18/18 stories complete.
+- **Epic Branch:** `feat/epic-2-packaged-devbox` (this worktree's branch; PR #230 head).
+- **Story:** _(none — epic close-out iteration)._
+- **Story File:** _(n/a)._
+- **Story State:** _(no story)._
+- **PR:** #230 **Open**, mergeable=CLEAN, CI green at `8d92af2`. 2 review threads unresolved on GitHub but the underlying work has landed in commits — only the reviewer can mark threads resolved.
 
 ## Halt criterion
 
-When QUEUE empty AND `gh pr view 230 --json reviews,comments` shows all PR threads resolved → write `EPIC_DONE` halt with `note` field per § Halt § Autonomy guardrail: `echo '{"reason":"EPIC_DONE","epic":2,"pr":230,"note":"PR review feedback addressed"}' > "$RALPH_BASE_DIR/halt"`. Do NOT introduce new halt reasons.
+§ Cross-epic transition step 3, branch "PR state in {OPEN, DRAFT, CLOSED-unmerged}": write `EPIC_DONE` halt with diagnostic `note` field. On the next invocation after the human merges PR #230, § Cross-epic transition will detect MERGED + Epic 3 backlog and queue `/bmad-create-story` for Story 3.1.
