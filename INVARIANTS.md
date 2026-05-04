@@ -113,9 +113,9 @@ Fail-closed DNS (dnsmasq) + IPv4/IPv6 default-deny (nftables) + atomic reload co
 
 ### Devbox hardening (Story 2.5)
 
-Non-root `dev` user (UID/GID 1000) + capability bounding set (`cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]`) + `no-new-privileges:true` + tmpfs `/tmp` and `/var/tmp` with `noexec,nosuid` + named Docker volume `keel_home_dev` for `/home/dev` (non-toggle-able; never a host bind-mount under any `KEEL_DEVBOX_*` setting). Layered-barrier posture satisfying NFR7 + NFR8 + NFR8a + NFR10. Runtime compose-shape check deferred to Story 2.17 / `packages/keel-invariants/src/check-devbox-compose-shape.ts`; Story 2.5 registers the substrate-invariant surface.
+Non-root `dev` user (UID/GID 1000) + capability bounding set (`cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID, KILL]`) + `no-new-privileges:true` + tmpfs `/tmp` and `/var/tmp` with `noexec,nosuid` + named Docker volume `keel_home_dev` for `/home/dev` (non-toggle-able; never a host bind-mount under any `KEEL_DEVBOX_*` setting). Layered-barrier posture satisfying NFR7 + NFR8 + NFR8a + NFR10. Runtime compose-shape check deferred to Story 2.17 / `packages/keel-invariants/src/check-devbox-compose-shape.ts`; Story 2.5 registers the substrate-invariant surface.
 
-- **`INV-devbox-homedev-named-volume`** — Non-root dev user + cap_drop/add (NET_ADMIN, NET_RAW, NET_BIND_SERVICE) + no-new-privileges + tmpfs noexec/nosuid + named volume for /home/dev. Source: `docs/invariants/devbox-hardening.md`.
+- **`INV-devbox-homedev-named-volume`** — Non-root dev user + cap_drop/add (NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID, KILL) + no-new-privileges + tmpfs noexec/nosuid + named volume for /home/dev. Source: `docs/invariants/devbox-hardening.md`.
 
 ### Devbox prerequisite check (Story 2.10)
 

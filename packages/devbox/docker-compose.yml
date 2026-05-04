@@ -13,7 +13,7 @@
 #                 and scripts under scripts/{start,reload,monitor,egress-log-tailer}.sh.
 #                 No sidecar service — dnsmasq is the in-container DNS authority
 #                 per AC 1 verbatim. LANDED iter-<this>.
-#   - Story 2.5 : harden (non-root user, cap_drop: [ALL] + three-cap narrow
+#   - Story 2.5 : harden (non-root user, cap_drop: [ALL] + six-cap narrow
 #                 list [NET_ADMIN, NET_RAW, NET_BIND_SERVICE], no-new-privileges,
 #                 tmpfs noexec/nosuid, named volume keel_home_dev for /home/dev).
 #                 LANDED iter-187.
@@ -204,6 +204,23 @@ services:
       # does NOT mask the drop.
       - SETUID
       - SETGID
+      # CAP_KILL is required by reload-egress.sh's `kill -HUP <dnsmasq-pid>`
+      # SIGHUP delivery path. dnsmasq is launched as root from the entrypoint
+      # (compose `user: '0:0'`) and drops to user `nobody` by default after
+      # binding :53 (capabilities(7) signal-permission rule: signaling a
+      # different-UID process requires CAP_KILL). Without it, the script's
+      # `kill -0` liveness probe + `kill -HUP` reload both EPERM, the
+      # staleness branch fires, the fresh-start fallback tries to bind :53
+      # again, and the reload aborts exit 7 with the bound dnsmasq still
+      # serving the previous config. Iter-238 EMPIRICALLY DISCONFIRMED the
+      # alternative "launch dnsmasq via gosu dev" approach (Dockerfile:
+      # 362-367) — Docker's ambient-cap propagation does NOT cross USER
+      # boundaries under no-new-privileges=1, so a dev-launched dnsmasq
+      # loses CAP_NET_ADMIN and its `nftset=` netlink calls fail. Adding
+      # CAP_KILL is the minimum-surface fix that keeps dnsmasq dropping to
+      # nobody (post-bind privilege reduction preserved) while letting the
+      # root-owned reloader signal it.
+      - KILL
     # `user: "0:0"` overrides the image USER directive for the container's
     # main process (entrypoint), so privileged init (nftables rule load,
     # dnsmasq launch on :53, /etc/resolv.conf pin, /run chown) runs with the

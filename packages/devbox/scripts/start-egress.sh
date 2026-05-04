@@ -205,10 +205,13 @@ log "egress-log-tailer.sh launched (pid=${tailer_pid})"
 #       dnsmasq started cleanly enough to write its pidfile; pgrep-x caught
 #       process presence but not pidfile integrity. The historical `kill -0`
 #       form was replaced because dnsmasq drops to user `nobody` after
-#       binding :53, and the probe runs as root under cap_drop: [ALL] which
-#       strips CAP_KILL — `kill -0 <nobody-pid>` returns EPERM and the probe
-#       false-negatives. `/proc/<pid>` directory existence is UID-agnostic
-#       and does not require any capability.
+#       binding :53. Historically the probe ran as root under cap_drop: [ALL]
+#       WITHOUT CAP_KILL, so `kill -0 <nobody-pid>` returned EPERM and the
+#       probe false-negatived; reload-egress.sh's iter-N fix added CAP_KILL
+#       to cap_add for the SIGHUP path, which would also fix `kill -0`, but
+#       `/proc/<pid>` is kept here because it is UID-agnostic, requires no
+#       capability, and is the more durable form against any future cap-list
+#       reduction or hidepid-based procfs hardening.
 #   (b) 127.0.0.1:53 accepts TCP connects. Confirms dnsmasq bound its
 #       listening socket per dnsmasq.conf's `listen-address=127.0.0.1,::1`
 #       + `bind-interfaces` + `port=53` directives — this is the SC-13

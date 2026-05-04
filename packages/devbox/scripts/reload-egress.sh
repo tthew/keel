@@ -142,53 +142,57 @@ if [[ -r "${classification_path}" ]]; then
 	done < "${classification_path}"
 fi
 
-# --- Bootstrap detection + resolver selection -----------------------------
-# Historical posture (pre-hardening): temporarily rewrite /etc/resolv.conf to
-# route getent via ${UPSTREAM_RESOLVER} when dnsmasq isn't up yet, then trap-
-# restore the 127.0.0.1 pin on exit. Under Story 2.5's USER dev +
-# cap_drop: [ALL] (CAP_DAC_OVERRIDE stripped), dev cannot write the root-
-# owned /etc/resolv.conf bind-mount → the detour failed EACCES and every
-# domain was marked "resolution failed" (fail-closed default → nothing in
-# the allow-list → container was unreachable).
+# --- Resolver wrappers ----------------------------------------------------
+# Always query the upstream resolver directly via `dig @${UPSTREAM_RESOLVER}`,
+# regardless of whether dnsmasq is currently running. Two reasons:
 #
-# Hardened posture: bypass /etc/resolv.conf entirely for bootstrap. `dig
-# @${UPSTREAM_RESOLVER} +short A/AAAA` accepts an explicit server and does
-# NOT read resolv.conf, so it resolves successfully under USER dev without
-# needing to mutate root-owned files. Once dnsmasq is running (subsequent
-# reloads), fall back to getent which goes through /etc/resolv.conf →
-# 127.0.0.1 → dnsmasq → upstream (SC-13 pin remains intact because Docker's
-# compose-time `dns: [127.0.0.1]` injection is now the load-bearing mechanism
-# instead of the in-script write). `dnsutils` (the bind9-dnsutils package
-# shipping dig) is already installed in the base Dockerfile apt list, so no
+# (1) Correctness — newly-added whitelist domain. The script renders
+#     dnsmasq's new `server=` directives for the new domain LATER (line ~330)
+#     and SIGHUPs LATER (line ~370). At resolution time, the still-running
+#     dnsmasq has no `server=` for the new domain, so it serves it from the
+#     `address=/#/0.0.0.0` / `address=/#/::` fail-closed default and we
+#     would otherwise emit `ip daddr 0.0.0.0 accept` / `ip6 daddr :: accept`
+#     into the rendered nft ruleset (parallel-codex iter-N correctness
+#     finding). Routing through `@${UPSTREAM_RESOLVER}` bypasses dnsmasq
+#     for THIS resolution loop and yields the authoritative IPs.
+# (2) `getent ahostsv6` is unreliable through dnsmasq — glibc's getaddrinfo
+#     NSS path returns exit 2 (NODATA) for whitelisted domains that DO have
+#     AAAA records upstream and that `dig` happily returns; the v6 static-
+#     pin path was silently empty post-boot before this fix.
+#
+# Pre-hardening posture used `getent` (resolv.conf-mediated NSS chain
+# 127.0.0.1 → dnsmasq → upstream) under the assumption that the SC-13 pin
+# layer added security. It does not — the script only resolves WHITELISTED
+# domains by construction (callsite reads the composed-whitelist file
+# directly), so dnsmasq's per-name allow check is redundant here. The
+# upstream resolver IP is itself already whitelisted by the script's own
+# `nft_ipv4_rules` / `nft_ipv6_rules` injection at line ~225, so dig's
+# outbound query reaches the upstream regardless of nft state.
+#
+# `dnsutils` (bind9-dnsutils) is in the base Dockerfile apt install set; no
 # additional tooling required.
-dnsmasq_running=0
-if [[ -s "${DNSMASQ_PID_FILE}" ]]; then
-	dnsmasq_pid_probe="$(cat "${DNSMASQ_PID_FILE}" 2>/dev/null || true)"
-	if [[ -n "${dnsmasq_pid_probe}" ]] && kill -0 "${dnsmasq_pid_probe}" 2>/dev/null; then
-		dnsmasq_running=1
-	fi
-fi
-
-# Resolver wrappers. When dnsmasq is up → getent (SC-13 resolv.conf pin
-# applies). When dnsmasq is down (first-boot) → dig with explicit upstream
-# (bypasses resolv.conf).
 resolve_ipv4() {
 	local d="$1"
-	if [[ "${dnsmasq_running}" -eq 1 ]]; then
-		getent ahostsv4 "${d}" 2>/dev/null | awk '{print $1}'
-	else
-		dig +short +tries=2 +time=3 "@${UPSTREAM_RESOLVER}" A "${d}" 2>/dev/null \
-			| awk '/^[0-9.]+$/ {print}'
-	fi
+	# Defensive sentinel-skip: if `${UPSTREAM_RESOLVER}` is a loopback
+	# (e.g. operator points at 127.0.0.1 to chain through dnsmasq), the
+	# response for an unwhitelisted-by-dnsmasq domain is `address=/#/0.0.0.0`
+	# (per dnsmasq.conf:59 fail-closed default) — without the explicit `!=
+	# "0.0.0.0"` filter we would emit `ip daddr 0.0.0.0 accept`, a meaningless
+	# rule that creates allow-noise without actually allowing the intended
+	# upstream IP. Same guard for the link-local-broadcast sentinel
+	# `255.255.255.255` (bind/dig sometimes returns it for malformed records).
+	dig +short +tries=2 +time=3 "@${UPSTREAM_RESOLVER}" A "${d}" 2>/dev/null \
+		| awk '/^[0-9.]+$/ && $0 != "0.0.0.0" && $0 != "255.255.255.255" {print}'
 }
 resolve_ipv6() {
 	local d="$1"
-	if [[ "${dnsmasq_running}" -eq 1 ]]; then
-		getent ahostsv6 "${d}" 2>/dev/null | awk '{print $1}'
-	else
-		dig +short +tries=2 +time=3 "@${UPSTREAM_RESOLVER}" AAAA "${d}" 2>/dev/null \
-			| awk '/^[0-9a-fA-F:]+$/ {print}'
-	fi
+	# Defensive sentinel-skip: see resolve_ipv4 — `::` is dnsmasq's IPv6
+	# fail-closed fallback (address=/#/:: per dnsmasq.conf:60). Adding
+	# `ip6 daddr :: accept` to the chain would be a meaningless allow-noise
+	# rule. `::1` (loopback) is also excluded as a defensive belt-and-braces
+	# against malformed AAAA replies.
+	dig +short +tries=2 +time=3 "@${UPSTREAM_RESOLVER}" AAAA "${d}" 2>/dev/null \
+		| awk '/^[0-9a-fA-F:]+$/ && $0 != "::" && $0 != "::1" {print}'
 }
 
 # --- Resolve domains → IPv4/IPv6 allow-rules ------------------------------
@@ -355,11 +359,37 @@ chown nobody:nogroup "${DNSMASQ_RUNDIR}" 2>/dev/null || true
 # If dnsmasq is already running (indicated by pidfile with live pid), SIGHUP
 # re-reads config without restart. Otherwise start it fresh against the new
 # config — first-time call from start-egress.sh takes this path.
+#
+# Story 2.5 cap_drop interaction (iter-238 + iter-N): dnsmasq is launched
+# as root from the entrypoint (compose `user: '0:0'`) and drops to user
+# `nobody` by default after binding :53 — iter-238 EMPIRICALLY DISCONFIRMED
+# the "dnsmasq runs as dev" design (Dockerfile:362-367) because Docker's
+# ambient-cap propagation does NOT cross USER directives under
+# no-new-privileges=1, so a `gosu dev`-launched dnsmasq loses CAP_NET_ADMIN
+# and fails its `nftset=` netlink calls. Root signalling the nobody-owned
+# dnsmasq (`kill -0` for liveness, `kill -HUP` for reload) requires
+# CAP_KILL — added to `cap_add` in docker-compose.yml as part of this fix.
+# Liveness probe nonetheless uses `/proc/<pid>` directory existence
+# (UID-agnostic, no caps needed) instead of `kill -0` because it is the
+# more durable form: it survives any future cap-list change AND mirrors
+# start-egress.sh:228, which already runs the same probe.
 dnsmasq_pid=""
 if [[ -f "${DNSMASQ_PID_FILE}" ]]; then
 	dnsmasq_pid="$(cat "${DNSMASQ_PID_FILE}" 2>/dev/null || true)"
-	if [[ -n "${dnsmasq_pid}" ]] && ! kill -0 "${dnsmasq_pid}" 2>/dev/null; then
-		dnsmasq_pid=""  # stale pidfile
+	# Two-stage validation: directory existence (PID is alive) AND comm
+	# match (the alive PID is actually dnsmasq, not a recycled-PID
+	# unrelated process). PID reuse without /proc/<pid>/comm verification
+	# would let `kill -HUP` deliver to the wrong process — rare but
+	# possible under high churn or after a long uptime. /proc/<pid>/comm
+	# is world-readable on standard procfs (no caps needed) and contains
+	# the executable basename truncated to 15 chars; "dnsmasq" fits.
+	if [[ -n "${dnsmasq_pid}" ]] && [[ -d "/proc/${dnsmasq_pid}" ]]; then
+		comm="$(cat "/proc/${dnsmasq_pid}/comm" 2>/dev/null || true)"
+		if [[ "${comm}" != "dnsmasq" ]]; then
+			dnsmasq_pid=""  # PID alive but not dnsmasq — stale pidfile
+		fi
+	else
+		dnsmasq_pid=""  # /proc/<pid> missing — process is dead
 	fi
 fi
 

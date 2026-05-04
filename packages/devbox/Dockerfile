@@ -274,9 +274,9 @@ RUN npx --yes playwright@latest install-deps \
  && rm -rf /root/.npm /root/.cache/ms-playwright
 
 # ---------------------------------------------------------------------------
-# Story 2.5 setcap — defense-in-depth portability fallback for the three
-# substrate-operational capabilities. Under Docker ≥19.03 + `no-new-privileges:
-# true` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]` with USER dev, the
+# Story 2.5 setcap — defense-in-depth portability fallback for the
+# substrate-operational network capabilities. Under Docker ≥19.03 + `no-new-privileges:
+# true` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID, KILL]` with USER dev, the
 # load-bearing mechanism is Docker's ambient-capability propagation via
 # prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, ...) on PID 1 — ambient caps
 # survive exec() regardless of NNP (capabilities(7) kernel design). File

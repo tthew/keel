@@ -341,20 +341,22 @@ The named sets `gh_v4` / `gh_v6` are declared at table scope with `flags timeout
 The devbox container is hardened against post-exploitation runtime compromise per NFR7 + NFR8 + NFR8a + NFR10. Machine-enforced by `INV-devbox-homedev-named-volume` (`docs/invariants/devbox-hardening.md`); runtime compose-shape check deferred to Story 2.17. Layered barriers:
 
 - **Non-root `dev` user** (UID/GID 1000) — `Dockerfile` creates the user with `groupadd --gid 1000 dev && useradd --uid 1000 --gid 1000 --shell /bin/bash --create-home dev`; `USER dev` directive switches before `ENTRYPOINT`. UID 1000 aligns with common host UIDs for bind-mount passthrough on macOS + Linux.
-- **Capability bounding set** — `docker-compose.yml` sets `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE]`. Three narrow caps; see § Capability rationale below.
+- **Capability bounding set** — `docker-compose.yml` sets `cap_drop: [ALL]` + `cap_add: [NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID, KILL]`. Six narrow caps; see § Capability rationale below.
 - **`no-new-privileges:true`** — `security_opt: [no-new-privileges:true]` sets `PR_SET_NO_NEW_PRIVS=1` on PID 1; kernel masks file-cap `F(effective)` bits on exec + disables setuid privilege elevation.
 - **tmpfs `/tmp` + `/var/tmp` with `noexec,nosuid`** — long-syntax `tmpfs:` block consumes `KEEL_DEVBOX_TMPFS_TMP_MB` + `KEEL_DEVBOX_TMPFS_VARTMP_MB` knobs published by Story 2.2. `/var/log` intentionally NOT tmpfs-mounted (dnsmasq + nftables log files live under `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/` per Story 2.3).
 - **Named Docker volume `keel_home_dev` for `/home/dev`** — substrate-authoritative, non-toggle-able. No `KEEL_DEVBOX_*` setting can flip this to a host bind-mount. Claude Code tokens (Story 2.8), `gh` tokens (Story 2.9), shell history live only inside this volume. Upstream cc-devbox's `./dev-home:/home/dev:delegated` bind-mount pattern is intentionally NOT retained (NFR10).
 
 ### Capability rationale
 
-`cap_drop: [ALL]` strips every kernel capability including those inherited from the executable's bounding set. Three caps are added explicitly:
+`cap_drop: [ALL]` strips every kernel capability including those inherited from the executable's bounding set. Six caps are added explicitly:
 
-| Cap                | Why it's required                                                                                                                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NET_ADMIN`        | nftables rule load via netlink (Story 2.3 egress policy; `reload-egress.sh` invokes `nft -f <tempfile>`).                                                                                                                              |
-| `NET_RAW`          | raw-socket probes dnsmasq may issue for connectivity health.                                                                                                                                                                           |
-| `NET_BIND_SERVICE` | dnsmasq port 53 bind under `cap_drop: [ALL]`. The bounding set without this cap rejects `:<1024` bind from any process, root-equivalent or not. Adding it explicitly is the minimum viable posture under Story 2.5's cap-drop default. |
+| Cap                 | Why it's required                                                                                                                                                                                                                                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `NET_ADMIN`         | nftables rule load via netlink (Story 2.3 egress policy; `reload-egress.sh` invokes `nft -f <tempfile>`).                                                                                                                                                                                                                                                          |
+| `NET_RAW`           | raw-socket probes dnsmasq may issue for connectivity health.                                                                                                                                                                                                                                                                                                       |
+| `NET_BIND_SERVICE`  | dnsmasq port 53 bind under `cap_drop: [ALL]`. The bounding set without this cap rejects `:<1024` bind from any process, root-equivalent or not. Adding it explicitly is the minimum viable posture under Story 2.5's cap-drop default.                                                                                                                             |
+| `SETUID` + `SETGID` | `gosu` calls `setuid(2)`/`setgid(2)` to drop from root (compose `user: '0:0'`) to `dev` at the end of `entrypoint.sh`. Under `cap_drop: [ALL]`, those syscalls EPERM without these caps. Added at iter-238 when ambient-cap propagation across the image-`USER` boundary under NNP was empirically falsified on Docker 29.2 + linux/arm64.                         |
+| `KILL`              | `reload-egress.sh` delivers `SIGHUP` to the dnsmasq process for config reload. dnsmasq drops to user `nobody` after binding :53 (its hardcoded post-bind privilege drop); the root-owned reloader signaling that nobody-owned process needs `CAP_KILL` per capabilities(7) signal-permission rule. Without it the SIGHUP path EPERMs and the script aborts exit 7. |
 
 Capabilities NOT added: `CAP_SYS_ADMIN` (no container-administration ops in substrate), `CAP_CHOWN` (entrypoint's runtime chown calls fail under dropped CAP_CHOWN — this is expected + tolerated via stderr-capture-and-continue; image-build-time chown seeds `/home/dev` ownership correctly for first-boot volume auto-init), `CAP_SYS_PTRACE` (no debugger substrate), and every other Linux cap. Under `PR_SET_NO_NEW_PRIVS=1` the capability propagation path is Docker ≥19.03's ambient-cap automation via `prctl(PR_CAP_AMBIENT_RAISE)`; `setcap +eip` on `/usr/sbin/dnsmasq` + `/usr/sbin/nft` in the `Dockerfile` remains as a portability fallback for older Docker or Podman-compat forks.
 
@@ -371,7 +373,7 @@ docker exec keel-devbox id
 
 # AC 2 — bounding set + no-new-privileges
 docker exec keel-devbox sh -c 'capsh --print'
-# Expect: Bounding set =cap_net_bind_service,cap_net_raw,cap_net_admin
+# Expect: Bounding set =cap_kill,cap_setgid,cap_setuid,cap_net_bind_service,cap_net_raw,cap_net_admin (order not guaranteed; set equality)
 docker inspect keel-devbox --format '{{ .HostConfig.SecurityOpt }}'
 # Expect: [no-new-privileges]
 
@@ -403,9 +405,12 @@ docker exec keel-devbox sh -c 'grep ^NoNewPrivs /proc/self/status'
 
 # Capability-exercise smoke (nftables + dnsmasq functional under cap_drop)
 docker exec keel-devbox nft list table inet keel_egress
-# Expect: nftables ruleset loaded — confirms NET_ADMIN ambient-cap propagation
+# Expect: nftables ruleset loaded — confirms NET_ADMIN in PID 1's effective set
+# under user: '0:0' (ambient propagation across USER dev + NNP was falsified
+# at iter-238 — root-effective path is the load-bearing mechanism)
 docker exec keel-devbox sh -c 'ss -tlnp | grep :53'
-# Expect: dnsmasq on 127.0.0.1:53 — confirms NET_BIND_SERVICE ambient cap
+# Expect: dnsmasq on 127.0.0.1:53 — confirms NET_BIND_SERVICE in dnsmasq's
+# effective set (dnsmasq is launched by PID 1 root before the gosu drop)
 ```
 
 ### Known limitations
