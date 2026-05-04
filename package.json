@@ -38,6 +38,8 @@
     "ralph:build": "./packages/devbox/scripts/ralph-build-host.sh",
     "ralph:plan": "./packages/devbox/scripts/ralph-plan-host.sh",
     "claude": "./packages/devbox/scripts/claude-host.sh",
+    "codex": "./packages/devbox/scripts/codex-host.sh",
+    "codex:auth": "./packages/devbox/scripts/codex-auth-host.sh",
     "gh:auth": "./packages/devbox/scripts/gh-auth-host.sh",
     "prepare": "prek install -t pre-commit -t commit-msg"
   },
