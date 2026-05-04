@@ -112,9 +112,23 @@ fi
 # the @openai/codex bake in Dockerfile; it lives under the same keel_home_dev
 # named volume so first-run sign-in survives container restarts without
 # extra wiring.
+#
+# `gosu dev mkdir -p` (NOT plain `mkdir -p`) is load-bearing for upgrade
+# operators: when a new path is added to this loop (e.g. /home/dev/.codex
+# in the codex-bake commit) and the operator's existing keel_home_dev
+# named volume was first-populated under an OLDER image that lacked the
+# path, the dir is missing from the volume + must be created at runtime.
+# `mkdir -p` runs as root (entrypoint is pre-gosu) but cap_drop: [ALL]
+# strips CAP_DAC_OVERRIDE — root then cannot write to /home/dev which is
+# dev:dev 0755, producing `mkdir: cannot create directory: Permission
+# denied` and `set -e` aborts the entrypoint before the gosu handoff.
+# `gosu dev mkdir -p` runs as dev (the actual owner), needs no caps, and
+# succeeds on both fresh-volume + upgrade-volume paths. Same pattern as
+# the Story 2.12 sshd-init block below (gosu dev mkdir / chmod for
+# /home/dev/.ssh).
 for dir in /home/dev/.claude /home/dev/.config/gh /home/dev/.codex; do
   if [[ ! -d "${dir}" ]]; then
-    mkdir -p "${dir}"
+    gosu dev mkdir -p "${dir}"
   fi
   if ! chown -- "${WORKSPACE_OWNER}" "${dir}" 2>"${chown_err}"; then
     cat "${chown_err}" >&2 || true
