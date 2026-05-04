@@ -2,24 +2,23 @@
 
 ## NOW
 
-- [ ] FIX-1: Refactor hook case-glob arm L231-237 → bash-regex w/ word-boundary + quote-tolerance + interpreter-string-literal scan; 7-vector fixture suite. Verify per-vector via `printf %s "<cmd>" | jq -Rs '{tool_name:"Bash",tool_input:{command:.}}' | .claude/hooks/block-secret-access.sh` BEFORE/AFTER (AGENTS.md rule 6 sparring-verify). ~large
+- [ ] FIX-2: Hook Bash-arm symlink-deref — token-scan + per-token `readlink -f` against secret-dir denylist; fixture `cat /tmp/symlink-to-secret`. ~medium
 
 ## QUEUE (Epic 2 PR #230 review-fix-arc)
 
-### DEFERRED-fixes (5; landing-summary `IC_kwDOSAH0488AAAABBMCAuQ`)
+### DEFERRED-fixes (4 remaining; landing-summary `IC_kwDOSAH0488AAAABBMCAuQ`)
 
-- [ ] FIX-2: Hook Bash-arm symlink-deref — token-scan + per-token `readlink -f` against secret-dir denylist; fixture `cat /tmp/symlink-to-secret`. ~medium
 - [ ] FIX-3: sync-gate.ts manifest-removal — expected-IDs snapshot so dropping entry + INVARIANTS.md anchor fails closed. **L1-protected**. ~medium
 - [ ] FIX-4: Substrate↔seed byte-parity in invariants.manifest.ts — pair-link `INV-claude-hook-secret-denylist` ↔ `-seed`; `byte-parity` kind OR pair-check in sync-gate. **L1-protected**. ~medium
 - [ ] FIX-5: docker-compose.yml:294-303 healthcheck — append `nft list chain inet keel_egress output_v4` probe; root-gate or sentinel-file fallback. ~small
 
-### RESOLVE-only (7 landed threads — reply + `resolveReviewThread`)
+### RESOLVE-only (8 landed threads — reply + `resolveReviewThread`)
 
 - [ ] Thread-resolve sweep (per-thread closing commit; full IDs prefix `PRRT_kwDOSAH0485…`):
   - rN6F→`27d4c7b` (legacy-branch:128); rN8s→`d3aecde` (ralph-build-host:89)
-  - eiOE→`33aca2d` (hook:178); ejlV→`33aca2d` (hook:171); ejoe→`33aca2d` (hook:79-84)
+  - eiOE→`THIS-COMMIT` (hook:178 case-glob refactor); ejlV→`33aca2d` (hook:171); ejoe→`33aca2d` (hook:79-84)
   - eloF→`33aca2d` (dnsmasq:32-53); elpv→`33aca2d` (resolver:153-165)
-  - +5 DEFERRED-fix threads same-iter as FIX-N commit lands.
+  - +4 DEFERRED-fix threads same-iter as FIX-N commit lands.
 
 ### Final close-out
 
@@ -28,7 +27,7 @@
 
 ## DONE (this iteration)
 
-- [iter-pr230-monitor] CI green on `e63a671` (`gh pr checks --watch --fail-fast` exit 0; node 47-52s ×2 + python 8s ×2). 12 unresolved review threads confirmed via GraphQL `reviewThreads` — match IP RESOLVE-only (7) + DEFERRED-fixes (FIX-1..FIX-5).
+- [iter-pr230-fix-1] FIX-1 landed: D-38 refactor of L231-237 case-glob arm → bash-regex with token-boundary tolerance (whitespace/quote/paren/path-sep/redirect/backslash-escape). interp_verb_re flag-class widened to `[a-zA-Z0-9]*[ec]` (catches `perl -0ne`). 7-vector fixture suite under positive/ (quoted, chained, trailing-ws, python3-c-stringlit, node-e-stringlit, awk-quoted, bash-c-ansi-c). Substrate + seed byte-parity preserved (manifest hash 8b10e266 → both `INV-claude-hook-secret-denylist` + `-seed`). Fixture suite 81/81 pass; typecheck 16/16; lint 16/16; vitest 52/52.
 
 ## Context
 
@@ -38,7 +37,7 @@
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent)._
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 Open, MERGEABLE=UNSTABLE→CLEAN, CI green at `e63a671` (verified iter-pr230-monitor). 12 unresolved threads (7 landed-but-unresolved, 5 deferred per `IC_kwDOSAH0488AAAABBMCAuQ`).
+- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `e63a671` (will retrigger on FIX-1 push). 8 unresolved threads remaining (7 landed-but-unresolved minus eiOE which closes this iter, plus 4 DEFERRED-fix threads).
 
 ### Recipe references
 

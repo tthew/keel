@@ -221,21 +221,51 @@ case "$tool_name" in
     # D-31 — /proc reader detection via regex (word-boundary verb + expanded secret-bearing paths).
     # Replaces prior 19-alternative `cat*/proc/*/environ*|...` case-glob; far more maintainable.
     reader_verb_re='(^|[[:space:]])(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd)[[:space:]]'
-    interp_verb_re='(^|[[:space:]])(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z]*[ec]'
+    # D-38 (PR #230 review-fix-arc, FIX-1) — flag-class widened to alphanumeric so digit
+    # chars in interpreter flags (e.g. `perl -0ne …`) participate in verb-match. Prior
+    # `[a-zA-Z]*[ec]` rejected `0` and let `perl -0ne … .env` slip past the gate.
+    interp_verb_re='(^|[[:space:]])(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z0-9]*[ec]'
     proc_secret_re='/proc/([0-9]+|self)/(cmdline|environ|mem|status|auxv|maps|stack|syscall|io)|/proc/(kcore|kmem|kallsyms)'
     if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re ]]; then
       if [[ "$normalized" =~ $proc_secret_re ]]; then
         block "secret-access-denylist" "cat-proc-environ"
       fi
     fi
-    case "$normalized" in
-      printenv*) block "secret-access-denylist" "printenv-idiom" ;;
-      cat*/home/dev/.claude/*|cat*/home/dev/.config/gh/*|cat*~/.claude/*|cat*~/.config/gh/*|less*/home/dev/.claude/*|less*/home/dev/.config/gh/*|less*~/.claude/*|less*~/.config/gh/*|tail*/home/dev/.claude/*|tail*/home/dev/.config/gh/*|tail*~/.claude/*|tail*~/.config/gh/*|head*/home/dev/.claude/*|head*/home/dev/.config/gh/*|head*~/.claude/*|head*~/.config/gh/*|bat*/home/dev/.claude/*|bat*/home/dev/.config/gh/*|bat*~/.claude/*|bat*~/.config/gh/*|xxd*/home/dev/.claude/*|xxd*/home/dev/.config/gh/*|xxd*~/.claude/*|xxd*~/.config/gh/*|od*/home/dev/.claude/*|od*/home/dev/.config/gh/*|od*~/.claude/*|od*~/.config/gh/*|strings*/home/dev/.claude/*|strings*/home/dev/.config/gh/*|strings*~/.claude/*|strings*~/.config/gh/*|more*/home/dev/.claude/*|more*/home/dev/.config/gh/*|more*~/.claude/*|more*~/.config/gh/*|grep*/home/dev/.claude/*|grep*/home/dev/.config/gh/*|grep*~/.claude/*|grep*~/.config/gh/*|awk*/home/dev/.claude/*|awk*/home/dev/.config/gh/*|awk*~/.claude/*|awk*~/.config/gh/*|sed*/home/dev/.claude/*|sed*/home/dev/.config/gh/*|sed*~/.claude/*|sed*~/.config/gh/*|cp*/home/dev/.claude/*|cp*/home/dev/.config/gh/*|cp*~/.claude/*|cp*~/.config/gh/*|dd*/home/dev/.claude/*|dd*/home/dev/.config/gh/*|dd*~/.claude/*|dd*~/.config/gh/*|node*-[ec]*/home/dev/.claude/*|node*-[ec]*/home/dev/.config/gh/*|node*-[ec]*~/.claude/*|node*-[ec]*~/.config/gh/*|python*-[ec]*/home/dev/.claude/*|python*-[ec]*/home/dev/.config/gh/*|python*-[ec]*~/.claude/*|python*-[ec]*~/.config/gh/*|python3*-[ec]*/home/dev/.claude/*|python3*-[ec]*/home/dev/.config/gh/*|python3*-[ec]*~/.claude/*|python3*-[ec]*~/.config/gh/*|perl*-[ec]*/home/dev/.claude/*|perl*-[ec]*/home/dev/.config/gh/*|perl*-[ec]*~/.claude/*|perl*-[ec]*~/.config/gh/*|ruby*-[ec]*/home/dev/.claude/*|ruby*-[ec]*/home/dev/.config/gh/*|ruby*-[ec]*~/.claude/*|ruby*-[ec]*~/.config/gh/*|php*-[ec]*/home/dev/.claude/*|php*-[ec]*/home/dev/.config/gh/*|php*-[ec]*~/.claude/*|php*-[ec]*~/.config/gh/*) block "secret-access-denylist" "cat-oauth-token" ;;
-      cat*/home/dev/.ssh/*|cat*~/.ssh/*|less*/home/dev/.ssh/*|less*~/.ssh/*|tail*/home/dev/.ssh/*|tail*~/.ssh/*|head*/home/dev/.ssh/*|head*~/.ssh/*|bat*/home/dev/.ssh/*|bat*~/.ssh/*|xxd*/home/dev/.ssh/*|xxd*~/.ssh/*|od*/home/dev/.ssh/*|od*~/.ssh/*|strings*/home/dev/.ssh/*|strings*~/.ssh/*|more*/home/dev/.ssh/*|more*~/.ssh/*|grep*/home/dev/.ssh/*|grep*~/.ssh/*|awk*/home/dev/.ssh/*|awk*~/.ssh/*|sed*/home/dev/.ssh/*|sed*~/.ssh/*|cp*/home/dev/.ssh/*|cp*~/.ssh/*|dd*/home/dev/.ssh/*|dd*~/.ssh/*|node*-[ec]*/home/dev/.ssh/*|node*-[ec]*~/.ssh/*|python*-[ec]*/home/dev/.ssh/*|python*-[ec]*~/.ssh/*|python3*-[ec]*/home/dev/.ssh/*|python3*-[ec]*~/.ssh/*|perl*-[ec]*/home/dev/.ssh/*|perl*-[ec]*~/.ssh/*|ruby*-[ec]*/home/dev/.ssh/*|ruby*-[ec]*~/.ssh/*|php*-[ec]*/home/dev/.ssh/*|php*-[ec]*~/.ssh/*) block "secret-access-denylist" "cat-ssh-key" ;;
-      cat*.envrc*|cat*/.envrc*|less*.envrc*|less*/.envrc*|tail*.envrc*|tail*/.envrc*|head*.envrc*|head*/.envrc*|bat*.envrc*|bat*/.envrc*|xxd*.envrc*|xxd*/.envrc*|od*.envrc*|od*/.envrc*|strings*.envrc*|strings*/.envrc*|more*.envrc*|more*/.envrc*|grep*.envrc*|grep*/.envrc*|awk*.envrc*|awk*/.envrc*|sed*.envrc*|sed*/.envrc*|cp*.envrc*|cp*/.envrc*|dd*.envrc*|dd*/.envrc*|node*-[ec]*.envrc*|node*-[ec]*/.envrc*|python*-[ec]*.envrc*|python*-[ec]*/.envrc*|python3*-[ec]*.envrc*|python3*-[ec]*/.envrc*|perl*-[ec]*.envrc*|perl*-[ec]*/.envrc*|ruby*-[ec]*.envrc*|ruby*-[ec]*/.envrc*|php*-[ec]*.envrc*|php*-[ec]*/.envrc*) block "secret-access-denylist" "cat-envrc-file" ;;
-      cat*.secrets*|cat*/.secrets*|less*.secrets*|less*/.secrets*|tail*.secrets*|tail*/.secrets*|head*.secrets*|head*/.secrets*|bat*.secrets*|bat*/.secrets*|xxd*.secrets*|xxd*/.secrets*|od*.secrets*|od*/.secrets*|strings*.secrets*|strings*/.secrets*|more*.secrets*|more*/.secrets*|grep*.secrets*|grep*/.secrets*|awk*.secrets*|awk*/.secrets*|sed*.secrets*|sed*/.secrets*|cp*.secrets*|cp*/.secrets*|dd*.secrets*|dd*/.secrets*|node*-[ec]*.secrets*|node*-[ec]*/.secrets*|python*-[ec]*.secrets*|python*-[ec]*/.secrets*|python3*-[ec]*.secrets*|python3*-[ec]*/.secrets*|perl*-[ec]*.secrets*|perl*-[ec]*/.secrets*|ruby*-[ec]*.secrets*|ruby*-[ec]*/.secrets*|php*-[ec]*.secrets*|php*-[ec]*/.secrets*) block "secret-access-denylist" "cat-secrets-file" ;;
-      cat*.env|cat*.env.*|cat*/.env|cat*/.env.*|less*.env|less*.env.*|less*/.env|less*/.env.*|tail*.env|tail*.env.*|tail*/.env|tail*/.env.*|head*.env|head*.env.*|head*/.env|head*/.env.*|bat*.env|bat*.env.*|bat*/.env|bat*/.env.*|xxd*.env|xxd*.env.*|xxd*/.env|xxd*/.env.*|od*.env|od*.env.*|od*/.env|od*/.env.*|strings*.env|strings*.env.*|strings*/.env|strings*/.env.*|more*.env|more*.env.*|more*/.env|more*/.env.*|grep*.env|grep*.env.*|grep*/.env|grep*/.env.*|awk*.env|awk*.env.*|awk*/.env|awk*/.env.*|sed*.env|sed*.env.*|sed*/.env|sed*/.env.*|cp*.env|cp*.env.*|cp*/.env|cp*/.env.*|dd*.env|dd*.env.*|dd*/.env|dd*/.env.*|node*-[ec]*.env|node*-[ec]*.env.*|node*-[ec]*/.env|node*-[ec]*/.env.*|python*-[ec]*.env|python*-[ec]*.env.*|python*-[ec]*/.env|python*-[ec]*/.env.*|python3*-[ec]*.env|python3*-[ec]*.env.*|python3*-[ec]*/.env|python3*-[ec]*/.env.*|perl*-[ec]*.env|perl*-[ec]*.env.*|perl*-[ec]*/.env|perl*-[ec]*/.env.*|ruby*-[ec]*.env|ruby*-[ec]*.env.*|ruby*-[ec]*/.env|ruby*-[ec]*/.env.*|php*-[ec]*.env|php*-[ec]*.env.*|php*-[ec]*/.env|php*-[ec]*/.env.*) block "secret-access-denylist" "cat-env-file" ;;
-    esac ;;
+    # D-38 (PR #230 review-fix-arc, FIX-1) — token-form bash-regex replaces anchored
+    # case-globs to close 7 verified bypass classes documented in the PR-review summary:
+    # quoted (`cat ".env"`), chained (`cat .env && true`), trailing-ws (`cat .env `),
+    # interpreter string-literal (`python3 -c '..."." env...'`, `node -e '..."." env...'`),
+    # quoted-with-leading-arg (`awk '{print}' ".env"`), ANSI-C-wrapper-residual
+    # (`bash -c $'cat .env'` — D-37 wrapper-strip preserved upstream + regression-tested).
+    #
+    # Token-boundary character class: start | whitespace | `"` | `'` | `(` | `)` | `/`
+    # | `|` | `&` | `;` | `<` | `>` | `:` | `=` | `\` | end-of-string. Boundaries on BOTH
+    # sides for `.env` (right boundary required to avoid `.env_template` false-positive).
+    # `\` is included so backslash-escaped quote sequences inside string literals
+    # (`perl -0ne "...\".env\"..."`) treat the surrounding `\` as a token boundary.
+    # `.envrc` / `.secrets` / oauth-dir / ssh-dir keep left-boundary only (preserves prior
+    # trailing-`*` permissive semantics — they already tolerated quote/pipe trailing).
+    secret_left_re='(^|[[:space:]"'\''(/|&;<>:=\])'
+    secret_right_re='([[:space:]"'\''()|&;<>:=\]|$)'
+    # printenv idiom — token-boundary on both sides (closes pipe-form `cmd | printenv`).
+    printenv_re='(^|[^A-Za-z0-9_/.-])printenv([^A-Za-z0-9_/.-]|$)'
+    if [[ "$normalized" =~ $printenv_re ]]; then
+      block "secret-access-denylist" "printenv-idiom"
+    fi
+    # Verb gate — reader-verb OR interp-stdin must be present. printenv handled above
+    # because it is its own verb (no separate target file).
+    if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re ]]; then
+      oauth_dir_re="${secret_left_re}(/home/dev/\.claude/|/home/dev/\.config/gh/|~/\.claude/|~/\.config/gh/)"
+      ssh_dir_re="${secret_left_re}(/home/dev/\.ssh/|~/\.ssh/)"
+      env_file_re="${secret_left_re}\.env(\.[A-Za-z0-9_.-]*)?${secret_right_re}"
+      envrc_file_re="${secret_left_re}\.envrc"
+      secrets_file_re="${secret_left_re}\.secrets"
+      if [[ "$normalized" =~ $oauth_dir_re ]]; then block "secret-access-denylist" "cat-oauth-token"; fi
+      if [[ "$normalized" =~ $ssh_dir_re ]]; then block "secret-access-denylist" "cat-ssh-key"; fi
+      if [[ "$normalized" =~ $envrc_file_re ]]; then block "secret-access-denylist" "cat-envrc-file"; fi
+      if [[ "$normalized" =~ $secrets_file_re ]]; then block "secret-access-denylist" "cat-secrets-file"; fi
+      if [[ "$normalized" =~ $env_file_re ]]; then block "secret-access-denylist" "cat-env-file"; fi
+    fi ;;
   Read)
     # D-22 — evaluate resolved path against secret-dir denies first (catches symlink-to-oauth-token
     # bypass where file_path itself looks benign but symlink target is in a secret directory).
