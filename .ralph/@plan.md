@@ -2,9 +2,11 @@
 
 ## NOW
 
-- [ ] FIX-2: Hook Bash-arm symlink-deref — token-scan + per-token `readlink -f` against secret-dir denylist; fixture `cat /tmp/symlink-to-secret`. ~medium
+- [ ] Monitor PR #230 CI on `a4c7bad` (FIX-1 push) — `gh pr checks --watch --fail-fast` per § CI Monitoring. Pass → advance NOW=FIX-2. Fail → queue fix tasks per failure root-cause.
 
 ## QUEUE (Epic 2 PR #230 review-fix-arc)
+
+- [ ] FIX-2: Hook Bash-arm symlink-deref — token-scan + per-token `readlink -f` against secret-dir denylist; fixture `cat /tmp/symlink-to-secret`. ~medium
 
 ### DEFERRED-fixes (4 remaining; landing-summary `IC_kwDOSAH0488AAAABBMCAuQ`)
 
