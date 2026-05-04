@@ -8,9 +8,9 @@
 // test to override the `invariants` export from manifest-reader.js. Each test creates a
 // fresh `mkdtemp` containing INVARIANTS.md + (optionally) a fixture source file.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
 
 beforeEach(() => {
@@ -156,10 +156,13 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     const { runSyncGate } = await import('../sync-gate.js');
     const report = await runSyncGate(root);
     // The mocked manifest deliberately doesn't include the real
-    // EXPECTED_INVARIANT_IDS snapshot (the FIX-3 dedicated case below covers
-    // that bypass class). Filter those out to verify the four canonical drift
+    // EXPECTED_INVARIANT_IDS snapshot (FIX-3) or the BYTE_PARITY_PAIRS
+    // substrate↔seed files (FIX-4) — the dedicated cases below cover those
+    // bypass classes. Filter those out to verify the four canonical drift
     // classes are absent for an aligned manifest+docs+source.
-    const canonical = report.drifts.filter((d) => d.kind !== 'expected-id-missing');
+    const canonical = report.drifts.filter(
+      (d) => d.kind !== 'expected-id-missing' && d.kind !== 'byte-parity-mismatch',
+    );
     expect(canonical).toEqual([]);
     await rm(root, { recursive: true, force: true });
   });
@@ -187,6 +190,110 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
         expect.objectContaining({ kind: 'expected-id-missing', id }),
       );
     }
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('byte-parity-mismatch: substrate ↔ seed pair files differ in content (lockstep-hash bypass class)', async () => {
+    // FIX-4 (PR #230 review-fix-arc) — out-of-band byte-parity check defends
+    // against the lockstep-hash bypass. An attacker who mutates BOTH the
+    // substrate (.claude/...) AND its seed
+    // (packages/keel-templates/src/seeds/.claude/...) in lockstep with new
+    // matching contentHash entries silently slips both per-file gates. The
+    // BYTE_PARITY_PAIRS snapshot (in L1-protected sync-gate.ts) closes that
+    // bypass: any pair whose disk content differs fires `byte-parity-mismatch`
+    // drift regardless of manifest contentHash agreement.
+    const root = await makeRepoRoot('# INVARIANTS\n');
+    vi.doMock('../manifest-reader.js', async () => {
+      const real =
+        await vi.importActual<typeof import('../manifest-reader.js')>('../manifest-reader.js');
+      return { ...real, invariants: [] };
+    });
+    const { runSyncGate, BYTE_PARITY_PAIRS } = await import('../sync-gate.js');
+    expect(BYTE_PARITY_PAIRS.length).toBeGreaterThan(0);
+    // Stage every pair under the temp root with deliberately divergent content
+    // — this exercises the differ branch (not the missing-file branch) and
+    // asserts every registered pair fires drift.
+    for (const pair of BYTE_PARITY_PAIRS) {
+      const aAbs = join(root, pair.a);
+      const bAbs = join(root, pair.b);
+      await mkdir(dirname(aAbs), { recursive: true });
+      await mkdir(dirname(bAbs), { recursive: true });
+      await writeFile(aAbs, 'substrate-bytes\n');
+      await writeFile(bAbs, 'seed-bytes-differ\n');
+    }
+    const report = await runSyncGate(root);
+    expect(report.status).toBe('drift');
+    for (const pair of BYTE_PARITY_PAIRS) {
+      expect(report.drifts).toContainEqual(
+        expect.objectContaining({
+          kind: 'byte-parity-mismatch',
+          sourcePath: pair.a,
+        }),
+      );
+    }
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('byte-parity-mismatch: missing pair member fires drift with detail surfacing absent path', async () => {
+    // FIX-4 missing-file branch — staging the `a` member but omitting `b`
+    // (or vice versa) must fire drift; readSourceFile rejects, the sync-gate
+    // catches and emits a single `byte-parity-mismatch` per pair with detail
+    // listing the missing path(s).
+    const root = await makeRepoRoot('# INVARIANTS\n');
+    vi.doMock('../manifest-reader.js', async () => {
+      const real =
+        await vi.importActual<typeof import('../manifest-reader.js')>('../manifest-reader.js');
+      return { ...real, invariants: [] };
+    });
+    const { runSyncGate, BYTE_PARITY_PAIRS } = await import('../sync-gate.js');
+    expect(BYTE_PARITY_PAIRS.length).toBeGreaterThan(0);
+    // Stage only the `a` member of each pair; omit the `b` member to trigger
+    // the missing-file branch.
+    for (const pair of BYTE_PARITY_PAIRS) {
+      const aAbs = join(root, pair.a);
+      await mkdir(dirname(aAbs), { recursive: true });
+      await writeFile(aAbs, 'substrate-bytes\n');
+    }
+    const report = await runSyncGate(root);
+    expect(report.status).toBe('drift');
+    for (const pair of BYTE_PARITY_PAIRS) {
+      expect(report.drifts).toContainEqual(
+        expect.objectContaining({
+          kind: 'byte-parity-mismatch',
+          sourcePath: pair.a,
+          detail: expect.stringContaining('missing'),
+        }),
+      );
+    }
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('byte-parity clean: substrate ↔ seed pair files identical produces no byte-parity drift', async () => {
+    // FIX-4 positive control — when both pair members exist with identical
+    // content, no `byte-parity-mismatch` drift fires. The other canonical
+    // drift kinds (mocked-empty manifest scenario) and the FIX-3
+    // expected-id-missing IDs are filtered out so the assertion isolates the
+    // byte-parity check.
+    const root = await makeRepoRoot('# INVARIANTS\n');
+    vi.doMock('../manifest-reader.js', async () => {
+      const real =
+        await vi.importActual<typeof import('../manifest-reader.js')>('../manifest-reader.js');
+      return { ...real, invariants: [] };
+    });
+    const { runSyncGate, BYTE_PARITY_PAIRS } = await import('../sync-gate.js');
+    expect(BYTE_PARITY_PAIRS.length).toBeGreaterThan(0);
+    const matchingBody = 'identical-bytes\n';
+    for (const pair of BYTE_PARITY_PAIRS) {
+      const aAbs = join(root, pair.a);
+      const bAbs = join(root, pair.b);
+      await mkdir(dirname(aAbs), { recursive: true });
+      await mkdir(dirname(bAbs), { recursive: true });
+      await writeFile(aAbs, matchingBody);
+      await writeFile(bAbs, matchingBody);
+    }
+    const report = await runSyncGate(root);
+    const byteParityDrifts = report.drifts.filter((d) => d.kind === 'byte-parity-mismatch');
+    expect(byteParityDrifts).toEqual([]);
     await rm(root, { recursive: true, force: true });
   });
 });

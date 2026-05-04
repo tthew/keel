@@ -16,6 +16,7 @@ export type DriftKind =
   | 'content-hash-mismatch'
   | 'removed-from-docs-only'
   | 'expected-id-missing'
+  | 'byte-parity-mismatch'
   | 'git-hook-missing'
   | 'git-hook-shebang-mismatch';
 
@@ -93,6 +94,34 @@ export const EXPECTED_INVARIANT_IDS: readonly string[] = [
   'INV-git-hooks-preservation',
   'INV-package-test-coverage-floor',
   'INV-fr14i-ci-workflow-presence',
+] as const;
+
+// FIX-4 (PR #230 review-fix-arc) — out-of-band fail-closed snapshot of
+// substrate↔seed file pairs that MUST be byte-identical. Closes the bypass
+// class where substrate (`.claude/...`) and its seed
+// (`packages/keel-templates/src/seeds/.claude/...`) carry independent
+// contentHash entries in invariants.manifest.ts: an attacker who mutates
+// BOTH files in lockstep with new (matching) hashes silently slips both
+// per-file gates. The sync-gate reads each pair from disk and compares
+// SHA-256 at audit time, so the substrate↔seed equivalence is enforced at
+// the gate, not on the (mutable) manifest.
+//
+// Maintenance contract: when a new substrate↔seed pair is legitimately
+// added, append it here in the same commit that registers both manifest
+// entries. The L1 install-boundary hook denies in-session AI agent edits
+// of this file, so any change must transit human review (same protection
+// model as EXPECTED_INVARIANT_IDS above).
+export const BYTE_PARITY_PAIRS: readonly {
+  readonly a: string;
+  readonly b: string;
+  readonly reason: string;
+}[] = [
+  {
+    a: '.claude/hooks/block-secret-access.sh',
+    b: 'packages/keel-templates/src/seeds/.claude/hooks/block-secret-access.sh',
+    reason:
+      'INV-claude-hook-secret-denylist substrate ↔ INV-claude-hook-secret-denylist-seed must be byte-identical (Story 2.16 substrate, fork-seed parity).',
+  },
 ] as const;
 
 export async function readAnchors(repoRoot: string): Promise<Set<string>> {
@@ -173,6 +202,50 @@ export async function runSyncGate(repoRoot: string): Promise<DriftReport> {
       drifts.push({
         kind: 'expected-id-missing',
         id: expectedId,
+      });
+    }
+  }
+
+  // FIX-4 — out-of-band byte-parity check for substrate↔seed pairs. Defends
+  // against the lockstep-hash-update bypass class: even if both manifest
+  // contentHash entries are mutated to match each other, the sync-gate
+  // reads both files and compares SHA-256 directly. Mismatch (or either
+  // file missing) fires `byte-parity-mismatch` drift.
+  for (const pair of BYTE_PARITY_PAIRS) {
+    const aAbs = resolve(repoRoot, pair.a);
+    const bAbs = resolve(repoRoot, pair.b);
+    let aContent: string | null = null;
+    let bContent: string | null = null;
+    try {
+      aContent = await readSourceFile(aAbs);
+    } catch {
+      /* missing — handled below */
+    }
+    try {
+      bContent = await readSourceFile(bAbs);
+    } catch {
+      /* missing — handled below */
+    }
+    const missing: string[] = [];
+    if (aContent === null) missing.push(pair.a);
+    if (bContent === null) missing.push(pair.b);
+    if (missing.length > 0) {
+      drifts.push({
+        kind: 'byte-parity-mismatch',
+        sourcePath: pair.a,
+        detail: `${pair.a} ↔ ${pair.b}: missing ${missing.join(' + ')} — ${pair.reason}`,
+      });
+      continue;
+    }
+    const aHash = computeSha256(aContent as string);
+    const bHash = computeSha256(bContent as string);
+    if (aHash !== bHash) {
+      drifts.push({
+        kind: 'byte-parity-mismatch',
+        sourcePath: pair.a,
+        expectedHash: aHash,
+        actualHash: bHash,
+        detail: `${pair.a} ↔ ${pair.b}: ${aHash} vs ${bHash} — ${pair.reason}`,
       });
     }
   }
