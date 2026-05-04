@@ -139,7 +139,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: '74237244a3a2b2ce676754a26640c59b3afb56aa9937b1ab901fd41d1d03b525',
+    contentHash: '9d490e2188d39b06389faee84af84dd81185f9a455a04bac291a1155a7556c5b',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -432,7 +432,7 @@ const raw: Invariant[] = [
     description:
       'NFR1a substrate-side coverage-floor enforcer — walks packages/* workspace entries with a src/ subdir and reports coverage-floor-violation for any non-exempt package without >= 1 *.test.ts file under src/ (recursive). Pre-bootstrap exempt list per NFR1a (PRD line 1068): keel-templates, devbox (Story 1.21 lands their backfill follow-ups). Invocation: pnpm keel-invariants:package-test-coverage-floor. Standalone CLI; NOT invoked transitively by runSyncGate.',
     sourcePath: 'packages/keel-invariants/src/check-package-test-coverage-floor.ts',
-    contentHash: '57555cb453e7cc46569874befb28d7faa2c5689f458da2b8c11303c8f4cfa32e',
+    contentHash: '4d24479d7f1eaf1561966a807978f720a4ed59575896c55d8d60552044204459',
     anchors: ['INV-package-test-coverage-floor'],
   },
   {
