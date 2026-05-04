@@ -151,6 +151,18 @@ resolve_main_repo_and_workdir() {
 	export MAIN_REPO
 
 	REPO_NAME="${KEEL_DEVBOX_REPO_NAME:-$(basename "$main_repo_root")}"
+	# PR #230 multi-vector adversarial review (D-37) — REPO_NAME flows unvalidated into:
+	# bind-mount target /workspace/${REPO_NAME} (compose:127), container_name interpolation,
+	# and the docker-inspect Go-template at lib/check-mount-source.sh:32-34. Operator-set
+	# values containing `..` would attempt path-traversal out of /workspace/ (Docker normalises
+	# but the attempt evades intent), and shell-meta in REPO_NAME would break the docker
+	# inspect format string at check-mount-source.sh, causing the mount-check to silently
+	# return wrong data and miss stale-bind races. POSIX-portable shape: alphanumeric +
+	# `.` `_` `-` only (matches `basename` output for any reasonable repo name).
+	if ! [[ "$REPO_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+		printf 'main-repo-resolver: FATAL: invalid REPO_NAME (KEEL_DEVBOX_REPO_NAME=%q); expected ^[A-Za-z0-9._-]+$\n' "$REPO_NAME" >&2
+		return 1
+	fi
 	export REPO_NAME
 
 	local pwd_real
@@ -200,6 +212,15 @@ resolve_mode_specific_state() {
 	# bind target; a per-fork REPO_NAME override would silently produce divergent
 	# container paths (second fork's `docker exec -w` would hit ENOENT).
 	REPO_NAME="$shared_parent_name"
+	# PR #230 D-37 — same shape validation as per-fork mode (resolve_main_repo_and_workdir
+	# above). Defense-in-depth: shared_parent_name is derived from `dirname "$MAIN_REPO"`
+	# so basename(dirname) — under unusual filesystems (`..` in path, NFS quirks) the
+	# resulting name could carry shell-meta that breaks the docker inspect format string
+	# at check-mount-source.sh.
+	if ! [[ "$REPO_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+		printf 'main-repo-resolver: FATAL: shared-mode REPO_NAME invalid (basename of parent dir %q); expected ^[A-Za-z0-9._-]+$\n' "$shared_parent" >&2
+		return 1
+	fi
 	export MAIN_REPO WORKTREE_ROOT REPO_NAME
 
 	# Re-derive CONTAINER_WORKDIR against the NEW WORKTREE_ROOT. Do NOT

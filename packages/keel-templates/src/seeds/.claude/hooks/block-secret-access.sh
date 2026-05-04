@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # .claude/hooks/block-secret-access.sh - Story 2.16 PreToolUse hook
 # Story 2.17 Task 7 (L1 install-boundary), Task 8 (settings-file patterns), Task 10.1 D-12..D-35.
+# D-37 (PR #230 multi-vector adversarial review, 2026-05-04): word-boundary mutation-verb
+# alternation + install/ln/sponge additions + redirect-into-protected catch + ANSI-C wrapper-strip.
 set -euo pipefail
 # D-19 — case-insensitive pattern matching across case/regex blocks (defense-in-depth on mixed-case
 # FS bypass: e.g. `cat .ENVRC`, `/HOME/DEV/.claude/...`). Restored before fork-hook invocation.
@@ -67,11 +69,19 @@ block() {
 # D-15 — wrapper-command normalization. Strip outermost wrapper prefix (single level, up to 3 rounds)
 # to defeat `sudo cat /proc/self/environ`, `bash -c 'cat .envrc'`, `/usr/bin/rm .claude/hooks/foo`, etc.
 # Known residual gap: compound commands (`echo safe && rm protected`) evade. Defense-in-depth, not sole.
+# D-37 (PR #230) — added ANSI-C `$'...'` arm so `bash -c $'cat .env'` strips to `cat .env`
+# instead of leaving `$'cat .env'` (which all downstream case-globs miss).
 if [ "$tool_name" = "Bash" ]; then
   normalized="$bash_command"
   for _ in 1 2 3; do
     if [[ "$normalized" =~ ^(bash|sh)[[:space:]]+-c[[:space:]]+[\"\']?(.*)$ ]]; then
       normalized="${BASH_REMATCH[2]}"
+    elif [[ "$normalized" =~ ^\$\'(.*)\'$ ]]; then
+      # D-37 — ANSI-C `$'...'` strip. Common after a bash -c arm consumes the outer wrapper.
+      # Both the leading `$'` and trailing `'` are required so the greedy (.*) leaves the trailing
+      # apostrophe to the anchor — without the mandatory trailing `'` the (.*) gobbles the trailing
+      # quote and downstream case-globs (anchored on `.env` end) miss the resulting `cat .env'`.
+      normalized="${BASH_REMATCH[1]}"
     elif [[ "$normalized" =~ ^sudo[[:space:]]+(.*)$ ]]; then
       normalized="${BASH_REMATCH[1]}"
     elif [[ "$normalized" =~ ^(/usr/bin/|/bin/)(.*)$ ]]; then
@@ -149,29 +159,35 @@ case "$tool_name" in
     if [[ "$bash_command" =~ $no_verify_re ]] || [[ "$normalized" =~ $no_verify_re ]]; then
       block "hook-self-protection" "git-no-verify-bypass"
     fi
-    # D-14/D-35 — hook-self-protection mutation-verb word-boundary anchoring. Each verb must appear
-    # at start-of-command followed by whitespace or EOL; previously bare `rm*` / `cp*` / `dd*`
-    # case-globs FP'd on `rmdir` / `cpio` / `ddrescue`. Regex form `^rm([[:space:]]|$)` tightens.
-    # Runs against $normalized to catch wrapper-prefixed forms (D-15 strips sudo/bash -c/etc.).
+    # D-37 (PR #230) — extended D-14/D-35 verb list to catch pipe-form bypasses + add
+    # install/ln/sponge. Word-boundary now matches verb at start, after whitespace, OR
+    # after a pipe (closes `cat /tmp/x | tee safe.txt > .claude/settings.json` bypass).
+    # Per-verb sub-match names retained for fixture/JSONL back-compat.
     protected_paths_re='(\.claude/settings|\.claude/hooks/|\.git/hooks/)'
     if [[ "$normalized" =~ $protected_paths_re ]]; then
-      if [[ "$normalized" =~ ^rm([[:space:]]|$) ]]; then block "hook-self-protection" "rm-against-protected"; fi
-      if [[ "$normalized" =~ ^mv([[:space:]]|$) ]]; then block "hook-self-protection" "mv-against-protected"; fi
-      if [[ "$normalized" =~ ^chmod([[:space:]]|$) ]]; then block "hook-self-protection" "chmod-against-protected"; fi
-      if [[ "$normalized" =~ ^tee([[:space:]]|$) ]]; then block "hook-self-protection" "tee-against-protected"; fi
-      if [[ "$normalized" =~ ^sed[[:space:]]+(-[a-zA-Z]*[iI]|--in-place) ]]; then block "hook-self-protection" "sed-i-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)rm([[:space:]]|>|$) ]]; then block "hook-self-protection" "rm-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)mv([[:space:]]|>|$) ]]; then block "hook-self-protection" "mv-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)chmod([[:space:]]|>|$) ]]; then block "hook-self-protection" "chmod-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)tee([[:space:]]|>|$) ]]; then block "hook-self-protection" "tee-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]])sed[[:space:]]+(-[a-zA-Z]*[iI]|--in-place) ]]; then block "hook-self-protection" "sed-i-against-protected"; fi
       if [[ "$normalized" =~ ^echo[[:space:]] ]] && [[ "$normalized" =~ \> ]]; then block "hook-self-protection" "echo-redirect-against-protected"; fi
-      if [[ "$normalized" =~ ^cp([[:space:]]|$) ]]; then block "hook-self-protection" "cp-against-protected"; fi
-      if [[ "$normalized" =~ ^truncate([[:space:]]|$) ]]; then block "hook-self-protection" "truncate-against-protected"; fi
-      if [[ "$normalized" =~ ^dd([[:space:]]|$) ]]; then block "hook-self-protection" "dd-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)cp([[:space:]]|>|$) ]]; then block "hook-self-protection" "cp-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)truncate([[:space:]]|>|$) ]]; then block "hook-self-protection" "truncate-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)dd([[:space:]]|>|$) ]]; then block "hook-self-protection" "dd-against-protected"; fi
+      # D-37 — newly-covered verbs (install/ln/sponge) under unified match-name.
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)(install|ln|sponge)([[:space:]]|>|$) ]]; then block "hook-self-protection" "mutation-verb-against-protected"; fi
+      # D-37 — catch ANY redirect into a protected path; defends against unknown future writers.
+      if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?(\.claude/settings|\.claude/hooks/|\.git/hooks/) ]]; then block "hook-self-protection" "redirect-against-protected"; fi
     fi
     # find -delete / find -exec rm against protected paths (regex — free-form find args).
     if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*(\.claude/settings|\.claude/hooks/?|\.git/hooks/?).*(-delete|-exec[[:space:]]+rm) ]]; then
       block "hook-self-protection" "find-delete-against-protected"
     fi
     # Task 7 — L1 install-boundary Bash mutation denial. Path-presence gate short-circuits non-L1.
+    # D-37 (PR #230) — alternation widened with install/ln/sponge to mirror the protected-paths
+    # block above. word-boundary semantics already match pipe-form via prior alternation.
     if [[ "$bash_command" =~ $l1_path_re || "$normalized" =~ $l1_path_re ]]; then
-      if [[ "$normalized" =~ (^|[[:space:]])(rm|mv|chmod|tee|cp|truncate|dd)[[:space:]] ]]; then
+      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)(rm|mv|chmod|tee|cp|truncate|dd|install|ln|sponge)([[:space:]]|>|$) ]]; then
         block "install-boundary-protection" "mutation-verb-against-l1"
       fi
       if [[ "$normalized" =~ (^|[[:space:]])sed[[:space:]]+-i ]]; then
@@ -179,6 +195,9 @@ case "$tool_name" in
       fi
       if [[ "$normalized" =~ (^|[[:space:]])echo.*\> ]]; then
         block "install-boundary-protection" "echo-redirect-against-l1"
+      fi
+      if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?packages/keel-invariants/src/ ]]; then
+        block "install-boundary-protection" "redirect-against-l1"
       fi
       if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*-delete ]]; then
         block "install-boundary-protection" "find-delete-against-l1"
