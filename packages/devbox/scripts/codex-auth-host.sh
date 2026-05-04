@@ -65,9 +65,26 @@ fi
 # mismatch with a `pnpm devbox:restart` hint.
 check_mount_source
 
-log "invoking codex login inside ${CONTAINER_NAME} (first run: complete OpenAI sign-in in host browser; auth persists at /home/dev/.codex/)"
+# `--device-auth` is the load-bearing default for the no-args path: the
+# devbox container has no browser AND no localhost-callback listener path
+# back to the host's browser, so codex's default OAuth flow short-circuits
+# with `On a remote or headless machine? Use 'codex login --device-auth'
+# instead.` and exits non-zero. Device-auth prints a short URL + code that
+# the operator visits on the host browser, completing OAuth out-of-band;
+# the resulting token persists at /home/dev/.codex/auth.json the same way
+# the browser-callback path would. Inject it only on the no-args path so
+# the API-key passthrough (`pnpm codex:auth --api-key sk-...`) the line-17
+# comment promises stays intact — operators passing flags are taking
+# explicit control of the codex login subcommand surface.
+log "invoking codex login --device-auth inside ${CONTAINER_NAME} (visit the printed URL on the host browser; auth persists at /home/dev/.codex/)"
 # No signal trapping — docker exec forwards signals to codex's PID inside
 # the container (Story 2.1 iter-144; Story 2.7 v1.1 PATCH 3).
-exec docker exec -it --user dev -w "${CONTAINER_WORKDIR}" \
-  -e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
-  "${CONTAINER_NAME}" codex login "$@"
+if [[ $# -eq 0 ]]; then
+  exec docker exec -it --user dev -w "${CONTAINER_WORKDIR}" \
+    -e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
+    "${CONTAINER_NAME}" codex login --device-auth
+else
+  exec docker exec -it --user dev -w "${CONTAINER_WORKDIR}" \
+    -e "KEEL_DEVBOX_REPO_NAME=${REPO_NAME}" \
+    "${CONTAINER_NAME}" codex login "$@"
+fi
