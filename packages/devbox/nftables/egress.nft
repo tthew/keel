@@ -107,13 +107,28 @@ table inet keel_egress {
 		# short-circuit during (a) the boot-time-to-first-DNS-reply window
 		# between container start and dnsmasq populating the set, and
 		# (b) catastrophic dnsmasq failure modes (process death / config
-		# corruption) where the set never refills. Three-way ordering is:
-		# static-CIDR → @gh_v4 accept → KEEL_EGRESS_V4_MARKER_START.
+		# corruption) where the set never refills, and (c) the
+		# cache-hit-skips-nftset-add window: dnsmasq only emits `nftset
+		# add` on FORWARDED query→reply paths; cached replies do not
+		# repopulate the set, so a `flush table` (atomic reload) followed
+		# by a cached lookup leaves @gh_v4 empty until the next forward.
+		# Three-way ordering is: static-CIDR → @gh_v4 accept →
+		# operator-injected allow-list (v4 marker region below).
 		# `185.199.108.0/22` (Pages/raw) is intentionally NOT here — Story
 		# 2.3's existing static-pin path covers it via stable-IP host
 		# whitelist (`raw.githubusercontent.com`).
 		ip daddr 140.82.112.0/20 accept comment "Story 2.18 GitHub web/api CIDR fallback (Option B)"
 		ip daddr 192.30.252.0/22 accept comment "Story 2.18 GitHub legacy CIDR fallback (Option B)"
+		# `143.55.64.0/20` is the GitHub git-rotating-IP secondary block
+		# (api.github.com/meta § `git`). Port-scoped to TCP/22 because the
+		# diagnosis isolated github.com:22 specifically; web/api egress
+		# already has the broader `140.82.112.0/20` + `192.30.252.0/22`
+		# any-port rules above. Closes the residual gap when dnsmasq's
+		# positive cache survives a `flush table` and serves a cached
+		# 143.55.64.x answer that was forwarded from 1.1.1.1 prior to the
+		# reload (no `nftset add` fires on cache hits, so @gh_v4 stays
+		# empty for that IP).
+		ip daddr 143.55.64.0/20 tcp dport 22 accept comment "Story 2.18 GitHub git-rotating CIDR fallback (Option B, SSH only)"
 
 		# Story 2.18 — Option A: dynamic accept for IPs dnsmasq has populated
 		# into `gh_v4` via `nftset=` directives (rotating-IP services). The
