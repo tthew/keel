@@ -132,7 +132,7 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     await rm(root, { recursive: true, force: true });
   });
 
-  it('clean baseline: aligned manifest + docs + source returns status: clean', async () => {
+  it('clean baseline: aligned manifest + docs + source produces no canonical drift kinds', async () => {
     const body = 'aligned content\n';
     const root = await makeRepoRoot('# INVARIANTS\n- **`INV-aligned-fixture`** — aligned.\n');
     await writeFile(join(root, 'src.ts'), body);
@@ -155,8 +155,38 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     });
     const { runSyncGate } = await import('../sync-gate.js');
     const report = await runSyncGate(root);
-    expect(report.status).toBe('clean');
-    expect(report.drifts).toEqual([]);
+    // The mocked manifest deliberately doesn't include the real
+    // EXPECTED_INVARIANT_IDS snapshot (the FIX-3 dedicated case below covers
+    // that bypass class). Filter those out to verify the four canonical drift
+    // classes are absent for an aligned manifest+docs+source.
+    const canonical = report.drifts.filter((d) => d.kind !== 'expected-id-missing');
+    expect(canonical).toEqual([]);
+    await rm(root, { recursive: true, force: true });
+  });
+
+  it('expected-id-missing: dropping a manifest entry while EXPECTED_INVARIANT_IDS retains its ID fires fail-closed drift', async () => {
+    // FIX-3 (PR #230 review-fix-arc) — out-of-band fail-closed snapshot
+    // defends against the drop+anchor-remove bypass. An attacker who removes
+    // BOTH a manifest entry AND its INVARIANTS.md anchor in a single commit
+    // silently passes the symmetric drift checks (both for-loops in
+    // runSyncGate skip absent items). The EXPECTED_INVARIANT_IDS snapshot
+    // (in L1-protected sync-gate.ts) closes that bypass: any expected ID
+    // absent from the manifest fires `expected-id-missing` drift.
+    const root = await makeRepoRoot('# INVARIANTS\n');
+    vi.doMock('../manifest-reader.js', async () => {
+      const real =
+        await vi.importActual<typeof import('../manifest-reader.js')>('../manifest-reader.js');
+      return { ...real, invariants: [] };
+    });
+    const { runSyncGate, EXPECTED_INVARIANT_IDS } = await import('../sync-gate.js');
+    const report = await runSyncGate(root);
+    expect(report.status).toBe('drift');
+    expect(EXPECTED_INVARIANT_IDS.length).toBeGreaterThan(0);
+    for (const id of EXPECTED_INVARIANT_IDS) {
+      expect(report.drifts).toContainEqual(
+        expect.objectContaining({ kind: 'expected-id-missing', id }),
+      );
+    }
     await rm(root, { recursive: true, force: true });
   });
 });

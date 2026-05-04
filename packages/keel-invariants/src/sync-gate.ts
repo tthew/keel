@@ -15,6 +15,7 @@ export type DriftKind =
   | 'removed-from-source-only'
   | 'content-hash-mismatch'
   | 'removed-from-docs-only'
+  | 'expected-id-missing'
   | 'git-hook-missing'
   | 'git-hook-shebang-mismatch';
 
@@ -34,6 +35,65 @@ export interface DriftReport {
 }
 
 const ANCHOR_REGEX = /^-\s+\*\*`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)`\*\*/gm;
+
+// FIX-3 (PR #230 review-fix-arc) — out-of-band fail-closed snapshot of stable
+// IDs that MUST appear in invariants.manifest.ts. Closes the bypass class
+// where dropping BOTH a manifest entry AND its INVARIANTS.md anchor in the
+// same commit silently passes the symmetric drift checks (both for-loops in
+// runSyncGate skip absent items, so the protection silently disappears).
+//
+// Maintenance contract: when a new invariant is legitimately added, append
+// its ID here in the same commit that adds the manifest entry. When a
+// legitimate deprecation/replacement happens (rare; AMEND path against
+// docs/invariants/), remove the ID here in the same commit. Editing this
+// file is denied to in-session AI agents by the L1 install-boundary hook
+// (.claude/hooks/block-secret-access.sh — see l1_path_re), so any change
+// to this snapshot must transit human review.
+export const EXPECTED_INVARIANT_IDS: readonly string[] = [
+  'INV-tsconfig-base',
+  'INV-eslint-shared',
+  'INV-prettier-shared',
+  'INV-commitlint-shared',
+  'INV-eslint-import-boundary',
+  'INV-prek-pre-commit-config',
+  'INV-prek-prepare-lifecycle',
+  'INV-prek-commit-msg-config',
+  'INV-no-verify-bypass',
+  'INV-ralph-halt-path-resolution',
+  'INV-ralph-halt-reason-enum',
+  'INV-tokens-schema-contract',
+  'INV-tokens-semantic-rationale',
+  'INV-tokens-source',
+  'INV-tokens-emitter',
+  'INV-tokens-schema-validate',
+  'INV-tokens-contrast-check',
+  'INV-tokens-sync-gate',
+  'INV-release-please-config',
+  'INV-release-please-manifest',
+  'INV-release-please-rationale',
+  'INV-deps-version-pinning',
+  'INV-renovate-rationale',
+  'INV-fork-extension-rationale',
+  'INV-fork-invariants-scaffold',
+  'INV-devbox-dind-available',
+  'INV-devbox-egress-contract',
+  'INV-devbox-homedev-named-volume',
+  'INV-devbox-mode',
+  'INV-devbox-prereq-check',
+  'INV-devbox-ssh',
+  'INV-devbox-healthcheck',
+  'INV-devbox-legacy-branch-retention',
+  'INV-gitignored-secret-commit-deny',
+  'INV-claude-hook-secret-denylist',
+  'INV-claude-hook-secret-denylist-doc',
+  'INV-claude-settings-deny-rules',
+  'INV-claude-settings-seed',
+  'INV-claude-hook-secret-denylist-seed',
+  'INV-git-hooks-preservation-enumeration',
+  'INV-git-hooks-preservation',
+  'INV-package-test-coverage-floor',
+  'INV-fr14i-ci-workflow-presence',
+] as const;
 
 export async function readAnchors(repoRoot: string): Promise<Set<string>> {
   const content = await readSourceFile(resolve(repoRoot, 'INVARIANTS.md'));
@@ -102,6 +162,19 @@ export async function runSyncGate(repoRoot: string): Promise<DriftReport> {
   const manifestIds = new Set<string>();
   for (const entry of invariants) {
     manifestIds.add(entry.id);
+  }
+
+  // FIX-3 — out-of-band fail-closed snapshot. Any EXPECTED_INVARIANT_IDS entry
+  // missing from the manifest fires drift even if the corresponding
+  // INVARIANTS.md anchor was also dropped. Defends against drop+anchor-remove
+  // bypass class.
+  for (const expectedId of EXPECTED_INVARIANT_IDS) {
+    if (!manifestIds.has(expectedId)) {
+      drifts.push({
+        kind: 'expected-id-missing',
+        id: expectedId,
+      });
+    }
   }
 
   // Compute one hash per entry (entries may share sourcePath but have distinct hashScopes).

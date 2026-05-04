@@ -2,7 +2,7 @@
 
 ## NOW
 
-- [ ] FIX-3: sync-gate.ts manifest-removal — expected-IDs snapshot so dropping entry + INVARIANTS.md anchor fails closed. **L1-protected**. ~medium
+- [ ] Monitor PR #230 CI on FIX-3 push — queue fix tasks for any failures; advance to FIX-4 if green.
 
 ## QUEUE (Epic 2 PR #230 review-fix-arc; landing-summary `IC_kwDOSAH0488AAAABBMCAuQ`)
 
@@ -28,6 +28,7 @@
 - [iter-pr230-monitor-fix-1] CI green at `a4c7bad` (4/4 SUCCESS: node x2 ~40s, python x2 ~11s). Local `8b600f4` IP-advance staged for co-push with FIX-2 to avoid CI retrigger (RALPH.md `Monitor-bookkeeping-loop-break`).
 - [iter-pr230-fix-2] FIX-2 landed: Bash-arm verb-gated token-scan + per-token `readlink -f` mirroring D-22 Read-arm. Closes `cat /tmp/symlink-to-/home/dev/.claude/x` bypass class. 6 new match-strings under `secret-access-denylist`: `bash-resolved-to-{oauth-token,ssh-key,proc-environ,env-file,envrc-file,secrets-file}`. `[ -L ]` per-token gate keeps cost bounded (typical command 0 hits). Substrate + seed byte-parity preserved (manifest hash `8b10e266 → 8350baf2` in lockstep). New positive fixture `secret-access-denylist-bash-resolved-to-oauth-token.sh` builds /tmp symlink → asserts block. Local edge-probe 13/13: canonical/quoted-double/quoted-single/chained/piped/symlink-to-ssh/symlink-to-env-file all block; `[ -L ]` gate correctly approves broken-symlink + non-symlink-token. Known residual: symlink path inside interpreter-string-literal (`python3 -c "open('$SL').read()"`) — symlink is buried inside script-token, not exposed at top-level; out-of-scope per FIX-2 spec (canonical example was raw `cat /tmp/symlink-to-secret`). Hook fixture suite 82/82; typecheck 16/16; lint 16/16; vitest 52/52.
 - [iter-pr230-monitor-fix-2] CI green at `14f875e` (4/4 SUCCESS: node x2 ~45-53s, python x2 ~11-12s). 11 unresolved threads remain (8 landed-ready + 3 deferred-fix pending FIX-3..5). IP-advance staged for co-push with FIX-3 to avoid CI retrigger (RALPH.md `Monitor-bookkeeping-loop-break`).
+- [iter-pr230-fix-3] FIX-3 landed: `EXPECTED_INVARIANT_IDS` out-of-band fail-closed snapshot in L1-protected `packages/keel-invariants/src/sync-gate.ts` (43 IDs at landing). Closes drop+anchor-remove bypass class — attacker who drops both the manifest entry AND its INVARIANTS.md anchor in one commit no longer slips through the symmetric for-loops; `expected-id-missing` drift fires. New `DriftKind = 'expected-id-missing'`; check loop in `runSyncGate` after `manifestIds` build. Maintenance contract: legitimate add/remove must touch `EXPECTED_INVARIANT_IDS` in same commit; L1 hook denies in-session AI agent edits, so changes transit human review. Test: dedicated `expected-id-missing` integration case in `__tests__/sync-gate.test.ts` (mocks empty `invariants` array; asserts every snapshot ID surfaces drift). Existing `clean baseline` test relaxed to filter `expected-id-missing` (mocked manifests can't include the real snapshot; canonical drift kinds remain absent assertion is what the test means). Gates: typecheck 16/16, lint 16/16, vitest 53/53 (was 52, +1 dedicated FIX-3 test), `pnpm keel-invariants:check-all` clean against real 43-entry manifest. Sync-gate.ts is NOT itself manifest-tracked, so no contentHash bump required.
 
 ## Context
 
@@ -37,7 +38,7 @@
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent)._
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `14f875e` (FIX-2 push retrigger SUCCESS). 11 unresolved threads remaining (8 landed close-out + 3 DEFERRED-fix pending FIX-3..5).
+- **PR:** #230 Open, MERGEABLE=CLEAN, CI green at `14f875e` pre-FIX-3 push. 10 unresolved threads expected after FIX-3 push lands (`PRRT_kwDOSAH0485_ell8` resolves under FIX-3); 7 deferred close-out + 2 deferred-fix pending FIX-4..5.
 
 ### Recipe references
 
