@@ -170,6 +170,13 @@ case "$tool_name" in
     # install/ln/sponge. Word-boundary now matches verb at start, after whitespace, OR
     # after a pipe (closes `cat /tmp/x | tee safe.txt > .claude/settings.json` bypass).
     # Per-verb sub-match names retained for fixture/JSONL back-compat.
+    # WONTFIX (PR #230 D1) — substring-co-occurrence FP: any mutation verb (tee/cp/mv/...)
+    # blocks if a protected substring appears anywhere in $normalized, even when the verb
+    # does NOT target the protected path (e.g. `grep .claude/settings docs.md | tee
+    # /tmp/notes.txt`). Verb-target binding would require shell-arg parsing per verb;
+    # the conservative stance is paid for by the FP cost. Operators should reach for the
+    # Read/Edit tools for legitimate access. ⊗ Do NOT narrow $protected_paths_re to "fix"
+    # this — the FP cost is by design.
     protected_paths_re='(\.claude/settings|\.claude/hooks/|\.git/hooks/)'
     if [[ "$normalized" =~ $protected_paths_re ]]; then
       if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)rm([[:space:]]|>|$) ]]; then block "hook-self-protection" "rm-against-protected"; fi
@@ -257,6 +264,12 @@ case "$tool_name" in
     # trailing-`*` permissive semantics — they already tolerated quote/pipe trailing).
     secret_left_re='(^|[[:space:]"'\''(/|&;<>:=\])'
     secret_right_re='([[:space:]"'\''()|&;<>:=\]|$)'
+    # WONTFIX (PR #230 D2) — quoted-literal FP: `echo "docs mention printenv"` blocks
+    # because the regex sees the raw command string without parsing shell quoting. A
+    # quote-stripping pre-pass (`sed -E 's/"[^"]*"//g'`) re-introduces the leading-
+    # `printenv` bypass via embedded-quote ambiguity in nested forms. Operators should
+    # use the Read tool to consult documentation rather than echoing literal `printenv`
+    # strings. ⊗ Do NOT add quote-stripping.
     # printenv idiom — token-boundary on both sides (closes pipe-form `cmd | printenv`).
     printenv_re='(^|[^A-Za-z0-9_/.-])printenv([^A-Za-z0-9_/.-]|$)'
     if [[ "$normalized" =~ $printenv_re ]]; then
@@ -267,6 +280,12 @@ case "$tool_name" in
     if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re ]]; then
       oauth_dir_re="${secret_left_re}(/home/dev/\.claude/|/home/dev/\.config/gh/|~/\.claude/|~/\.config/gh/)"
       ssh_dir_re="${secret_left_re}(/home/dev/\.ssh/|~/\.ssh/)"
+      # WONTFIX (PR #230 D3) — interpreter string-literal FP: `python3 -c 'print(".env")'`
+      # blocks because any `.env` token under an interp verb fires the gate. Allow-listing
+      # read-API call sites (open / readFileSync / read_text / require / dynamic forms) is
+      # bypass-prone — `__import__('builtins').open`, `eval('o' + 'pen')`, `getattr(io,
+      # 'open')` trivially defeat any allowlist. Conservative stance preserved by design;
+      # operators should use the Read tool for actual reads. ⊗ Do NOT add a read-API allowlist.
       env_file_re="${secret_left_re}\.env(\.[A-Za-z0-9_.-]*)?${secret_right_re}"
       envrc_file_re="${secret_left_re}\.envrc"
       secrets_file_re="${secret_left_re}\.secrets"
