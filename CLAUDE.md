@@ -20,6 +20,10 @@ There is no build/test/lint suite yet (nothing to build). The operational surfac
 | Run Ralph in build mode           | `uv run ralph.py build [N]`                                     |
 | Ralph with custom timeout         | `uv run ralph.py --timeout 30m`                                 |
 | Stop the Ralph loop               | `echo '{"reason":"EPIC_DONE",...}' > "$RALPH_BASE_DIR/halt"`    |
+| Run all tests                     | `pnpm test`                                                     |
+| Run typecheck                     | `pnpm typecheck`                                                |
+| Run lint                          | `pnpm lint`                                                     |
+| Run Python tests                  | `uv run pytest`                                                 |
 
 Ralph writes session logs to `$RALPH_BASE_DIR/logs/` (gitignored). `$RALPH_BASE_DIR/halt` is the halt sentinel (also gitignored). `RALPH_BASE_DIR` is exported by `ralph.py` to every subprocess and resolves to the worktree's `.ralph/` directory when `--worktree X` is set (or cwd-relative `.ralph/` otherwise). See [docs/ralph.md](./docs/ralph.md#halt-path-resolution) for the resolver + invocation-mode table.
 
@@ -71,9 +75,13 @@ When you discover something new during a session:
 - **Skills are slash commands.** Anything under `.claude/skills/<name>/SKILL.md` is invocable as `/<name>`. Use `/bmad-help` to pick the right one for the current phase.
 - **One skill per context window.** BMad skills assume a clean context. Start a fresh conversation for each.
 - **Memory.** BMad agent sidecar memory lives in `_bmad/_memory/`. Claude Code user-level memory lives outside this repo (`~/.claude/...`). Don't persist transient task state to either.
-- **Don't touch `.claude/settings.local.json`** — it's user-specific and gitignored.
+- **Committed settings at `.claude/settings.json`** — tracked permission policy (`permissions.deny` + `permissions.allow`) per NFR5a. See `AGENTS.md § Claude Code settings policy (Story 2.15)` for the fork-extension honour system. Don't edit to weaken the deny list — Story 2.17's content-hash sync-gate will flag tampering once landed.
+- **Don't touch `.claude/settings.local.json`** — it's user-specific and gitignored. Local allow rules extend but cannot weaken committed deny rules (see `AGENTS.md § Claude Code settings policy (Story 2.15)` for resolution semantics).
+- **Hook script at `.claude/hooks/block-secret-access.sh`** — Claude PreToolUse hook denies secret-access + hook-self-protection patterns regardless of permission mode (Story 2.16 substrate; the Ralph-path defense per NFR5a/NFR5b). Don't tamper with hook scripts or the settings hooks-block in-session — both Edit/Write + Bash mutations are denied. See `AGENTS.md § Claude PreToolUse hooks (Story 2.16)`.
+- **Hook + settings bypass-resistance (Story 2.17)** — git-layer sync-gate + content-hash manifest backstop detect tampering of the Story 2.16 in-session hook + Story 2.15 deny rules at commit/pre-merge time (the out-of-session leg of NFR5a/NFR5b). Don't tamper with `.claude/settings.json` hooks-block or `packages/keel-invariants/src/invariants.manifest.ts` in-session — the git-layer sync-gate + `install-boundary-protection` rule will catch it. See `AGENTS.md § Hook + settings bypass-resistance (Story 2.17)`.
 - **Don't invent skills.** Only invoke skills listed in the Claude Code `available-skills` block or explicitly typed as `/<name>` by the user.
 - **Worktrees.** If you're running inside a worktree under `.claude/worktrees/` (gitignored), never clean it up on exit — the worktree preserves WIP for the next iteration.
+- **Verify second-opinion outputs — never trust `codex` or sub-agent claims at face value.** When using `codex exec`, sub-agents (Explore, Plan, general-purpose, BMad-\*), or any other AI tool as a sparring partner, treat their output as a _hypothesis_ to be proven or disproven, not as truth. For every claim made (a finding, a line reference, a bug, a "verified" fix), independently validate by reading the actual code with the `Read` tool, running the actual command via `Bash`, or grepping for the actual symbol — and arrive at your own conclusion. False-positive findings and false-negative confirmations are both common failure modes. See `AGENTS.md § How to work here` rule 6 for the canonical statement.
 
 ## Git / PR conventions
 

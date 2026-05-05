@@ -22,7 +22,7 @@ Eight ordered, non-skippable steps executed before any work:
 5. Search application source with Sonnet subagents (≤ 1 Sonnet subagent for any build/test/lint command — FR14c backpressure).
 6. Verify budget headroom per NFR4b (≥ 25K remaining; decompose if XL ≥ 60K; exit on context-exhaustion signals).
 7. Read native Claude Code task list — in-flight tasks are crash-journal signals.
-8. If PR exists, check `gh pr checks` — any in-progress/pending routes to CI monitoring (FR14i pre-push gate).
+8. If PR exists, check `gh pr checks` — any in-progress/pending routes to CI monitoring (FR14i pre-push gate). FR14i operates non-vacuously when `INV-fr14i-ci-workflow-presence` is green; see `INVARIANTS.md` § Activated FR14i pre-push CI gate (Story 1.20).
 
 ## Execute rules
 

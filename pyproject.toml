@@ -1,0 +1,31 @@
+[project]
+name = "keel-python"
+version = "0.0.0"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.0.3",
+    "pytest-asyncio==1.3.0",
+    "ruff==0.15.12",
+    "mypy==1.20.2",
+    "textual==8.2.4",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = [
+    "packages/devbox/tui/tests",
+    "scripts/tests",
+    "tests",
+]
+pythonpath = [
+    ".",
+    "packages/devbox",
+    "scripts",
+]
+addopts = "-ra --strict-markers"
+asyncio_mode = "strict"

@@ -391,3 +391,7 @@ All gates FULL TURBO on FIRST call (Task 2's commit touched only `_bmad-output/`
 
 - `_bmad-output/implementation-artifacts/sprint-status.yaml` — flipped `1-5-conventional-commit-enforcement-via-commitlint-prek: ready-for-dev → done`; bumped `last_updated: 2026-04-19 22:10 UTC`.
 - `_bmad-output/implementation-artifacts/1-5-conventional-commit-enforcement-via-commitlint-prek.md` — Status `ready-for-dev → done`; Task 3 subtasks marked `[x]`; Task 3 Debug Log entry added; File List extended.
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 1-5](./test-debt.md#story-1-5) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

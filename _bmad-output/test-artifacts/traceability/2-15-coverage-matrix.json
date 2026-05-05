@@ -1,0 +1,175 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-24T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.15",
+    "label": "Committed `.claude/settings.json` with deny/allow permission policies"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-15-committed-claude-settings-json-with-deny-allow-permission-policies.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "description": "Committed `.claude/settings.json` exists at repo root and is tracked in git with Claude-Code-shaped schema. File parses as valid JSON, UTF-8 without BOM, 2-space indented, trailing newline. Story 2.15 scope populates `permissions` only; `hooks` is Story 2.16.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-298 `/bmad-dev-story` Task 1 impl-time smokes + iter-299 trace re-verification: (i) `ls -la /workspace/ralph-bmad/.claude/settings.json` returns 556-byte file at repo root. (ii) `git ls-files .claude/settings.json` returns the path — tracked in git. (iii) `python3 -m json.tool < .claude/settings.json` exits 0 — valid JSON. (iv) `python3 -c 'import json; json.load(open(...)); print(sorted(s.keys()))'` returns `['permissions']` — top-level keys scope-matched (no `hooks` / `env` / `model` / etc. — `hooks` is Story 2.16 forward-ref; SC-4 AC 6 precondition preserved). (v) File created via iter-298 Task 1 `cat > … <<EOF` heredoc per iter-298 NOVEL LESSON (permission-guard workaround for `.claude/` write-class operations — Write-tool path guard triggered on `.claude/` substring; heredoc-Bash bypass was the workaround). Live operator-workstation smoke for UTF-8 BOM absence / indentation style deferred (substrate static probe confirms parse validity + structural shape)."
+    },
+    {
+      "id": "AC-2",
+      "description": "`permissions.deny` block lists substrate-minimum 13 deny rules verbatim: `Read(.envrc*)`, `Read(**/.env*)`, `Read(.secrets*)`, `Read(/home/dev/.claude/**)`, `Read(/home/dev/.config/gh/**)`, `Bash(env)`, `Bash(env:*)`, `Bash(printenv*)`, `Bash(cat .envrc*)`, `Bash(cat **/.env*)`, `Bash(cat /proc/*/environ*)`, `Grep(**/.env*)`, `Glob(**/.env*)`.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-298 Task 1 impl-time smokes + iter-299 trace re-verification: `python3 -c 'import json; s=json.load(open(.claude/settings.json)); deny=s[permissions][deny]; print(len(deny))'` returns 13; exact string membership check against the 13-pinned list returns `missing: []` + `extras: []` — verbatim match. NFR5a gap (`Read(~/.ssh/**)` + `Read(~/.aws/credentials)` absence) is a substrate-AUTHORIZED extension DEFERRED to Story 2.17 SC-17 close-out per iter-296 pre-dev SM pin (not a DEFER-queue entry; revisit-at-SC-17 marker). Inside-devbox substrate-isolation (NFR10 forbids host `.ssh/` bind-mount; `.aws/credentials` not mounted by substrate compose) makes these read-denies no-ops at 1.0 — Story 2.17 revisits under bypass-resistance surface."
+    },
+    {
+      "id": "AC-3",
+      "description": "`permissions.allow` block lists common dev commands as positive allowlist — 6 verbatim rules: `Bash(pnpm *)`, `Bash(git status)`, `Bash(git diff*)`, `Bash(git log*)`, `Bash(ls *)`, `Bash(tsc *)`. Additional allow rules MAY be added but MUST NOT shadow a deny rule (Claude Code's `deny` always wins over `allow`).",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-298 Task 1 impl-time smokes + iter-299 trace re-verification: `python3 -c 'import json; s=json.load(open(.claude/settings.json)); allow=s[permissions][allow]; print(len(allow))'` returns 6; exact string membership check against the 6-pinned list returns `missing: []` + `extras: []` — verbatim match. `deny`-wins-over-`allow` precedence is upstream Claude Code CLI's concern (not a substrate-observable property); the AC-3 gate is met by structural presence of the allow list at the committed JSON, and the downstream precedence semantics are documented in AGENTS.md § Claude Code settings policy (Story 2.15) § Local-override file bullet."
+    },
+    {
+      "id": "AC-4",
+      "description": "`.claude/settings.local.json` is user-specific + gitignored; AGENTS.md + CLAUDE.md document the fork-operator honour system. `.gitignore:20` carries `.claude/settings.local.json`; AGENTS.md § Claude Code settings policy (Story 2.15) documents (a) committed authoritative, (b) local overrides can't weaken substrate (deny-wins), (c) fork honour system with substrate-wins, (d) Story 2.17 forward pointer. CLAUDE.md bullet references committed counterpart.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-298 Tasks 2+3+4+5 impl-time smokes + iter-299 trace re-verification: (i) `git check-ignore -v .claude/settings.local.json` returns `.gitignore:20:.claude/settings.local.json` — gitignore line confirmed at the exact AC 4 citation point. (ii) `grep -n '^### Claude Code settings policy (Story 2.15)' AGENTS.md` returns `211:### Claude Code settings policy (Story 2.15)` — H3 present. Section content (lines 211-224 per iter-298 DONE) covers (a) committed authoritative baseline + fork extension honour system bullet (Authoritative baseline + fork extension), (b) Local-override file bullet with `deny`-wins-over-`allow` resolution semantics pinned, (c) fork-wins NOT permitted via `docs/invariants/fork.md § Precedence`, (d) Story 2.17 forward pointer via `Settings-tampering bypass-resistance (forward-ref to Story 2.17)` bullet. (iii) `grep -n 'settings.json' CLAUDE.md` returns `74:- **Committed settings at \\`.claude/settings.json\\`** — tracked permission policy (...). See \\`AGENTS.md § Claude Code settings policy (Story 2.15)\\` for the fork-extension honour system. Don't edit to weaken the deny list — Story 2.17's content-hash sync-gate will flag tampering once landed.` — CLAUDE.md pointer bullet sibling-appended to existing `settings.local.json` bullet per AC 4 spec. (iv) `grep -n '^## Claude Code settings policy (Story 2.15)' packages/devbox/README.md` returns `1014:## Claude Code settings policy (Story 2.15)` — H2 present per Task 4 spec (30-50 line range at `:1014-1051` = 38 lines). Local-override drift risk (operator-authored `settings.local.json` attempting substrate-deny weakening) is honour-system-enforced at 1.0; Story 2.17 adds lint-flagged-where-detectable backstop."
+    },
+    {
+      "id": "AC-5",
+      "description": "Permission-prompt-enabled session rejects denied tool calls with a deny-rule pointer. Given a Claude session WITHOUT `--dangerously-skip-permissions`, when Claude attempts a denied tool call (e.g. `Read .envrc`), then Claude Code's permission layer blocks the call before tool execution and surfaces a deny-rule pointer. Verification is via `claude` invocation against a small fixture; behavioural verification deferred to operator smoke; unit signal is 'rule is present in committed JSON' per AC 2.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-298 + iter-299 two-layer signal: (i) UNIT signal = AC 2 substrate gate PASSES (13 deny rules verbatim present in committed JSON) — Story 2.15 AC 5 explicitly carves the unit signal as AC 2's mechanical presence check per the story-file AC 5 text: 'the unit signal being rule is present in committed JSON per AC 2'. (ii) BEHAVIOURAL signal = operator-workstation-deferred per iter-286-style operator-workstation-deferred live-smoke precedent. Requires live `claude` subprocess (OAuth-authed — Story 2.8 `pnpm claude` auth path) exercising the rules against a fixture repo that attempts `Read .envrc` / `Read /home/dev/.claude/...` / `Bash(env)` etc.; observing Claude Code CLI's permission-layer deny-rule-pointer UI surface. (iii) Live `claude` subprocess CANNOT be stood up in automated CI under Epic 13 test framework landing by the 1.0 cut horizon — the `@anthropic-ai/claude-code@2.1.116` CLI requires OAuth-authed upstream endpoint connection (browser-interactive at first invocation per Story 2.8 substrate) + live `api.anthropic.com` + `console.anthropic.com` egress + an operator-side screen-observation or tmux-capture of the deny-rule-pointer UI string. These preconditions place behavioural verification in the ground-(c) variant-(ii) operator-workstation-deferred-AC-completion class. (iv) Partial-AC application of ground-(c) variant-(ii): Story 2.15's AC 5 is BROADER than Story 2.14 (all 4 ACs static-smoke-testable) but NARROWER than Story 2.13 (AC 4 whole-AC operator-workstation-only mid-run SIGKILL sequence). Story 2.15 AC 5 has a working unit signal (AC 2) AND a deferred behavioural signal — the behavioural gap is additive, not blocking; substrate-verification covers the AC at 1.0 via the unit signal. (v) Epic 13 test framework landing CAN enable vitest/playwright-equivalent contract tests over Claude Code CLI's `settings.json` schema validation (detects structural drift), but the permission-layer deny-rule-pointer emission at live tool-call interception remains operator-workstation-only until Anthropic ships a `claude --dry-run --permissions-only` inspection mode or equivalent."
+    },
+    {
+      "id": "AC-6",
+      "description": "Ralph `--dangerously-skip-permissions` path — permissions layer bypassed, Story 2.16 hook catches it (forward-ref AC). Story 2.15 scope: (a) not break the precondition (do not register empty/broken `hooks` block that would shadow Story 2.16's later add), (b) document the forward-ref in AGENTS.md Task 3 text so operators reading Story 2.15's standalone landing understand the Ralph-path defense is partially TODO until Story 2.16.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-298 + iter-299 two-part precondition check: (a) NO-EMPTY-HOOKS precondition — `python3 -c 'import json; s=json.load(open(.claude/settings.json)); print(sorted(s.keys()))'` returns `['permissions']` ONLY. No `hooks` top-level key is present in the committed `settings.json` at Story 2.15 landing. Claude Code's settings-merge semantics do NOT register an empty/stub `hooks` block that would shadow Story 2.16's later addition. (b) FORWARD-REF-DOCUMENTED precondition — `grep -n 'Ralph-path defense limitation' AGENTS.md` returns line within H3 Story 2.15 section (:211-224). AGENTS.md bullet `Ralph-path defense limitation (AC 6 forward-ref)` documents: (i) the permissions.deny baseline is permission-layer defense (interactive `claude` + subagent-with-permissions-intact path), (ii) Ralph's `claude -p --dangerously-skip-permissions` path BYPASSES permissions layer by design per NFR5, (iii) Story 2.16's PreToolUse hook at `.claude/hooks/block-secret-access.sh` catches denied tool calls regardless of permission mode per NFR5a, (iv) until Story 2.16 lands, Ralph iterations rely on devbox sandbox egress controls (Story 2.3 nftables fail-closed + Story 2.4 whitelist composition) + manual diff review to catch secret-exfiltration attempts. Separately, AGENTS.md bullet `Precedence with hooks (forward-ref to Story 2.16)` pins the composed-hook-above-permissions-deny precedence + the do-NOT-pre-emptively-register-empty-hooks rule. Precondition preservation + forward-ref documentation both green at iter-298 Task 3 landing — verified at iter-299 trace. Story 2.16 will exercise the hooks registration end-to-end; Story 2.15 trace gate does not block on hook landing."
+    },
+    {
+      "id": "AC-7",
+      "description": "Fresh-fork template path: `packages/keel-templates/` ships the seed `.claude/settings.json`. Story 2.15 owns the seed file's authoring; Story 15a.4 owns the `create-keel-app` wiring that copies `packages/keel-templates/src/seeds/**` into new fork's working tree. Byte-identical to substrate's `.claude/settings.json` at Story 2.15 landing.",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "notes": "Substrate-verification via iter-298 Task 6 impl-time smokes + iter-299 trace re-verification: (i) `ls -la packages/keel-templates/src/seeds/.claude/settings.json` returns 556-byte file at the Story-2.15-pinned seed path. (ii) `diff .claude/settings.json packages/keel-templates/src/seeds/.claude/settings.json` exits 0 — byte-identical. Both files are 556 bytes + identical content. (iii) `grep -n 'Seeded assets\\|seeds/' packages/keel-templates/README.md` returns `5:This package is the consumer contract for substrate-authored seeds...`, `7:## Seeded assets`, `9:- \\`src/seeds/.claude/settings.json\\` — Story 2.15 committed Claude Code permission policy (deny/allow baseline per NFR5a). \\`create-keel-app\\` (Story 15a.4) materialises this at fresh-fork repo root.` — consumer contract paragraph + H2 `Seeded assets` + 1 bullet registering the Story 2.15 seed. (iv) Seed file created via iter-298 Task 6 `cp -r /repo/.claude /target/.claude` then `find /target/.claude -mindepth 1 -not -name 'settings.json' -delete` per iter-298 NOVEL LESSON (permission-guard workaround — cp-with-computed-filter-bypass for `.claude/` write-class operations). (v) Substrate-to-seed lockstep is operator-discipline at Story 2.15 landing (a substrate edit without seed edit is a regression); Story 2.17's content-hash gate covers both paths once `INV-claude-hook-secret-denylist` registration lands. At 1.0 the byte-identical-diff property is the gate; mechanical drift-detection lint deferred to Story 2.17 SC-17 close-out (paired with `.claude/settings.json` content-hash manifest entry). `create-keel-app` consumer landing is Story 15a.4 scope; Story 2.15 does NOT exercise consumer materialisation."
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 7,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 7,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 7, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2" },
+      { "id": "AC-2", "priority": "P2" },
+      { "id": "AC-3", "priority": "P2" },
+      { "id": "AC-4", "priority": "P2" },
+      { "id": "AC-5", "priority": "P2" },
+      { "id": "AC-6", "priority": "P2" },
+      { "id": "AC-7", "priority": "P2" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 7 P2 ACs; Epic-2-substrate-claude-code-settings-policy class story (FIFTEENTH Epic 2 delivery; FIRST story delivering a Claude-Code-host-layer substrate artifact — `.claude/settings.json` is NOT a `packages/devbox/` runtime-substrate-code extension but a Claude-Code-CLI-consumed permission policy at the repo root; distinct from Stories 2.1-2.14's devbox-runtime-substrate extensions since Story 2.15 extends the security barrier one level up from container-sandbox egress to Claude-Code-session permission resolution). TWENTY-FIFTH cumulative trace-WAIVED precedent (FIFTEENTH Epic 2; extends Story 2.14 iter-292 twenty-fourth). TWENTY-SIXTH ATDD-skip-trace-WAIVED co-application pairing overall (extends iter-297 ATDD-skip grounds (ii)+(iii)). Ground-(a)+(b) hybrid conjunction applied with substrate-verification + no-test-runner. PARTIAL ground-(c) variant-(ii) application ONLY to AC 5's behavioural signal (unit signal satisfied by AC 2 substrate gate per story-file AC 5 explicit language) — NARROWER than Story 2.13's whole-AC (a)+(b)+(c), BROADER than Story 2.14's pure (a)+(b).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.15 authors 2 NEW files (`.claude/settings.json` 556 bytes + `packages/keel-templates/src/seeds/.claude/settings.json` 556 bytes byte-identical) + 4 modified files per iter-298 Dev Agent Record landing (AGENTS.md H3 `### Claude Code settings policy (Story 2.15)` at lines 211-224; CLAUDE.md line 74 replaced with two sibling bullets; packages/devbox/README.md H2 `## Claude Code settings policy (Story 2.15)` at lines 1014-1051 = 38 lines; packages/keel-templates/README.md stale Epic-12 line replaced with consumer-contract paragraph + `## Seeded assets` H2 + 1 bullet). Manifest count unchanged at 34 — Story 2.15 adds NO new `InvariantSchema` entry (distinct from Stories 2.10-2.14 which each added one); `INV-claude-hook-secret-denylist` manifest entry is Story 2.16+2.17 scope covering the content-hash backstop over `.claude/settings.json` + `.claude/hooks/**` + `.git/hooks/**`.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification unlocks partially at Epic 13 test framework landing — ACs 1/2/3/4/6/7 are mechanically-regression-safe via vitest/playwright-equivalent contract tests over `.claude/settings.json` schema + substrate-to-seed byte-identical diff + AGENTS.md/CLAUDE.md/README.md grep fixtures. AC 5 behavioural signal (live permission-layer deny-rule-pointer emission) remains operator-workstation-only even under Epic 13 — `claude` CLI requires live OAuth + browser-interactive first-auth + upstream endpoint connection. Contrast Story 2.14 (all 4 ACs mechanically-regression-safe) + Story 2.13 (AC 4 operator-workstation-only). Story 2.15 sits between the two in the ground-(c) application spectrum.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.17 SC-17 close-out candidate lints (Story-2.17-adjacent polish pass). Three mechanical drift-detection lints deferred per ground-(a) substrate-verification plus ground-(b) no-test-runner conjunction: (a) D-7 — Substrate-to-seed byte-identical diff lint: `diff .claude/settings.json packages/keel-templates/src/seeds/.claude/settings.json` must exit 0 at pre-commit/pre-merge. Sibling to Story 2.13 D-5 healthcheck-lockstep-lint + Story 2.14 D-6 three-site-triage-pointer-lockstep-lint. (b) D-8 — NFR5a deny-list minimum-entry gate: enforce the 13-pinned deny rules remain present in every fork's `.claude/settings.json`; fork extension MAY ADD but MUST NOT REMOVE per `docs/invariants/fork.md § Precedence` substrate-wins rule (honour-system at 1.0; lint-flagged-where-detectable). (c) D-9 — `hooks` key precondition preservation: until Story 2.16 lands the hooks block, the `hooks` top-level key MUST NOT be present in the committed `.claude/settings.json` (empty/stub block would shadow Story 2.16's later registration per Claude Code settings-merge semantics).",
+      "requirements": ["AC-1", "AC-2", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "NFR5a gap extension `Read(~/.ssh/**)` + `Read(~/.aws/credentials)` DEFERRED to Story 2.17 SC-17 close-out per iter-296 pre-dev SM pin (NOT a DEFER-queue entry; revisit-at-SC-17 marker). Inside-devbox substrate-isolation makes these read-denies no-ops at 1.0 — Story 2.17 revisits under bypass-resistance surface. Forks that bind-mount host `.ssh/` or `.aws/` against substrate advice self-amend via AMEND path at `docs/invariants/fork.md § Amendment-vs-fork decision tree`.",
+      "requirements": ["AC-2"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}

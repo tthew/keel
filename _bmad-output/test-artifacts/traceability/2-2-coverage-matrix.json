@@ -1,0 +1,234 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-21T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.2",
+    "label": ".envrc parameterisation contract"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-2-envrc-parameterisation-contract.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "packages/devbox/.envrc.example enumerates every KEEL_DEVBOX_* knob with M4-Pro reference defaults and inline comments",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/.envrc.example authored iter-148 — 14-line block-comment header + 5 grouped knob sections + 6th substrate-knob section (KEEL_DEVBOX_CONTAINER_NAME + KEEL_DEVBOX_WORKSPACE) for complete fork-retune surface. Present at iter-149 trace time (3601 bytes).",
+        "Every AC 1 knob enumerated: KEEL_DEVBOX_ARCH, CPUS, MEMORY_GB, SHM_GB, NOFILE, TMPFS_TMP_MB, TMPFS_VARTMP_MB, TMPFS_LOGS_MB, PORT_{WEB,API,STORYBOOK,VITE_HMR}, SSH, SHARED — defaults match architecture.md:275-295 §I5 verbatim with _MB naming adjustment per AC 1 scope-clarification.",
+        "File-header block names I5 handoff + NFR8a retunability + M4-Pro baseline + copy-seed flow + README § Retuning cross-ref per AC 1 header contract."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "packages/devbox/docker-compose.yml uses env_file: ../../.envrc and references every tunable via ${KEEL_DEVBOX_*}",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "docker compose -f packages/devbox/docker-compose.yml config exits 0 at iter-149 trace time with resolved defaults: cpus: 8, mem_limit: 12884901888 (12 GB), shm_size: 2147483648 (2 GB), platform: linux/arm64, nofile.soft/hard: 65536, 4 ports with host_ip: 127.0.0.1 (loopback-bound).",
+        "env_file: [path: ../../.envrc, required: false] block preserved from Story 2.1 (I6 contract from architecture.md:299-304) — devbox parses pre-Story-2.2 without .envrc present.",
+        "Non-swarm canonical form used (cpus:, mem_limit:, shm_size:, ulimits.nofile.*, platform:, ports: at service level) — NOT deploy.resources.limits.* per iter-146 fix #3.",
+        "Knob-alignment diff (comm -23 compose envrc-example) returns empty (every compose-referenced knob in .envrc.example); reverse direction returns only the expected tmpfs trio (Story 2.5 consumer) — structural invariant that .envrc.example is a complete compose-retune surface plus tmpfs forward-compat."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "Fork operator retunes by editing .envrc + pnpm devbox:restart; new value takes effect without PRD amendment (NFR8a)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "Override verification LIVE at iter-149: KEEL_DEVBOX_MEMORY_GB=16 KEEL_DEVBOX_CPUS=4 docker compose config | grep -E 'mem_limit|cpus:' → 'cpus: 4' + 'mem_limit: \"17179869184\"' (= 16 GB). The docker compose config rendering expands ${KEEL_DEVBOX_*} substitutions at pre-daemon YAML-time — no container start required.",
+        "packages/devbox/README.md § Retuning section documents the retune flow (cp → direnv allow → edit → pnpm devbox:restart OR raw docker compose down+up) with cross-ref to §I5 + NFR8a.",
+        "pnpm devbox:restart is Story 2.6 deliverable; Story 2.2 verifies via equivalent raw docker compose config override (same posture as Story 2.1 AC 3/AC 4 deferred pnpm wrapper to 2.6)."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "packages/devbox/.secrets.example lists env vars act needs; serves as committed schema for gitignored .secrets",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/.secrets.example authored iter-148 — 6-key scaffold matching architecture.md:328 verbatim: PADDLE_SANDBOX_API_KEY, PADDLE_PROD_API_KEY, RESEND_API_KEY, GOOGLE_OAUTH_CLIENT_SECRET, ANTHROPIC_API_KEY, DATABASE_URL_EPHEMERAL. Present at iter-149 (1595 bytes).",
+        "Block-comment header names act as primary consumer + architecture.md:328 source-of-truth + GH Actions production secret source + pre-merge-slow/nightly/release-gated CI tier scoping per architecture.md:329 + one-line format note.",
+        "5 grouped sections (Billing / Email / OAuth / Anthropic / Database) mirror .envrc.example grouping convention.",
+        "README § Retuning § Secrets subsection documents the .secrets copy-seed flow for act local runner (AC 4 consumer-flow paragraph per iter-146 fix #8)."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": ".envrc + .secrets gitignored; keel-invariants lint rule refuses commits of .envrc / .envrc.local / .secrets (excludes .example schemas)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/keel-invariants/src/check-no-committed-dotfiles.ts (36 lines, Node-only, no zod dep) + compiled dist/check-no-committed-dotfiles.js authored iter-148. Anchored-regex denylist (/^(.+\\/)?\\.envrc$/, /^(.+\\/)?\\.envrc\\.local$/, /^(.+\\/)?\\.secrets$/) with stderr pointer on violation + exit 1 per-match.",
+        "Lint-rule smokes LIVE at iter-149: positive (packages/devbox/.envrc.example) → exit 0; negative (packages/devbox/.envrc) → exit 1 with stderr pointer 'Refusing to commit gitignored secret file: packages/devbox/.envrc (matches .envrc). See Story 2.2 AC 5 + packages/devbox/.envrc.example / packages/devbox/.secrets.example for the committed schema.'",
+        ".gitignore extended iter-148: .env* + .envrc + .envrc.local + .secrets positive rules + 4 bang-suffix negations (!.envrc.example, !packages/devbox/.envrc.example, !.secrets.example, !packages/devbox/.secrets.example).",
+        "git check-ignore LIVE at iter-149: packages/devbox/.envrc.example → exit 1 (NOT ignored, stageable); packages/devbox/.envrc → exit 0 (ignored); .secrets.example → exit 1 (NOT ignored). Negation rules take effect.",
+        "Prek hook inserted in .pre-commit-config.yaml between format-check and tokens-schema with pass_filenames: true + files: '(^|/)\\.(envrc|envrc\\.local|secrets)$' filter — hook only runs when matching dotfile is staged.",
+        "INV-gitignored-secret-commit-deny manifest entry at packages/keel-invariants/src/invariants.manifest.ts tail (doc-first sourcePath per AI-7 precedent); INVARIANTS.md anchor under new '### Gitignored-secret commit-deny (Story 2.2)' section; docs/invariants/gitignored-secret-commit-deny.md with front-matter + § Intent + § Mechanism + § Verification.",
+        "Sync-gate LIVE at iter-149: node packages/keel-invariants/dist/check.js → exit 0 (accepts new entry + 3 contentHash updates for touched files: .pre-commit-config.yaml + root package.json + INV-prek-pre-commit-config/INV-prek-commit-msg-config/INV-prek-prepare-lifecycle hash refreshes).",
+        "Prek-level end-to-end hook exercise (pnpm exec prek run --all-files) is operator-owned — prek binary not installed in Ralph iteration env; Node-direct + pnpm-script invocations substitute with identical semantics."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 5, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      {
+        "id": "AC-1",
+        "priority": "P2",
+        "coverage": "NONE",
+        "reason": "Substrate-level schema file; no test runner at 1.0 (Epic 13 scope). Structural claim-verifiable via future Vitest or shell-smoke: .envrc.example exists + contains every AC 1 knob + block-comment header."
+      },
+      {
+        "id": "AC-2",
+        "priority": "P2",
+        "coverage": "NONE",
+        "reason": "Compose-parameterisation assertion; no test runner at 1.0. Structural claim-verifiable via future shell-smoke: docker compose config exit 0 + grep assertions on cpus/mem_limit/shm_size/platform/ports/ulimits/env_file."
+      },
+      {
+        "id": "AC-3",
+        "priority": "P2",
+        "coverage": "NONE",
+        "reason": "Retunability assertion; no test runner at 1.0. Structural claim-verifiable via future shell-smoke: KEEL_DEVBOX_MEMORY_GB=16 override + docker compose config | grep 'mem_limit: \"17179869184\"'."
+      },
+      {
+        "id": "AC-4",
+        "priority": "P2",
+        "coverage": "NONE",
+        "reason": "Schema file assertion; no test runner at 1.0. Structural claim-verifiable via future Vitest or shell-smoke: .secrets.example exists + contains 6 keys per architecture.md:328."
+      },
+      {
+        "id": "AC-5",
+        "priority": "P2",
+        "coverage": "NONE",
+        "reason": "Lint-rule + gitignore-rule assertion; no test runner at 1.0 but natural Vitest target (check-no-committed-dotfiles.test.ts with stringified-argv + exit-code assertions per Story 2.2 § Testing standards) — retro-applies when Epic 13 lands Vitest substrate."
+      }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — five P2 ACs cover a hybrid infrastructure-smoke + configuration-surface class story (second Epic 2 + second of its class) with no live test runner at 1.0. All 5 ACs have STRONG substrate evidence: (AC 1) .envrc.example 14-line header + 5 grouped knob sections; (AC 2) docker compose config exit 0 with resolved defaults matching the AC 2 mapping table + knob-alignment diff (compose ⊆ .envrc.example) empty; (AC 3) override verification shows cpus: 4 + mem_limit: 17179869184 (16 GB) under KEEL_DEVBOX_CPUS=4 KEEL_DEVBOX_MEMORY_GB=16; (AC 4) .secrets.example 6-key scaffold matches architecture.md:328 verbatim; (AC 5) lint rule + sync-gate + gitignore negation rules all exit 0/1 as specified. All substrate smokes re-verified LIVE at iter-149 trace time. Per-AC runner-hosted coverage deferred to Story 2.2-test-runner-landing (Epic 13 scope) + prek-hook operator-workstation end-to-end exercise.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.2 authors the .envrc-parameterisation contract substrate: .envrc.example (M4-Pro reference defaults per §I5) + .secrets.example (6-key act scaffold per architecture.md:328) + docker-compose.yml parameterisation (non-swarm form; loopback-bound ports; preserves Story 2.1 env_file/container_name/volumes surfaces) + .gitignore extension (bang-suffix negations for committed schemas) + keel-invariants prek hook (INV-gitignored-secret-commit-deny doc + manifest entry + anchor + ts+js implementation). Downstream consumers: Story 2.5 wires tmpfs knobs into compose tmpfs mounts; Story 2.6 delivers pnpm devbox:restart/env:check wrappers; Story 2.11 activates KEEL_DEVBOX_SHARED workspace-mount switch; Story 2.12 activates KEEL_DEVBOX_SSH opt-in port 2222 publication. Any silent edit to docs/invariants/gitignored-secret-commit-deny.md triggers sync-gate FAIL at pre-commit per Story 1.9 drift detection.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.2 test-runner landing (Epic 13 scope) will unlock per-AC runner-hosted probes: AC 1 file-shape smoke (.envrc.example exists + parses + contains every KEEL_DEVBOX_* knob per AC 1 reference-default table); AC 2 compose-parameterisation smoke (docker compose config exit 0 + grep on cpus/mem_limit/shm_size/platform/ports/ulimits/env_file + knob-alignment diff compose ⊆ .envrc.example); AC 3 retunability smoke (KEEL_DEVBOX_MEMORY_GB=16 override + grep 'mem_limit: \"17179869184\"'); AC 4 .secrets.example file-shape smoke (exists + contains 6 keys per architecture.md:328 + block-comment header); AC 5 check-no-committed-dotfiles.test.ts Vitest unit test (stringified-argv + exit-code assertions per § Testing standards) + prek-level end-to-end hook exercise at operator workstation or backend-A CI harness. None of these block Story 2.2 `review → done` transition under the WAIVED precedent — substrate evidence at iter-149 is complete for the in-iteration-executable portion of the story.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}

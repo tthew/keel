@@ -1,0 +1,32 @@
+# packages/devbox/whitelist/openai.txt
+#
+# OpenAI / Codex CLI allow-list fragment. Required for `pnpm codex` and
+# `pnpm codex:auth` (codex bake commit; @openai/codex baked into the
+# substrate image alongside @anthropic-ai/claude-code).
+#
+# `api.openai.com` — Codex API endpoint (chat completions, responses, the
+# device-auth token-exchange POST). Without it, `pnpm codex` and the
+# device-auth polling leg fail-closed.
+#
+# `auth.openai.com` — OAuth + device-authorization endpoint. Codex
+# `--device-auth` POSTs here for the user_code + verification_uri pair,
+# then polls here for the token grant once the operator approves the
+# request in their host browser.
+#
+# `chatgpt.com` — Sign-in-with-ChatGPT landing page (operator visits the
+# device-auth verification URI here to enter the user_code). Without it,
+# device-auth completes the client-side handshake but the operator's host
+# browser cannot reach the approval page (irrelevant to the container's
+# fail-closed posture, but listed for completeness — codex may also issue
+# preflight HEAD/OPTIONS to chatgpt.com for the device-auth UI URL
+# discovery).
+#
+# `platform.openai.com` — account / API-key management portal. Codex
+# itself does not call this at runtime, but error messages + login
+# diagnostics reference it; whitelisting avoids fail-closed `getaddrinfo`
+# on operator-facing diagnostic URLs.
+
+api.openai.com
+auth.openai.com
+chatgpt.com
+platform.openai.com

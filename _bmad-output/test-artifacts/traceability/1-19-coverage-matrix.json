@@ -1,0 +1,51 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-26T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "1.19",
+    "label": "Backfill keel-invariants test coverage"
+  },
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "allow_gate": true,
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-19-backfill-keel-invariants-test-coverage.md (AC1-AC6)"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 6,
+    "fully_covered": 5,
+    "partially_covered": 1,
+    "uncovered": 0,
+    "overall_coverage_percentage": 83,
+    "priority_breakdown": {
+      "P0": { "total": 3, "covered": 3, "percentage": 100 },
+      "P1": { "total": 2, "covered": 2, "percentage": 100 },
+      "P2": { "total": 1, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 0,
+    "low_gaps": 0,
+    "partial_coverage_items": 1
+  },
+  "test_inventory": {
+    "files": 7,
+    "cases": 34,
+    "skipped_cases": 0,
+    "by_level": {
+      "unit": { "tests": 34, "criteria_covered": 5 }
+    }
+  }
+}

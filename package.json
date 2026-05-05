@@ -16,8 +16,31 @@
     "keel-invariants:check": "pnpm --filter @keel/keel-invariants check",
     "keel-invariants:tokens-schema": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-schema",
     "keel-invariants:tokens-contrast": "pnpm --filter @keel/keel-invariants keel-invariants:tokens-contrast",
+    "keel-invariants:no-committed-dotfiles": "pnpm --filter @keel/keel-invariants keel-invariants:no-committed-dotfiles",
+    "keel-invariants:claude-hook-syntax": "pnpm --filter @keel/keel-invariants keel-invariants:claude-hook-syntax",
+    "keel-invariants:nfr5a-minimum": "pnpm --filter @keel/keel-invariants keel-invariants:nfr5a-minimum",
     "keel-invariants:tokens-sync": "pnpm --filter @keel/ui generate-tokens -- --check",
     "keel-invariants:check-all": "pnpm keel-invariants:check && pnpm keel-invariants:tokens-sync",
+    "devbox:build": "./packages/devbox/scripts/build.sh",
+    "devbox:rebuild": "./packages/devbox/scripts/rebuild.sh",
+    "devbox:start": "./packages/devbox/scripts/start.sh",
+    "devbox:stop": "./packages/devbox/scripts/stop.sh",
+    "devbox:restart": "./packages/devbox/scripts/restart.sh",
+    "devbox:clean": "./packages/devbox/scripts/clean.sh",
+    "devbox:shell": "./packages/devbox/scripts/shell.sh",
+    "devbox:attach": "./packages/devbox/scripts/attach.sh",
+    "devbox:status": "./packages/devbox/scripts/status.sh",
+    "devbox:logs": "./packages/devbox/scripts/logs.sh",
+    "devbox:monitor": "./packages/devbox/scripts/monitor-host.sh",
+    "devbox:whitelist": "./packages/devbox/scripts/whitelist-host.sh",
+    "devbox:env:check": "./packages/devbox/scripts/env-check.sh",
+    "devbox:prereq:check": "./packages/devbox/scripts/prereq-check.sh",
+    "ralph:build": "./packages/devbox/scripts/ralph-build-host.sh",
+    "ralph:plan": "./packages/devbox/scripts/ralph-plan-host.sh",
+    "claude": "./packages/devbox/scripts/claude-host.sh",
+    "codex": "./packages/devbox/scripts/codex-host.sh",
+    "codex:auth": "./packages/devbox/scripts/codex-auth-host.sh",
+    "gh:auth": "./packages/devbox/scripts/gh-auth-host.sh",
     "prepare": "prek install -t pre-commit -t commit-msg"
   },
   "devDependencies": {
@@ -26,11 +49,17 @@
     "@eslint/js": "10.0.1",
     "@j178/prek": "0.3.9",
     "@keel/keel-invariants": "workspace:*",
+    "@types/node": "20.19.0",
     "eslint": "10.2.1",
     "globals": "17.5.0",
     "prettier": "3.8.3",
     "turbo": "2.3.3",
     "typescript": "5.7.3",
     "typescript-eslint": "8.58.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "vitest": "3.2.4"
+    }
   }
 }

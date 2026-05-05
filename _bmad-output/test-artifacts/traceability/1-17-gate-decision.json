@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-25T00:00:00Z",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.17",
+    "label": "Bootstrap TypeScript test runner (Vitest) + minimal CI workflow"
+  },
+  "collection_status": "COLLECTED",
+  "gate_status": "WAIVED",
+  "rationale": "Epic-1 reopen-arc bootstrap test-runner story (issue #233 course-correction); FIRST Epic-1-reopen-arc trace-WAIVED + SECOND course-correction-origin trace-WAIVED (after Story 2.18 iter-351). 29th cumulative trace-WAIVED across substrate stories (1.7→1.16, 2.1→2.18, now 1.17). Hybrid grounds (a) substrate-verification covers AC + (c) variant-(ii)+(iii): every AC ↔ substrate file 1:1 — AC1 ↔ smoke.test.ts:5 (FULL; iter-env vitest 3.2.4 reporter '✓ src/__tests__/smoke.test.ts (1 test) 1ms' captured at dev-story v1.3 iter-359); AC2 ↔ Vitest 3.2.4 pinned at three sites + root pnpm.overrides + INV-deps-version-pinning sync-gate green (PARTIAL — INV-vitest-pin manifest registration deferred to Story 1.21 per SC-8); AC3 ↔ .github/workflows/ci.yml shipped with canonical pnpm/action-setup@v4 (10.29.2) + actions/setup-node@v4 (20) ordering + pnpm turbo run test lint typecheck final step (PARTIAL — actionlint unavailable in iter env per AC3 fallback clause; GH ingestion-side validation post-PR-retarget-to-main per SC-6); AC4 ↔ turbo.json test task outputs: ['coverage/**'] (PARTIAL — forward-compat only per SC-7; @vitest/coverage-v8 not installed at this scope); AC5 ↔ CLAUDE.md 3 appended rows + AGENTS.md new ## Testing section (PARTIAL — substrate prettier-idempotent per pnpm format:check GREEN; no automated prose-quality assertion). Deterministic FAIL signal (P0 50%, P1 0%, overall 20%) is structural artefact — Story 1.17 IS the test runner being authored, no pre-existing corpus to enforce coverage against. FR14n § ATDD-skip ground-(b) sunsets at this story per issue #233 amendment (Story 1.17 destroys ground (b) by being the test runner). Residual risks tracked: (1) INV-vitest-pin registration deferred to Story 1.21 audit; (2) actionlint behavioural half deferred to GH ingestion when PR base-flips to main; (3) 3× pre-existing INV-git-hooks-preservation drifts on feat/epic-2-packaged-devbox head (RALPH.md iter-358 gotcha — sync-gate resolves <worktree>/.git/hooks which is empty in worktree mode; address before Story 1.20 close-out). Cumulative Story 1.17 lifecycle pre-merge PATCH count to date: 16 (unchanged — trace adds zero PATCH per WAIVED with 0 fix-task QUEUE entries). Story 1.17 advances FR14n in-dev → traced; next QUEUE = /bmad-create-story (args: 'review') post-dev SM (forecast 1–4 PATCH per RALPH.md iter-352 narrow-substrate-extension empirical envelope). PR #236 stacks on feat/epic-2-packaged-devbox (parent PR #230 + #234 + #235 stacked-arc); ci.yml workflow does not fire on this push (Draft PR base ≠ main; on: { pull_request: { branches: [main] } } trigger gated until base-flip).",
+  "p0_status": "NOT_MET",
+  "p1_status": "NOT_MET",
+  "overall_status": "NOT_MET",
+  "critical_gaps": 0,
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/1-17-bootstrap-typescript-test-runner-vitest-minimal-ci.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  }
+}

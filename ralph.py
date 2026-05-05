@@ -1603,6 +1603,7 @@ class RalphApp(App):
                 f"⚠ {self.config.tool} exited with code {exit_code}", style="red"
             ))
             self._log_write(self._dim_rule())
+        self._write_sizes_telemetry()
         self.adapter.on_iteration_end(exit_code, duration_s)
         self._update_header()
 
@@ -1618,6 +1619,128 @@ class RalphApp(App):
         self._log_write(self._dim_rule())
         self._handle_epic_done_transition(halt_text)
         self._cleanup_task_list()
+
+    def _build_doc_budget_block(self, env: dict[str, str]) -> str:
+        """Mutate env with RALPH_DOC_BUDGET_* vars, return a prompt-injection block.
+
+        Issue #231 / PRD FR14j amendment (2026-04-25). Phase 1 of three-phase
+        doc-budget enforcement — the orient-gate is the PRIMARY defense
+        (upstream of the orient read; only intervention that prevents bloat
+        from being read in the first place). Reads thresholds from the SSOT
+        file `.githooks/doc-budget.json` shared with `tools/check-ralph-doc-budget.sh`.
+
+        Returns "" when ENFORCE=off OR when no thresholds tripped.
+        """
+        mode = os.environ.get("RALPH_DOC_BUDGET_ENFORCE", "warn-in-prompt").strip()
+        env["RALPH_DOC_BUDGET_ENFORCE"] = mode
+        override = os.environ.get("RALPH_DOC_BUDGET_OVERRIDE", "").strip()
+        if override:
+            env["RALPH_DOC_BUDGET_OVERRIDE"] = override
+        if mode == "off":
+            return ""
+
+        repo_root = _main_repo_root()
+        budget_path = repo_root / ".githooks" / "doc-budget.json"
+        if not budget_path.exists():
+            return ""
+        try:
+            spec = json.loads(budget_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            return ""
+
+        try:
+            override_bytes = int(override) if override else None
+        except ValueError:
+            override_bytes = None
+
+        findings: list[str] = []
+        for relpath, limits in spec.get("files", {}).items():
+            target = repo_root / relpath
+            if not target.exists():
+                continue
+            try:
+                raw = target.read_bytes()
+            except OSError:
+                continue
+            nbytes = len(raw)
+            text = raw.decode("utf-8", errors="replace")
+            nlines = text.count("\n") + (0 if text.endswith("\n") else 1)
+
+            max_bytes = limits.get("max_bytes")
+            if (
+                max_bytes is not None
+                and override_bytes is not None
+                and override_bytes > max_bytes
+            ):
+                max_bytes = override_bytes
+            max_lines = limits.get("max_lines")
+
+            if max_bytes is not None and nbytes > max_bytes:
+                findings.append(
+                    f"- `{relpath}`: {nbytes:,} bytes > cap {max_bytes:,}"
+                )
+            if max_lines is not None and nlines > max_lines:
+                findings.append(
+                    f"- `{relpath}`: {nlines:,} lines > cap {max_lines:,}"
+                )
+
+        if not findings:
+            return ""
+
+        verb = "MUST PRUNE" if mode == "halt-in-prompt" else "PRUNE-FIRST (advisory)"
+        body = "\n".join(findings)
+        return (
+            f"## {verb}\n\n"
+            "Doc-budget thresholds tripped (issue #231 / FR14j amendment). "
+            "Single source of truth: `.githooks/doc-budget.json`.\n\n"
+            f"{body}\n\n"
+            "Before doing other work this iteration, prune the offending file(s) "
+            "back under cap. RALPH.md uses `<!-- iter:N -->` decay markers "
+            "(delete bullets where current_iter − N > 30). Per-section FIFO caps: "
+            "§ Signposts ≤ 20, § Lessons ≤ 15, § Gotchas ≤ 10. The IP DONE "
+            "template tightens to `- [iter-N] <verb> <object> — <sha7> (PR #N)` "
+            "with a 12-word hard cap before the pointer.\n"
+        )
+
+    def _write_sizes_telemetry(self) -> None:
+        """Append a per-iteration size snapshot to $RALPH_BASE_DIR/logs/sizes.jsonl.
+
+        Phase 0 instrumentation (issue #231 / Story 3.15 telemetry sibling of
+        context-meter.json). Pure measurement; no gate. Failures are silent
+        (telemetry MUST NOT halt the loop).
+        """
+        try:
+            base = self.config.ralph_base
+            logs_dir = base / "logs"
+            logs_dir.mkdir(parents=True, exist_ok=True)
+            sizes_path = logs_dir / "sizes.jsonl"
+
+            repo_root = _main_repo_root()
+            tracked = ["RALPH.md", ".ralph/@plan.md"]
+            sizes: dict[str, dict[str, int]] = {}
+            for relpath in tracked:
+                p = repo_root / relpath
+                if p.exists():
+                    raw = p.read_bytes()
+                    text = raw.decode("utf-8", errors="replace")
+                    sizes[relpath] = {
+                        "bytes": len(raw),
+                        "lines": text.count("\n") + (0 if text.endswith("\n") else 1),
+                    }
+
+            entry = {
+                "iter": self.iteration,
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "ralph_md_bytes": sizes.get("RALPH.md", {}).get("bytes"),
+                "ralph_md_lines": sizes.get("RALPH.md", {}).get("lines"),
+                "plan_md_bytes": sizes.get(".ralph/@plan.md", {}).get("bytes"),
+                "plan_md_lines": sizes.get(".ralph/@plan.md", {}).get("lines"),
+            }
+            with sizes_path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(entry) + "\n")
+        except Exception:
+            # Telemetry never halts the loop.
+            return
 
     def _build_issue_tracking_block(self, env: dict[str, str]) -> str:
         """Mutate env with RALPH_ISSUE_* vars, return a prompt-injection block.
@@ -1761,9 +1884,12 @@ class RalphApp(App):
                 "RALPH_BASE_DIR": str(cfg.ralph_base),
             }
             issue_block = self._build_issue_tracking_block(env)
+            doc_budget_block = self._build_doc_budget_block(env)
 
             # Build prompt stdin content (optionally augmented with --prompt on iteration 1)
             prompt_text = cfg.prompt_file.read_text()
+            if doc_budget_block:
+                prompt_text = f"{prompt_text.rstrip()}\n\n---\n\n{doc_budget_block}"
             if issue_block:
                 prompt_text = f"{prompt_text.rstrip()}\n\n---\n\n{issue_block}"
             if cfg.initial_prompt and self.iteration == 1:

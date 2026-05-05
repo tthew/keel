@@ -1,0 +1,205 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-23T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.9",
+    "label": "`gh` CLI OAuth via `pnpm gh:auth`"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-9-gh-cli-oauth-via-pnpm-gh-auth.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "OAuth flow surfaced to host terminal — `pnpm gh:auth` invokes `gh auth login` inside the container and the OAuth URL is surfaced to the host terminal; completing the flow in a host browser returns control to the CLI",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/gh-auth-host.sh (iter-237 NEW; iter-239 retrofit 82 lines; 0755): `#!/usr/bin/env bash` + `set -euo pipefail` + `unset COMPOSE_PROJECT_NAME` (Story 2.6 AI-8/AI-12 + Story 2.7 SC-10 + Story 2.8 SC-8 defensive-posture precedent preserved). `CONTAINER_NAME=\"${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}\"` (Story 2.2 .envrc parameterisation consumed). `SCRIPT_DIR` at line 39 for iter-239 `source lib/main-repo-resolver.sh` + `source lib/check-mount-source.sh` retrofits (diverges from Story 2.8 claude-host.sh no-SCRIPT_DIR posture; shared-lib sourcing purpose, NOT start.sh sub-invoke — SC-4 no-auto-start contract preserved). Banner cites Story 2.9 + AC 1–4 + Story 2.6 `<verb>-host.sh` pattern + Story 2.7 + Story 2.8 inheritance + exit-code contract (including novel exit 12 per iter-239).",
+        "packages/devbox/scripts/gh-auth-host.sh (iter-237 NEW): Pre-flight 1 — `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { log \"docker unreachable — is the daemon running?\"; exit 8; }`. Inherits Story 2.7 `ralph-build-host.sh:36` + Story 2.8 `claude-host.sh` tighter variant (catches reachable-but-broken-daemon states).",
+        "packages/devbox/scripts/gh-auth-host.sh (iter-237 NEW): Pre-flight 2 — container state inspect → exit 9 if not running with `'pnpm devbox:start' first` hint. SC-4 no-auto-start posture — auth is a one-off gesture, not a loop-entry gesture. Mirrors Story 2.8 posture.",
+        "packages/devbox/scripts/gh-auth-host.sh (iter-239 RETROFIT): Pre-flight 3 — `check_mount_source` sourced from `lib/check-mount-source.sh`; exits 12 on bind-mount source mismatch with a `pnpm devbox:restart` hint. Orthogonal to AC 1 OAuth-flow envelope — defends against worktree-A-then-worktree-B bind-source-stale race.",
+        "packages/devbox/scripts/gh-auth-host.sh (iter-237 NEW; iter-239 retrofit): Final exec — `exec docker exec -it --user dev -w \"${CONTAINER_WORKDIR}\" -e \"KEEL_DEVBOX_REPO_NAME=${REPO_NAME}\" \"${CONTAINER_NAME}\" gh auth login \"$@\"`. Interactive-only; hardcoded `-it` (no TTY-detect gate per SC-6 — OAuth flow IS the operator-interactive AC; same posture as Story 2.7 SC-8 + Story 2.8 SC-6). `--user dev` binds to UID 1000 per Story 2.5 hardening substrate. `-w ${CONTAINER_WORKDIR}` post-iter-239 parameterised (was hardcoded `/workspace` at iter-237 landing). `gh auth login` hardcoded as subcommand (SC-9 args-passthrough scoped to `auth login`; operators wanting generic `gh` composition use `pnpm devbox:shell` per SC-15-sibling read-only posture).",
+        "Iteration-env substrate verification (iter-237) — Smoke 1: `bash -n packages/devbox/scripts/gh-auth-host.sh` → syntax valid (PASS).",
+        "Iteration-env substrate verification (iter-237) — Smoke 2: `pnpm run 2>&1 | grep -E '^ +gh:auth$'` → 1 match (SC-3 pnpm wiring precedence honoured; `gh:auth` between `claude` and `prepare`).",
+        "Iteration-env substrate verification (iter-237) — Smoke 3a stub-docker info-fail branch: stub `docker info` returns non-zero → `gh-auth-host.sh` emits `[gh-auth] docker unreachable — is the daemon running?` on stderr + exits 8 (PASS).",
+        "Iteration-env substrate verification (iter-237) — Smoke 3b stub-docker not-running branch: stub returns empty state → `gh-auth-host.sh` emits `[gh-auth] container 'keel-devbox' is not running — run 'pnpm devbox:start' first` on stderr + exits 9 (PASS).",
+        "Iteration-env substrate verification (iter-237) — Smoke 3c stub-docker running branch: stub returns `running` → `gh-auth-host.sh` logs `[gh-auth] invoking gh auth login inside keel-devbox (first run: complete OAuth in host browser; token persists at /home/dev/.config/gh/)` → proceeds to `exec docker exec -it --user dev -w /workspace keel-devbox gh auth login` → stub-docker captured verbatim → wrapper exit 0 (PASS).",
+        "Iteration-env substrate verification (iter-237) — Smoke 3d args-passthrough: `gh-auth-host.sh --web` under `STUB_DOCKER_MODE=running` → stub captures `-it --user dev -w /workspace keel-devbox gh auth login --web` — `--web` reaches `gh auth login` verbatim via `\"$@\"` (PASS; SC-9 satisfied).",
+        "Iteration-env substrate verification (iter-237) — Smoke 4 no-TTY-gate: `grep -c 'tty_flag\\|-t 0' gh-auth-host.sh` → 0 matches (hardcoded `-it` per SC-6).",
+        "Live-smoke AC 1 runtime verification — `pnpm gh:auth` → URL + one-time code printed to host terminal → operator follows URL in host browser + pastes code → device-code exchange completes → token written under `/home/dev/.config/gh/hosts.yml` — deferred to M4-Pro operator workstation per § Testing Standards ground-(c) `external-service-owns-behavior-under-test` (Story 2.4 SC-17 + Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 + Story 2.7 iter-223 + Story 2.8 iter-230 precedent cluster).",
+        "Adversarial AC-1 coverage delegated to iter-CR (Story 2.9 CR opener): Blind Hunter examines pre-flight branches (exit 8/9/12) + final-exec assembly correctness + no-auto-start posture (SC-4); Edge Case Hunter probes docker-exec-output-redirection (URL + code printed to stdout — `-it` preserves TTY; surface to host terminal; no stdout redirection in wrapper); Acceptance Auditor verifies AC 1 verbatim match — `pnpm gh:auth` → `gh auth login` inside container → OAuth URL + one-time code to host terminal → host browser + code-paste completes flow + returns control to CLI."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "Token persisted in named volume — tokens stored at `/home/dev/.config/gh/` inside the Story 2.5 `keel_home_dev` named volume; no host bind-mount involved",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "Story 2.5 substrate (iter-188 landed; UNTOUCHED at Story 2.9 iter-237): `packages/devbox/docker-compose.yml` declares `keel_home_dev` named volume mounted at `/home/dev` with `INV-devbox-homedev-named-volume` enforcing non-toggle-able posture. `/home/dev/.config/gh/` inherits the named-volume persistence transitively — token file (`hosts.yml`) lives inside the named volume by construction, not by Story 2.9 wrapper action. Story 2.9 does NOT create, mount, or modify any volume; composition-only on Story 2.5.",
+        "packages/devbox/scripts/gh-auth-host.sh (iter-237 NEW): Wrapper does NOT read, parse, inspect, bind-mount, or surface the token file. Zero `volume` / `mount` / `--mount` / `-v` flags in the final exec line (iter-239 `-e KEEL_DEVBOX_REPO_NAME=${REPO_NAME}` env-var addition is env-forward, not volume mount). Token file format + write location (`hosts.yml` under `/home/dev/.config/gh/`) owned by apt-installed upstream `gh` CLI (Dockerfile:123-136). SC-15 read-only posture codifies no-wrapper-token-access discipline.",
+        "Iteration-env substrate verification (iter-237) — `grep -c 'volume\\|mount\\|\\-v ' packages/devbox/scripts/gh-auth-host.sh` → 0 matches (verified post-iter-239: `-v ` as bind-mount flag absent; iter-239 `-e ` env-var is orthogonal). `grep -c '\\.config/gh' packages/devbox/scripts/gh-auth-host.sh` → reference only in info-log literal (`token persists at /home/dev/.config/gh/`), not in any exec argument.",
+        "SC-12 scope carve-out (iter-235 pinned + iter-237 implementation-confirmed): Story 2.9 does NOT modify `packages/devbox/docker-compose.yml`. The stale `# TODO(Story 2.8 / 2.9): named-volume mounts for OAuth tokens.` at compose:156 is intentionally left in place per SC-12 — Story 2.5 compose named-volume already subsumes the token-mount requirement for both Claude (`/home/dev/.claude/`) + `gh` (`/home/dev/.config/gh/`) token paths; TODO is self-documenting across Stories 2.8 + 2.9.",
+        "Live-smoke AC 2 runtime verification — `pnpm gh:auth` → OAuth completes → `docker exec keel-devbox ls -la /home/dev/.config/gh/` shows `hosts.yml` token file owned by UID 1000 inside `keel_home_dev` named volume; `docker inspect --format '{{json .Mounts}}' keel-devbox | jq` confirms `/home/dev` mount source is the named volume NOT a bind-mount path — deferred to M4-Pro operator workstation per § Testing Standards ground-(c) + Story 2.5 iter-187 + Story 2.8 iter-230 precedent cluster.",
+        "Adversarial AC-2 coverage delegated to iter-CR: Blind Hunter verifies zero path-traversal or token-handling logic (SC-15); Edge Case Hunter probes Story 2.5 named-volume contract durability (operator explicit `-v /path:/home/dev` override not reachable via `pnpm gh:auth` surface per Story 2.6 wrapping; raw `docker run` is FR1 non-toggle-able invariant violation); Acceptance Auditor verifies AC 2 verbatim match — tokens at `/home/dev/.config/gh/` + no host bind-mount involved."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "Token survives restart — `pnpm devbox:restart` or `pnpm devbox:stop && start` preserves token; Ralph's subsequent `gh pr view` / `git push` reuses existing token (no re-auth)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "Story 2.5 substrate (iter-188 landed; UNTOUCHED at Story 2.9 iter-237): `keel_home_dev` named volume survives container restart by Docker semantics — `docker compose down` without `--volumes` flag does NOT delete named volumes; `docker compose up -d` on existing volume mounts same volume. Story 2.6 `pnpm devbox:restart` + `pnpm devbox:stop && start` are canonical named-volume-safe restart primitives. Token-survival is property of Docker named-volume substrate, NOT of Story 2.9 wrapper. Mirrors Story 2.8 AC-3 inheritance.",
+        "packages/devbox/scripts/gh-auth-host.sh (iter-237 NEW): Wrapper is stateless — re-invocation after restart hits same pre-flight branches + final exec line against same container. No wrapper-side state cache; `gh` reads token from mounted named volume on every invocation. Idempotent by construction.",
+        "Upstream `gh` CLI semantics (apt-installed; Dockerfile:123-136; Renovate `apt` manager-tracked per Story 1.15): On invocation, `gh` checks `/home/dev/.config/gh/hosts.yml` for existing token; valid → skip OAuth, proceed silently; missing/expired → auth-required error or re-auth flow (AC 4 path). Upstream GitHub-owned behavior — Story 2.9 does NOT duplicate, proxy, or inspect.",
+        "Ralph usage-path semantics (AC-3-specific): AC 3 references `gh pr view` + `git push` (not `gh auth login`). These are Ralph pre-push gate + PR-monitoring usage paths (Epic 3 Story 3.7 consumer). Token-reuse-across-restart is transitive: (i) `gh` reads `~/.config/gh/hosts.yml` on invocation; (ii) `hosts.yml` in `keel_home_dev` named volume per AC 2; (iii) named volume survives `pnpm devbox:restart` per Story 2.5 + 2.6 substrate. Story 2.9 wrapper NOT on `gh pr view` / `git push` path — those are Epic 3 Story 3.7 scope consuming persisted token without new wrapping.",
+        "Live-smoke AC 3 runtime verification — sequence `pnpm gh:auth` (OAuth completes first run) → `pnpm devbox:restart` → `docker exec keel-devbox gh pr view <N>` second invocation → `gh` proceeds silently (no OAuth re-trigger; existing token reused) — deferred to M4-Pro operator workstation per § Testing Standards ground-(c).",
+        "Adversarial AC-3 coverage delegated to iter-CR: Blind Hunter verifies wrapper adds no re-auth-forcing logic (no `rm /home/dev/.config/gh/*` or `--clear-token` flag injection); Edge Case Hunter probes concurrent-invocation + token-file-corruption (upstream `gh` owns recovery — AC 4 re-auth-pointer path activates); Acceptance Auditor verifies AC 3 verbatim match — restart preserves token + subsequent `gh pr view` / `git push` reuses it."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "Expired/revoked token surfaces clear pointer + Ralph pre-push gate halt-able — `gh` invocations under expired/revoked token surface clear pointer to re-run `pnpm gh:auth`; Ralph's pre-push gate (Epic 3) treats this as a halt-able condition rather than silently retrying",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/README.md (iter-237 MODIFIED): New `## gh CLI authentication (Story 2.9)` H2 sibling section (between Story 2.8 Claude H2 and `## cc-devbox upstream provenance` H2) documents re-auth path operator-facing — quick-start + OAuth flow + args-composition recipes (`--web`, `--hostname github.com`, `--scopes \"repo,workflow\"`) + re-auth pointer + pre-push-gate halt-able cross-ref to Epic 3 Story 3.7. 67 lines added.",
+        "AGENTS.md (iter-237 MODIFIED): New `### gh CLI authentication (Story 2.9)` H3 sibling section (between Story 2.8 Claude H3 and top-level `## Ralph loop`) under § Devbox iteration environment documents agent-facing re-auth pointer — `Re-auth pointer:` bullet: \"if Ralph's `gh push` / `gh pr view` / `gh pr checks` tooling reports a gh auth failure, queue `pnpm gh:auth` as a fix task (operator-interactive). Agents SHOULD NOT attempt automated re-auth — OAuth requires a host browser.\" 11 lines added.",
+        "packages/devbox/scripts/gh-auth-host.sh (iter-237 NEW): Re-auth flows through SAME pre-flight branches + same final exec line as initial auth — wrapper is idempotent. Upstream `gh` CLI detects expired/revoked token and surfaces auth-required error (or re-triggers OAuth under `gh auth login` re-invocation); wrapper surfaces URL + code to operator terminal identically to AC 1. No separate re-auth code path needed.",
+        "Upstream `gh` CLI semantics (apt-installed): Token expiry + revocation detection + auth-required error messaging + re-OAuth-trigger logic (under explicit `gh auth login` re-invocation) owned by upstream. Clear error message surfacing is upstream behavior; Story 2.9 wrapper neither catches nor massages `gh`'s stderr. SC-15 read-only posture.",
+        "Epic 3 Story 3.7 halt-write consumer contract (Story 2.9 pins; Epic 3 implements): AC 4 second element pins `CI_BLOCKED` halt-reason contract per `INV-ralph-halt-reason-enum` closed halt-reason enum (PRD FR14k; `docs/invariants/ralph-execute.md` § Halt schema). When Ralph's pre-push gate (Story 3.7) detects auth-broken gh invocation, it writes halt sentinel `{\"reason\":\"CI_BLOCKED\",\"note\":\"gh not authed — run 'pnpm gh:auth'\"}`. Agents inheriting Epic 3 scope MUST NOT retry push silently or invent new halt reason (§ Halt § Autonomy guardrail). Story 2.9 pins contract verbatim in `AGENTS.md § gh CLI authentication (Story 2.9)` bullet; Epic 3 Story 3.7 implements halt-write. `INV-ralph-halt-reason-enum` consumed-not-modified.",
+        "Egress substrate (Story 2.3/2.4 whitelist unchanged): `packages/devbox/whitelist/github.txt` contains 7 entries covering all GitHub OAuth + API + raw-content + LFS/release + GHCR + package-container paths — `api.github.com`, `github.com`, `raw.githubusercontent.com`, `objects.githubusercontent.com`, `codeload.github.com`, `ghcr.io`, `pkg-containers.githubusercontent.com`. Story 2.9 does NOT modify whitelist fragments (SC-12-parallel); re-auth traffic flows through unchanged egress contract.",
+        "Live-smoke AC 4 runtime verification — sequence `pnpm gh:auth` (OAuth completes) → artificially expire/revoke via GitHub UI OR wait for real expiry → `docker exec keel-devbox gh pr view <N>` → `gh` detects expiration, prints re-auth pointer, operator re-runs `pnpm gh:auth` to refresh — deferred to M4-Pro operator workstation per § Testing Standards ground-(c).",
+        "Live-smoke AC 4 Ralph halt-write branch requires Epic 3 Story 3.7 shipped (substrate-contract-only at Story 2.9). Smoke at Epic 3 landing: Ralph pre-push gate invocation against expired-token devbox → expects `CI_BLOCKED` halt sentinel with `\"note\":\"gh not authed — run 'pnpm gh:auth'\"` at `$RALPH_BASE_DIR/halt`; ralph.py reads halt + stops loop.",
+        "Adversarial AC-4 coverage delegated to iter-CR: Blind Hunter verifies wrapper does not suppress/mangle `gh`'s stderr (no `2>/dev/null` or stderr redirection on final exec); Edge Case Hunter probes partial-expiry (refresh-token valid + access-token expired — upstream `gh` owns refresh-flow; Story 2.9 transparent), revocation-from-github-side (upstream reports 401 + prompts re-auth; same surfaced-URL flow as AC 1), Epic-3-halt-contract wording (`CI_BLOCKED` reason in closed enum; `note` field free-form but agents MUST NOT invent new halt reasons per § Halt § Autonomy guardrail); Acceptance Auditor verifies AC 4 two-element match — expired/revoked token → clear re-auth pointer to `pnpm gh:auth` + Epic 3 pre-push gate halts rather than silent-retries."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 4, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — four P2 ACs covering Epic-2-ships-envelope-upstream-CLI-ships-runtime class story (NINTH Epic 2 delivery; SECOND instance of class after Story 2.8): 1 NEW host-side bash shim under packages/devbox/scripts/gh-auth-host.sh composed on Story 2.6's 13 pnpm devbox:* verbs + Story 2.7's 2 pnpm ralph:* verbs + Story 2.8's 1 pnpm claude verb + 1 NEW pnpm `gh:auth` script entry in repo-root package.json + 1 NEW README H2 § gh CLI authentication (Story 2.9) + 1 NEW AGENTS.md H3 § gh CLI authentication (Story 2.9) + Story 2.9 Change Log v1.3. All 4 ACs have substrate evidence verified LIVE at iter-237: Task 5 iteration-env-safe smokes ALL PASSED — bash -n × 1 script (syntax valid); pnpm wiring count 1 (gh:auth between claude + prepare); stub-docker info-fail → exit 8 + log `[gh-auth] docker unreachable — is the daemon running?`; stub-docker not-running → exit 9 + log `[gh-auth] container 'keel-devbox' is not running — run 'pnpm devbox:start' first`; stub-docker running → final exec `docker exec -it --user dev -w /workspace keel-devbox gh auth login` captured verbatim → exit 0; args-passthrough `gh-auth-host.sh --web` → stub captures `-it --user dev -w /workspace keel-devbox gh auth login --web` (--web reaches gh auth login verbatim); no-TTY-gate verification `grep -c 'tty_flag\\|-t 0' gh-auth-host.sh` → 0 matches (hardcoded -it per SC-6). 1/4 ACs (AC 1 invocation envelope) substrate-smoked at shell level; 3/4 ACs (AC 2 token-volume-persistence / AC 3 restart-survival / AC 4 re-auth-pointer + Ralph halt-able) upstream-CLI + Docker-substrate + Epic-3-consumer-deferred under SC-2 ground-(c) `external-service-owns-behavior-under-test` — full verification unlocks at M4-Pro operator workstation live OAuth flow against GitHub endpoint + Epic 3 Story 3.7 for AC 4 halt-write branch. NINETEENTH cumulative trace-WAIVED precedent; TWENTIETH ATDD-skip-trace-WAIVED co-application pairing.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.9 authors 1 NEW host-side bash shim + 3 modified files per SC-17 scope boundary: packages/devbox/scripts/gh-auth-host.sh (iter-237: 70 lines; iter-239 retrofit: 82 lines; 0755; interactive-exec precedent from Story 2.7 ralph-build-host.sh + Story 2.8 claude-host.sh) + repo-root package.json (+1 `gh:auth` entry between `claude` and `prepare` per SC-3) + packages/devbox/README.md (+1 NEW H2 `## gh CLI authentication (Story 2.9)` sibling of Story 2.8 `## Claude Code authentication (Story 2.8)`) + AGENTS.md (+1 NEW H3 `### gh CLI authentication (Story 2.9)` sibling of Story 2.8 `### Claude Code authentication (Story 2.8)` under § Devbox iteration environment). Substrate contracts preserved verbatim per § Substrate contracts preserved: Story 2.1 Dockerfile + entrypoint.sh + CMD[sleep,infinity] UNTOUCHED; Story 2.2 .envrc parameterisation consumed (KEEL_DEVBOX_CONTAINER_NAME read); Story 2.3 egress substrate composed on (7 entries in whitelist/github.txt already whitelisted — `api.github.com`, `github.com`, `raw.githubusercontent.com`, `objects.githubusercontent.com`, `codeload.github.com`, `ghcr.io`, `pkg-containers.githubusercontent.com`); Story 2.4 whitelist orthogonal; Story 2.5 hardening + named-volume posture LOAD-BEARING for AC 2/3 (NOT modified); Story 2.6 13 pnpm devbox:* verbs + host-side shim pattern + interactive-exec convention COMPOSED ON; Story 2.7 2-verb ralph surface + ralph-*-host.sh interactive-exec precedent COMPOSED ON (NOT auto-start — SC-4 explicit deviation); Story 2.8 claude-host.sh 1:1 template COMPOSED ON (gh-for-claude substitution); Story 1.12 theme.py orthogonal (Epic 3 consumer). No new invariants.manifest.ts entries (SC carve-out; all contracts compose on INV-devbox-dind-available + INV-devbox-egress-contract + INV-devbox-homedev-named-volume + INV-ralph-halt-reason-enum consumed-not-modified for AC 4 Epic-3 consumer contract pin). Sync-gate GREEN.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.9 live-OAuth-flow verification unlocks at M4-Pro operator workstation backend-A: AC 1 OAuth URL surface requires live `gh` CLI reaching GitHub's OAuth endpoint (7 whitelisted domains in whitelist/github.txt per Story 2.3/2.4) + host browser for URL + code-paste completion + M4-Pro native Docker Desktop for reliable `docker exec -it` TTY + stdin_open under cap-dropped containers; AC 2 token file write requires live `gh` completing OAuth + filesystem inspection inside `keel_home_dev` named volume; AC 3 token-survival-across-restart requires live token seed + `pnpm devbox:restart` + silent second `gh pr view` invocation; AC 4 first-element re-auth-pointer requires real token lifecycle + upstream `gh` detecting expiration + surfacing pointer; AC 4 second-element Ralph halt-write branch requires Epic 3 Story 3.7 shipped (substrate-contract-only at Story 2.9 — `INV-ralph-halt-reason-enum` `CI_BLOCKED` consumed-not-modified). No Story 2.9 code change required at any AC verification point — wrapper is stateless; upstream `gh` CLI + Docker named-volume substrate + Epic 3 Story 3.7 consumer own all four behaviors.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}

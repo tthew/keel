@@ -23,6 +23,24 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      - id: no-committed-dotfiles
+        name: Refuse committed .envrc / .secrets (@keel/keel-invariants; Story 2.2 AC5)
+        entry: pnpm keel-invariants:no-committed-dotfiles
+        language: system
+        pass_filenames: true
+        files: '(^|/)\.(envrc|envrc\.local|secrets|claude/settings\.local\.json)$'
+      - id: claude-hook-syntax
+        name: Claude PreToolUse hook syntax check (@keel/keel-invariants; Story 2.17 Task 12)
+        entry: pnpm keel-invariants:claude-hook-syntax
+        language: system
+        pass_filenames: false
+        files: ^\.claude/hooks/.*\.sh$
+      - id: nfr5a-minimum
+        name: NFR5a deny-list minimum-entry gate (@keel/keel-invariants; Story 2.17 Task 11.2)
+        entry: pnpm keel-invariants:nfr5a-minimum
+        language: system
+        pass_filenames: false
+        files: ^\.claude/settings\.json$
       - id: tokens-schema
         name: Design-token schema validation (@keel/keel-invariants)
         entry: pnpm keel-invariants:tokens-schema
@@ -35,6 +53,30 @@ repos:
         language: system
         pass_filenames: false
         files: ^packages/ui/tokens\.json$
+      - id: keel-invariants-check
+        name: Keel invariants drift gate (@keel/keel-invariants; PR #230 R3-Inv-I01 + Story 1.9 wiring)
+        entry: bash -c 'pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check'
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: ralph-doc-budget
+        name: Ralph doc-budget gate (issue #231 / FR14j amendment; warn-only at 1.0)
+        entry: tools/check-ralph-doc-budget.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: probe-domain-lockstep
+        name: Devbox dnsmasq probe-domain three-site lockstep (Story 2.13 PR #230 review iter-10)
+        entry: tools/check-probe-domain-lockstep.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: absorption-sha-reachable
+        name: Story 2.1 absorption-SHA reachability (Story 2.14 PR #230 review iter-13)
+        entry: tools/check-absorption-sha-reachable.sh
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: commitlint
         name: commitlint (conventional commits)
         entry: pnpm exec commitlint --edit

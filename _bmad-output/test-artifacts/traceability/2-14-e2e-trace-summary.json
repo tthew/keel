@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "d03a7fc4bca58986aadc519e29c6b6d5958aee36",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.14",
+    "label": "Legacy-devbox branch retention policy"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-14-legacy-devbox-branch-retention-policy.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 4,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 4,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 4, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 4,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 4 P2 ACs; Epic-2-substrate-policy-plus-branch-creation class story (FOURTEENTH Epic 2 delivery; FIRST git-branch-state-retention-contract + multi-recipe-invariant-doc-authoring + cross-story-lockstep-contract class); TWENTY-FOURTH cumulative trace-WAIVED precedent (THIRTEENTH Epic 2; extends Story 2.13 iter-284 twenty-third); TWENTY-FIFTH ATDD-skip-trace-WAIVED co-application pairing (extends iter-289 ATDD-skip grounds (ii)+(iii)). Ground-(a)+(b) hybrid conjunction applied with substrate-verification + no-test-runner. NARROWER than Story 2.13 — drops (c) variant-(ii) operator-workstation-deferred-AC-completion since all 4 ACs static-smoke-testable.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.14 authors 1 NEW file (docs/invariants/devbox-legacy-branch-retention.md contentHash 02f6048f78cf3c4e315ec6bc5c55bd52a7278d2cba99cc1f1e7b5a5b91d0c4ca) + 1 NEW git branch (origin/legacy-devbox at cfdf011006d44f52e36f461eacd8395e7f54ac0e) + 5 modified files per iter-290 + iter-291 Dev Agent Record landing. 34th manifest entry (INV-devbox-legacy-branch-retention) lands with sync-gate GREEN at iter-290 + re-verified at iter-292 (iter-257 NOVEL LESSON reaffirmed: manifest rebuild MUST precede sync-gate verification after adding new InvariantSchema entry).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification unlocks at Epic 13 test framework landing — NO operator-workstation dependency (contrast Story 2.13 AC 4's mid-run SIGKILL which remains operator-workstation-only even under Epic 13). All 4 Story 2.14 ACs substrate-verified at iter-290 + iter-291 + iter-292 via impl-time smokes.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-14-legacy-devbox-branch-retention-policy.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

@@ -1,0 +1,221 @@
+{
+  "phase": "PHASE_1_COMPLETE",
+  "generated_at": "2026-04-22T00:00:00Z",
+  "trace_target": {
+    "type": "story",
+    "id": "2.7",
+    "label": "Ralph auto-start + TUI attach/detach via `pnpm ralph:build` / `pnpm ralph:plan`"
+  },
+  "collection_mode": "contract_static",
+  "allow_gate": true,
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "summary_confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "requirements": [
+    {
+      "id": "AC-1",
+      "title": "Auto-start on stopped container — `pnpm ralph:build` invokes `pnpm devbox:start` internally and waits for container healthy before attaching",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW; 2802 bytes; 0755): `#!/usr/bin/env bash` + `set -euo pipefail` + `unset COMPOSE_PROJECT_NAME` (Story 2.6 AI-8/AI-12 pattern). Self-rooted `SCRIPT_DIR=\"$(cd \"$(dirname \"${BASH_SOURCE[0]}\")\" && pwd)\"`; `CONTAINER_NAME=\"${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}\"`. Banner cites Story 2.7 + AC 1–5 + Story 2.6 `<verb>-host.sh` pattern + exit-code contract.",
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW): Pre-flight 1 — `docker info --format '{{.ServerVersion}}' >/dev/null 2>&1 || { log \"docker unreachable\"; exit 8; }` propagates Story 2.6 exit-code schema unchanged (SC-5 uniform).",
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW): Auto-start branch — `status=\"$(docker inspect --format '{{.State.Status}}' \"${CONTAINER_NAME}\" 2>/dev/null || true)\"`; `if [[ \"${status}\" != \"running\" ]]; then log \"container not running; invoking pnpm devbox:start\"; \"${SCRIPT_DIR}/start.sh\" || exit $?; fi`. Directly satisfies AC 1 — stopped container → auto-invoke `pnpm devbox:start` (Story 2.6 start.sh) and wait for healthy (start.sh's own poll loop gates the return per Story 2.6 SC-9; ralph wrapper does NOT duplicate the healthcheck poll).",
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW): Post-start fallback — after `start.sh` returns 0, re-inspect `{{.State.Status}}`; if still not `running`, emit `exit 9` with diagnostic stderr line. Emits exit 9 per Story 2.6 schema when the rare race occurs (container exited between start.sh's success and our re-inspect).",
+        "Iteration-env substrate verification (iter-223) — Smoke 3a stub-docker info-fail branch: stub `docker info` returns non-zero → `ralph-build-host.sh` emits `[ralph:build] docker unreachable` on stderr and exits 8 (PASS). Stub replaces real docker at PATH head under `<workspace>/.ralph-smoke/shim/` per iter-212 LESSON (workspace tmpfs noexec forces non-`/tmp/` shim placement).",
+        "Iteration-env substrate verification (iter-223) — bash -n syntax parse PASS for `packages/devbox/scripts/ralph-build-host.sh` + `packages/devbox/scripts/ralph-plan-host.sh`.",
+        "Live-smoke AC 1 runtime verification — `pnpm devbox:stop && pnpm ralph:build` → auto-invokes start.sh → container transitions to `healthy|running` → attaches to PID 1 — deferred to M4-Pro operator workstation per Story 2.5 SC-13 + Story 2.6 SC-13 + Story 2.4 SC-17 backend-B live-smoke precedent cluster. Backend B iteration env cannot safely exercise lifecycle-mutating `docker compose up/down` against a shared host daemon (Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 + Story 2.7 SC-17 precedent).",
+        "Adversarial AC-1 coverage delegated to iter-CR (Story 2.7 CR opener): Blind Hunter examines auto-start branch control flow (status != running → sub-invoke start.sh → propagate exit) + exit 8 emission under docker unreachable + post-start fallback exit 9 correctness; Edge Case Hunter probes container-object-missing-entirely (docker inspect returns non-zero → status = empty → not 'running' → auto-start proceeds correctly) + start.sh-propagates-10-image-not-built (schema preservation — ralph wrapper inherits exit 10 verbatim) + start.sh-propagates-11-healthcheck-timeout (schema preservation — ralph wrapper inherits exit 11 verbatim); Acceptance Auditor verifies AC 1 verbatim match — stopped container → internal `pnpm devbox:start` invocation → wait for healthy → attach."
+      ]
+    },
+    {
+      "id": "AC-2",
+      "title": "Skip-start on running container — `pnpm ralph:build` or `pnpm ralph:plan` skips start step and attaches directly when container already running",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW): Skip-start branch — `elif [[ \"${status}\" == \"running\" ]]; then log \"container already running; attaching directly\"; fi`. Directly satisfies AC 2 — running container → skip start → proceed to attach without side effect on container lifecycle.",
+        "packages/devbox/scripts/ralph-plan-host.sh (iter-223 NEW; 2800 bytes; 0755): Structural mirror of ralph-build-host.sh with `RALPH_MODE=\"plan\"` the only semantic diff. Identical skip-start branch logic. SC-14 `_lib.sh` extraction deferred per Story 2.6 AR-19 precedent (substrate-wide refactor at ≥10-script-duplication threshold; Story 2.7 adds 2, bringing host-side shim total to 4 — well below threshold).",
+        "Iteration-env substrate verification (iter-223) — Smoke 3b stub-docker running branch: stub `docker inspect --format '{{.State.Status}}' keel-devbox` returns `running` → `ralph-build-host.sh` emits `[ralph:build] container already running; attaching directly` on stderr → proceeds to `exec docker attach --detach-keys=ctrl-p,ctrl-q keel-devbox` → stub docker attach logs args + exits 0 → wrapper exit 0 (PASS). Captured: `STUB attach args: attach --detach-keys=ctrl-p,ctrl-q keel-devbox`.",
+        "Iteration-env substrate verification (iter-223) — Smoke 3c ralph-plan variant running branch: stub running → `[ralph:plan] container already running; attaching directly` (log prefix switch) → exit 0 (PASS). Confirms ralph-plan-host.sh skip-start branch is structurally identical to ralph-build-host.sh.",
+        "Live-smoke AC 2 runtime verification — `pnpm devbox:start && pnpm ralph:build` (second invocation while container running) → skip-start → attach directly — deferred to M4-Pro operator workstation per Story 2.7 SC-17 + Story 2.6 SC-13 backend-B precedent. Operator observes no duplicate `pnpm devbox:start` side effects + single attach session + Ralph continues running state from first session.",
+        "Adversarial AC-2 coverage delegated to iter-CR: Blind Hunter examines skip-start branch control flow (status == running → log + proceed to attach without sub-invoking start.sh) + idempotence under repeated invocations + interaction with Story 2.6 start.sh's own idempotent compose-up-d behaviour (no side effect when container already running); Edge Case Hunter probes status == 'paused' / 'restarting' / 'created' (NOT 'running' → auto-start branch triggers; fallback exit 9 covers abnormal states); Acceptance Auditor verifies AC 2 verbatim match — running container → skip start → attach directly."
+      ]
+    },
+    {
+      "id": "AC-3",
+      "title": "Ctrl+P Ctrl+Q detach preserves loop — TUI attached inside container (Textual-based consuming theme.py from Story 1.12); Ctrl+P Ctrl+Q detaches and Ralph loop continues running (Epic 3 owns TUI process; Story 2.7 scope is `docker attach --detach-keys='ctrl-p,ctrl-q'` envelope only per SC-2)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW): Attach line — `log \"attaching to ${CONTAINER_NAME} (detach: Ctrl+P Ctrl+Q)\"` then `exec docker attach --detach-keys='ctrl-p,ctrl-q' \"${CONTAINER_NAME}\"`. Explicit `--detach-keys='ctrl-p,ctrl-q'` pins docker's default detach sequence (guards against future docker-default changes that might surprise operators mid-Ralph-iteration). Interactive-only; no TTY-detect gate per Story 2.6 AR-10 — attach IS the operator-interactive AC (SC-8 explicit; non-application of iter-214 TTY-detect LESSON confirmed iter-223).",
+        "packages/devbox/scripts/ralph-plan-host.sh (iter-223 NEW): Structural mirror — identical attach line + `--detach-keys` flag; only log prefix (`[ralph:plan]`) + `KEEL_RALPH_MODE=plan` mode signal differ.",
+        "Iteration-env substrate verification (iter-223) — Smoke 3b/3c stub attach line args captured: `STUB attach args: attach --detach-keys=ctrl-p,ctrl-q keel-devbox`. Confirms `--detach-keys='ctrl-p,ctrl-q'` flag literal value reaches `docker attach` verbatim (both wrappers).",
+        "SC-2 scope carve-out (iter-221 pinned + iter-223 implementation-confirmed): Story 2.7 ships the `docker attach --detach-keys='ctrl-p,ctrl-q'` envelope. The in-container Ralph TUI process (long-running Textual app consuming `packages/devbox/tui/theme.py` from Story 1.12 per AC 3 parenthetical) is Epic 3's delivery. Under the current `CMD: [sleep, infinity]` (Story 2.1 substrate), AC 3 reduces to \"container keeps running after detach\" which is trivially verifiable (detach does NOT send SIGTERM to PID 1 — docker attach's detach sequence is stream-multiplexing close only). Full AC 3 verification (Ctrl+P Ctrl+Q on a running Ralph TUI → Ralph iteration continues processing inside container) requires Epic 3 in-container Ralph runtime materialisation + M4-Pro operator workstation Ctrl+P Ctrl+Q keypress + visual verification.",
+        "Live-smoke AC 3 runtime verification — deferred to Epic 3 delivery + M4-Pro operator workstation per Story 2.7 § Testing Standards ground-(c) \"downstream-epic-owns-behavior-under-test\". Backend B iteration env cannot safely exercise `docker attach` against cap-dropped containers in ways that preserve host docker state (Story 2.5 iter-187 + Story 2.6 iter-201/204/216/219 + Story 2.7 SC-17 cluster).",
+        "Adversarial AC-3 coverage delegated to iter-CR (Story 2.7 CR opener): Blind Hunter examines `--detach-keys='ctrl-p,ctrl-q'` flag literal correctness (vs docker's default; explicit is safer per Story 2.6 AC-6 precedent) + interaction with SIGINT / SIGTERM signal handling (Ctrl+P Ctrl+Q is docker-intercepted stream multiplexing, does not reach the in-container process — verified by docker attach(1) semantics) + no-signal-trap discipline (wrapper MUST NOT install signal handlers that would translate a trap signal back into SIGTERM to the container per PATCH 3 iter-221); Edge Case Hunter probes DOCKER_DETACH_KEYS env var override (explicit flag takes precedence per docker CLI precedence rules) + multi-terminal attach (docker allows; behaviour is stream-multiplexing inherited from Story 2.6 AC 6 analysis); Acceptance Auditor verifies AC 3 verbatim match + SC-2 scope carve-out coherence — Story 2.7 ships the envelope; in-container Ralph loop behaviour is Epic 3."
+      ]
+    },
+    {
+      "id": "AC-4",
+      "title": "Re-attach preserves state — detached Ralph loop running; re-attach via `pnpm devbox:attach` or re-invoking `pnpm ralph:build` preserves TUI state (scroll position, current iteration); no state lost (Epic 3 owns TUI state preservation; Story 2.7 ships re-attach envelope only per SC-2)",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW) + ralph-plan-host.sh: Re-attach flows through the SAME auto-start branch as AC 1 + the SAME skip-start branch as AC 2 + the SAME attach line as AC 3. There is no separate re-attach code path — the wrappers are idempotent by design. Re-invoking `pnpm ralph:build` after detach hits the skip-start branch (container is still running post-detach per AC 3) and re-issues the `exec docker attach` line against the same container PID 1. Story 2.6 `pnpm devbox:attach` is ALSO a valid re-attach entrypoint per AC 4's OR clause (Story 2.6 attach.sh is the same `docker attach --detach-keys='ctrl-p,ctrl-q' keel-devbox` — substrate preserved).",
+        "SC-2 scope carve-out (iter-221 pinned + iter-223 implementation-confirmed): Story 2.7 ships the re-attach envelope. TUI state preservation (scroll position, current iteration) inside the Textual app is Epic 3's delivery. Under `CMD: [sleep, infinity]`, AC 4 reduces to \"no state to preserve\" which is trivially satisfied by the quiescent sleep process. Full AC 4 verification (Textual TUI preserves scroll + current-iteration across detach+re-attach cycles) requires Epic 3 in-container Ralph runtime.",
+        "Story 1.12 substrate UNTOUCHED (iter-223): `packages/devbox/tui/theme.py` autogenerated Textual theme (Story 1.12 AC 5) is the Epic-3 consumer, NOT a Story 2.7 wrapper consumer. Story 2.7 does NOT read, parse, or propagate theme.py contents; wrappers export `KEEL_RALPH_MODE=<mode>` env var only. This preserves clean Epic-2/Epic-3 scope boundary.",
+        "Live-smoke AC 4 runtime verification — deferred to Epic 3 delivery + M4-Pro operator workstation per Story 2.7 § Testing Standards ground-(c) \"downstream-epic-owns-behavior-under-test\". AC 4's material verification requires: (i) Epic 3 in-container Ralph Textual TUI materialised; (ii) M4-Pro native Docker Desktop (backend-A with full TTY + stdin_open semantics); (iii) operator-manual Ctrl+P Ctrl+Q keypress + visual verification of scroll + iteration state post-re-attach.",
+        "Adversarial AC-4 coverage delegated to iter-CR: Blind Hunter examines re-attach flow idempotence (AC 1 auto-start + AC 2 skip-start + AC 3 attach line composed → re-invocation after detach hits skip-start + attach verbatim) + Story 2.6 `pnpm devbox:attach` as alternative re-attach entrypoint (OR clause in AC 4 — two valid paths); Edge Case Hunter probes container-died-between-detach-and-re-attach (auto-start branch triggers → but loses TUI state per Epic 3 delivery semantics; Story 2.7 envelope does not guarantee TUI state survival if container dies — SC-2 scope) + mode-switch-attempt (running pnpm ralph:plan on already-running ralph:build container hits skip-start → attaches to EXISTING process → mode signal from subsequent invocation has no effect per PATCH 5 iter-221 mode-lifecycle gotcha); Acceptance Auditor verifies AC 4 verbatim match + SC-2 scope carve-out coherence — Story 2.7 ships the re-attach envelope; TUI state preservation is Epic 3."
+      ]
+    },
+    {
+      "id": "AC-5",
+      "title": "Mode routing — `pnpm ralph:build` → Epic 3 harness reads `.ralph/PROMPT_build.md`; `pnpm ralph:plan` → reads `.ralph/PROMPT_plan.md`; Story 2.7 ensures invocation path; prompt-file semantics land in Epic 3",
+      "priority": "P2",
+      "coverage": "NONE",
+      "tests": [],
+      "heuristics": {
+        "endpoint_coverage": "not_applicable",
+        "auth_coverage": "not_applicable",
+        "error_path_coverage": "present",
+        "ui_journey_coverage": "not_applicable",
+        "ui_state_coverage": "not_applicable"
+      },
+      "substrate_evidence": [
+        "packages/devbox/scripts/ralph-build-host.sh (iter-223 NEW): Mode signal — `export KEEL_RALPH_MODE=build` emitted BEFORE `exec docker attach` per PATCH 5 iter-221 mode-lifecycle gotcha pinning. Env var is consumed by Epic 3's in-container Ralph runtime to select `.ralph/PROMPT_build.md` vs `.ralph/PROMPT_plan.md`.",
+        "packages/devbox/scripts/ralph-plan-host.sh (iter-223 NEW): Mode signal — `export KEEL_RALPH_MODE=plan` (structural mirror). Only the value differs.",
+        "Repo-root package.json (iter-223 MODIFIED): two NEW entries in `scripts` block — `\"ralph:build\": \"./packages/devbox/scripts/ralph-build-host.sh\"` + `\"ralph:plan\": \"./packages/devbox/scripts/ralph-plan-host.sh\"` inserted AFTER `\"devbox:env:check\"` and BEFORE `\"prepare\"` per SC-3. Operator surface now exposes 2 ralph:* verbs alongside the 13 devbox:* verbs.",
+        "Iteration-env substrate verification (iter-223) — Smoke 2 pnpm wiring: `pnpm run 2>&1 | grep -E '^ +(ralph:build|ralph:plan)'` → 2 matches (PASS). Confirms operator-surface discoverability.",
+        "Iteration-env substrate verification (iter-223) — Smoke 4 mode-signal ordering: `bash -x packages/devbox/scripts/ralph-build-host.sh` trace shows `+ export KEEL_RALPH_MODE=build` immediately preceding `+ exec docker attach --detach-keys=ctrl-p,ctrl-q keel-devbox` (PASS — mode export comes BEFORE attach, so Epic 3 harness inherits the env var through the attach session). `ralph-plan-host.sh` trace shows `+ export KEEL_RALPH_MODE=plan` in the same position (PASS).",
+        "SC-15 read-only posture (iter-221 pinned + iter-223 implementation-confirmed): wrapper does NOT read, parse, or load `.ralph/PROMPT_*.md`. Verified at iter-223 implementation: no `cat .ralph/PROMPT_*.md` in either wrapper; no stdin-piping of prompt content to docker attach. Prompt-file semantics are strictly Epic 3's scope — the in-container harness reads the env var and selects the prompt file itself.",
+        "SC-2 scope carve-out (iter-221 + iter-223): \"Epic 2 ships invocation path; Epic 3 ships runtime behavior\" — Story 2.7 delivers two distinct host-side verbs each passing a mode signal the in-container harness can consume. Prompt-file routing (reading .ralph/PROMPT_<mode>.md) is Epic 3's delivery.",
+        "Live-smoke AC 5 runtime verification — full end-to-end verification (`pnpm ralph:build` → KEEL_RALPH_MODE=build env var visible inside container → Epic 3 harness reads .ralph/PROMPT_build.md + iterates) deferred to Epic 3 delivery. Mode-signal portion (export ordering + pnpm wiring + attach line) is exercised by Smokes 2 + 4 in iteration env.",
+        "Adversarial AC-5 coverage delegated to iter-CR: Blind Hunter examines mode-signal ordering (export BEFORE attach so env var propagates through docker attach session) + pnpm wiring insertion point (after devbox:env:check before prepare per SC-3) + structural-mirror discipline (only `RALPH_MODE` value + log prefix differ between the two shims; SC-14 deferral pinned); Edge Case Hunter probes mode-switch-attempt (subsequent invocation on already-running container hits skip-start → attaches to existing process → new mode signal has NO effect on running process per PATCH 5 mode-lifecycle gotcha — operator must stop+restart to switch modes), KEEL_RALPH_MODE-unset-accidentally (Epic 3 harness owns defaulting; Story 2.7 does not default), environment-variable-scoping (`export` vs local — `export` is required for docker attach to propagate; verified by smoke 4); Acceptance Auditor verifies AC 5 verbatim match — two verbs, two mode signals, SC-2 scope-correct delegation to Epic 3."
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_percentage": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "percentage": 100 },
+      "P1": { "total": 0, "covered": 0, "percentage": 100 },
+      "P2": { "total": 5, "covered": 0, "percentage": 0 },
+      "P3": { "total": 0, "covered": 0, "percentage": 100 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": [],
+    "high_gaps": [],
+    "medium_gaps": [
+      { "id": "AC-1", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-2", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-3", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-4", "priority": "P2", "coverage": "NONE" },
+      { "id": "AC-5", "priority": "P2", "coverage": "NONE" }
+    ],
+    "low_gaps": [],
+    "partial_coverage_items": [],
+    "unit_only_items": []
+  },
+  "coverage_heuristics": {
+    "endpoint_gaps": [],
+    "auth_negative_path_gaps": [],
+    "happy_path_only_gaps": [],
+    "ui_journey_gaps": [],
+    "ui_state_gaps": [],
+    "counts": {
+      "endpoints_without_tests": 0,
+      "auth_missing_negative_paths": 0,
+      "happy_path_only_criteria": 0,
+      "ui_journeys_without_e2e": 0,
+      "ui_states_missing_coverage": 0
+    }
+  },
+  "test_inventory": {
+    "summary": {
+      "files": 0,
+      "cases": 0,
+      "skipped_cases": 0,
+      "fixme_cases": 0,
+      "pending_cases": 0,
+      "by_level": {
+        "e2e": { "tests": 0, "criteria_covered": 0 },
+        "api": { "tests": 0, "criteria_covered": 0 },
+        "component": { "tests": 0, "criteria_covered": 0 },
+        "unit": { "tests": 0, "criteria_covered": 0 },
+        "other": { "tests": 0, "criteria_covered": 0 }
+      }
+    },
+    "tests": [],
+    "blockers": []
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — five P2 ACs covering an Epic-2-ships-envelope-Epic-3-ships-runtime class story (SEVENTH Epic 2 delivery: 2 NEW host-side bash shims under packages/devbox/scripts/ {ralph-build-host.sh + ralph-plan-host.sh} composed on Story 2.6's 13 pnpm devbox:* verbs + 2 NEW pnpm ralph:* script entries in repo-root package.json + 1 NEW README H2 § Ralph loop (Story 2.7) + 1 NEW AGENTS.md H3 § Ralph loop (Story 2.7) + Story 2.7 Change Log v1.3). All 5 ACs have substrate evidence verified LIVE at iter-223: Task 6 iteration-env-safe smokes ALL PASSED — bash -n × 2 scripts (syntax valid); pnpm wiring count 2 (ralph:build + ralph:plan); stub-docker info-fail branch → exit 8 + log `[ralph:build] docker unreachable`; stub-docker running branch → skip-start → STUB attach args `attach --detach-keys=ctrl-p,ctrl-q keel-devbox` → exit 0; ralph-plan variant → mode=plan log prefix → exit 0; bash -x trace confirms `+ export KEEL_RALPH_MODE=<mode>` precedes `+ exec docker attach` for both variants. 3/5 ACs (AC 1 / AC 2 / AC 5) substrate-smoked at shell level; 2/5 ACs (AC 3 / AC 4) Epic-3-deferred under SC-2 ground-(c) 'downstream-epic-owns-behavior-under-test' — current `CMD: [sleep, infinity]` reduces AC 3 to `container keeps running after detach` (trivial) + AC 4 to `no state to preserve` (trivial); full verification unlocks at Epic 3 in-container Ralph Textual TUI materialisation + M4-Pro operator workstation Ctrl+P Ctrl+Q live smoke.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.7 authors 2 NEW host-side bash shims + 3 modified files per SC-17 scope boundary: packages/devbox/scripts/ralph-build-host.sh + packages/devbox/scripts/ralph-plan-host.sh (structural mirrors; 2800/2802 bytes; RALPH_MODE value + log prefix the only semantic diff) + repo-root package.json (+2 ralph:* entries after devbox:env:check before prepare per SC-3) + packages/devbox/README.md (+1 NEW H2 `## Ralph loop (Story 2.7)` sibling of Story 2.6 `## Host-side CLI (Story 2.6)`; 6 bullets a–f: quick-start + auto-start contract + detach affordance + mode-routing + exit codes + cross-ref) + AGENTS.md (+1 NEW H3 `### Ralph loop (Story 2.7)` sibling of Story 2.6 `### Host-side CLI (Story 2.6)` under § Devbox iteration environment; 4 bullets a–d: wrapper pattern + mode signal + exit-code passthrough + Epic-3 scope carve-out). Substrate contracts preserved verbatim per § Substrate contracts preserved: Story 2.1 Dockerfile + entrypoint.sh + CMD[sleep,infinity] UNTOUCHED; Story 2.2 .envrc parameterisation consumed (KEEL_DEVBOX_CONTAINER_NAME read); Story 2.3 egress substrate orthogonal; Story 2.4 whitelist orthogonal; Story 2.5 hardening posture unchanged; Story 2.6 13 pnpm devbox:* verbs + host-side shim pattern COMPOSED ON (start.sh sub-invocation + `<verb>-host.sh` naming mirrored); Story 1.12 theme.py orthogonal (Epic 3 consumer); no new invariants.manifest.ts entries (SC carve-out from Story 2.3/2.4/2.5 NEW-invariant pattern). Sync-gate GREEN (no invariant contentHash drift; 2 NEW scripts do not affect existing invariant sourcePaths).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.7 live-lifecycle verification unlocks at Epic 3 + M4-Pro operator workstation: AC 3 `Ctrl+P Ctrl+Q detach preserves Ralph loop` requires Epic 3 in-container Ralph Textual TUI process materialisation (long-running Python Textual app consuming packages/devbox/tui/theme.py from Story 1.12, rendering kanban + log + context-meter panels) + M4-Pro native Docker Desktop backend-A (full TTY + stdin_open semantics not safely exercisable under backend B DinD) + operator-manual keypress; AC 4 `re-attach preserves TUI state (scroll, iteration)` requires same Epic 3 TUI + backend-A + operator-manual re-attach verification. Story 2.7 ships the `docker attach --detach-keys='ctrl-p,ctrl-q'` envelope (the invocation path) per SC-2 scope carve-out; Epic 3 ships the runtime behavior under verification. No Story 2.7 code change required at Epic 3 landing — the wrapper's attach line remains correct; Epic 3's `CMD:` change (from `sleep infinity` to the Ralph TUI entrypoint) is what activates AC 3 + AC 4 material verification. Downstream consumer signals for Story 2.7 wrappers: Story 3.x Ralph TUI runtime consumes KEEL_RALPH_MODE env var + selects .ralph/PROMPT_<mode>.md; Story 2.13 real healthcheck (dnsmasq + sshd liveness) consumed transitively via Story 2.6 start.sh's stub-friendly poll loop (no Story 2.7 code change required).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ]
+}

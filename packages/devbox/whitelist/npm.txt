@@ -1,0 +1,12 @@
+# packages/devbox/whitelist/npm.txt — Story 2.3 (Task 2.2)
+#
+# npm / Node.js registry allow-list fragment. Category-scoped so operators
+# can reason about the surface (substrate-wide; every fork needs these for
+# pnpm install / npx to succeed inside the devbox).
+#
+# Composed at container start (scripts/start-egress.sh) after whitelist.default.txt.
+
+registry.npmjs.org
+registry.yarnpkg.com
+nodejs.org
+unpkg.com

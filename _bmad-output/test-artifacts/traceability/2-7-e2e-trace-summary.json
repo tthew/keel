@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-22T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.7",
+    "label": "Ralph auto-start + TUI attach/detach via `pnpm ralph:build` / `pnpm ralph:plan`"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 5, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 5,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 5 P2 ACs; Epic-2-ships-envelope-Epic-3-ships-runtime class story (SEVENTH Epic 2 delivery); SEVENTEENTH cumulative trace-WAIVED precedent; EIGHTEENTH ATDD-skip-trace-WAIVED co-application pairing. Hybrid ground-(a)-(b)-(c) variant-(iii) + NEW ground-(c) variant `downstream-epic-owns-behavior-under-test` for AC 3 + AC 4.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.7 authors 2 NEW host-side bash shims + 3 modified files per SC-17 scope boundary: packages/devbox/scripts/{ralph-build-host.sh + ralph-plan-host.sh} (structural mirrors; RALPH_MODE + log prefix only diff) + repo-root package.json (+2 ralph:* entries after devbox:env:check before prepare per SC-3) + packages/devbox/README.md (+1 H2 § Ralph loop sibling of Story 2.6 H2) + AGENTS.md (+1 H3 § Ralph loop sibling of Story 2.6 H3 under § Devbox iteration environment). Sync-gate GREEN (no invariant contentHash drift).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live-lifecycle verification unlocks at Epic 3 in-container Ralph Textual TUI materialisation + M4-Pro operator workstation backend-A (AC 3 Ctrl+P Ctrl+Q detach preserves Ralph loop + AC 4 re-attach preserves TUI state both trivially satisfied under current CMD:[sleep,infinity] per SC-2 scope carve-out; material verification deferred). Iteration-env-safe smokes ALL PASSED at iter-223 (bash -n × 2; pnpm wiring count 2; stub-docker info-fail → exit 8 + log; stub-docker running → skip-start → attach args captured + exit 0; ralph-plan variant mode=plan; bash -x mode-export ordering confirmed for both variants).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

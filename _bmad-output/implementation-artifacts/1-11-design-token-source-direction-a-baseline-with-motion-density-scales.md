@@ -302,3 +302,7 @@ _Dismissed as noise per iter-36 + iter-52 two-layer convergence doctrine (single
 - `border.accent` focus-ring 3.49:1 on light `surface.default` — DISMISS (passes WCAG SC 1.4.11 3:1 threshold).
 - `accent.fg` dark-mode override resolves same value as light literal — DISMISS (overlay entry is schema-documented intent; not a no-op from a contract perspective).
 - Single-hop alias schema pattern does not validate transitive resolution — DISMISS (Story 1.10 schema scope; not a Story 1.11 defect).
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 1-11](./test-debt.md#story-1-11) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

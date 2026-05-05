@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-22T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.4",
+    "label": "whitelist source-of-truth + pnpm devbox:whitelist atomic-reload CLI"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 5, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 5,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — five P2 ACs cover a user-facing-CLI class story (fourth Epic 2 + first of its class: operator-editable bash CLI with subcommand dispatcher + domain-regex validation + mutation-lock + atomic-replace + diff summary outside the Vitest/Playwright idiom) with no live test runner at 1.0. All 5 ACs have STRONG substrate evidence + MORE in-iteration-executable assertion paths than Story 2.3 (which had ZERO iteration-env live smokes): (AC 1) packages/devbox/whitelist.default.txt header rewritten iter-174 documenting three-stage composition (content unchanged); packages/devbox/scripts/whitelist.sh NEW (~360 LOC, 0755) implementing `compose_whitelist_into()` three-stage composer (baseline → sorted fragments → whitelist.local.txt if readable) per SC-4 with comment-strip + blank-strip + `sort -u` dedup + additive-only semantics; `packages/devbox/scripts/start-egress.sh` extended with 5-line conditional `cat whitelist.local.txt` inside `compose_whitelist()` after fragments loop + WHITELIST_LOCAL constant + banner refresh (SC-14 byte-identity) — **SC-14 dual-composer parity smoke PASSED byte-identical in iteration env iter-174** against baseline + 3 fragments + local override fixture with deliberate `shared.example.org` overlap verifying `sort -u` dedup (harness sources `whitelist.sh` via BASH_SOURCE[0]==$0 main-guard + awk-extracts compose_whitelist() body from start-egress.sh); `.gitignore:48` entry at end of `# Environment / secrets` block (SC-3 no `.example` bang per Story 2.2 iter-151 AR-2); AGENTS.md + README.md H3 subsections; iteration-env `cmd_list` source-attribution smoke against fixture emits `<prefix>  <domain>` two-space alphabetical format correctly; (AC 2) cmd_sync pipeline — validate_sources → compose_whitelist_into → mv-atomic → invoke reload-egress.sh (Story 2.3 primitive UNTOUCHED per SC-19) → exit-code passthrough (SC-11) → conditional PREVIOUS_COMPOSED update (SC-18) → SC-7 diff summary (+/- grouped, alphabetical, count-line); `packages/devbox/package.json` gained one new `\"devbox:whitelist\": \"./scripts/whitelist.sh\"` scripts entry (SC-12); iteration-env dispatcher exit-2 contract smokes (no-args / unknown-subcommand / wrong-arity) all PASSED; SC-17 first-downstream-caller validates Story 2.3's encapsulated-bootstrap-detour contract; (AC 3) validate_sources collects ALL errors before returning (SC-6 multi-error collection); validate_domain fast-fail at add/remove boundary BEFORE mutation lock; strict LDH regex `^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$` + 253-char total-length bound per SC-5 (known limits scope-pinned at 1.0: RFC 3696 §2 all-numeric TLD prohibition NOT enforced — benign fail-closed failure mode; FQDN trailing-dot rejected — operators MUST use bare-name form; injection-prevention property preserved); fail-closed discipline — validation failure exits 2 WITHOUT touching ${COMPOSED_WHITELIST} or invoking reload-egress.sh; iteration-env multi-error collection smoke against 4-malformed-line fixture emits 4 stderr lines with DEVBOX_DIR-relative paths + 1-indexed line numbers; iteration-env single-arg regex rejection smokes (underscore / leading-hyphen / trailing-dot) all PASSED exit 2; (AC 4) mutation-lock `flock -x -w 10 201 /run/keel-whitelist-mutate.lock` per SC-8 (fd 201 NOT fd 200 — collision with reload-egress.sh's fd 200 avoided per Guardrail #6) held during add/remove mutation phase then released BEFORE invoking cmd_sync (nested-lock-deadlock avoidance); 10s timeout → exit 4; SC-9 atomic-mutation — `mv` tempfile onto target (rename(2)) for add; `grep -Fxv | mv` for remove (idempotent via `|| true`); trap-EXIT tempfile cleanup; reload-egress.sh fd 200 primitive flock UNTOUCHED per SC-19; iter-174 Completion Note pinned SC-9 `mv` binding contract over Subtask 4.5 `cp -f + rm` wording (cp+rm is NOT atomic); kernel-atomic `nft -f` guarantee means no partial policy state; (AC 5) substrate (`whitelist.default.txt` + `whitelist/*.txt`) tracked in git per Story 2.3 iter-158 — source-level edits go through prek gates (Story 1.4/1.5) at commit time; `whitelist.local.txt` gitignored per .gitignore:48 (per-fork operator-local runtime state; NEVER committed); `cmd_remove` substrate-source protection (Subtask 5.5) uses composition semantics (`sed -E 's/#.*$//' | awk 'NF' | grep -Fxq`) — strip comments + blanks before match so commented lines don't false-positive; on substrate-domain-remove emits operator-education stderr with `FR44 AMEND path` pointer + exit 2; `git check-ignore -v packages/devbox/whitelist.local.txt` smoke verified rule fires at `.gitignore:48`; SC-7 diff summary complements git-diff-at-PR-time for reviewer visibility. whitelist.sh + start-egress.sh + reload-egress.sh all `bash -n` syntax OK at iter-174. Sync-gate (node packages/keel-invariants/dist/check.js) exit 0 green at iter-174 with 20 manifest entries valid — NO new INV-* entry per SC-15 consumer-only; INV-devbox-egress-contract contentHash `aad16a51aa1dc7527c0312e6b99217966d7f3f3478fb677dd347792e9cb6889b` unchanged (docs/invariants/devbox-egress.md untouched per SC-19). Per-AC runner-hosted coverage deferred to Story 2.4-test-runner-landing (Epic 13 scope) + backend-B operator-workstation live smokes (Task 10.1–10.8: sync-on-empty-override / add-new / remove / list-in-container / validation-failure-nft-unchanged / substrate-protection / concurrent-sync / file-not-readable + Subtask 9.2 pnpm script listing).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.4 authors the user-facing-CLI substrate: NEW `packages/devbox/scripts/whitelist.sh` (~360 LOC, 0755, `#!/usr/bin/env bash`, `set -euo pipefail`, `BASH_SOURCE[0]==$0` main-guard for sourceability per iter-174 lesson) implementing four-subcommand surface (`sync` / `add` / `remove` / `list`) per architecture.md § Devbox Package Tree l.1002 + PRD § CLI-Tool Surface l.493; `packages/devbox/scripts/start-egress.sh` 5-line composition extension inside existing `compose_whitelist()` after fragments loop + WHITELIST_LOCAL constant at line 27 + banner-comment refresh (SC-14 byte-identity); `packages/devbox/whitelist.default.txt` header rewrite documenting three-stage composition (content unchanged — zero domain entries at baseline); `packages/devbox/package.json` one new `scripts` entry `\"devbox:whitelist\": \"./scripts/whitelist.sh\"` (SC-12) after `lint` preserving trailing-comma JSON validity; `.gitignore` one new entry at end of `# Environment / secrets` block (line 48) with inline comment (SC-3; no `.example` bang per Story 2.2 iter-151 AR-2 asymmetry-bug avoidance); `AGENTS.md` new `### Per-fork whitelist override (Story 2.4)` H3 under § Devbox iteration environment; `packages/devbox/README.md` new `### Per-fork whitelist override (Story 2.4)` H3 under § Egress policy (Story 2.3) with subcommand table + example operator session. Eight files total per SC-19 boundary (1 NEW + 7 modified). NO edits to Story 2.3 primitives (`reload-egress.sh` / `egress-log-tailer.sh` / `monitor.sh` / dnsmasq.conf / egress.nft / entrypoint.sh / docker-compose.yml / Dockerfile / .envrc.example / docs/invariants/devbox-egress.md) per SC-19 scope isolation. NO new `INV-*` manifest entry or `INV-devbox-egress-contract` contentHash refresh (SC-15 consumer-only); `docs/invariants/devbox-egress.md` untouched at iter-174 (source-path unchanged → contentHash drift-lock preserved). Downstream consumers: Story 2.5 hardening (cap_drop:[ALL] + user:dev + tmpfs) reworks whitelist.sh to run as `dev` rather than root under the reduced-capability posture; Story 2.6 host-side `pnpm devbox:whitelist` wrapper forwards via `docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh \"$@\"`; Story 2.13 healthcheck orthogonal (probes dnsmasq + sshd liveness, not CLI surface); Epic 4 FR37 security-evidence consumer unchanged (consumes Story 2.3 JSONL stream, not Story 2.4 CLI).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.4 test-runner landing (Epic 13 scope) will unlock per-AC runner-hosted probes: AC 1 list-against-running-container (`docker exec keel-devbox /workspace/packages/devbox/scripts/whitelist.sh list` verifies three-stage-composed output sorted + source-attribution prefix column) + sync-on-empty-override (first sync emits every domain as `+`, writes PREVIOUS_COMPOSED snapshot, exits 0); AC 2 full reload chain (add-new-domain → diff summary includes `+test-domain.example` → whitelist.local.txt contains domain → subsequent sync idempotent `0 added, 0 removed` → git status shows whitelist.local.txt UNTRACKED per SC-3 gitignore); AC 3 validation-failure smoke (append malformed domain to whitelist.local.txt → sync exits 2 + stderr `whitelist.local.txt:<lineno>: invalid domain syntax: '<line>'` + `nft list chain inet keel_egress output_v4` shows pre-sync rules unchanged proving previous policy active + reload-egress.sh NOT invoked); AC 4 concurrent-sync smoke (spawn two `whitelist.sh sync &` invocations; wait; both exit 0; flock arbitration at `/run/keel-egress.lock` serialises cleanly; final composed whitelist consistent); AC 5 already verified at substrate stage (git check-ignore -v smoke). Plus Subtask 9.2 `pnpm --filter @keel/devbox run` listing to confirm `devbox:whitelist` surface + Subtask 10.6 substrate-source-protection smoke (`whitelist.sh remove registry.npmjs.org` exits 2 + FR44 AMEND stderr) + Subtask 10.8 file-not-readable smoke (temporarily `chmod 000 whitelist.local.txt` → sync exits 3 + stderr; restore after). None of these block Story 2.4 `review → done` transition under the WAIVED precedent — substrate evidence + iteration-env executable smokes at iter-175 are complete for the in-iteration-executable portion of the story.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

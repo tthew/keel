@@ -17,6 +17,8 @@
     "lint": "eslint ."
   },
   "devDependencies": {
-    "@keel/keel-invariants": "workspace:*"
+    "@keel/keel-invariants": "workspace:*",
+    "@types/node": "20.19.0",
+    "vitest": "3.2.4"
   }
 }

@@ -35,15 +35,28 @@ pnpm-debug.log*
 # Environment / secrets
 .env*
 !.env.example
+.envrc
+.envrc.local
+!.envrc.example
+!packages/devbox/.envrc.example
+.secrets
+!.secrets.example
+!packages/devbox/.secrets.example
 *.pem
 *.key
+# Story 2.4 per-fork whitelist override — operator-editable via whitelist.sh add/remove; NEVER committed.
+packages/devbox/whitelist.local.txt
 
 # Dependencies
 node_modules/
+.pnpm-store/
 .pnp
 .pnp.js
 bower_components/
 vendor/
+
+# Designer handoff workspaces (operator-local; not substrate source)
+design_handoff_*/
 
 # Python
 __pycache__/

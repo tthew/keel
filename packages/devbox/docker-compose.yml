@@ -1,0 +1,356 @@
+# ---------------------------------------------------------------------------
+# packages/devbox/docker-compose.yml — Story 2.1 scope
+#
+# Minimal one-service compose that lands the M0.5(a-c) image + compose +
+# entrypoint foundation. Follow-up Epic 2 stories extend this file:
+#
+#   - Story 2.2 : parameterise resource knobs (cpus / mem_limit / shm_size /
+#                 ulimits / ports / platform) via `.envrc`-sourced env vars;
+#                 wire `.envrc.example`. LANDED iter-148.
+#   - Story 2.3 : in-container dnsmasq + nftables egress policy via
+#                 entrypoint-invoked scripts/start-egress.sh; cap_add
+#                 NET_ADMIN / NET_RAW; templates under dnsmasq/ + nftables/
+#                 and scripts under scripts/{start,reload,monitor,egress-log-tailer}.sh.
+#                 No sidecar service — dnsmasq is the in-container DNS authority
+#                 per AC 1 verbatim. LANDED iter-<this>.
+#   - Story 2.5 : harden (non-root user, cap_drop: [ALL] + six-cap narrow
+#                 list [NET_ADMIN, NET_RAW, NET_BIND_SERVICE], no-new-privileges,
+#                 tmpfs noexec/nosuid, named volume keel_home_dev for /home/dev).
+#                 LANDED iter-187.
+#   - Story 2.8 / 2.9 : OAuth named-volume mounts (/home/dev/.claude,
+#                        /home/dev/.config/gh) via `volumes:` top-level.
+#   - Story 2.11 : shared-workspace mode (`KEEL_DEVBOX_SHARED=true`). LANDED iter-257.
+#   - Story 2.12 : opt-in sshd via KEEL_DEVBOX_SSH=true (port 2222, pubkey-only, host keys persisted in keel_home_dev). LANDED iter-268.
+#   - Story 2.13 : healthcheck (dnsmasq + sshd liveness). LANDED iter-283.
+#
+# Story 2.1 only needs the file to parse and bring a container up so that the
+# AC 3 / AC 4 raw-compose verifications are runnable.
+# ---------------------------------------------------------------------------
+
+# Compose project name. Without this key, Docker Compose defaults the project
+# name to the basename of the compose file's directory (`devbox`), producing
+# fully-qualified resource names like `devbox_keel_home_dev`. The documented
+# operator verification commands — `docker volume inspect
+# keel-devbox_keel_home_dev` in `packages/devbox/README.md § Hardening §
+# Verification` and `docs/invariants/devbox-hardening.md § Verification` —
+# together with the `INV-devbox-homedev-named-volume` invariant surface all
+# pin the `keel-devbox_*` project prefix. Pinning the project name here
+# aligns compose identity with the `container_name` default (`keel-devbox`
+# per the service-level block below) AND the documented volume identity, so
+# `docker volume inspect keel-devbox_keel_home_dev` + `docker inspect
+# keel-devbox --format '… keel-devbox_keel_home_dev …'` resolve without
+# operator intervention. Rationale: Story 2.5 CR AI-3 (iter-190 Blind
+# Hunter) — iter-194 drain.
+#
+# Story 2.11 parameterisation (iter-257): `KEEL_DEVBOX_COMPOSE_PROJECT` is
+# set by `packages/devbox/scripts/lib/main-repo-resolver.sh §
+# resolve_mode_specific_state()` — `keel-devbox` in per-fork mode (default;
+# matches Story 2.5's fully-qualified volume name exactly) or
+# `keel-devbox-shared` in shared mode (`KEEL_DEVBOX_SHARED=true`). The
+# `${…:-keel-devbox}` default preserves per-fork behaviour for raw
+# `docker compose config` invocations that bypass the host wrappers.
+name: ${KEEL_DEVBOX_COMPOSE_PROJECT:-keel-devbox}
+
+services:
+  devbox:
+    # Parameterised so two worktrees / two forks sharing a single host
+    # daemon (backend B per `INV-devbox-dind-available`) do not collide
+    # on a globally-unique container name. Default preserves operator
+    # muscle-memory (`docker ps | grep keel-devbox`, `docker logs
+    # keel-devbox`); second worktrees / forks override via
+    # `KEEL_DEVBOX_CONTAINER_NAME` in `.envrc`. Dropping the key entirely
+    # would let Compose auto-name `<project>_devbox_1` per project — kept
+    # as an explicit default for log-greppability + doc continuity.
+    # Rationale: Story 2.1 CR AI-2 (iter-128 Blind + Edge Case Hunter).
+    container_name: ${KEEL_DEVBOX_CONTAINER_NAME:-keel-devbox}
+    # Platform parameterised for x86 fork overrides (Story 2.2 AC 1/AC 2);
+    # default linux/arm64 matches the M4-Pro baseline per architecture.md § I5.
+    platform: ${KEEL_DEVBOX_ARCH:-linux/arm64}
+    image: keel-devbox:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # env_file path resolves relative to this compose file, so ../../.envrc
+    # points at the monorepo root's direnv config (I6). The file is
+    # gitignored; forks copy `.envrc.example` (lands in Story 2.2) to
+    # seed it. The block is wrapped in a default via `path:` + `required:
+    # false` so Story 2.1's compose parses even before Story 2.2 ships
+    # `.envrc.example`. **Object-form `env_file:` syntax requires Docker
+    # Compose v2.20+** (2024-02; docker/compose#11365). See
+    # `packages/devbox/VERSIONS.md § Host Compose floor` for the fallback
+    # path — on older Compose, rewrite this block as flat-list
+    # (`env_file: [../../.envrc]`) but note that the fallback loses
+    # `required: false`, so a missing `.envrc` hardens into a parse error
+    # instead of being tolerated.
+    env_file:
+      - path: ../../.envrc
+        required: false
+    working_dir: /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}
+    # Per-fork workspace mount (default; Story 2.11 adds shared mode).
+    #
+    # Mount semantics (iter-239):
+    #   - source: KEEL_DEVBOX_WORKSPACE is the host's main repo absolute
+    #     path. Set by host wrappers via `git rev-parse --git-common-dir
+    #     | dirname` (resolves to the same value from any worktree, since
+    #     git's common-dir is the main repo's `.git`). Default `../..`
+    #     preserves the pre-iter-239 behaviour for raw `docker compose
+    #     up` invocations from packages/devbox/, but `pnpm devbox:start`
+    #     and friends always export the absolute path.
+    #   - target: /workspace/${KEEL_DEVBOX_REPO_NAME} mirrors the host
+    #     directory layout in the container. Default repo name is
+    #     `ralph-bmad`; forks override KEEL_DEVBOX_REPO_NAME in `.envrc`
+    #     to match their host directory layout (host
+    #     /Users/.../<name> ↔ container /workspace/<name>). Worktrees
+    #     appear naturally as subdirectories at /workspace/<repo>/.claude/
+    #     worktrees/<X> because the bind source is the main repo (worktree
+    #     directories live under `.claude/worktrees/` in the host layout).
+    #   - working_dir: pinned to the same /workspace/${REPO_NAME} so
+    #     `docker exec` without `-w` lands at the repo root; host
+    #     wrappers compute per-invocation `-w` to mirror the operator's
+    #     host cwd.
+    #
+    # Story 2.11 shared-workspace mode (landed iter-257): flips
+    # KEEL_DEVBOX_WORKSPACE to the parent directory + KEEL_DEVBOX_REPO_NAME
+    # to that parent's basename, producing /workspace/Development/{ralph-
+    # bmad,fork-A,fork-B}/ in the container. Resolution lives in
+    # packages/devbox/scripts/lib/main-repo-resolver.sh §
+    # resolve_mode_specific_state(). No volumes-block edit required — the
+    # resolver drives the bind source/target via env var interpolation at
+    # compose-up time.
+    #
+    # Story 2.5 adds the named volume `keel_home_dev` for /home/dev
+    # persistence (AC 4; NFR10 — auth tokens live only inside the devbox
+    # volume, never host bind-mounts).
+    volumes:
+      - type: bind
+        source: ${KEEL_DEVBOX_WORKSPACE:-../..}
+        target: /workspace/${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}
+      - type: volume
+        source: keel_home_dev
+        target: /home/dev
+    # Propagate KEEL_DEVBOX_REPO_NAME into the container so entrypoint.sh
+    # + start-egress.sh + egress-log-tailer.sh + monitor.sh can derive
+    # WORKSPACE_PATH at runtime. Compose's ${VAR} interpolation runs on
+    # the host at parse time; the container only sees variables explicitly
+    # propagated via `environment:` or `env_file:`.
+    environment:
+      KEEL_DEVBOX_REPO_NAME: ${KEEL_DEVBOX_REPO_NAME:-ralph-bmad}
+      # Story 2.12: propagate opt-in SSH signal into the container so
+      # entrypoint.sh's `${KEEL_DEVBOX_SSH:-false}` can gate the sshd-launch
+      # block. Compose's ${VAR} interpolation runs on the HOST at parse time;
+      # the container only sees vars in `environment:` or `env_file:`.
+      # Source the normalised (case-folded, strict-true-only) host-side value
+      # exported by resolve_ssh_state() — `KEEL_DEVBOX_SSH_RESOLVED` — NOT the
+      # raw `KEEL_DEVBOX_SSH`. Sourcing the raw var here would leak host-side
+      # case variants (`True`/`TRUE`/`tRuE`) through to the container, where
+      # entrypoint.sh's case-sensitive `"true"` match rejects them, producing
+      # a port-published-but-no-sshd-listening drift. Default `false` preserves
+      # the no-SSH posture when `.envrc` is absent.
+      KEEL_DEVBOX_SSH: ${KEEL_DEVBOX_SSH_RESOLVED:-false}
+    # Story 2.2: compute + shm limits parameterised via .envrc. Non-swarm
+    # canonical form (service-level `cpus:` / `mem_limit:` / `shm_size:` —
+    # NOT `deploy.resources.limits.*`, which Compose silently ignores outside
+    # swarm mode).
+    cpus: '${KEEL_DEVBOX_CPUS:-8}'
+    mem_limit: ${KEEL_DEVBOX_MEMORY_GB:-12}g
+    shm_size: ${KEEL_DEVBOX_SHM_GB:-2}g
+    # Story 2.2: file-descriptor ulimit. Soft = hard so operators never need
+    # to raise the hard cap separately.
+    ulimits:
+      nofile:
+        soft: ${KEEL_DEVBOX_NOFILE:-65536}
+        hard: ${KEEL_DEVBOX_NOFILE:-65536}
+    # Story 2.2: loopback-bound port publication (127.0.0.1:<host>:<container>)
+    # per PRD line 551 + Story 2.12 reduced-rework. Host port parameterised;
+    # container port is fixed to the in-container service binding.
+    ports:
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_WEB:-3000}:3000'
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_API:-3001}:3001'
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_STORYBOOK:-6006}:6006'
+      - '127.0.0.1:${KEEL_DEVBOX_PORT_VITE_HMR:-24679}:24679'
+    # Story 2.5: Linux capability bounding set + security_opt (AC 2, SC-4).
+    # `cap_drop: [ALL]` strips every capability including those inherited from
+    # the executable's bounding set, producing a minimum-privilege posture.
+    # Three narrow caps are re-added explicitly:
+    #   - NET_ADMIN         : nftables rule-load via netlink (Story 2.3 egress)
+    #   - NET_RAW           : raw-socket probes dnsmasq may issue for health
+    #   - NET_BIND_SERVICE  : dnsmasq port 53 bind under cap_drop: [ALL] — the
+    #                         bounding set no longer grants :<1024 bind from
+    #                         root's implicit cap, so this must be explicit
+    #                         (SC-4 three-cap reconciliation — AC 2's "only
+    #                         NET_ADMIN/NET_RAW" drafted before the
+    #                         cap-bounding-set × port-bind interaction was
+    #                         surfaced; documented in docs/invariants/devbox-
+    #                         hardening.md § Capability bounding set).
+    # WONTFIX (PR #230 R3-D04) — NET_RAW may be unused by the current dnsmasq
+    # config (no `--enable-tftp` / `--ptr-record` / server-script features
+    # require AF_PACKET; `/dev/tcp` healthcheck at start-egress.sh uses
+    # SOCK_STREAM, not raw). Removing it would tighten the bounding set with
+    # no functional regression — empirical confirmation requires running the
+    # container without the cap and observing dnsmasq + healthcheck pass on
+    # the operator workstation (deferred to a follow-up posture-tightening
+    # PR; landing this acknowledgement preserves auditability of the open
+    # question). Accepted-residual class — see docs/invariants/devbox-
+    # hardening.md § Defense-in-depth gaps.
+    # `security_opt: [no-new-privileges:true]` sets PR_SET_NO_NEW_PRIVS=1 on
+    # PID 1 — kernel masks file-cap F(effective) on exec + disables setuid
+    # bit elevation. Capability propagation under USER dev uses Docker ≥19.03
+    # ambient-cap propagation (prctl PR_CAP_AMBIENT_RAISE) which survives
+    # exec() regardless of NNP per capabilities(7) design — see SC-15 +
+    # docs/invariants/devbox-hardening.md § Capability bounding set.
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BIND_SERVICE
+      # gosu's drop-from-root-to-dev at the end of entrypoint.sh requires
+      # setuid(2)/setgid(2) syscalls, which under cap_drop: [ALL] are gated on
+      # CAP_SETUID / CAP_SETGID even for root-owned processes (capabilities(7)
+      # bounding-set semantics). Re-adding these two caps is load-bearing for
+      # the "privileged root init → drop to dev for CMD" posture documented in
+      # entrypoint.sh + Dockerfile. gosu itself (NOT a setuid binary) invokes
+      # these syscalls directly as root before exec(), so no-new-privileges
+      # does NOT mask the drop.
+      - SETUID
+      - SETGID
+      # CAP_KILL is required by reload-egress.sh's `kill -HUP <dnsmasq-pid>`
+      # SIGHUP delivery path. dnsmasq is launched as root from the entrypoint
+      # (compose `user: '0:0'`) and drops to user `nobody` by default after
+      # binding :53 (capabilities(7) signal-permission rule: signaling a
+      # different-UID process requires CAP_KILL). Without it, the script's
+      # `kill -0` liveness probe + `kill -HUP` reload both EPERM, the
+      # staleness branch fires, the fresh-start fallback tries to bind :53
+      # again, and the reload aborts exit 7 with the bound dnsmasq still
+      # serving the previous config. Iter-238 EMPIRICALLY DISCONFIRMED the
+      # alternative "launch dnsmasq via gosu dev" approach (Dockerfile:
+      # 362-367) — Docker's ambient-cap propagation does NOT cross USER
+      # boundaries under no-new-privileges=1, so a dev-launched dnsmasq
+      # loses CAP_NET_ADMIN and its `nftset=` netlink calls fail. Adding
+      # CAP_KILL is the minimum-surface fix that keeps dnsmasq dropping to
+      # nobody (post-bind privilege reduction preserved) while letting the
+      # root-owned reloader signal it.
+      - KILL
+    # `user: "0:0"` overrides the image USER directive for the container's
+    # main process (entrypoint), so privileged init (nftables rule load,
+    # dnsmasq launch on :53, /etc/resolv.conf pin, /run chown) runs with the
+    # cap_add bounding set in the effective capability set. entrypoint.sh
+    # ends with `exec gosu dev "$@"` to drop to dev for the operator-facing
+    # process. docker-exec commands against the running container continue
+    # to default to the image USER (dev), so shell sessions land non-root.
+    # This is the canonical "init-as-root, run-as-non-root" Docker pattern,
+    # necessary here because Docker's auto-ambient-cap propagation does NOT
+    # cross the image-USER boundary under no-new-privileges=1 (empirically
+    # verified iter-238: CapAmb=0x0 under USER dev + NNP, regardless of
+    # cap_add setting). Story 2.5's original design assumed the propagation
+    # worked, but under Docker 29.2 + linux/arm64 it does not.
+    user: '0:0'
+    security_opt:
+      - no-new-privileges:true
+    # Pin /etc/resolv.conf to the in-container dnsmasq (127.0.0.1) at container
+    # create time so start-egress.sh does NOT need to overwrite it at boot.
+    # Under Story 2.5's USER dev + cap_drop: [ALL] (CAP_DAC_OVERRIDE stripped),
+    # dev cannot write the root-owned /etc/resolv.conf bind-mount; Docker's
+    # `dns:` directive populates the file BEFORE the entrypoint runs, sidestepping
+    # the EACCES collision between Story 2.3's write-then-pin posture and Story
+    # 2.5's hardened bounding set. Companion: start-egress.sh "verify-not-write"
+    # branch (still attempts the write for fork-time hardened postures that
+    # disable Docker's resolv.conf injection, but accepts the no-op when the
+    # daemon already wrote the canonical 127.0.0.1 line).
+    #
+    # `network_mode: bridge` is REQUIRED to make Docker honor the literal `dns:`
+    # value: under compose's default user-defined network, Docker injects its
+    # embedded DNS resolver (127.0.0.11) into resolv.conf and downgrades `dns:`
+    # to an upstream-forwarder hint, which leaves the EACCES collision in place.
+    # The default bridge has no embedded DNS, so `dns: [127.0.0.1]` becomes the
+    # literal `nameserver 127.0.0.1` line. We're a single-service compose so the
+    # loss of inter-container service-name DNS is moot. Story 2.11
+    # shared-workspace mode + Story 2.13 healthcheck dnsmasq → still single-
+    # service; if a future story adds a sidecar service, revisit this block.
+    network_mode: bridge
+    dns:
+      - 127.0.0.1
+    # Story 2.5 tmpfs posture (AC 3, SC-8). Parameterised via .envrc knobs
+    # published by Story 2.2 (.envrc.example:29-30); size uses MB suffix.
+    # Options are canonical kernel tmpfs mount flags (`mount(8)`): `noexec`
+    # masks MNT_NOEXEC so setuid/exec-bit scripts can't run, `nosuid` masks
+    # MNT_NOSUID so setuid binaries can't elevate. The older `exec=false,
+    # suid=false` Compose-style form was inconsistently handled by the
+    # daemon (Docker 29 rejects `suid=false` as "invalid tmpfs option"
+    # while accepting `exec=false`); using the kernel-native flag names
+    # avoids the asymmetry. `/var/log` is intentionally NOT tmpfs-mounted
+    # at 1.0 (dnsmasq + nftables log files live under /workspace/logs/
+    # per Story 2.3 SC-17; keeping /var/log as normal image layer avoids
+    # invalidating dnsmasq-packaged log-dir init). The
+    # KEEL_DEVBOX_TMPFS_LOGS_MB knob published by Story 2.2 remains inert
+    # at Story 2.5.
+    tmpfs:
+      - /tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_TMP_MB:-2048}m
+      - /var/tmp:noexec,nosuid,size=${KEEL_DEVBOX_TMPFS_VARTMP_MB:-1024}m
+    # Story 2.13: dnsmasq liveness (always) + nftables egress chain presence
+    # (always; root-gated) + sshd liveness (when KEEL_DEVBOX_SSH=true). Replaces
+    # upstream cc-devbox's broken `curl :3000` healthcheck (README §
+    # cc-devbox upstream provenance § Known upstream bugs fixed). `dig` + `nc`
+    # + `nft` ship in the Dockerfile apt layer (dnsutils + netcat-openbsd +
+    # nftables per Dockerfile:61-64).
+    # KEEL_DEVBOX_SSH env var is populated by Story 2.12 § environment
+    # propagation (compose:149 sources KEEL_DEVBOX_SSH_RESOLVED — iter-273
+    # PATCH-2 — so case-folded true is canonical inside the container).
+    # Probe domain `api.github.com` is always whitelisted (Story 2.9 github.txt
+    # fragment is load-bearing for every fork's gh-auth flow); `+short` + `+time=3`
+    # + `+tries=1` bounds the probe at ~3s even on transient upstream lag.
+    # NXDOMAIN counts as success (we're measuring dnsmasq RESPONSIVENESS, not
+    # whitelist membership); dig exits non-zero only on timeout / connection
+    # refused — the signal we care about.
+    #
+    # Clause 2 (PR #230 review FIX-5 → FIX-10; `nft list chain inet keel_egress
+    # output_v4` + `output_v6` piped through `grep -q 'policy drop'`) verifies
+    # BOTH egress chains are present in the kernel netfilter state AND each
+    # carries `policy drop` as its base disposition. FIX-5 (presence-only on
+    # output_v4) closed the manual-flush / image-runtime-tamper case; FIX-10
+    # extends to (a) v6 chain coverage — egress.nft:84-149 ships v6 rules so a
+    # v6 chain deletion was previously invisible — and (b) policy-drop
+    # verification, which catches mid-run firewall corruption (e.g. partial
+    # `nft -f` failure during a whitelist reload that landed v4 but failed v6,
+    # or a CAP_NET_ADMIN-holding caller flipping `policy drop` to `policy
+    # accept`). Chain-content drift (rule deletion under CAP_NET_ADMIN against
+    # an existing policy-drop chain) remains uncovered by the inline probe per
+    # PR #230 review A7 threat-model caveat — defer to a future smoke-script
+    # extraction. The chain query requires CAP_NET_ADMIN from the calling
+    # thread; under no-new-privileges the file-cap on /usr/sbin/nft
+    # (Dockerfile:293) is masked on exec, so dev cannot list rules even with
+    # file caps. Docker HEALTHCHECK runs probes using container.Config.User
+    # (set to '0:0' by `user: "0:0"` above), so the probe runs as root with
+    # CAP_NET_ADMIN in the effective set. Belt-and-braces `[ "$(id -u)" -ne 0 ]`
+    # short-circuit makes the probe a no-op for forks that override `user:` to
+    # a non-root identity, preserving the dnsmasq + sshd liveness signal even
+    # when the chain probe is unavailable; such forks are responsible for
+    # surfacing nft-chain drift via a fork-specific compose-override probe per
+    # § Fork extension contract.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
+          && { [ "$(id -u)" -ne 0 ] || ( nft list chain inet keel_egress output_v4 2>/dev/null | grep -q 'policy drop' && nft list chain inet keel_egress output_v6 2>/dev/null | grep -q 'policy drop' ); }
+          && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z -w 2 127.0.0.1 2222; }
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # TODO(Story 2.8 / 2.9): named-volume mounts for OAuth tokens.
+    restart: 'no'
+    tty: true
+    stdin_open: true
+
+# Story 2.5 AC 4 / SC-6: named volume for /home/dev. Non-toggle-able under any
+# KEEL_DEVBOX_* setting — the mount contract is substrate-authoritative per
+# INV-devbox-homedev-named-volume (docs/invariants/devbox-hardening.md). Default
+# `local` driver (no driver_opts) for portability across Docker Desktop + rootless
+# Docker + Podman-compat forks. The name `keel_home_dev` composes under the
+# compose project prefix to a fully-qualified volume name (e.g.
+# `keel-devbox_keel_home_dev`). Docker populates the empty volume from the image
+# layer's /home/dev ownership on first boot, per the useradd + chown -R dev:dev
+# step in Dockerfile (SC-3).
+volumes:
+  keel_home_dev: {}

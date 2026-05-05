@@ -1,0 +1,38 @@
+# packages/devbox/whitelist.default.txt — Story 2.3 (SC-8) + Story 2.4 (SC-4)
+#
+# Baseline per-fork allow-list for devbox egress (dnsmasq + nftables).
+# Empty at substrate level — category fragments under packages/devbox/whitelist/
+# ship the canonical starting set (npm, anthropic, github).
+#
+# Composition order (concatenation by scripts/start-egress.sh at boot AND by
+# scripts/whitelist.sh at CLI invocation; both composers MUST produce
+# byte-identical output per SC-14):
+#   1. packages/devbox/whitelist.default.txt  (this file — substrate baseline)
+#   2. packages/devbox/whitelist/*.txt        (category fragments, sorted)
+#   3. packages/devbox/whitelist.local.txt    (per-fork override; gitignored)
+#
+# Syntax:
+#   - one domain per line
+#   - blank lines + `#`-prefixed comments ignored
+#   - no wildcards at 1.0 (explicit domains only)
+#
+# Each domain is resolved at reload time (packages/devbox/scripts/reload-egress.sh)
+# via getent ahostsv4 + ahostsv6; IPv4 + IPv6 addresses become explicit accept
+# rules in the nftables `inet keel_egress` table. dnsmasq forwards the domain
+# to ${KEEL_DEVBOX_DNS_UPSTREAM} (default 1.1.1.1).
+#
+# Per-fork override lives at `whitelist.local.txt` (gitignored); edit via
+# `pnpm devbox:whitelist add|remove <domain>` or hand-edit the file then
+# `pnpm devbox:whitelist sync`. Substrate amendments to this file or to
+# whitelist/*.txt go through source-level PRs subject to prek gates (FR44 AMEND).
+#
+# Per-fragment rotating annotation (Story 2.18 SC-2): fragments named with the
+# filename suffix `-rotating.txt` (e.g. `whitelist/github-rotating.txt`) are
+# classified `rotating` by both composers; `compose_whitelist()` /
+# `compose_whitelist_into()` emit a parallel `.classification` sidecar
+# (`<composed-whitelist-path>.classification`) mapping `domain<TAB>type` so
+# `reload-egress.sh` can drive `dnsmasq nftset=` directive emission for those
+# domains. All other sources (this default + non-rotating fragments + the
+# per-fork `whitelist.local.txt` override) classify as `static`. Collision
+# rule: a domain present in both rotating and non-rotating sources resolves
+# to `rotating` (rotating wins — most-permissive class for population safety).

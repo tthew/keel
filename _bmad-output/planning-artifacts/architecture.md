@@ -151,7 +151,7 @@ git clone https://github.com/tthew/cc-devbox packages/devbox
 
 **Build Tooling:** Vite for `apps/web`; Turborepo for monorepo task orchestration (content-aware caching + incremental builds + dependency-graph-aware task running); `tsconfig.base.json` + TypeScript project references for compile-time package-boundary enforcement alongside ESLint `no-restricted-imports`.
 
-**Testing Framework:** Deferred — to be decided in architectural decisions phase. Natural fits: Vitest (aligns with Vite+TS workspace), Playwright (PRD pins it for end-to-end + devbox bakes browser deps at image build).
+**Testing Framework:** **Vitest** for TypeScript (aligned with Vite + TS workspace; pinned per I7 in `packages/config` + `pnpm.overrides`; Story 1.17 implementation). **pytest under uv** for Python tooling (`ralph.py`, `scripts/`, `packages/devbox/tui/`; root `pyproject.toml` + `uv.lock`; Story 1.18 implementation). **Playwright** is deferred to Epic 13 / M9 (E2E + visual-regression tier; devbox already bakes browser deps at image build per PRD M0.5). See § M0 substrate developer-productivity floor for the bootstrap arc (Stories 1.17–1.21; 2026-04-25 amendment per issue #233 closes this previously-deferred decision).
 
 **Code Organization:** 14-package topology per PRD § API surface — `apps/web` + `packages/{db, contracts, config, core, billing, email, jobs, flags, audit, ui, keel-invariants, devbox, keel-generator, keel-templates}`. ESLint `no-restricted-imports` + TS project references enforce boundaries at compile time (rules hardwired in `packages/keel-invariants/`, static across shapes).
 
@@ -192,6 +192,52 @@ git clone https://github.com/tthew/cc-devbox packages/devbox
 **Affects:** pre-merge-fast CI, pre-merge-slow CI, `packages/db/test-utils`, M9.
 
 **D4. §RLS-Performance-Budget (PRD handoff; refines NFR3 placeholder).** Budget is a **p95 wall-clock delta** measured via benchmark harness running the same query with and without RLS on a seeded dataset. Seed: 10k rows across 100 tenants (`team` template, 100 rows/tenant) + 10k rows across 10k tenants (`user` template, 1 row/tenant). Benchmark lives in nightly (≤60min, stable timing). Monthly review via NFR28c cadence; p95 delta > 20% for two consecutive monthly baselines flags NFR3 breach → triage. **Affects:** nightly CI, `packages/db/bench`, NFR3 architecture-ref.
+
+**D6. §Python project shape (issue #233 amendment, 2026-04-25).** Python tooling (`ralph.py`, `scripts/bootstrap-bmad-agents.py`, `packages/devbox/tui/`) is currently bootstrapped via PEP 723 inline-script metadata; pytest discovery + dev-dep sharing across modules is awkward under that pattern. **Decision:** root `pyproject.toml` + `uv.lock` declaring shared dev deps (pytest, pytest-asyncio, ruff, mypy); pytest discovers from repo root via `[tool.pytest.ini_options]` `testpaths` block; coexists with existing PEP 723 inline-metadata (uv reads both — root `pyproject.toml` for shared deps; per-script blocks for runtime deps). Per-Python-package `pyproject.toml` mirroring the TS workspace shape rejected as heavyweight for ~3 modules. **Affects:** `pyproject.toml` (root, NEW), `uv.lock` (root, NEW), `tests/` (root, NEW), `packages/devbox/tui/tests/` (NEW), Story 1.18 implementation, § M0 substrate developer-productivity floor.
+
+### M0 substrate developer-productivity floor
+
+The minimum testable substrate state below which all FRs / NFRs that depend on test execution operate vacuously (FR14a, FR14a2, FR14a3, FR14i, FR14o, FR29, FR42-side enforcement, NFR1a). Bootstrapped via the issue #233 course correction (Stories 1.17–1.21; reopened Epic 1 cleanup pass).
+
+**TypeScript runtime substrate:**
+
+- **Runner:** Vitest, pinned exactly per I7 in `packages/config` + root `pnpm.overrides`.
+- **Workspace discovery:** root `vitest.workspace.ts` globbing `packages/*/vitest.config.ts`.
+- **Per-package configuration:** each workspace package with `src/` ships `vitest.config.ts` (node env or jsdom env per package needs) + a `"test": "vitest run"` script.
+- **Turbo orchestration:** `turbo.json` `test` task with `dependsOn: ["^build"]` + `outputs: ["coverage/**"]`.
+- **Canonical entry point:** `pnpm test` (resolves to `pnpm turbo run test`).
+
+**Python runtime substrate:**
+
+- **Project shape (D6):** root `pyproject.toml` + `uv.lock` declaring shared dev deps (pytest, pytest-asyncio, ruff, mypy). Resolves the per-script PEP 723 inline-metadata pattern's discovery + dep-sharing limits.
+- **Discovery:** pytest's default collection across the repo with explicit `[tool.pytest.ini_options]` `testpaths` block in `pyproject.toml` listing project test roots.
+- **Canonical entry point:** `uv run pytest`.
+
+**CI integration:**
+
+- **Workflow:** single `.github/workflows/ci.yml` running on PR + push-to-main. Two jobs: (a) `node` — `pnpm install --frozen-lockfile && pnpm turbo run test lint typecheck`; (b) `python` — `uv sync && uv run pytest`. Required check on `main`.
+- **Tier scope:** this is the **minimal** CI workflow — single tier, deterministic, no live-network. The full decomposed CI pyramid (pre-merge-fast / pre-merge-slow / nightly / release-gated per NFR1) lands in Epic 13 / M9. Bootstrap does NOT pull the pyramid forward.
+
+**Coverage floor:** NFR1a (≥ 1 passing test per package with `src/`); enforced via `INV-package-test-coverage-floor` invariant registered in Story 1.19. Percentage thresholds deferred to Epic 14 / M10 per NFR28b empirical-baseline methodology.
+
+**FR14i activation:** Story 1.20 registers `INV-fr14i-ci-workflow-presence` in `invariants.manifest.ts` so future-Ralph cannot silently regress the gate by deleting/renaming the workflow file.
+
+**Stories 1.17–1.21** form the bootstrap arc:
+
+- Story 1.17 — TS runner + minimal CI;
+- Story 1.18 — Python runner + uv project shape;
+- Story 1.19 — `keel-invariants` test backfill (highest-risk untested code, gates merges via FR42 / FR43 / FR43a);
+- Story 1.20 — activate FR14i for real (end vacuous-pass mode);
+- Story 1.21 — audit + sweep prior ATDD-deferred stories into `test-debt:` follow-ups.
+
+**Decisions held at M9 / M10 (not pulled forward by bootstrap):**
+
+- D3 (synthetic-schema strategy: pglite at pre-merge-fast + testcontainers at pre-merge-slow) — M9.
+- D4 (RLS p95 perf-budget benchmark harness) — M9 nightly.
+- C4 (`T-\d{4}` stable test-id ESLint rule + `packages/keel-invariants/eslint-rules/stable-test-id.cjs`) — M9.
+- M3 (flake-log schema freeze; Murat's Round 1 amendment) — M10 (Epic 14).
+
+**Affects:** PRD § FR14a / FR14i / FR14n / FR14o / NFR1a; this section consolidates the substrate-floor handoff for the Stories 1.17–1.21 implementation arc.
 
 ### Authentication & Security
 
@@ -293,6 +339,8 @@ KEEL_DEVBOX_SHARED=false
 ```
 
 Non-Apple-Silicon or resource-constrained forks override via per-fork `.envrc`. **Affects:** `packages/devbox/.envrc.example`, `packages/devbox/docker-compose.yml`, NFR8 / NFR8a.
+
+**I5a. Docker-in-Docker as a fork-time substrate requirement (`INV-devbox-dind-available`).** The cc-devbox iteration environment MUST provide a functioning Docker daemon — `docker` on PATH, `docker info` succeeding against a reachable daemon (unix socket at `/var/run/docker.sock` canonical; remote transport permitted for forks that substitute), `docker compose` subcommand (Compose v2+). Canonical install path: [`docs.docker.com/engine/install/ubuntu/`](https://docs.docker.com/engine/install/ubuntu/) against the `FROM ubuntu:24.04` cc-devbox base (Docker-in-Docker arrangement). Ralph needs this to exercise full-stack vertical slices against services, architecture, and infrastructure inside a fork's devbox — Epic 2 Docker-gated tasks, Epic 6 RLS debugger invocation, Epic 13 CI harness smokes, every story whose AC exercises container behaviour. Substrate, not fork-specific: `INVARIANTS.fork.md` rules are additive and cannot override; a fork substituting Podman or rootless Docker remains conformant so long as daemon reachability holds, whereas a fork that breaks reachability pursues the AMEND path. **Does NOT change NFR2 authority for Story 2.1.** AC 4 scope clarification keeps M4-Pro native as authoritative for cold ≤ 300s / warm ≤ 30s. DinD benchmark runs MAY append to `packages/devbox/README.md § Benchmarks` but MUST be flagged `host: DinD (cc-devbox) — modelled indicative baseline` and carry a `uname -a` + `docker --version` fingerprint that distinguishes them from native runs (same modelled-vs-empirical-honesty pattern as NFR28b below). Spec-enforced at 1.0 via `docs/invariants/devbox-dind.md` + `invariants.manifest.ts` entry; runtime check (`command -v docker && docker info`) lands as a `packages/keel-invariants/` rule on a later Ralph iteration. **Affects:** `packages/devbox/`, `docs/invariants/devbox-dind.md`, `packages/keel-invariants/`, every Docker-gated story in Epics 2/6/13.
 
 **I6. Dev container secrets & env var management (simplest-workable posture).** Single dotfile → devbox, Vite-native VITE_-prefix for client-runtime, typed `getSecret()` for server-side access, boot-time Zod validation. No pluggable provider shim (Victor: "the shim is scar tissue from imagined future consulting gigs"; Winston: addressed because the shim doesn't exist, so the unexercised-interface risk disappears).
 
@@ -396,6 +444,51 @@ Pre-merge-fast rejects tasks where `manifest_hash` shrank or the `id` list shran
 **R3. PR-lifecycle state machine.** Authoritative state lives in GitHub PR (`gh pr view --json state,isDraft,reviewDecision,statusCheckRollup`); mirrored to `.ralph/@plan.md`. Ralph reads at orient; pure function `transition(pr_state, epic_state) → action` implemented in `.ralph/lib/pr-state.ts` (TypeScript, invoked via `tsx`). Same six rows + three anti-constraints as PRD's decision matrix. **Affects:** `.ralph/lib/`, orient-phase contract, FR14h.
 
 **R4. Knowledge-file upkeep contract.** Per FR14j: `AGENTS.md` (shared operational), `CLAUDE.md` (Claude-Code-specific), `RALPH.md` (Ralph-private). Every iteration's commit includes a diff to at least one of the three OR a justification comment in the commit body explaining why nothing was learned. Pre-commit hook emits a warning (not a hard fail) if all three are untouched AND no justification found; Ralph honours the warning by prompting itself to reflect. **Affects:** pre-commit hook, Ralph prompt files, M9.
+
+**Doc-budget enforcement (issue #231 amendment, 2026-04-25).** R4 extends to size-bounding the three knowledge files plus `.ralph/@plan.md` mechanically. Two complementary surfaces share a single threshold-constants block:
+
+- **Phase 1 — soft orient-gate (PRIMARY defense).** `ralph.py` adds `_build_doc_budget_block(env)` mirroring the pattern at `_build_issue_tracking_block()` (`ralph.py:1622`). On threshold trip, a `## PRUNE-FIRST (advisory)` block is injected into the loaded `PROMPT_build.md` before agent invocation. This is upstream of the ~80K orient read; the only intervention that prevents bloat from being read in the first place.
+- **Phase 2 — pre-commit gate (belt-and-braces).** `tools/check-ralph-doc-budget.sh` enforces a numeric double-bound (bytes AND lines) ungameable by prose density. Wired as a hook entry in `.pre-commit-config.yaml` (the prek-managed pipeline that already gates this repo); shares `RALPH_DOC_BUDGET_ENFORCE` env propagation with the orient-gate. Threshold constants live in a single SSOT file (`.githooks/doc-budget.json`) read by both `ralph.py` and the hook script — no parallel implementation.
+
+**Architectural primacy (non-droppable).** Phase 1 is the PRIMARY defense — it's the only intervention upstream of the orient read. Phase 2 is belt-and-braces. Future readers MUST NOT drop Phase 1 as redundant once Phase 2 lands; these are complementary, not escalating.
+
+**Env-var contract (extends R7's environment-variable surface).** Two new vars:
+
+| Variable                       | Values                                          | Purpose                                                              |
+|--------------------------------|-------------------------------------------------|----------------------------------------------------------------------|
+| `RALPH_DOC_BUDGET_ENFORCE`     | `off` \| `warn-in-prompt` \| `halt-in-prompt`   | Selects Phase-1 / Phase-2 active consumer; default `warn-in-prompt`  |
+| `RALPH_DOC_BUDGET_OVERRIDE`    | `<int bytes>`                                   | Emergency-merge override for Phase 2 hook                            |
+
+**Telemetry — `sizes.jsonl`.** `$RALPH_BASE_DIR/logs/sizes.jsonl` (gitignored, schema in Story 3.15) records one JSON line per iteration:
+
+```
+{
+  "iter": <int>,
+  "ts": "<ISO8601>",
+  "ralph_md_bytes": <int>,
+  "ralph_md_lines": <int>,
+  "plan_md_bytes": <int>,
+  "plan_md_lines": <int>,
+  "signpost_word_counts": [<int>, ...],
+  "done_entry_word_counts": [<int>, ...],
+  "orient_phase_tokens": <int>,
+  "line_delta_from_prev": <int>
+}
+```
+
+The last two fields are leading + lagging indicators for the post-ship monitoring described in Story 3.34's threshold-tuning AC. Retention: untrimmed at 1.0; rotation policy is a future per-fork concern, not substrate.
+
+**Phase 2 ship preconditions (architecture-binding, NOT advisory).** Phase 2 MUST NOT move from `warn-in-prompt` to `halt-in-prompt` (with hook active) until ALL of:
+
+1. ≥ 20 HEALTHY iterations recorded in `sizes.jsonl`.
+2. P90 of recorded sizes is ≥ 30% below the proposed hard cap (prevents calibrating to a too-loose budget).
+3. Phase-1 soft-gate false-positive rate < 5% on healthy-baseline replay (prevents the "Ralph learns padding patterns under the cap" flakiness trap).
+
+Failing any precondition keeps Phase 2 off; threshold iteration uses the telemetry data. This sequencing is architectural, not optional — see § R6 (flake measurement layer) precedent for the "ship measurement at 1.0; ship enforcement after empirical baseline" pattern.
+
+**Lands NOW (not deferred to Epic 3).** Phase 0 telemetry + Phase 1 orient-gate + Phase 2 hook in `warn-only` mode ship on the branch carrying this architecture amendment; Phase 2 promotion to `halt-in-prompt` mode + manifest registration follow once the empirical preconditions are met. Story 3.34 in Epic 3 is the BMad story-record; its sprint-status enters as `done`.
+
+**Affects:** `ralph.py` (`_build_doc_budget_block`, env-var injection, sizes.jsonl writer), `.githooks/doc-budget.json` (SSOT thresholds), `tools/check-ralph-doc-budget.sh` (Phase 2 hook), `.pre-commit-config.yaml` (hook entry), `$RALPH_BASE_DIR/logs/sizes.jsonl`, `packages/keel-invariants/src/invariants.manifest.ts` (`INV-ralph-doc-budget` registered ONLY after Phase 2 promotion + 10 clean iterations), `INVARIANTS.md` (new `### Ralph loop hygiene` section + anchor bullet at the same milestone), Story 3.15 (telemetry — Phase 0 absorption), Story 3.22 (cross-ref), Story 3.23 (threshold-constants coordination), **Story 3.34** (BMad-tracking record; ships done with this PR).
 
 **R5. Headless Ralph `--no-tui` as research instrumentation (Party-Mode-driven reclassification).** Originally deferred to Growth-tier in the PRD; promoted to M0/M1 research infrastructure because the TUI is a human-observation interface and the dual-posture tie-breaker makes structured data collection primary. A TUI cannot be driven by a cron job or GitHub Action without losing measurement integrity (Victor, 2026-04-19 pressure-test: "If the tripwire measurement is run by you, manually, watching a TUI, measurement integrity is already compromised").
 

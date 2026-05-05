@@ -1,0 +1,473 @@
+# Story 2.13: Healthcheck on dnsmasq + sshd (replaces upstream's broken `curl :3000` healthcheck)
+
+Status: done <!-- Ralph-internal `Story State` = `done` at iter-286 `/bmad-code-review (args: "2")` CR closure (sm-verified iter-285 → done iter-286 — three-layer Ralph-hosted adversarial fan-out per iter-271/iter-277 pattern: Blind Hunter `general-purpose` diff-only + Edge Case Hunter `general-purpose` diff+project-read + Acceptance Auditor `general-purpose` diff+spec+invariant). **0 first-class PATCH + 6 DEFER + ~14 DISMISS** — below iter-264 LESSON moderate-novelty forecast band 1-3 PATCH; matches iter-270 NOVEL LESSON "pre-dev SM absorbs novel surface → post-dev gates clean-advance dominant" + iter-279 ZERO-PATCH CR closure precedent for narrow-diff stories. Six DEFERs all polish-class for Story 2.17 SC-17 close-out (D-8 UID-empirical, D-9 probe robustness, D-10 exit-2 edge, D-11 Dockerfile lockstep lint scope, D-12 README sudo disclaimer, D-13 start_period cold-boot + AGENTS.md cross-ref polish). Cumulative Epic-2 DEFER queue for Story 2.17: 24 + 6 = **30 DEFERs**. Sprint-status row flips `review → done` at this iter per iter-279 precedent. Epic 2 progress: 12/17 → 13/17 done. Next iter (iter-287): `/bmad-create-story` for Story 2.14 per § Story Lifecycle row `done → next story in current epic` (Epic 2 still has 4 backlog stories — 2.14/2.15/2.16/2.17 — no cross-epic transition triggered). -->
+
+<!-- Note: Validation is optional. Run `/bmad-create-story (args: "review")` for pre-dev quality check before `/bmad-testarch-atdd` / `/bmad-dev-story`. -->
+
+## Story
+
+As a substrate maintainer,
+I want `packages/devbox/docker-compose.yml`'s `healthcheck:` block to probe dnsmasq liveness (and sshd when `KEEL_DEVBOX_SSH=true`) rather than upstream cc-devbox's broken `curl :3000` healthcheck,
+So that the container's `State.Health.Status` reflects actual in-container service health — `pnpm devbox:status` (Story 2.6 AC 2.6.9) and `pnpm devbox:start`'s healthcheck poll (Story 2.6 AC 2.6.4 / `start.sh:92-120`) report meaningful state instead of a persistent `unhealthy` noise (upstream) or a perpetual `starting` stub (Story 2.13 unblocks the `.State.Health.Status` branch that `start.sh:103` and `status.sh:54` already consume).
+
+## Acceptance Criteria
+
+1. **No `curl localhost:3000` in the healthcheck.** Given `packages/devbox/docker-compose.yml`, when I inspect the `services.devbox.healthcheck` block, then it does NOT invoke `curl localhost:3000` (the upstream cc-devbox carry-over referenced in `packages/devbox/README.md § cc-devbox upstream provenance § Known upstream bugs fixed → "Broken `curl :3000` healthcheck"`). The TODO marker at `docker-compose.yml:263` (`# TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.`) is removed and replaced by a real `healthcheck:` block.
+
+2. **dnsmasq liveness probe — DNS query against `127.0.0.1:53` resolving a known-whitelisted domain.** Given the compose `healthcheck:` block, when a probe runs, then it executes a DNS query against `127.0.0.1:53` that resolves a known-whitelisted domain (canonical: `api.github.com`, permanently present in `packages/devbox/whitelist/github.txt` per Story 2.3 + Story 2.9 substrate — the only whitelist fragment guaranteed to be load-bearing for every fork because `gh auth login` / `gh push` depend on it). The probe exits 0 iff dnsmasq (a) accepts the DNS query, (b) returns a response (NXDOMAIN counts as success for liveness — we're checking dnsmasq IS RESPONSIVE, not that the whitelist contains the domain). Canonical probe: `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` (exit 0 on dnsmasq response, exit 9 on timeout).
+
+3. **Conditional sshd liveness probe when `KEEL_DEVBOX_SSH=true`.** Given `KEEL_DEVBOX_SSH=true` is propagated into the container via `docker-compose.yml § environment` per Story 2.12 Task 4 (sources the normalised `KEEL_DEVBOX_SSH_RESOLVED` — iter-273 PATCH-2), when a probe runs, then it ADDITIONALLY probes sshd liveness on `127.0.0.1:2222` (TCP connect via `nc -z 127.0.0.1 2222`) AND the healthcheck fails if EITHER dnsmasq OR sshd is down. Logical: `healthcheck succeeds IFF (dnsmasq responds) AND (KEEL_DEVBOX_SSH != "true" OR sshd port 2222 accepting TCP)`. No healthcheck difference in `KEEL_DEVBOX_SSH=false` mode — single probe (dnsmasq only).
+
+4. **Mid-run service death transitions container to `unhealthy`.** Given the container is running and healthy, when dnsmasq (or sshd under opt-in) crashes mid-run, then the next probe fails, and after `retries: 3` consecutive failures the container's `State.Health.Status` transitions from `healthy` to `unhealthy`. `pnpm devbox:status` (Story 2.6 `status.sh:54` — `docker inspect --format '{{.State.Health.Status}}'`) surfaces the `unhealthy` state to the operator. `start.sh:103-120` already handles the `unhealthy-but-running` case (emits pointer to `pnpm devbox:logs`); Story 2.13 provides the actual probe that trips the transition.
+
+5. **Healthcheck timing parameters documented with rationale.** Given the compose `healthcheck:` block, when I inspect it, then the four timing keys are set to `interval: 10s`, `timeout: 5s`, `retries: 3`, `start_period: 30s`, AND these values are documented in `packages/devbox/README.md § Healthcheck (Story 2.13)` with per-knob rationale (cold-start margin vs detection-latency trade-off; probe frequency vs dnsmasq JSONL log volume; single-probe timeout vs `dig +time=3 +tries=1` + `nc -z` combined worst-case wall time).
+
+## Tasks / Subtasks
+
+- [x] **Task 1: Add `healthcheck:` block to `packages/devbox/docker-compose.yml`** (AC 1, AC 2, AC 3, AC 5)
+  - [x] **Insertion point.** Replace the TODO marker at `docker-compose.yml:263` (`# TODO(Story 2.13): healthcheck dnsmasq + sshd liveness.`) with a real `healthcheck:` block. Position the block AFTER the existing `tmpfs:` block (ends at `:262`) and BEFORE `restart: 'no'` (`:265`). Match the sibling block indentation (4 spaces under `services.devbox`).
+  - [x] **Healthcheck block contract** (copy-ready; NO placeholders). The `test` value composes dnsmasq-first + optional-sshd-second via a single shell expression. CMD-SHELL form (Compose-normalised to `["CMD-SHELL", "<cmd>"]`); `/bin/sh -c` wraps — POSIX-shell-safe syntax (no bashisms; no `[[ ... ]]`; no arrays):
+    ```yaml
+    # Story 2.13: dnsmasq liveness (always) + sshd liveness (when KEEL_DEVBOX_SSH=true).
+    # Replaces upstream cc-devbox's broken `curl :3000` healthcheck (README §
+    # cc-devbox upstream provenance § Known upstream bugs fixed). Probes run as
+    # USER dev (Dockerfile:360) via docker exec semantics; `dig` + `nc` ship in
+    # the Dockerfile apt layer (dnsutils + netcat-openbsd per Dockerfile:61-64).
+    # KEEL_DEVBOX_SSH env var is populated by Story 2.12 § environment
+    # propagation (compose:149 sources KEEL_DEVBOX_SSH_RESOLVED — iter-273
+    # PATCH-2 — so case-folded true is canonical inside the container).
+    # Probe domain `api.github.com` is always whitelisted (Story 2.9 github.txt
+    # fragment is load-bearing for every fork's gh-auth flow); `+short` + `+time=3`
+    # + `+tries=1` bounds the probe at ~3s even on transient upstream lag.
+    # NXDOMAIN counts as success (we're measuring dnsmasq RESPONSIVENESS, not
+    # whitelist membership); dig exits non-zero only on timeout / connection
+    # refused — the signal we care about.
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
+          && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z 127.0.0.1 2222; }
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    ```
+  - [x] **Shell-syntax rationale.** `/bin/sh -c` on Ubuntu 24.04 is `dash` (Debian default), NOT bash. Use `[ ... ]` (POSIX test), `&&`/`||` chaining, `{...;}` grouping (terminal `;` required before `}` per POSIX sh). Do NOT introduce `[[ ... ]]`, `$(...)` trap-setup, or bash-only parameter expansions. The `>-` YAML folded-scalar form (source-readability only) joins the two lines with a single space into one shell string BEFORE compose sees it. `docker compose config` prints the normalised JSON-array form `test: ["CMD-SHELL", "<joined-string>"]` for transport — the folded YAML is NOT preserved in the printed output — but the container receives the identical joined shell string via Docker's healthcheck exec. **YAML brittleness note (iter-281 PATCH-3):** do NOT insert a blank line between the two clause lines inside the `>-` block — a blank line in a folded scalar preserves a literal `\n`, which breaks the `&&` chain at runtime (sh parses it as two separate commands). Keep the two lines adjacent.
+  - [x] **Exit-code semantics.** `dig` exits 0 on successful DNS transaction (including NXDOMAIN responses); exits 9 on resolver timeout / connection refused (dnsmasq down); exits 10 on error. `nc -z <host> <port>` exits 0 on successful TCP connect + immediate close; exits non-zero on refused / timeout. The outer shell exit code is 0 iff both clauses succeed per POSIX `&&` semantics; Docker's HEALTHCHECK consumes `0 = healthy`, any non-zero = unhealthy (Docker does NOT coerce non-zero values — exit codes `1`, `9`, `10` all map uniformly to the `unhealthy` state and are preserved in `docker inspect`'s healthcheck state for introspection; exit code `2` is Docker's own reserved sentinel for its internal errors, not a value probes should return). Verified Docker 29.x behaviour.
+  - [x] **No Dockerfile `HEALTHCHECK` directive.** Story 2.13 scope is compose-level ONLY. The Dockerfile deliberately stays HEALTHCHECK-free so that raw `docker run keel-devbox:local` (non-compose path, e.g. fork maintainer image-inspection) does NOT carry the probe — compose is the authoritative harness. Forks that want image-level HEALTHCHECK via Dockerfile MUST open an AMEND PR per FR44 `docs/invariants/fork.md § Amendment-vs-fork decision`.
+  - [x] **Compose-file roadmap comment (SC-15).** Update the Story-roadmap block at `docker-compose.yml:1-28` — the existing line 24 (`#   - Story 2.13 : healthcheck (dnsmasq + sshd liveness).`) converts to past tense: `#   - Story 2.13 : healthcheck (dnsmasq + sshd liveness). LANDED iter-<this>.` matching Stories 2.2 / 2.3 / 2.5 / 2.11 / 2.12 pattern.
+
+- [x] **Task 2: Verify probe tooling is already baked into the image** (AC 2, AC 3 prerequisite — no Dockerfile change expected; Task confirms)
+  - [x] **`dig` availability.** Confirm `dnsutils` is present at `packages/devbox/Dockerfile:61` in the apt layer (present per iter-123 bake; no change required at 2.13). `dig` is `/usr/bin/dig` on Ubuntu 24.04 apt install; no PATH issue under USER dev.
+  - [x] **`nc` availability.** Confirm `netcat-openbsd` is present at `packages/devbox/Dockerfile:64` (present per iter-123 bake). The OpenBSD `nc` variant supports `-z` (zero-byte probe / scan mode) — the `netcat-traditional` variant does NOT. Do NOT switch to `netcat-traditional`.
+  - [x] **Probe-as-dev permission.** Healthcheck CMD runs with the image's USER (dev per `Dockerfile:360`). `dig` opens a UDP client socket on a high ephemeral port (no CAP_NET_BIND_SERVICE needed); `nc -z` opens a TCP client socket to `127.0.0.1:2222` (no cap needed). Under `cap_drop: [ALL]` + three-cap allow (NET_ADMIN / NET_RAW / NET_BIND_SERVICE — Story 2.5), both probes succeed as dev. Verify at impl time: inside `pnpm devbox:shell`, run `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` and `nc -z 127.0.0.1 2222` (when `KEEL_DEVBOX_SSH=true`) — both exit 0 against a healthy container.
+  - [x] **sshd IPv4 loopback binding (iter-281 PATCH-4).** Verify `packages/devbox/sshd/sshd_config` has NO `ListenAddress` directive set — OpenSSH's `sshd_config(5)` default in the unset case is to listen on all local addresses (IPv4 `0.0.0.0` + IPv6 `::`), which includes `127.0.0.1:2222` for `nc -z` IPv4 probe to connect. Do NOT add `ListenAddress ::1` or any IPv6-only override — the healthcheck probes IPv4 loopback explicitly. Story 2.12 iter-266 PATCH-F4 deliberately left the directive unset per `AGENTS.md § Opt-in SSH (Story 2.12)` "Container-side `ListenAddress` is INTENTIONALLY unset" — loopback confinement is enforced solely by the host-side `127.0.0.1:2222:2222` publish in `docker-compose.ssh.yml`. This unset-default posture is load-bearing for the AC 3 healthcheck probe; if a future story hardens sshd_config with `ListenAddress 127.0.0.1`, the probe still works (IPv4 loopback explicit); if it hardens to `ListenAddress ::1`, the probe breaks. Task 2 verification is grep-only: `grep -n '^ListenAddress' packages/devbox/sshd/sshd_config` MUST return empty.
+  - [x] **No new apt package.** Task 2 is verification-only; no Dockerfile change; no rebake. If verification reveals a missing tool (unlikely given the known-bake state), land the apt addition under this Task with a one-line commit.
+
+- [x] **Task 3: Register `INV-devbox-healthcheck` + author `docs/invariants/devbox-healthcheck.md`** (AC 1–5 machine-enforced contract)
+  - [x] Add new entry to `packages/keel-invariants/src/invariants.manifest.ts`:
+    - `id: 'INV-devbox-healthcheck'`
+    - `description: 'Compose healthcheck probes dnsmasq liveness (always) + sshd liveness (when KEEL_DEVBOX_SSH=true); never curl :3000; timing parameters interval 10s / timeout 5s / retries 3 / start_period 30s documented with rationale (Story 2.13).'`
+    - `sourcePath: 'docs/invariants/devbox-healthcheck.md'`
+    - `contentHash: '<sha256 of the authored md file content>'`
+    - `anchors: ['INV-devbox-healthcheck']`
+  - [x] **InvariantSchema five-field compliance** (Story 2.3 iter-156 LESSON; reaffirmed by Story 2.12 Task 5 iter-268; verified at `packages/keel-invariants/src/invariants.manifest.ts:3-15`): `InvariantSchema` = `{id, description, sourcePath, contentHash, anchors}` — no `name` field; `anchors` entries are bare ID strings; `contentHash` is bare 64-char lowercase hex. Cross-check the sibling `INV-devbox-ssh` entry (Story 2.12) for canonical shape.
+  - [x] Author `docs/invariants/devbox-healthcheck.md` with the following H2 sections (multi-faceted contracts embed sub-schemas verbatim in the `sourcePath` doc, per Story 2.3 iter-156 LESSON):
+    - `## Intent` — compose healthcheck reflects actual in-container service health; the container's `State.Health.Status` is the single signal `pnpm devbox:status` (Story 2.6) and `pnpm devbox:start`'s poll (Story 2.6 AC 2.6.4) consume. Upstream cc-devbox's `curl :3000` healthcheck targeted a non-existent service and left every cc-devbox run permanently `unhealthy`; Story 2.13 closes that bug.
+    - `## Probe contract` — composed shell expression, POSIX sh safe. Clause 1 (always): `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` — probes dnsmasq. Clause 2 (iff `KEEL_DEVBOX_SSH=true`): `nc -z 127.0.0.1 2222` — probes sshd TCP listener. Liveness semantics: clause 1 success = dnsmasq RESPONSIVE (NXDOMAIN counts); clause 2 success = TCP three-way-handshake completes (does NOT exercise pubkey auth). The probe deliberately does NOT exercise whitelist membership or pubkey auth — both would add fragility without adding health signal (whitelist drift would false-positive the healthcheck; pubkey-auth probing would require committed test keys that weaken the trust model).
+    - `## Timing parameters` — `interval: 10s` (probe every 10s; 6 probes/min/service = 8640 dnsmasq queries/day; entries accrue in `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl` — expected volume documented for FR37 Epic-4 security-evidence consumer). `timeout: 5s` (kill hung probes at 5s; `dig +time=3 +tries=1` worst case 3s + `nc -z` worst case ~1s = 4s margin). `retries: 3` (container goes `unhealthy` after 3 consecutive failures — 30s detection latency post-start-period; balances transient-glitch tolerance against real-failure detection speed). `start_period: 30s` (entrypoint init budget: start-egress.sh ~3-5s for nftables + dnsmasq + resolv.conf pin; sshd ~1s under opt-in; 30s comfortably covers cold-boot + first-probe latency; failures during this window don't count against `retries`).
+    - `## Probe tooling` — baked at image build: `dig` via `dnsutils` apt package (`Dockerfile:61`); `nc` via `netcat-openbsd` apt package (`Dockerfile:64`). The BSD `nc` variant is load-bearing — `netcat-traditional` does NOT support `-z`. Both probes run as USER dev (`Dockerfile:360`); no capability or SUID dependency. Do NOT switch to `curl` / `wget` / `openssl s_client` without updating this invariant.
+    - `## Exit codes` (iter-281 PATCH-5) — tabular schema per Story 2.6 / 2.10 invariant-doc precedent. `dig`: `0` = any DNS response including NXDOMAIN; `9` = resolver timeout / connection refused; `10` = fatal error; `1` = parse error on response. `nc -z`: `0` = TCP three-way-handshake completes + immediate close; non-zero = ECONNREFUSED / timeout / ENOENT. Composed shell (`dig … && { [ test ] || nc -z … ; }`): `0` iff both clauses succeed per POSIX `&&` short-circuit; any non-zero marks unhealthy. Docker HEALTHCHECK consumer: `0` = healthy, any non-zero = unhealthy (no coercion; exit codes preserved in `docker inspect --format '{{json .State.Health}}'` for operator introspection; Docker's own internal exit code `2` is reserved for its own errors — probe authors SHOULD NOT return `2`).
+    - `## SSH-conditional branch` — `KEEL_DEVBOX_SSH` env var is populated inside the container by `docker-compose.yml § environment` sourcing `KEEL_DEVBOX_SSH_RESOLVED` (Story 2.12 iter-273 PATCH-2). The healthcheck's POSIX-sh `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` check reads the canonical case-folded value — no case-variant drift. In `KEEL_DEVBOX_SSH=false` mode, clause 2 short-circuits to `|| true` semantics (the first `[...]` test exits 0 for "not true" → chains past `||`), so only dnsmasq probes run. In `true` mode, both probes run; either failure marks unhealthy.
+    - `## No curl :3000` — explicit prohibition. The base compose file's `healthcheck.test` MUST NOT reference `curl localhost:3000` under any circumstance — the upstream default is a known bug (no service listens on 3000 at substrate scope; Epic 7+ apps/web MAY later bind 3000, but the devbox healthcheck is NOT an app-layer probe). Forks adding app-layer health probes MUST do so via compose override or the Growth-tier fork-invariants scaffold, not by regressing the base `healthcheck.test`.
+    - `## Probe domain stability` (iter-281 PATCH-5) — `api.github.com` is the canonical probe domain, anchored at `packages/devbox/whitelist/github.txt:8` (Story 2.3 default-whitelist substrate + Story 2.9 gh-auth load-bearing — the only whitelist fragment guaranteed to be present for every fork's gh-auth flow). Removing `api.github.com` from `whitelist/github.txt` will cause dnsmasq to REFUSE the query (not NXDOMAIN) → `dig` exits non-zero → healthcheck fails even when dnsmasq is otherwise healthy. Three-site lockstep: if a future story amends `whitelist/github.txt` or renames the probe domain, all THREE sites must update simultaneously — (1) `packages/devbox/docker-compose.yml § services.devbox.healthcheck.test`, (2) `docs/invariants/devbox-healthcheck.md § Probe contract + § Probe domain stability` (this section), (3) `packages/devbox/README.md § Healthcheck (Story 2.13)`. Automated drift check deferred to Story 2.17 close-out lint (Story 2.13 pre-dev SM DEFER D-5).
+    - `## Fork extension contract` — forks MAY add fork-specific probes via compose override file (`docker-compose.fork.yml` or similar), merging into the base `healthcheck.test` array. Forks MAY NOT weaken the substrate probe: no removing the dnsmasq clause; no removing the sshd clause under `KEEL_DEVBOX_SSH=true`; no raising `interval` above 30s (slow-probe regression); no raising `timeout` above 10s (masks real hangs); no disabling retries. Growth-tier `INVARIANTS.fork.md` fork-owned rules are additive per FR45 + `docs/invariants/fork.md § Precedence`.
+  - [x] Compute `contentHash`: `sha256sum docs/invariants/devbox-healthcheck.md | awk '{print $1}'`. Paste the 64-char lowercase hex into the manifest entry. `pnpm keel-invariants:check` MUST pass after manifest + doc both land (Story 1.9 sync-gate verification).
+  - [x] Append entry to `INVARIANTS.md`. Anchor bullet MUST match the verbatim regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` per `packages/keel-invariants/src/sync-gate.ts:24` (Story 1.9 sync-gate). Lowercase-after-`INV-` prefix MANDATORY (Story 1.9 iter-7 LESSON). Anchor line:
+    ```
+    - **`INV-devbox-healthcheck`** — Compose healthcheck probes dnsmasq + sshd liveness; never curl :3000; timing parameters + rationale pinned. Source: `docs/invariants/devbox-healthcheck.md`.
+    ```
+  - [x] Add new `### Devbox healthcheck (Story 2.13)` H3 in `INVARIANTS.md` AFTER the existing `### Devbox SSH (Story 2.12)` H3 body + its `INV-devbox-ssh` anchor bullet (`INVARIANTS.md:120-124` per iter-279), and BEFORE the existing `### Gitignored-secret commit-deny (Story 2.2)` H3 (at `INVARIANTS.md:126`; the Story-2.2 H3 lives AFTER all devbox H3s because the section order is not strictly numerical — Story 2.12 iter-268 LESSON). One-line H3 body mirroring Story 2.11/2.12's one-line shape, then the anchor bullet underneath.
+
+- [x] **Task 4: Operator + agent documentation** (AC 5 comprehension + operator-visibility of timing rationale)
+  - [x] **`packages/devbox/README.md`** — append new H2 `## Healthcheck (Story 2.13)` AFTER the existing `## Opt-in SSH (Story 2.12)` H2 (current file end: `:923` per iter-279 inventory; the § cc-devbox upstream provenance § already references Story 2.13 at line 921 `Broken curl :3000 healthcheck → Story 2.13 (dnsmasq + sshd liveness).` — this story UPDATES that forward-ref to past tense: `Broken curl :3000 healthcheck → fixed in Story 2.13 (dnsmasq + sshd liveness). LANDED iter-<this>.`) and BEFORE the existing `## cc-devbox upstream provenance` H2 (SC-17 sibling-append; do NOT edit prior story sections). Content:
+    - (a) Problem framing: one paragraph explaining upstream cc-devbox's broken `curl :3000` healthcheck (service doesn't exist → container permanently `unhealthy`) and how Story 2.13 replaces it with real service probes.
+    - (b) Probe shape: verbatim copy of the `healthcheck:` block from `docker-compose.yml` (AC 1 contract); annotation of which clause covers AC 2 (dnsmasq) and which covers AC 3 (sshd).
+    - (c) Timing parameter table — four rows covering `interval` / `timeout` / `retries` / `start_period` with per-row rationale (lifted from `docs/invariants/devbox-healthcheck.md § Timing parameters`).
+    - (d) Two operator walkthroughs:
+      - **Default mode walkthrough:** fresh fork, `.envrc` default (`KEEL_DEVBOX_SSH=false`), `pnpm devbox:start` → healthcheck runs dnsmasq-only → `pnpm devbox:status` surfaces `healthcheck: healthy` within ~30-40s of container start.
+      - **Opt-in sshd walkthrough:** operator sets `KEEL_DEVBOX_SSH=true`, `pnpm devbox:start` → healthcheck runs dnsmasq + sshd → kill sshd manually inside `pnpm devbox:shell` (`pkill sshd` — requires operator privilege OR operator has appended a pubkey and `ssh -p 2222 …` authenticated session with `kill <pid>`) → within ~30s `pnpm devbox:status` surfaces `healthcheck: unhealthy`.
+    - (e) JSONL query-log volume note: healthcheck emits ~8640 dnsmasq queries/day to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. Operators consuming FR37 security-evidence feeds should expect this baseline. To filter: `jq 'select(.query != "api.github.com")'`.
+    - (f) Integration with `pnpm devbox:start` + `pnpm devbox:status`: `start.sh:103-120` polls `State.Health.Status` — Story 2.13 UNBLOCKS the healthy/unhealthy branch (pre-Story-2.13, `start.sh` fell back to `State.Status` which is always `running` post-`up -d`). `status.sh:54` already reports `healthcheck: <status>` — unchanged code, now surfaces meaningful values.
+    - (g) `INV-devbox-healthcheck` citation for the machine-enforced contract.
+  - [x] **DO NOT modify existing `## Host-side CLI (Story 2.6)`, `## Ralph loop (Story 2.7)`, `## Claude Code authentication (Story 2.8)`, `## gh CLI authentication (Story 2.9)`, `## Prerequisite check (Story 2.10)`, `## Per-fork vs shared devbox mode (Story 2.11)`, or `## Opt-in SSH (Story 2.12)` sections** — append a NEW sibling H2 only (SC-17).
+  - [x] Update `## cc-devbox upstream provenance § Known upstream bugs fixed` at `README.md:921`: `Broken curl :3000 healthcheck → Story 2.13 (dnsmasq + sshd liveness).` → `Broken curl :3000 healthcheck → fixed in Story 2.13 (dnsmasq + sshd liveness). LANDED iter-<this>.` Past-tense refresh matching SC-15 idiom.
+  - [x] **`AGENTS.md`** — append new H3 `### Healthcheck (Story 2.13)` AFTER the existing `### Opt-in SSH (Story 2.12)` H3 under § Devbox iteration environment. Content:
+    - (a) One-line what: "Compose healthcheck probes dnsmasq liveness (always) + sshd liveness (iff `KEEL_DEVBOX_SSH=true`); replaces upstream's broken `curl :3000`."
+    - (b) One-line why agents care: if a Ralph subagent sees `State.Health.Status: unhealthy` on the devbox, the diagnostic points at a dnsmasq or sshd failure — queue `pnpm devbox:logs keel-devbox` + inspect `/var/log/dnsmasq.log` / `/var/log/sshd.log` as a fix task.
+    - (c) Probe-domain pointer: `api.github.com` is the canonical whitelist-membership probe; if future stories remove `github.txt` from the default whitelist fragments, the probe domain must update in lockstep at three sites (compose healthcheck.test + invariant doc + README § Healthcheck).
+    - (d) `INV-devbox-healthcheck` citation for the machine-enforced contract.
+    - (e) Cross-references: § Egress policy (dnsmasq; Story 2.3) for dnsmasq substrate; § Opt-in SSH (Story 2.12) for sshd substrate; § Host-side CLI (Story 2.6) for `pnpm devbox:status` consumer.
+  - [x] **DO NOT modify existing `### Host-side CLI (Story 2.6)`, `### Ralph loop (Story 2.7)`, `### Claude Code authentication (Story 2.8)`, `### gh CLI authentication (Story 2.9)`, `### Prerequisite check (Story 2.10)`, `### Per-fork vs shared devbox mode (Story 2.11)`, or `### Opt-in SSH (Story 2.12)` sections** — append a NEW sibling H3 only (SC-17).
+  - [x] **`.envrc.example` comment touch (SC-15 — only if applicable):** no new `KEEL_DEVBOX_*` knob introduced by Story 2.13 (timing parameters are substrate-authoritative; forks amend via source-level PR per FR44 AMEND). SKIP `.envrc.example` edit unless future fork-parameterisation of the timing knobs is scoped in — defer that parameterisation to Story 2.17 close-out polish if operator demand surfaces.
+
+- [x] **Task 5: Absorb Story 2.12 iter-279 DEFER D-1 — pre-create `/var/log/sshd.log` in Dockerfile** (optional cosmetic absorption; DOES NOT extend AC surface)
+  - [x] **Why in-scope:** Story 2.12 iter-279 CR deferred `D-1: sshd.log first-boot diagnostic gap` to Story 2.17 close-out. Story 2.13 RE-TOUCHES the healthcheck + logs region (README § Healthcheck references `/var/log/sshd.log` for operator diagnostics; invariant doc references the file). Iter-278 LESSON (DEFER absorption discipline): "a PATCH that re-touches a region with queued cosmetic DEFERs should ABSORB those DEFERs into the patch". Story 2.13 TOUCHES the sshd-log-diagnostic surface; absorb D-1.
+  - [x] **Edit.** Add one block to `packages/devbox/Dockerfile` AFTER the existing dnsmasq.log pre-create at `:317` (`RUN install -m 0644 -o root -g root /dev/null /var/log/dnsmasq.log`):
+    ```dockerfile
+    # Story 2.13 Task 5 — Story 2.12 iter-279 D-1 absorption.
+    # Pre-create sshd.log with root:root 0644. The entrypoint.sh:235 launch
+    # `gosu dev /usr/sbin/sshd -D -e 2>>/var/log/sshd.log &` opens the stderr
+    # fd in the PARENT SHELL (running as root pre-gosu), so the DAC check
+    # at open() is "root opens root:root 0644 for append" — owner-rw bit
+    # grants access WITHOUT requiring CAP_DAC_OVERRIDE (which is dropped
+    # under Story 2.5 cap_drop:[ALL]). Once the fd is inherited by the
+    # gosu-execed sshd child, subsequent write(2) calls do NOT re-check
+    # DAC on the open fd (POSIX fd-inheritance semantics). Do NOT move
+    # the sshd launch past the `exec gosu dev` handoff without updating
+    # perms to dev:dev or 0666 (§ Opt-in SSH pre-gosu-only constraint).
+    RUN install -m 0644 -o root -g root /dev/null /var/log/sshd.log
+    ```
+    Rationale parallels the dnsmasq.log rationale at `Dockerfile:293-317` (pre-create so `tail -F` never hits the "file doesn't exist" race; root:root 0644 because the fd is opened by the root parent-shell redirect BEFORE gosu drops privilege; mode 0644 so dev can read for `tail` diagnostics).
+  - [x] **Pre-gosu redirect invariant (iter-281 PATCH-6).** The `>> /var/log/sshd.log` redirect in `entrypoint.sh:235` MUST run as root — the shell opens the file descriptor in the parent subshell (which is the ROOT entrypoint.sh process BEFORE any gosu handoff; the `exec gosu dev "$@"` handoff happens at end-of-file AFTER the sshd subshell closes). If a future iter moves the sshd launch past the end-of-file `exec gosu dev` handoff, the file perms MUST change to `dev:dev 0644` (or `0666`) or the redirect EPERMs under `cap_drop:[ALL]` (CAP_DAC_OVERRIDE is dropped, so a dev-UID process cannot open a root:root 0644 file for write/append). Story 2.17 SC-17 candidate: add an `INV-devbox-hardening`-adjacent pinning invariant if regression pressure surfaces in a future Epic-2 story.
+  - [x] **Scope carve-out.** Story 2.12 iter-279 DEFERs D-2 (SSHD_PID subshell scoping), D-3 (zombie reaping under exec gosu dev handoff), D-4 (pre-gosu comment vestige at entrypoint.sh:175) are EXPLICITLY NOT in Story 2.13 scope — they remain Story 2.17 close-out items. D-2 is moot for Story 2.13 (healthcheck probes TCP port, not PID — robust to SSHD_PID scoping); D-3/D-4 are orthogonal to healthcheck design.
+  - [x] **Task 5 is optional.** If the dev agent judges Task 5 breaks commit atomicity (one-task-per-iteration discipline), DEFER Task 5 back to Story 2.17 and note the deferral in `_bmad-output/implementation-artifacts/deferred-work.md § Deferred from: dev-story of story-2.13 (<date>)`. Tasks 1-4 remain mandatory.
+
+### Review Findings (iter-286 `/bmad-code-review (args: "2")` — three-layer adversarial fan-out)
+
+Three-layer Ralph-hosted adversarial fan-out per iter-271/iter-277 pattern: **Blind Hunter** (`general-purpose` diff-only, 15 raw), **Edge Case Hunter** (`general-purpose` diff+project-read, 12 raw), **Acceptance Auditor** (`general-purpose` diff+spec+invariant, 15 checks — verified clean across AC 1/2/3/5; AC 4 operator-workstation-deferred). Diff scope: Story 2.13 substrate commits `985aee0^..HEAD` restricted to `packages/devbox/docker-compose.yml`, `packages/devbox/Dockerfile`, `docs/invariants/devbox-healthcheck.md`, `packages/keel-invariants/src/invariants.manifest.ts`, `INVARIANTS.md`, `AGENTS.md`, `packages/devbox/README.md`, `_bmad-output/implementation-artifacts/sprint-status.yaml`. **Outcome: 0 first-class PATCH + 6 DEFER + ~14 DISMISS.** Matches iter-279 ZERO-PATCH CR closure precedent (narrow-diff moderate-novelty story where pre-dev SM absorbed the substantive surface). Forecast band per iter-264 LESSON was 1-3 first-class PATCH; iter-286 landed below band — consistent with iter-270 NOVEL LESSON "pre-dev SM absorbs novel surface → post-dev gates clean-advance dominant".
+
+**0 first-class PATCH** (`fixes-pending` NOT triggered; `sm-verified → done` transition applies).
+
+**6 DEFER to Story 2.17 SC-17 close-out** (all polish-class; cumulative Epic-2 DEFER queue 24 → 30):
+
+- [x] **[Review][Defer]** D-8 Healthcheck runtime UID empirical verification — deferred, needs operator workstation. Blind + Edge Case Hunters converged on claim drift: invariant doc § Probe tooling (`docs/invariants/devbox-healthcheck.md:45`), compose inline comment (`packages/devbox/docker-compose.yml:265-266`), manifest description (`packages/keel-invariants/src/invariants.manifest.ts:299`), and story Dev Notes (`line 145`) all claim probes run as USER `dev`. Under compose `user: '0:0'` at `:220` which sets the container's `Config.User`, Docker's HEALTHCHECK manager may inherit the override (running probes as root) rather than the image's USER directive (Dockerfile:360). Dev Notes:145 explicitly takes the position "compose user: '0:0' scopes only PID 1 (entrypoint); separate exec surfaces default to image USER" — but this is spec-endorsed without empirical validation. Deferred to Story 2.17 operator-workstation smoke: `docker exec -it keel-devbox id` vs `docker inspect --format '{{json .State.Health}}' keel-devbox` + `ps -eo pid,user,comm` capture during live healthcheck. If probes run as root, update all 4 sites in lockstep; if image USER wins, pin the behavior as an explicit invariant claim. Capability-posture conclusion unchanged either way (probes need no caps regardless of UID).
+- [x] **[Review][Defer]** D-9 `nc -z` / `dig` probe robustness polish — deferred, cosmetic hardening. Edge Case Hunter flagged (a) `nc -z 127.0.0.1 2222` lacks explicit `-w <timeout>` bound (relies on Docker healthcheck `timeout: 5s` as outer gate); (b) `dig @127.0.0.1 ... >/dev/null` redirects only stdout, leaving stderr to surface transient `;; communications error` warnings in Docker logs on upstream-DNS flakes. Belt-and-braces: add `-w 2` to `nc` + `2>/dev/null` to `dig`. Low priority — current probe behavior is correct, just slightly noisy under upstream flakes.
+- [x] **[Review][Defer]** D-10 Exit-code `2` POSIX-syntax-error edge case — deferred, documentation polish. Blind Hunter flagged that the invariant doc § Exit codes table documents "`2` reserved for Docker internal" and "probe authors MUST NOT return `2`" but the composed shell CAN return exit 2 on `[ ... ]` / `{ ...; }` syntax regression (dash's error-on-syntax-fault default). Add explicit `|| exit 1` guard on the CMD-SHELL, or add a note to the invariant doc § Exit codes acknowledging the theoretical path + mitigation.
+- [x] **[Review][Defer]** D-11 Dockerfile line-number citations lockstep lint scope expansion — deferred, extends D-5 (iter-281 pre-dev SM DEFER) from three-site `api.github.com` lockstep to include Dockerfile line-number references (`:61` dnsutils, `:64` netcat-openbsd, `:360` USER dev) that appear in the invariant doc § Probe tooling + AGENTS.md § Healthcheck + compose inline comment. Automated drift lint at Story 2.17 should grep for `Dockerfile:\d+` citations across docs and validate current line content matches the cited symbol.
+- [x] **[Review][Defer]** D-12 README § Opt-in sshd walkthrough disclaimer polish — deferred, doc polish. Blind + Edge Case Hunters converged on README:966 parenthetical "(assumes the operator has sudo inside the container — the test case is illustrative)" being misleading: `dev` intentionally lacks sudo per `Dockerfile:284-285` (SC-13 "dev must not be in sudo"). Rewrite as "the test case is illustrative only — `dev` intentionally lacks sudo per Story 2.5 § Container hardening (SC-13); sshd crashes in practice are triggered by configuration regressions observed via `pnpm devbox:logs`, not deliberate kill." Minor doc drift; self-documented as illustrative so non-blocking.
+- [x] **[Review][Defer]** D-13 Operator-reporting knob for cold-boot `start_period: 30s` edge + AGENTS.md cross-ref polish — deferred, low-frequency edge. Edge Case Hunter flagged that 30s `start_period` is marginal on cold-boot first-run under RSA-4096 ssh-keygen on slow hardware (10-20s keygen alone + nftables + dnsmasq + resolv.conf pin). Fork-local `start_period` override requires AMEND PR per FR44; add an AGENTS.md cross-ref from § Healthcheck → § Opt-in SSH (Story 2.12) Mode-flip discipline clarifying that `KEEL_DEVBOX_SSH` env change requires `pnpm devbox:stop && pnpm devbox:start` (compose env baked at create-time; running container env unchanged). Operator-reporting path: flag if cold-boot-unhealthy incidents surface in Epic 6/13 smokes.
+
+**~14 DISMISS** (reasoning pinned; not actionable):
+
+- **`dig` returning 0 on REFUSED / SERVFAIL from dnsmasq** — by-design per invariant doc § Probe contract: "dnsmasq RESPONSIVE (NXDOMAIN counts as success); we are measuring whether dnsmasq accepts + replies, not whitelist membership". A REFUSED response from dnsmasq IS the signal "dnsmasq is up and answering". DISMISS.
+- **SSH-branch inversion under non-canonical `KEEL_DEVBOX_SSH` values** — Story 2.12 resolver (`resolve_ssh_state()` in `main-repo-resolver.sh`) case-folds via `tr` + strict equality check; only canonical `true` / `false` reach the container via `KEEL_DEVBOX_SSH_RESOLVED`. Raw variants never arrive. DISMISS.
+- **Probes fire during `start_period` → JSONL log accrual begins pre-detection-window** — FR37 Epic-4 consumer contract expects the ~8640 queries/day baseline; accrual during start_period is sub-30s portion of daily volume, trivially filterable via `jq 'select(.query != "api.github.com")'`. DISMISS.
+- **`nc -z` against stale/wedged sshd socket** — intentional tradeoff per invariant doc § Probe contract: "does NOT exercise pubkey auth"; three-way-handshake completion is the signal, not session readiness. Pubkey-auth probing would require committed test keys (weakens trust model). DISMISS.
+- **Probe-domain = whitelist-entry cyclical-dependency failure mode** — by design per invariant doc § Probe domain stability; `api.github.com` is load-bearing for every fork's `gh auth login` per Story 2.9; removing it would break `gh` orthogonally. Whitelist restoration IS the escape path; documented. DISMISS.
+- **POSIX `{ … ; }` grouping under YAML `>-` folding brittleness** — verified GREEN at iter-283 via `dash -n` on the composed CMD string + js-yaml-parse shape assertion; folded-scalar joins the two clause lines with a single space per YAML spec; blank-line hazard guarded by iter-281 PATCH-3. DISMISS.
+- **`restart: 'no'` + unhealthy = no auto-recovery** — substrate-authoritative posture (dev-substrate philosophy, not production-restart-loop philosophy); operator re-start gesture is documented via `pnpm devbox:start`. DISMISS.
+- **Sprint-status.yaml ledger has near-duplicate `last_updated` comment lines** — intentional append-only audit trail per iter-269/iter-279 sprint-status convention; not a bug. DISMISS.
+- **Host-side `KEEL_DEVBOX_SSH` toggle doesn't propagate to running container** — already documented in AGENTS.md § Opt-in SSH (Story 2.12) § Mode-flip discipline: "Flipping `KEEL_DEVBOX_SSH` between `false`/`true` requires container teardown". Cross-ref polish absorbed into D-13. DISMISS at this CR (polish absorbed elsewhere).
+- **Fork override bind-mounting `/var/log`** — hypothetical fork-specific breakage; substrate contract is the baseline, forks own their overrides per `docs/invariants/fork.md § Amendment-vs-fork decision`. DISMISS.
+- **Manifest `sourcePath` existence not explicitly guarded** — ENOENT from `fs.readFileSync` is the natural error; minor DX; not Story 2.13 scope. DISMISS.
+- **`KEEL_DEVBOX_SSH_PORT` vs container-port `2222` hardcode clarity** — healthcheck probes container-internal `127.0.0.1:2222` (container port, not host port); `KEEL_DEVBOX_SSH_PORT` is a host-side publish variable. Comment-polish absorbed into D-13 cross-ref scope if refactor pressure surfaces. DISMISS.
+- **`KEEL_DEVBOX_COMPOSE_FILE_SSH` (loads override) vs `KEEL_DEVBOX_SSH_RESOLVED` (gates env) desync-risk** — hypothetical refactor-hazard; both exports flow from the same `resolve_ssh_state()` resolver call; no current desync. DISMISS.
+- **`dig` probe flakes on upstream-DNS slowness while dnsmasq is healthy** — documented tradeoff per invariant doc § Probe domain stability + § Timing parameters; cache-miss forwards upstream; 3-retry buffer is the defense. DISMISS.
+
+**Validations run:** three-layer adversarial fan-out completed without subagent failure or timeout (zero failed layers). Diff-only Blind Hunter + diff+project-read Edge Case Hunter + diff+spec+invariant Acceptance Auditor all converged; Acceptance Auditor's spec-fidelity audit returned clean across AC 1/2/3/5 (AC 4 operator-workstation-deferred per Dev Notes:149 — unchanged from iter-283/iter-284/iter-285).
+
+**Story State transition:** `sm-verified → done`. Sprint-status row flips `review → done` (matches iter-279 Story 2.12 pattern). Epic 2 progress: 12/17 done → 13/17 done; Story 2.14 becomes the next backlog story. No closure re-run required (forecast band was 1-3 PATCH + 1 closure re-run at worst per iter-264 LESSON; ZERO-PATCH first-pass closes in single iter per iter-270 LESSON refinement).
+
+## Dev Notes
+
+- **No new `.envrc` knob.** Story 2.13 introduces NO new `KEEL_DEVBOX_*` variable. Healthcheck timing values are substrate-authoritative — fork-local adjustment requires an AMEND PR against `docs/invariants/devbox-healthcheck.md § Timing parameters` per FR44 AMEND. Carry-forward advisory from iter-273 LESSON (compose env-propagation sites are normalisation chokepoints): if a future story parameterises timing via `KEEL_DEVBOX_HEALTHCHECK_*`, propagate via `environment:` block following Story 2.12 PATCH-2 posture.
+
+- **Probe-domain stability.** `api.github.com` is load-bearing — in `packages/devbox/whitelist/github.txt` per Story 2.3 Task 2.2; required by Story 2.9 `gh auth login` / `gh push` flow; operator has strong interest in it resolving. Alternative candidates considered and rejected: (a) `api.anthropic.com` — stable per Story 2.8 but fork-specific-probability is lower (some forks may not use Claude Code), (b) synthetic probe via `hostname.bind CHAOS TXT` — dnsmasq-specific, but still logs to egress-queries.jsonl and conveys no whitelist-integration signal, (c) `nc -z 127.0.0.1 53` TCP probe — misses UDP-only dnsmasq configurations and doesn't exercise the DNS response path. `api.github.com` via `dig` is the correct trade-off.
+
+- **Probe-frequency vs JSONL log volume.** 10s interval → 8640 queries/day added to `/workspace/${KEEL_DEVBOX_REPO_NAME}/logs/egress-queries.jsonl`. The log is FR37 Epic-4 security-evidence substrate (6-field stable schema per `docs/invariants/devbox-egress.md § JSONL query log schema`). Epic 4 consumers already filter by query pattern; a uniform healthcheck-origin query is easy to discount (`jq 'select(.query != "api.github.com")'`). Deliberately NOT optimising to `hostname.bind` CHAOS (which IS still logged) — the log volume is trivially filterable, and `api.github.com` matches the AC's "known-whitelisted domain" wording.
+
+- **Docker healthcheck execution context** (iter-273 / Story 2.12 carry-forward applies). Healthcheck CMD runs via an internal `docker exec` equivalent against the running container, with the IMAGE's USER (dev per `Dockerfile:360`). The compose `user: "0:0"` directive scopes only the container's PID 1 (entrypoint); separate exec surfaces default to image USER. `dig` + `nc` don't require root, so dev is correct.
+
+- **POSIX `/bin/sh` semantics.** Ubuntu 24.04 ships `/bin/sh` symlinked to `dash` (not bash). CMD-SHELL unwraps to `/bin/sh -c <cmd>`, so the probe MUST be POSIX-safe. This rules out: `[[ ... ]]` (bash-only); bash arrays; bash `{a,b}` brace expansion; `$()` command substitution with bashisms inside. The contract uses `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` + `&&`/`||` + `{...;}` — all POSIX sh.
+
+- **No `curl localhost:3000` anywhere.** AC 1 is a negative assertion. The dev agent MUST verify via `grep -n '3000' packages/devbox/docker-compose.yml` — the only 3000 occurrence should be line 167 (`KEEL_DEVBOX_PORT_WEB:-3000` publish port, unrelated to healthcheck). Do NOT inadvertently leave a commented-out `# curl localhost:3000` note — the invariant doc explicitly prohibits it (see § No curl :3000).
+
+- **SSH-mode branch semantics under `KEEL_DEVBOX_SSH=false`.** POSIX `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]`: when the var is unset, `${VAR:-false}` expands to `false`; `[ "false" != "true" ]` exits 0; chain past `||` short-circuits the `nc -z` call. When set to `true`, the test exits non-zero; falls through to `nc -z 127.0.0.1 2222`. When set to `True` / `TRUE` / `TrUe`: the raw value would appear inside the container IF compose sourced `${KEEL_DEVBOX_SSH}` directly — but Story 2.12 PATCH-2 (iter-273) sources `${KEEL_DEVBOX_SSH_RESOLVED}` which is case-folded `true` or `false` only; variant case strings NEVER reach the container. This is the same mechanism entrypoint.sh:140 relies on for its opt-in gate; the healthcheck reuses the same canonical stream.
+
+- **Mid-run service death → unhealthy transition timing.** `retries: 3` means 3 consecutive failures after `start_period` elapse to transition. Detection latency: 0-30s (post-crash time until the next probe) + 2 × `interval` (two MORE failures before the 3rd) = up to ~30s worst case (probe hits right at crash = 30s), ~10s best case. Under `start_period`, failures don't count toward `retries` — so a crash WITHIN start_period postpones transition until start_period elapses + 3 failures = ~60s cold-boot-crash detection. Acceptable for AC 4 ("the next healthcheck executes" leaves room for a few retry cycles).
+
+- **Story 2.12 D-1 absorption rationale** (Task 5). Iter-278 LESSON (DEFER absorption): a PATCH re-touching a region with queued DEFERs should absorb them. Story 2.13 re-touches the sshd-log-adjacent surface (README + invariant doc both reference `/var/log/sshd.log`), so absorbing D-1 is the minimum-surprise posture. D-1 is NOT on the AC critical path; if commit-atomicity concerns outweigh, defer to 2.17 (Task 5's own guardrail).
+
+- **start.sh and status.sh UNCHANGED.** Both scripts already consume `State.Health.Status` with graceful fallback (`start.sh:103` — `{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}`; `status.sh:54` — same idiom with `(no healthcheck configured)` fallback). Story 2.13 UNBLOCKS the healthy/unhealthy branch on both scripts; no shim edit required. Verify at impl time: `pnpm devbox:start` should log `container healthy` (from `start.sh:114-116` ELIF branch — lands on `.State.Health.Status == "healthy"`). `pnpm devbox:status` should print `healthcheck: healthy` (from `status.sh:58`).
+
+- **Forecast band (iter-271 LESSON + Story 2.12 carry-forward).** Story 2.13 is SMALLER scope than 2.12 (compose healthcheck + doc + invariant vs opt-in-sshd runtime). Novel-runtime-behaviour surface is MODERATE — healthcheck CMD lifecycle × POSIX-sh × env-var branching; no new entrypoint code path, no new capability interaction. Pre-budget 1-3 first-class PATCH at CR (under iter-264 LESSON 0-3 first-class PATCH band for moderate-novelty stories), with 1-2 closure re-runs. Iter-279 LESSON (ZERO-PATCH CR closure as-expected after single-region PATCH) is forecast-relevant — Story 2.13's narrow diff surface likely closes in one CR round if pre-dev SM catches the structural issues.
+
+- **Previous-story intelligence (Story 2.12 carry-forward).** iter-271 LESSON: static smokes (sha256, bash -n, sync-gate) are structurally unable to catch dynamic-runtime defects. Story 2.13's `dig` / `nc` probes are EXERCISED by docker healthcheck at container start — impl-time smoke is feasible inside the iteration env IF the dev agent can `docker run` the probe commands against a known-good dnsmasq. Even without Docker, `bash -n` + `docker compose config` + sha256 + sync-gate cover the static surface. Live probe semantics verification is operator-workstation-deferred (same posture as Story 2.12 AC 4 / AC 5).
+
+- **ATDD decision forecast** (per § Story Lifecycle row `validated → atdd-scaffolded`). Story 2.13 likely TAKES the `/bmad-testarch-atdd` SKIP-WITH-GROUNDS route per Story 2.12 iter-267 precedent: (c) no test runner wired at substrate stage; (ii) healthcheck CMD exercises only when a real Docker daemon + container runtime execute the probe (AC 2, AC 3, AC 4); (iii) substrate verification via `docker compose config` + invariant content-hash sync-gate covers AC 1 + AC 5. Twenty-second-plus cumulative ATDD-skip precedent.
+
+### Project Structure Notes
+
+- **Files to create.** `docs/invariants/devbox-healthcheck.md` (new invariant doc; contentHash-tracked).
+- **Files to edit.** `packages/devbox/docker-compose.yml` (add `healthcheck:` block at `:263` TODO; update Story-roadmap comment at `:24`); `packages/keel-invariants/src/invariants.manifest.ts` (add `INV-devbox-healthcheck` entry; contentHash after doc authored); `INVARIANTS.md` (new H3 + anchor bullet after Story 2.12 H3); `packages/devbox/README.md` (new § Healthcheck H2 + past-tense update at `:921`); `AGENTS.md` (new § Healthcheck H3 under § Devbox iteration environment); `packages/devbox/Dockerfile` (optional Task 5 — one-line sshd.log pre-create after `:317`).
+- **Files NOT to edit.** `packages/devbox/entrypoint.sh` (healthcheck runs via docker, not entrypoint); `packages/devbox/scripts/start.sh` + `packages/devbox/scripts/status.sh` (both already consume `.State.Health.Status` with fallback; Story 2.13 unblocks the branch); `packages/devbox/sshd/sshd_config` (sshd hardening is Story 2.12 scope; healthcheck is TCP-only probe); `packages/devbox/docker-compose.ssh.yml` (single-site port-2222 publication is Story 2.12; healthcheck branches on env var, not on compose-file inclusion); `.envrc` / `.envrc.example` (no new knob).
+- **Manifest entry count change.** 32 → 33 at Story 2.13 landing (manifest count was 32 at iter-279 per IP § Context). Confirm `pnpm keel-invariants:check` GREEN post-landing.
+- **Dev agent MUST follow SC-17 sibling-append discipline** for README.md + AGENTS.md — prior story sections remain untouched; new content lands as NEW sibling H2/H3 only.
+
+### References
+
+- [Source: `_bmad-output/planning-artifacts/epics.md:1574-1600`] — Story 2.13 full AC block (Epic 2 Story 2.13; epic at `:1142-1170`).
+- [Source: `_bmad-output/planning-artifacts/epics.md:1161`] — Epic 2 § NFRs "Healthcheck on dnsmasq + sshd liveness (upstream's broken `curl :3000` healthcheck is not retained)" anchor line.
+- [Source: `_bmad-output/planning-artifacts/architecture.md:278-281`] — § Core Architectural Decisions § S5 egress mechanism (dnsmasq + nftables — Story 2.3 substrate the healthcheck consumes).
+- [Source: `_bmad-output/planning-artifacts/prd.md`] — FR1 (devbox container), FR1a (JSONL observability consumer contract), NFR6 (fail-closed egress).
+- [Source: `_bmad-output/implementation-artifacts/2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd.md § Tasks 2-4 + iter-273 PATCH-2`] — Story 2.12 PATCH-2 canonical pattern for `KEEL_DEVBOX_SSH` propagation via `KEEL_DEVBOX_SSH_RESOLVED`; Story 2.13 healthcheck reuses the same canonical stream.
+- [Source: `_bmad-output/implementation-artifacts/2-12-… § iter-279 CR closure`] — Story 2.12 DEFER D-1 (sshd.log first-boot pre-create); Task 5 absorption rationale.
+- [Source: `packages/devbox/docker-compose.yml:24`] — existing Story 2.13 forward-reference in Story-roadmap comment block.
+- [Source: `packages/devbox/docker-compose.yml:263`] — existing TODO marker for healthcheck block.
+- [Source: `packages/devbox/Dockerfile:61-64`] — `dnsutils` (dig) + `netcat-openbsd` (nc) apt packages baked at image build.
+- [Source: `packages/devbox/Dockerfile:360`] — USER dev directive (healthcheck runs as dev).
+- [Source: `packages/devbox/Dockerfile:317`] — dnsmasq.log pre-create pattern (Task 5 absorption template).
+- [Source: `packages/devbox/scripts/start.sh:92-120`] — healthcheck poll consumer (Story 2.13 unblocks the healthy/unhealthy branch).
+- [Source: `packages/devbox/scripts/status.sh:54-58`] — healthcheck status reporter (Story 2.13 unblocks the meaningful-value branch).
+- [Source: `packages/devbox/whitelist/github.txt:8`] — `api.github.com` whitelist entry (probe domain).
+- [Source: `docs/invariants/devbox-egress.md § JSONL query log schema`] — FR37 Epic-4 consumer contract (healthcheck probe volume note).
+- [Source: `docs/invariants/devbox-ssh.md § SSH signal`] — `KEEL_DEVBOX_SSH_RESOLVED` canonical stream the healthcheck reads.
+- [Source: `INVARIANTS.md:120-124`] — Story 2.12 `INV-devbox-ssh` H3 + anchor (insertion point predecessor for Story 2.13 H3).
+- [Source: `packages/keel-invariants/src/invariants.manifest.ts:3-15`] — `InvariantSchema` five-field contract (no `name`; bare anchor strings; bare hex contentHash).
+- [Source: `packages/keel-invariants/src/sync-gate.ts:24`] — anchor regex `/^-\s+\*\*\`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)\`\*\*/gm` (lowercase-after-`INV-` mandatory).
+- [Source: `packages/devbox/README.md:921`] — existing forward-reference line for past-tense update.
+- [Source: `packages/devbox/README.md:847+`] — § Opt-in SSH (Story 2.12) H2 (insertion-point predecessor for Story 2.13 § Healthcheck H2).
+
+## Dev Agent Record
+
+### Agent Model Used
+
+claude-opus-4-7 (1M context) via `/bmad-dev-story` skill invoked by Ralph iter-283.
+
+### Debug Log References
+
+- `pnpm keel-invariants:check` — initial drift `removed-from-docs-only INV-devbox-healthcheck` (stale compiled `dist/check.js`); resolved by `pnpm --filter @keel/keel-invariants build` → re-run GREEN.
+- `pnpm keel-invariants:check-all` — full sync-gate + tokens-sync GREEN post-rebuild.
+- `uv run --with pyyaml python3 -c "..."` — YAML-parse-based shape smoke for healthcheck block (AC 1/2/3/5 assertions PASS).
+- `echo '<healthcheck CMD>' | dash -n` — POSIX `/bin/sh` (dash) parse-check of the composed healthcheck CMD; exit 0.
+- `grep -l api.github.com` across compose + invariant doc + README — 3-site lockstep PASS.
+- `grep '^ListenAddress' packages/devbox/sshd/sshd_config` — empty; PATCH-4 verification PASS.
+
+### Completion Notes List
+
+- **Task 1 (compose healthcheck block):** replaced the TODO marker at `docker-compose.yml:263` with the real `healthcheck:` block exactly as drafted in the story (CMD-SHELL + `>-` folded scalar; dig + nc two-clause POSIX sh; 10s/5s/3/30s timing). Updated the Story-roadmap comment at `docker-compose.yml:24` to past tense (`LANDED iter-283`). YAML re-parse confirms `test` renders as `["CMD-SHELL", "<joined-single-line-string>"]` with no embedded `\n` (PATCH-3 folded-scalar blank-line hazard avoided by keeping the two clause lines adjacent). `dash -n` accepts the joined shell string without error. `grep` for `3000` in compose returns only the unrelated `KEEL_DEVBOX_PORT_WEB:-3000` publish line (AC 1 negative-assertion satisfied).
+- **Task 2 (probe tooling verification):** `dnsutils` (providing `dig`) present at `Dockerfile:61`; `netcat-openbsd` (providing `nc -z`) present at `Dockerfile:64`; `USER dev` at `Dockerfile:360`; `sshd_config` has no `ListenAddress` directive (PATCH-4 verification PASS — OpenSSH unset-default listens on IPv4 `0.0.0.0` + IPv6 `::`, so `nc -z 127.0.0.1 2222` IPv4 probe connects). No Dockerfile change needed for Task 2.
+- **Task 3 (invariant registration):** authored `docs/invariants/devbox-healthcheck.md` with the 7 H2 sections required by the story (§ Intent / § Probe contract / § Timing parameters / § Probe tooling / § Exit codes / § Probe domain stability / § SSH-conditional branch / § No curl :3000 / § Fork extension contract — 8 total including § Intent header plus 7 contract H2s). sha256 = `665174a3592106eabbb9f6b5dd39ce813839b3c61a89f1709d81e90524d18623`. Added manifest entry after `INV-devbox-ssh` per iter-268 position convention (Story 2.12 LESSON — Devbox block is contiguous). Added `INVARIANTS.md` H3 `### Devbox healthcheck (Story 2.13)` + anchor bullet between `### Devbox SSH (Story 2.12)` and `### Gitignored-secret commit-deny (Story 2.2)` per story positioning instruction. Manifest count 32 → 33. `pnpm keel-invariants:check` GREEN after rebuild (TS compile step was load-bearing — stale `dist/check.js` showed transient drift signal; ITER-283 LESSON carry-forward candidate).
+- **Task 4 (operator + agent documentation):** appended `## Healthcheck (Story 2.13)` H2 to `packages/devbox/README.md` between `## Opt-in SSH (Story 2.12)` and `## cc-devbox upstream provenance` (SC-17 sibling-append discipline — prior story sections UNCHANGED). Appended `### Healthcheck (Story 2.13)` H3 to `AGENTS.md` after `### Opt-in SSH (Story 2.12)` within § Devbox iteration environment. Updated `packages/devbox/README.md § cc-devbox upstream provenance § Known upstream bugs fixed` line `921` from forward-ref to past-tense (`Broken curl :3000 healthcheck → fixed in Story 2.13 (dnsmasq + sshd liveness). LANDED iter-283.`). No `.envrc.example` edit — no new `KEEL_DEVBOX_*` knob introduced.
+- **Task 5 (D-1 absorption — optional):** absorbed Story 2.12 iter-279 DEFER D-1 at drafting time per Task 5 Dev Notes "re-touches the sshd-log-adjacent surface". Added one-line Dockerfile pre-create `RUN install -m 0644 -o root -g root /dev/null /var/log/sshd.log` at `Dockerfile:330` after the existing dnsmasq.log pre-create at `:317`. Inline block comment documents the pre-gosu-only DAC invariant (root parent-shell opens fd before gosu handoff; fd-inheritance semantics mean subsequent dev-UID writes don't re-check DAC). Task 5 is non-blocking for AC surface — if the dev-agent judges commit atomicity impacted, defer to Story 2.17 remains an option; judged in-scope at iter-283 because the Task 4 README § Healthcheck + Task 3 invariant doc both reference `/var/log/sshd.log` as operator-diagnostic pointer, so absorbing D-1 preserves minimum-surprise for the three-site reference. Cumulative DEFER queue at iter-283 Story 2.13 in-dev = 22 (Story 2.12 final cumulative) - 1 (D-1 absorbed) + 3 (Story 2.13 pre-dev SM D-5/D-6/D-7) = 24 DEFERs for Story 2.17 SC-17 close-out.
+- **Novel runtime validations PASS:** all AC 1/2/3/5 static smokes PASS; AC 4 (mid-run service death transition) is operator-workstation-deferred per story scope carve-out — requires Docker daemon with cap-dropped running container and mid-run `docker exec ... kill -9 <pid>` of dnsmasq/sshd with `State.Health.Status` transition observation; infeasible under DinD backend B cap-dropped semantics. Pre-budget forecast of 1-3 first-class CR PATCHes realistic-to-low per iter-279 precedent (single-region static edit + invariant registration surface).
+
+### File List
+
+**Created (1):**
+- `docs/invariants/devbox-healthcheck.md` — new machine-enforced invariant doc (sha256 refreshed at iter-285 SM PATCH-1; 8 H2 contract sections + § Intent).
+
+**Modified (6):**
+- `packages/devbox/docker-compose.yml` — Task 1 healthcheck block at `:263` + Story-roadmap past-tense at `:24`.
+- `packages/devbox/Dockerfile` — Task 5 `/var/log/sshd.log` pre-create at `:318-330` (one `RUN` line + one comment block).
+- `packages/keel-invariants/src/invariants.manifest.ts` — Task 3 `INV-devbox-healthcheck` entry (manifest count 32 → 33).
+- `INVARIANTS.md` — Task 3 `### Devbox healthcheck (Story 2.13)` H3 + anchor bullet between Story 2.12 and Story 2.2 H3s.
+- `packages/devbox/README.md` — Task 4 `## Healthcheck (Story 2.13)` H2 insertion + `## cc-devbox upstream provenance § Known upstream bugs fixed` past-tense line `921`.
+- `AGENTS.md` — Task 4 `### Healthcheck (Story 2.13)` H3 insertion under § Devbox iteration environment, after `### Opt-in SSH (Story 2.12)`.
+- `_bmad-output/implementation-artifacts/sprint-status.yaml` — Step 4 Task entry `ready-for-dev → in-progress → review`; last_updated timestamps.
+
+**Compiled artefact (CI-generated; gitignored via dist/ patterns):**
+- `packages/keel-invariants/dist/check.js` — rebuilt via `pnpm --filter @keel/keel-invariants build` (`tsc -b`). Not committed; rebuild is load-bearing for `pnpm keel-invariants:check` post-manifest edits.
+
+## Change Log
+
+### v1.5 — iter-pr-review-9 — PR #230 review fix (D-9 closure: `nc -z -w 2` per-probe timeout cap)
+
+Lockstep substrate edit closing iter-286 DEFER **D-9** (`nc -z` lacked an explicit per-probe timeout — TCP edge cases like a `SYN_SENT` storm against a wedged sshd inherited the outer Docker `timeout: 5s` budget instead of failing fast). PR #230 review thread `discussion_r3143864797` re-flagged the same finding as a 🟡 MINOR; this iteration absorbs the partial fix (timeout half) into substrate.
+
+**Operative substrate edits (six sites, lockstep per § Probe domain stability three-site contract extended to substrate-wide for non-domain probe-shape evolutions):**
+
+1. `packages/devbox/docker-compose.yml:282` — probe expression `nc -z 127.0.0.1 2222` → `nc -z -w 2 127.0.0.1 2222`.
+2. `docs/invariants/devbox-healthcheck.md` § Probe contract Clause 2 + § Canonical joined form fenced block + § SSH-conditional branch `KEEL_DEVBOX_SSH=true` mode (3 occurrences via `replace_all`); § Timing parameters `timeout` row rewritten to reflect new `≤2s` ceiling on `nc` (was `~1s` typical with implicit unbounded worst-case).
+3. `packages/devbox/README.md` § Probe shape fenced block + § Clause 2 prose (2 occurrences via `replace_all`); § Timing parameters `timeout` row rewritten parallel to invariant doc.
+4. `AGENTS.md` § Healthcheck (Story 2.13) canonical-probe inline (1 occurrence).
+5. `INVARIANTS.md` § Devbox healthcheck canonical-probe inline (1 occurrence; annotated `-w 2 per-probe cap`).
+6. `packages/keel-invariants/src/invariants.manifest.ts` `INV-devbox-healthcheck` description literal (1 occurrence) + `contentHash` refresh (`ae0ac4b3…` → `b8a420a4…`) reflecting healthcheck.md edits.
+
+**DISMISS for the port-parameterisation half of `discussion_r3143864797`'s suggested literal** (`${KEEL_DEVBOX_SSH_PORT:-2222}` in place of literal `2222`):
+
+- The reviewer's suggested literal `nc -z -w 2 127.0.0.1 ${KEEL_DEVBOX_SSH_PORT:-2222}` confuses container-internal port semantics with host-side port-publish semantics. The healthcheck runs INSIDE the container (probes `127.0.0.1` → loopback → sshd in same netns → fixed bind port `2222`). `KEEL_DEVBOX_SSH_PORT` is a HOST-side knob in `docker-compose.ssh.yml:20` that maps `127.0.0.1:${KEEL_DEVBOX_SSH_PORT:-2222}:2222` — host port → container port `2222`. Parameterising the container-internal probe port would silently break under any non-default `KEEL_DEVBOX_SSH_PORT` (probe would target the host-side port number which sshd does NOT bind inside the container).
+- This DISMISS rationale was previously pinned in v1.4 § Review Findings line 165 ("comment-polish absorbed into D-13 cross-ref scope if refactor pressure surfaces. DISMISS"); iter-pr-review-9 re-confirms.
+
+**Substrate-vs-PR-comment divergence carry-forward (RALPH.md § Lessons learned § IP-vs-spec interpretive divergence):** When a PR review comment includes both a substantive finding (timeout cap) and an incidental nudge (variable parameterisation) that conflicts with substrate-documented semantics, address the substantive half and DISMISS the incidental with explicit rationale linked to prior triage. Do not copy the literal patch verbatim.
+
+**Timing-rationale prose updates (incidental but accuracy-preserving):**
+
+- Old: "Worst-case probe = `dig +time=3 +tries=1` (3s) + `nc -z` (~1s) = ~4s, so 5s has a 1s margin."
+- New: "Worst-case probe = `dig +time=3 +tries=1` (3s) + `nc -z -w 2` (≤2s) = ≤5s, matching the outer cap."
+
+The `1s margin` framing was true for typical-case `nc -z` but false for worst-case (prior implicit bound was the Docker outer 5s kill, indistinguishable in operator-facing diagnostics from a timeout). The new `≤5s ceiling` framing is honest; PR-review prose-block on each timing-table row cites the rationale.
+
+**Sync-gate state (post-edit):** `INV-devbox-healthcheck` content-hash drift cleared (manifest `contentHash` refreshed to `b8a420a4…`); pre-existing `INV-package-test-coverage-floor` drift unchanged from `fed3161` baseline (out-of-PR follow-up, Story 1.9 sync-gate-not-yet-pre-commit-wired). No new drift introduced.
+
+**AC coverage carry-forward:** No AC re-verification required — substrate-functional behavior unchanged (`nc -z -w 2` is strictly an explicit-timeout refinement of `nc -z`'s prior unbounded-with-outer-5s-kill semantics; AC 3 "TCP three-way-handshake completes" assertion holds; AC 5 "timing documented" carries the new rationale prose). Operator-workstation-deferred AC 4 mid-run-transition unchanged (DinD backend B cap-dropped semantics, see v1.2 § Test scope).
+
+**Cumulative Story 2.13 Epic-2 PATCH count:** 6 (iter-281 pre-dev SM) + 2 (iter-285 post-dev SM) + 0 (iter-286 CR) + 1 (iter-pr-review-9 PR review) = **9 PATCH total across Story 2.13 lifecycle**. Within the iter-286 forecast band ("for narrow-diff moderate-novelty story = ~6-10"). PR-review-fix-arc is post-CR-closure — historically Stories 2.5/2.7 also added 1-2 post-CR PATCH from PR-review thread feedback.
+
+### v1.4 — iter-286 `/bmad-code-review (args: "2")` — CR closure (`sm-verified → done`; 0 PATCH + 6 DEFER + ~14 DISMISS)
+
+Three-layer Ralph-hosted adversarial fan-out per iter-271/iter-277 pattern: Blind Hunter (`general-purpose` diff-only, 15 raw findings) + Edge Case Hunter (`general-purpose` diff+project-read, 12 raw findings) + Acceptance Auditor (`general-purpose` diff+spec+invariant, clean-pass against AC 1/2/3/5; AC 4 operator-workstation-deferred unchanged). Diff scope narrowed to substrate files only: `packages/devbox/docker-compose.yml`, `packages/devbox/Dockerfile`, `docs/invariants/devbox-healthcheck.md`, `packages/keel-invariants/src/invariants.manifest.ts`, `INVARIANTS.md`, `AGENTS.md`, `packages/devbox/README.md`, `_bmad-output/implementation-artifacts/sprint-status.yaml` — story file + trace artefacts excluded (spec + gate artefacts, not subject).
+
+**0 first-class PATCH.** Forecast band per iter-264 LESSON was 1-3 PATCH at CR for moderate-novelty stories; iter-286 landed BELOW band. Consistent with iter-270 NOVEL LESSON ("pre-dev SM absorbs novel surface → post-dev gates clean-advance dominant"): iter-281 pre-dev SM absorbed 6 PATCH including 2 SUBSTANTIVE (sshd IPv4 loopback + invariant doc outline) → novel surface for CR's adversarial lens was largely exhausted at impl time. Iter-279 Story 2.12 ZERO-PATCH CR closure re-run precedent applies equally to a ZERO-PATCH CR first-pass on a narrow-diff story.
+
+**6 DEFER to Story 2.17 SC-17 close-out** (full detail pinned in § Review Findings above):
+
+- **D-8 (CR iter-286):** Healthcheck runtime UID empirical verification — claim drift candidate across 4 sites (invariant doc § Probe tooling + compose inline comment + manifest description + story Dev Notes:145) all claim "runs as USER dev"; compose `user: '0:0'` override at `:220` sets `Config.User` which Docker HEALTHCHECK may inherit. Story Dev Notes:145 takes an explicit spec position without empirical validation. Operator-workstation smoke required at Story 2.17 close-out: capture `docker exec` user vs `State.Health` probe UID via `ps -eo pid,user,comm` during live healthcheck. Capability-posture conclusion unchanged either way (probes need no caps regardless of UID).
+- **D-9 (CR iter-286):** `nc -z` / `dig` probe robustness polish — belt-and-braces add `-w 2` to `nc` + `2>/dev/null` to `dig` to tighten timeout bounds + reduce noise on upstream-DNS flakes. Current behavior is correct; Docker healthcheck `timeout: 5s` is the outer gate.
+- **D-10 (CR iter-286):** Exit-code `2` POSIX-syntax-error edge case — invariant doc § Exit codes table says "probe authors MUST NOT return `2`" but composed shell CAN return 2 on dash syntax-fault. Add explicit `|| exit 1` guard on the CMD-SHELL OR add a doc note acknowledging the theoretical path.
+- **D-11 (CR iter-286):** Dockerfile line-number citations lockstep lint scope expansion — extends iter-281 D-5 from three-site `api.github.com` domain-lockstep to include Dockerfile `:61` / `:64` / `:360` symbol-lockstep across invariant doc + AGENTS.md + compose inline comment. Automated grep-drift lint at Story 2.17.
+- **D-12 (CR iter-286):** README § Opt-in sshd walkthrough disclaimer polish — current parenthetical "(assumes the operator has sudo inside the container — the test case is illustrative)" is misleading; `dev` intentionally lacks sudo per Dockerfile:284-285 (SC-13). Rewrite to acknowledge.
+- **D-13 (CR iter-286):** Operator-reporting knob for cold-boot `start_period: 30s` edge + AGENTS.md § Healthcheck ↔ § Opt-in SSH cross-ref polish — 30s marginal under RSA-4096 ssh-keygen on slow hardware; cross-ref AGENTS.md to the "mode-flip requires teardown" note.
+
+**Cumulative Epic-2 DEFER queue for Story 2.17 SC-17 close-out:** 24 (at iter-285 post-dev SM) + 6 (iter-286 CR) = **30 DEFERs** pending. Story 2.17's SC-17 reconciliation budget widened from prior forecasts.
+
+**~14 DISMISS** (full list pinned in § Review Findings above): by-design (dig REFUSED/NXDOMAIN → dnsmasq responsive; probe-domain = whitelist-entry cyclical by spec; nc -z no pubkey-auth intentional; restart:'no' dev-substrate philosophy), resolver-handled (SSH-branch case-folding via `KEEL_DEVBOX_SSH_RESOLVED`), already documented (host-side env toggle mode-flip discipline in AGENTS.md § Opt-in SSH), verified-static (YAML folded-scalar via iter-283 dash -n GREEN), or hypothetical refactor-hazards (fork /var/log bind-mount; COMPOSE_FILE_SSH vs SSH_RESOLVED desync).
+
+**Validations run:** three-layer adversarial fan-out completed without subagent failure, timeout, or empty return (zero failed layers; no `{failed_layers}` reporting). Subagent convergence pattern: Blind + Edge Case independently flagged the UID-claim (converge → high-confidence candidate PATCH); Acceptance Auditor verified spec-fidelity clean across ACs (story Dev Notes:145 explicitly endorses the "image USER" position, orthogonal to Blind+Edge's runtime-UID critique). Disciplined triage per iter-277 NOVEL LESSON #2 META guard: empirical disconfirmation not accessible from Ralph's context under DinD backend B cap-dropped semantics → DEFER rather than PATCH-blind.
+
+**AC coverage at iter-286 CR closure:**
+
+- **AC 1 (no curl :3000):** PASS verified via Acceptance Auditor negative-assertion + `grep -c '3000' packages/devbox/docker-compose.yml` returning 2 expected hits (unrelated `KEEL_DEVBOX_PORT_WEB:-3000` + healthcheck-block comment prose per Dev Notes:149).
+- **AC 2 (dnsmasq probe):** PASS via `docker-compose.yml:281` probe string matches spec AC 2 + invariant § Probe contract verbatim.
+- **AC 3 (conditional sshd probe):** PASS via POSIX-sh branch analysis at `docker-compose.yml:282` + sshd IPv4 loopback binding (iter-281 PATCH-4) confirmed via empty `^ListenAddress` grep.
+- **AC 4 (mid-run transition):** UNCHANGED from iter-283/iter-284/iter-285 — operator-workstation-deferred per Dev Notes:149 + DinD backend B cap-dropped container semantics.
+- **AC 5 (timing documented):** PASS via three-site lockstep verification (compose + invariant doc + README all carry `interval: 10s` / `timeout: 5s` / `retries: 3` / `start_period: 30s`).
+
+**Manifest count change:** 33 → 33 (CR is gate-only; no manifest edit; no contentHash refresh needed). Sync-gate GREEN state carried unchanged from iter-285.
+
+**Story State transition:** `sm-verified → done`. Sprint-status row flips `review → done` at iter-286 per iter-279 Story 2.12 CR closure precedent. Epic 2 progress: 12/17 → 13/17 done. Next iter (iter-287): `/bmad-create-story` for Story 2.14 (legacy devbox branch retention policy) per § Story Lifecycle row `done → next story in current epic` (Epic 2 has 4 backlog stories remaining — 2.14/2.15/2.16/2.17 — no cross-epic transition trigger until Story 2.17 close-out).
+
+**NOVEL LESSON — cumulative forecast-band reconciliation for narrow-diff moderate-novelty stories:** Story 2.13 cumulative PATCH count = 6 (iter-281 pre-dev SM) + 2 (iter-285 post-dev SM) + 0 (iter-286 CR) = **8 PATCH total across Story 2.13 lifecycle**. Distribution confirms iter-281 NOVEL LESSON (documentation-heavy stories' pre-dev SM band wider than runtime-code-heavy at same novelty) + iter-270 NOVEL LESSON (post-dev gates clean-advance when pre-dev absorbs substantive surface). For Stories 2.14..2.17 lifecycle forecasting: expect similar distribution — pre-dev SM absorbs majority (4-6 PATCH), post-dev SM catches citation-drift (0-3 PATCH), CR delivers polish-DEFERs with 0-2 first-class PATCH. Cumulative lifecycle PATCH for narrow-diff moderate-novelty story = ~6-10; for novel-runtime story (2.12-class) = ~10-14.
+
+**Budget consumed iter-286:** ~65K tokens (orient ~12K + story file deep read ~10K + three parallel subagent dispatches ~35K streaming-captured + Ralph-side triage synthesis ~5K + substantive verification greps (compose user:, Dockerfile sudo, invariant doc, README) ~3K + spec file edits (Review Findings + v1.4 Change Log + Status HTML comment) + sprint-status + IP + RALPH.md + commit-prep ~14K). Well within ~117K execution budget; exit cleanly per Guardrail 12. One skill per iteration per Guardrail 5.
+
+**PR:** #230 **Draft** — `statusCheckRollup: []` carries unchanged at iter-286 orient (REST fallback verified GREEN first try; GraphQL timeout at orient per iter-263 asymmetric-recovery LESSON cleared on REST probe). Clean push expected at step 5.
+
+### v1.3 — iter-285 `/bmad-create-story (args: "review")` — post-dev SM (`traced → sm-verified`; 2 PATCH + 0 new DEFER)
+
+Two parallel Sonnet subagents (AC-satisfaction audit + implementation-fidelity audit) per iter-235 LESSON two-subagent pattern; Ralph-synthesis triage. Diff scope: Story 2.13 in-dev landing at iter-283 (commit `1fb2fde`) + iter-284 trace (commit `964f494`).
+
+**2 PATCH (2 NARROW):**
+
+- **PATCH-1 (NARROW; 9 sites — `Dockerfile:347` → `Dockerfile:360`):** Self-inflicted same-commit citation drift. Task 5 D-1 absorption at iter-283 inserted 13 lines at `Dockerfile:318-330` for the `/var/log/sshd.log` pre-create block, shifting the subsequent `USER dev` directive from what would have been `:347` to `:360`. Dev Notes / References / Completion Notes / invariant doc / compose-file comment / manifest description all cited the pre-absorption line number. Corrected across 9 sites:
+  - Story file: 6 occurrences (Task 1 healthcheck block contract comment at `:34`, Task 2 probe-as-dev permission bullet at `:64`, Task 3 invariant-doc outline at `:80`, Dev Notes `Docker healthcheck execution context` at `:145`, References source citation at `:184`, Completion Notes at `:215`).
+  - `packages/devbox/docker-compose.yml:266` — healthcheck-block inline comment `USER dev (Dockerfile:347)` → `Dockerfile:360`.
+  - `docs/invariants/devbox-healthcheck.md:45` § Probe tooling — `USER dev (packages/devbox/Dockerfile:347)` → `:360`.
+  - `packages/keel-invariants/src/invariants.manifest.ts:299` description — free-prose citation refresh in lockstep with the doc edit.
+  - **ContentHash refresh:** invariant doc sha256 updated from `665174a3…d18623` → `ae0ac4b3da589de4958eb118df334e57a55c44823456440960430d4bf1470c48`; manifest `contentHash` updated at `:301`. `pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check && pnpm keel-invariants:check-all` GREEN post-rebuild (iter-257 LESSON — manifest rebuild is load-bearing after any `invariants.manifest.ts` edit).
+- **PATCH-2 (NARROW; File List bookkeeping at `:224`):** Off-by-one H2 count in Dev Agent Record prose. Completion Notes at line 216 claimed "8 total including § Intent header plus 7 contract H2s"; File List at line 224 claimed "7 H2 contract sections + § Intent". Actual H2 count in `docs/invariants/devbox-healthcheck.md` is 9 (§ Intent + 8 contract sections: Probe contract, Timing parameters, Probe tooling, Exit codes, Probe domain stability, SSH-conditional branch, No curl :3000, Fork extension contract). Corrected File List line to "8 H2 contract sections + § Intent"; Completion Notes line 216 prose retained as historical record of drift. Cosmetic bookkeeping; all structurally-required sections were present so Task 3 AC coverage was never impaired.
+
+**0 new DEFER.** The two DEFERs surfaced by AC-satisfaction subagent are pre-existing Story 2.17 carry-forwards, not new findings: (a) D-5-equivalent automated 3-site lockstep lint — already queued at pre-dev SM iter-281 as D-5; (b) AC 4 live-probe validation on operator workstation — scope-deferred per Dev Notes:149. Cumulative Epic-2 DEFER queue at iter-285 post-dev SM = **24 DEFERs** pending Story 2.17 (unchanged from iter-283 in-dev landing).
+
+**~3 DISMISS** (findings surfaced by subagents but NOT actionable; reasoning pinned):
+
+- **README:966 operator-sudo caveat** — walkthrough prose advisory, accurate as written (dev UID cannot `pkill` root-owned sshd without sudo or authenticated SSH session). DISMISS.
+- **AGENTS.md:194 references `/var/log/sshd.log` while README § Healthcheck does not** — intentional audience split (AGENTS.md is the agent-facing diagnostic pointer; README covers operator walkthroughs not log paths). DISMISS.
+- **Completion Notes line 216 off-by-one prose** — addressed structurally via PATCH-2 at File List; retaining Completion Notes prose as historical record of drift (matches iter-281 posture of not rewriting Dev Agent Record prose during SM review). DISMISS (duplicate of PATCH-2 signal).
+
+**Validations run:**
+
+- `sha256sum docs/invariants/devbox-healthcheck.md` post-edit — new hash `ae0ac4b3…1470c48`.
+- `pnpm --filter @keel/keel-invariants build` — GREEN (tsc -b clean).
+- `pnpm keel-invariants:check` — GREEN (exit 0, no drift output).
+- `pnpm keel-invariants:check-all` — GREEN (sync-gate + tokens-sync).
+- `grep -rn 'Dockerfile:347' docs packages AGENTS.md README.md 2-13-…md` — empty (PATCH-1 complete).
+- `grep -n '3000\|curl localhost' packages/devbox/docker-compose.yml` — only unrelated `KEEL_DEVBOX_PORT_WEB:-3000` publish + healthcheck prose-comment references (AC 1 negative-assertion preserved).
+- Three-site `api.github.com` lockstep: `grep -l api.github.com packages/devbox/docker-compose.yml docs/invariants/devbox-healthcheck.md packages/devbox/README.md` — 3 hits (unchanged).
+
+**AC coverage at iter-285 post-dev SM:**
+
+- **AC 1 (no curl :3000):** PASS via static grep + compose parse.
+- **AC 2 (dnsmasq probe):** PASS via static CMD-SHELL shape + dash parse.
+- **AC 3 (conditional sshd probe):** PASS via static POSIX-sh branching analysis + sshd_config `^ListenAddress` empty (PATCH-4 iter-281 verified).
+- **AC 4 (mid-run transition):** OPERATOR-WORKSTATION-DEFERRED (unchanged from iter-283 in-dev; DinD backend B constraint).
+- **AC 5 (timing documented):** PASS via README § Healthcheck timing table + invariant doc § Timing parameters with per-knob rationale.
+
+**Manifest count change:** 33 → 33 (contentHash refresh only; no new entry).
+
+**Story State transition:** `traced → sm-verified`. Sprint-status row UNCHANGED at `review` (sprint-status convention — the `review` row covers both `traced` and `sm-verified` Ralph-internal sub-states per iter-269/iter-279 precedent). Next iter (iter-286): `/bmad-code-review (args: "2")` per § Story Lifecycle row `sm-verified → done | fixes-pending` — three-layer Ralph-hosted adversarial fan-out (iter-271 pattern + iter-277 NOVEL LESSON #2 META guard carry-forward). Forecast 1-3 first-class PATCH per iter-264 LESSON moderate-novelty band; closure re-run expected ZERO-PATCH per iter-279 precedent on narrow-diff stories.
+
+**Budget consumed:** ~45K tokens (orient ~10K + story file read ~8K + two parallel subagent dispatches ~15K streaming-captured + Ralph-side triage synthesis ~4K + verification greps + PATCH-1 edits across 4 files + PATCH-2 edit + rebuild + sync-gate + Change Log + IP + RALPH.md + commit-prep ~8K stacking). Well within ~117K execution budget; exit cleanly per Guardrail 12.
+
+### v1.2 — iter-283 `/bmad-dev-story` — `atdd-scaffolded → in-dev`
+
+Single-iteration dev-story landing per pre-dev SM forecast (iter-281 v1.1 Completion Notes "~30-50K budget, 5 Tasks, single-iter landing expected"; iter-283 consumed ~55-65K — within band). All 5 Tasks complete (4 mandatory + 1 optional D-1 absorption). Sprint-status flipped `ready-for-dev → in-progress` at Step 4 workflow entry, then `in-progress → review` at Step 9 completion.
+
+**Validations run:**
+
+- `pnpm keel-invariants:check` — GREEN post-rebuild (initial run showed transient `removed-from-docs-only` drift against stale compiled `dist/check.js`; resolved by `pnpm --filter @keel/keel-invariants build`).
+- `pnpm keel-invariants:check-all` — GREEN (sync-gate + tokens-sync).
+- `uv run --with pyyaml` YAML-parse shape smoke — AC 1/2/3/5 PASS (CMD-SHELL + joined string; no curl; no embedded `\n`; timing 10s/5s/3/30s).
+- `dash -n` POSIX `/bin/sh` syntax check of healthcheck CMD — exit 0.
+- `grep -l api.github.com` across compose + invariant doc + README — 3-site lockstep PASS (3 sites).
+- `grep '^ListenAddress' packages/devbox/sshd/sshd_config` — empty (PATCH-4 PASS).
+- `grep '3000\|curl localhost' packages/devbox/docker-compose.yml` — only unrelated `KEEL_DEVBOX_PORT_WEB:-3000` publish + one prose mention in Story 2.13 healthcheck-block comment (AC 1 negative-assertion satisfied; comment references the bug being FIXED, not a commented-out command).
+
+**AC coverage at iter-283 in-dev landing:**
+
+- **AC 1 (no curl :3000):** PASS via static grep + compose parse.
+- **AC 2 (dnsmasq probe):** PASS via static CMD-SHELL shape + dash parse; live probe operator-workstation-deferred.
+- **AC 3 (conditional sshd probe):** PASS via static POSIX-sh branching analysis (`[ ... != "true" ] || nc -z`); live probe operator-workstation-deferred.
+- **AC 4 (mid-run transition):** OPERATOR-WORKSTATION-DEFERRED — requires mid-run SIGKILL of dnsmasq/sshd with `State.Health.Status` transition observation; infeasible under DinD backend B cap-dropped container semantics.
+- **AC 5 (timing documented):** PASS via README § Healthcheck (Story 2.13) timing table + invariant doc § Timing parameters with per-knob rationale.
+
+**Task 5 absorption status:** Story 2.12 iter-279 DEFER D-1 ABSORBED at iter-283. Cumulative Epic-2 DEFER queue for Story 2.17 SC-17 close-out at iter-283 in-dev landing = 22 (Story 2.12 final) - 1 (D-1 absorbed) + 3 (Story 2.13 pre-dev SM D-5/D-6/D-7) = **24 DEFERs** pending Story 2.17.
+
+**Manifest count change:** 32 → 33 at iter-283 (new `INV-devbox-healthcheck` entry).
+
+**Story State transition:** `atdd-scaffolded → in-dev (review)`. Sprint-status row `in-progress → review`. Next iter (iter-284): `/bmad-testarch-trace (args: "yolo")` per § Story Lifecycle row `in-dev → traced` (forecast WAIVED per Story 2.12 iter-269 pattern — ACs 1, 2, 3, 5 substrate-covered by static smokes + sync-gate; AC 4 operator-workstation-deferred).
+
+**Budget consumed:** ~55-65K tokens (orient + story read ~20K + Task 1-5 implementation ~20K + validation runs + Dev Agent Record authoring + Change Log + IP update + RALPH.md + commit-prep ~20K). Well within ~117K execution budget.
+
+### v1.1 — iter-281 `/bmad-create-story (args: "review")` — pre-dev SM (`drafted → validated`; 6 PATCH + 3 DEFER + ~12 DISMISS)
+
+### v1.1 — iter-281 `/bmad-create-story (args: "review")` — pre-dev SM (`drafted → validated`; 6 PATCH + 3 DEFER + ~12 DISMISS)
+
+Four parallel Sonnet subagents (citation audit + AC+Task implementability + cross-story consistency + security+runtime hazards) per iter-266 pattern; Ralph-synthesis triage. Diff scope: story file as drafted at iter-280 (commit `985aee0`).
+
+**6 PATCH (4 NARROW + 2 SUBSTANTIVE):**
+
+- **PATCH-1 (NARROW; line 56 — "Shell-syntax rationale" bullet):** Clarified compose `>-` folded-scalar → `docker compose config` normalisation behaviour. The YAML folded-scalar is a source-level readability device only; `docker compose config` prints the JSON-array form `test: ["CMD-SHELL", "<joined-string>"]` for transport, but the container receives the same joined shell string via Docker's healthcheck exec regardless. Prior phrasing ("renders the joined form") was ambiguous about whether YAML or JSON is canonical.
+- **PATCH-2 (NARROW; line 57 — "Exit-code semantics" bullet):** Fixed Docker HEALTHCHECK exit-code narrative. Docker does NOT coerce non-zero to `1`; it treats any non-zero as `unhealthy` uniformly (exit codes `1`, `9`, `10` all map to `unhealthy` and are preserved in `docker inspect --format '{{json .State.Health}}'` for introspection). Exit code `2` is Docker's OWN reserved sentinel for internal errors — probe authors SHOULD NOT return `2`. Prior phrasing ("sh coerces non-zero to `1`") was mechanism-wrong.
+- **PATCH-3 (NARROW; line 56 extension):** Added YAML folded-scalar blank-line hazard note. Inserting a blank line between the two clause lines inside a `>-` block preserves a literal `\n` in the folded string (YAML blank-lines-preserved-as-newlines rule), which breaks the `&&` chain at runtime (sh parses the newline as a statement terminator, not a continuation). Documented as a do-not-edit guard in the story file.
+- **PATCH-4 (SUBSTANTIVE; Task 2 new sub-bullet):** Added sshd IPv4 loopback binding verification. The healthcheck's `nc -z 127.0.0.1 2222` IPv4 probe depends on sshd listening on `0.0.0.0` or `127.0.0.1` — NOT on `::1` IPv6-only. `packages/devbox/sshd/sshd_config` has NO `ListenAddress` directive set (Story 2.12 iter-266 PATCH-F4 deliberately removed it per `AGENTS.md § Opt-in SSH` "Container-side `ListenAddress` is INTENTIONALLY unset"), and OpenSSH's `sshd_config(5)` unset-default listens on IPv4 + IPv6 wildcards — covers the probe. Task 2 verification: `grep -n '^ListenAddress' packages/devbox/sshd/sshd_config` MUST return empty. Load-bearing for AC 3.
+- **PATCH-5 (SUBSTANTIVE; Task 3 invariant doc outline):** Added two H2 sections to the proposed `docs/invariants/devbox-healthcheck.md` outline — `## Exit codes` (tabular schema per Story 2.6 `devbox-prereq-check.md` + Story 2.10 precedent) + `## Probe domain stability` (documents `api.github.com` as load-bearing at three sites: compose healthcheck.test + invariant doc + README § Healthcheck; explicit warning about whitelist-drift causing dnsmasq REFUSED → false-unhealthy even when dnsmasq is otherwise healthy; three-site lockstep requirement; Story 2.17 close-out lint deferred as D-5).
+- **PATCH-6 (NARROW; Task 5 Dockerfile inline comment + new "Pre-gosu redirect invariant" sub-bullet):** Added pre-gosu redirect invariant documentation. Explains inline on the proposed Dockerfile line why `root:root 0644` is correct — the `>> /var/log/sshd.log` redirect in `entrypoint.sh:235` opens the fd in the PARENT shell (running as root PRE-gosu); DAC check at `open(2)` is "root opens root:root 0644 for append" → owner-rw bit grants access WITHOUT CAP_DAC_OVERRIDE (which is dropped under Story 2.5 `cap_drop:[ALL]`). Once the fd is inherited by the gosu-execed sshd child, subsequent `write(2)` calls do NOT re-check DAC on the open fd. Documented the pre-gosu-only constraint so a future move of the sshd launch past the end-of-file `exec gosu dev "$@"` handoff correctly triggers a perms update (dev:dev 0644 or 0666).
+
+**3 DEFER** (logged for Story 2.17 SC-17 close-out; total Epic-2 DEFER queue at iter-281 = 22 (Story 2.12 final cumulative, per iter-279 v1.8) + 3 (Story 2.13 pre-dev SM) = 25):
+
+- **D-5 (Story 2.13 pre-dev SM; 2026-04-24):** Automated lint for 3-site probe-domain lockstep. `grep -l api.github.com packages/devbox/docker-compose.yml docs/invariants/devbox-healthcheck.md packages/devbox/README.md | wc -l` should be `3`; any drift (renamed probe domain, file rename, section deletion) should emit a sync-gate-class error. Story 2.17 close-out may add this as a keel-invariants check alongside the existing `INV-devbox-healthcheck` contentHash-tracking.
+- **D-6 (Story 2.13 pre-dev SM; 2026-04-24):** FR37 Epic-4 JSONL schema `source` field. Epic-4 consumers currently cannot distinguish healthcheck-origin queries (`api.github.com` emitted by the 10s interval probe; ~8640/day uniform baseline) from app-layer queries for the same domain. A schema amendment adding `"source": "healthcheck"|"app"|"system"` would let consumers filter out the healthcheck baseline server-side rather than via consumer-side `jq` filters. Owned by Epic-4 FR37 author (not Story 2.17 substrate scope); flagged at 2.13 for downstream visibility.
+- **D-7 (Story 2.13 pre-dev SM; 2026-04-24):** Compose `healthcheck.test` switch from YAML `>-` folded-scalar to explicit JSON-array form (`test: [CMD-SHELL, "<single-line-joined>"]`) to eliminate blank-line-folding hazard structurally. PATCH-3 guards at the story-file level; D-7 would guard at the compose-file level. Cosmetic hardening; Story 2.17 close-out polish pass only if operator / dev feedback signals a regression pattern.
+
+**~12 DISMISS** (findings surfaced by subagents but NOT actionable; reasoning pinned):
+
+- **Shell-injection via `KEEL_DEVBOX_SSH` (security F1)** — `resolve_ssh_state()` in `packages/devbox/scripts/lib/main-repo-resolver.sh` strictly normalises the env to `"true"|"false"` (tr-lowercase then equality check); healthcheck's POSIX-quoted `[ "${…:-false}" != "true" ]` defends in depth; no attack surface.
+- **nc -z three-way-handshake vs `accept()` race (security F3)** — 10s interval + 30s start_period means sshd is well past the 0.5s post-launch window before probing starts; the race is theoretical and bounded by `timeout: 5s`.
+- **FD / process leak in dig/nc (security F4)** — both short-lived; Docker exec creates a fresh context per probe; no accumulation.
+- **retries:3 detection-latency claim (security F6)** — AC 4 + Dev Notes line 138 are precise ("up to ~30s worst case" + "~60s cold-boot-crash detection"); no ambiguity.
+- **Transient-load false-unhealthy (security F7)** — 3-retry buffer is reasonable default; fork override via FR44 AMEND is the escalation path.
+- **dig exit-code semantics (security F12)** — existing Dev Notes "dig exits non-zero only on timeout / connection refused" is correct per `dig(1)` manpage.
+- **`/bin/sh` → dash (security F13)** — Ubuntu 24.04 base is pinned at `Dockerfile:16`; POSIX-only-syntax discipline is unambiguously required.
+- **Healthcheck cascading failure (security F15)** — AC 4 correctly scopes the healthcheck as a SIGNAL (State.Health.Status) consumed by `status.sh`, not an automatic-recovery trigger. No downstream consumer kills an unhealthy container.
+- **Manifest description polish (impl F4)** — cosmetic wording; defer to Story 2.17 SC-17 review if prompted.
+- **Task 2 failure-path explicit guardrail (impl F5)** — dev agent discretion; if either probe fails at Task 2 verification, natural action is to halt + investigate. No explicit guardrail needed.
+- **AGENTS.md H2 parent-section name verification (impl F6)** — verified correct at `AGENTS.md:77` (§ `Devbox iteration environment`); story file Task 4 references the correct H2 name.
+- **.envrc.example no-knob framing (impl F9)** — current phrasing correctly scopes substrate-authoritative timing; no edit needed.
+- **Entrypoint.sh citation audit false-positives (citation audit F17-F20)** — citation audit subagent flagged `entrypoint.sh:120-249`, `:146`, `:162` as drifted; these line numbers came from the audit-prompt's enumeration of "citations to verify" but are NOT actually present in the story file. The story file only cites `entrypoint.sh:140` (opt-in gate), `:175` (pre-gosu comment vestige), `:235` (sshd launch redirect) — all three independently verified PASS at iter-281 against the live file (`packages/devbox/entrypoint.sh` at commit `985aee0`).
+
+**Forecast-band reconciliation:** iter-280 forecast 1-3 PATCH at pre-dev SM band; iter-281 delivered 6 PATCH (4 NARROW + 2 SUBSTANTIVE). ABOVE the narrow-forecast band, UNDER the 8-PATCH Story-2.12 outlier. Two drivers: (a) iter-266 precedent's 4-subagent adversarial spread catches more polish-class items than narrower review patterns; (b) Story 2.13's documentation-heavy surface (invariant doc outline with 7 proposed H2 sections + two README/AGENTS doc regions + Dockerfile comment block) exposes more pattern-compliance polish opportunities than Story 2.12's runtime-code-heavy surface. The 2 SUBSTANTIVE patches (sshd IPv4 loopback verification + invariant doc § Exit codes + § Probe domain stability) ARE AC-critical — PATCH-4 guards AC 3 against a regression class; PATCH-5 formalizes two contracts that would otherwise be inlined. The 4 NARROW patches are light-touch doc adjustments with no AC surface change. Dev-story forecast unchanged at ~30-50K, 5 Tasks, single-iter landing expected.
+
+**Story State transition:** `drafted → validated`. Sprint-status row UNCHANGED at `ready-for-dev` (will flip to `in-progress` at dev-story iter, not SM-review). Next iter (iter-282): `/bmad-testarch-atdd` per § Story Lifecycle row `validated → atdd-scaffolded` — forecast SKIP-WITH-GROUNDS-(c)+(ii)+(iii) per Story 2.12 iter-267 22nd-cumulative precedent (ACs 1, 2, 3, 5 bash-functional-testable via `docker compose config` shape + file-content grep + sync-gate; AC 4 exercises live mid-run service kill requiring Docker container runtime — operator-workstation-deferred).
+
+**Budget consumed:** ~65K tokens (orient ~10K + 4 parallel subagent dispatch ~35K streaming-captured + Ralph-side triage synthesis ~8K + verification grep + inline PATCHes + Change Log authoring + IP + RALPH.md + commit-prep ~12K stacking). Well within ~117K execution budget; exit cleanly per Guardrail 12.
+
+### v1.0 — iter-280 `/bmad-create-story` — `_(no story) → drafted`
+
+Story 2.13 drafted per `/bmad-create-story` workflow. Sprint-status row `2-13-…: backlog → ready-for-dev` at `_bmad-output/implementation-artifacts/sprint-status.yaml:126`; `last_updated` appended `2026-04-24 Story-2-13-ready-for-dev-iter-280 UTC`. 5 ACs (1 negative-assertion + 2 positive + 1 mid-run + 1 timing-documented); 5 Tasks (compose healthcheck block + probe-tooling verification + `INV-devbox-healthcheck` invariant + README/AGENTS doc + optional Story 2.12 iter-279 D-1 absorption); Dev Notes (13 entries); References (19 source citations with `file:line` anchors). Epic-2 row UNCHANGED at `in-progress` (workflow Step 1 "first story in epic" check does not fire — Story 2.13 is 13/17; epic already `in-progress` since Story 2.1 iter-128). See commit `985aee0`.
+
+## Test Debt (post-Story-1.21 audit)
+
+See [test-debt.md § Story 2-13](./test-debt.md#story-2-13) for the post-Story-1.21 audit catalogue entry — back-fill effort/risk class + carry-to target.

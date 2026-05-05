@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-26T00:00:00.000Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "target": {
+    "type": "story",
+    "id": "1.21",
+    "label": "Sweep prior `ATDD deferred` stories into `test-debt:` follow-ups"
+  },
+  "coverage_basis": "acceptance_criteria",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups.md (AC1-AC6)"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "criteria": [
+    {
+      "id": "AC1",
+      "title": "test-debt.md catalogue exists with one row per pre-bootstrap story carrying an ATDD-skip; each row records skip-ground + AC class + effort + risk class",
+      "priority": "P0",
+      "coverage": "FULL",
+      "tests": [],
+      "substrate_evidence": [
+        "_bmad-output/implementation-artifacts/test-debt.md exists (35 244 bytes / 413 lines)",
+        "27 H3 anchors `### Story X-Y` per audit-deliverable count (10 Epic 1 + 17 Epic 2)",
+        "Per-row schema compliance: 5 fields per Subtask 2.2 schema (Skip ground / AC class skipped / Back-fill effort / Risk class / Source / Carry-to)",
+        "Story-id ordering: linear (1.2 → 2.18) per AC1 lock",
+        "OUT-of-scope omission: 7 stories listed under § Out-of-Scope (line 376)"
+      ]
+    },
+    {
+      "id": "AC2",
+      "title": "FR14n amendment per issue #233 is in effect: bare ground-(b) ATDD-skips are flagged at bmad-create-story (args: 'review') pre-dev gate",
+      "priority": "P0",
+      "coverage": "FULL",
+      "tests": [],
+      "substrate_evidence": [
+        "_bmad-output/planning-artifacts/prd.md:968 carries the FR14n amendment per issue #233",
+        "6 grep-line matches for `FR14n.*amendment|issue #233|ground.*(b).*sunset|grandfather` at PRD lines 23, 948, 959, 968, 969, 1068",
+        "All 4 amendment clauses verified (ground b sunsets / post-bootstrap MUST cite a-or-c / bare-b insufficient / pre-bootstrap grandfathered)",
+        "Create-story workflow gate enforces via existing AC-coverage check; 32 cumulative post-bootstrap ATDD-skips have all cited ground (a) or (a)+(c) hybrid"
+      ]
+    },
+    {
+      "id": "AC3",
+      "title": "Each test-debt entry is referenced from the originating story file's section (cross-link to test-debt.md anchor)",
+      "priority": "P1",
+      "coverage": "FULL",
+      "tests": [],
+      "substrate_evidence": [
+        "grep -l 'test-debt.md#story-' _bmad-output/implementation-artifacts/*.md | wc -l returns 29 files",
+        "27 IN-SCOPE story files + Story 1.21 self-reference + test-debt.md self-reference = 29",
+        "27 operative back-pointers per AC3 lock (matches 27 IN-SCOPE H3 anchors in test-debt.md)",
+        "Anchor pattern compliance: kebab-case `test-debt.md#story-{epic}-{story}` per AC3 lock",
+        "Uniform `## Test Debt (post-Story-1.21 audit)` H2 trailer schema (NIT-deviation from create-story locked-text; uniform-suffix-append preferred for 27-file mechanical workload)",
+        "bash /tmp/add-backpointers.sh script with idempotent grep guard re-usable for future audit + sweep stories"
+      ]
+    },
+    {
+      "id": "AC4",
+      "title": "Pre-bootstrap skips are grandfathered; only NEW skips post-Story 1.21 are subject to FR14n amendment",
+      "priority": "P1",
+      "coverage": "FULL",
+      "tests": [],
+      "substrate_evidence": [
+        "test-debt.md § Preamble landed at line 5 with three numbered purposes (Visibility / Prioritisation / Boundedness)",
+        "test-debt.md § Grandfather clause landed at line 45 (within § Preamble) — 'catalogue does NOT retroactively re-open the originating stories'",
+        "test-debt.md § Net-zero-bare-(b)-skip target landed within § Preamble — 'NO post-Story-1.21 story carries bare ground-(b) (no-runner)'",
+        "test-debt.md § Carry-to consumer contract (line 404) enumerates Epic 4 / 13 / 14 intended consumers",
+        "Originating story files byte-stable per Subtask 5.1 idempotent grep guard (only `## Test Debt` H2 trailer appended)"
+      ]
+    },
+    {
+      "id": "AC5",
+      "title": "Inherited DEFER sweep — Stories 1.18 + 1.19 + 1.20 deferred-work.md entries are categorised in test-debt.md OR resolved in-flight OR explicitly carried forward to a NAMED follow-up story",
+      "priority": "P0",
+      "coverage": "FULL",
+      "tests": [],
+      "substrate_evidence": [
+        "24 inherited DEFER ground-truth (deferred-work.md H2 sections at lines 805/812/822/831/842 — 4+7+6+4+3 = 24)",
+        "18 disposition (a) absorbed-into-test-debt → 6 Substrate-Wide Pattern cluster rows in `test-debt.md § Substrate-Wide Patterns` (line 296)",
+        "4 disposition (c) carried-forward-named → 4 sync-gate drifts (3 INV-git-hooks-preservation family + 1 INV-package-test-coverage-floor) → Epic 4 hardening",
+        "0 disposition (b) resolved-in-flight per worktree-only env constraint (option-a-resolve blocked in cc-devbox env)",
+        "2 cross-listings handled per Subtask 7.1 cluster-row absorption",
+        "Sync-gate baseline UNCHANGED: 4 inherited drifts at iter-401 dev-story = 4 inherited drifts at iter-399 SM-validate baseline (0 NEW drift introduced)",
+        "Per-DEFER checklist completeness: all 24 recorded in § Completion Notes with disposition + rationale (no DEFER silently slips per AC5 final clause)"
+      ]
+    },
+    {
+      "id": "AC6",
+      "title": "iter-391 devbox-network whitelist gap formally captured + named target",
+      "priority": "P2",
+      "coverage": "FULL",
+      "tests": [],
+      "substrate_evidence": [
+        "test-debt.md § Substrate-Adjacent Operational Gaps section landed at line 356 (positioned AFTER per-story catalogue + Substrate-Wide Patterns per AC6 lock)",
+        "iter-391 entry fields complete: missing host (results-receiver.actions.githubusercontent.com) + operational impact (gh run view --log blocked → Annotation API fallback) + NAMED carry-to (Story 2.18 amendment OR new Story 2.19)",
+        "Source citation: RALPH.md iter-391 § Notes + iter-392 entry verbatim",
+        "Bonus entry (Subtask 6.2): api.github.com timeout class (signature `dial tcp 140.82.121.6:443: i/o timeout`; 9 cumulative datapoints at iter-402 step 0h + step 5)",
+        "AC6 OUT-of-scope clause respected: no .github/workflows/ci.yml edits + no devbox/whitelist edits + no nftables/dnsmasq config changes in iter-401 commit set"
+      ]
+    }
+  ],
+  "coverage_statistics": {
+    "total_requirements": 6,
+    "fully_covered": 6,
+    "partially_covered": 0,
+    "uncovered": 0,
+    "overall_coverage_pct": 100,
+    "priority_breakdown": {
+      "P0": { "total": 3, "covered": 3, "pct": 100 },
+      "P1": { "total": 2, "covered": 2, "pct": 100 },
+      "P2": { "total": 1, "covered": 1, "pct": 100 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 6, "criteria_covered": 6 }
+    }
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 0,
+    "low_gaps": 0
+  }
+}

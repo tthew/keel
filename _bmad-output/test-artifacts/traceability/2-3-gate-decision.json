@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-21T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.3",
+    "label": "egress policy — dnsmasq + nftables (fail-closed, IPv4/IPv6 parity, atomic reload)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 5, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 5,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — five P2 ACs cover an infrastructure-security class story (third Epic 2 + first of its class: daemon + kernel-rule + file-locked atomic-reload + JSONL log-tailer outside the Vitest/Playwright idiom) with no live test runner at 1.0. All 5 ACs have STRONG substrate evidence: (AC 1) packages/devbox/dnsmasq/dnsmasq.conf fail-closed `address=/#/0.0.0.0` + `address=/#/::` + listen-address 127.0.0.1,::1:53 + user=nobody privilege-drop + log-queries=extra + KEEL_EGRESS_ALLOWLIST_MARKER block for reload-time server= injection per SC-12 + packages/devbox/scripts/start-egress.sh SC-13 resolv.conf pin to exactly 'nameserver 127.0.0.1' + 'options edns0 single-request-reopen' (closes upstream fail-open 8.8.8.8 fallback) + dnsmasq-liveness 5s retry loop with fail-hard exit 1 + packages/devbox/.envrc.example KEEL_DEVBOX_DNS_UPSTREAM=1.1.1.1 knob per SC-14 + packages/devbox/Dockerfile apt-append (dnsmasq) + packages/devbox/entrypoint.sh single new block per SC-11 with fail-hard exit 1 if start-egress.sh missing; (AC 2) packages/devbox/nftables/egress.nft single 'table inet keel_egress' with 'chain output_v4 { type filter hook output priority 0; policy drop }' + 'chain output_v6 { type filter hook output priority 0; policy drop }' + SC-7 verbatim parity commands pinned in invariant doc + `meta nfproto != <family> accept` short-circuit first rule per-chain (iter-158 non-obvious decision: same-priority inet chains otherwise double-drop non-target-family packets) + baseline ct state established,related accept + loopback DNS allow + cap_add [NET_ADMIN, NET_RAW] per SC-6 + Dockerfile apt-append (nftables); (AC 3) packages/devbox/scripts/egress-log-tailer.sh SC-3 6-field JSONL schema (timestamp/query/type/result/upstream/client stable field order UTF-8 LF-terminated) EMBEDDED VERBATIM in docs/invariants/devbox-egress.md § JSONL query log schema per iter-156 PATCH 3 so contentHash locks contract against drift + SC-2 /workspace/logs/egress-queries.jsonl pinned path + SC-4 50 MB + 5 gzip generations inline rotation + SC-15 background nohup process model + SIGTERM/SIGINT flush-close + SC-16 reload/rotation orthogonality + parse-error fallback with raw-line preservation + packages/devbox/scripts/monitor.sh operator `tail -Fn0 | jq -c` facade; (AC 4) packages/devbox/scripts/reload-egress.sh SC-5 atomic-reload verbatim — flock -x /run/keel-egress.lock 10s timeout + nft -f <tempfile> kernel-atomic transaction + kill -HUP $(cat /run/dnsmasq.pid) with pkill -HUP dnsmasq fallback + trap-released flock + 8 documented exit codes (2 missing-arg / 3 unreadable-path / 4 lock-timeout / 5 nft-fail / 6 render-fail / 7 SIGHUP-fail / 0 success) + SC-8 whitelist-compose-boundary preserved (reload-egress.sh takes composed-whitelist-path arg; whitelist.sh user-facing CLI is Story 2.4); (AC 5) dual-layer belt-and-braces fail-closed (dnsmasq default `address=/#/` NXDOMAIN + nftables `output_v4/v6 policy drop` layer-3 rejection) + SC-13 resolv.conf pin (NO 8.8.8.8 fallback; closes upstream bug #2) + SC-1 in-container runtime (NOT sidecar) + SC-8 single-mechanism collapse (closes upstream bug #1 divergent-whitelist-tooling) + IPv4/IPv6 parity verbatim (closes upstream bug #3 IPv6 default-deny gap) + Dev-agent Guardrail #1 fail-closed-everywhere verification + entrypoint fail-hard exit 1 if start-egress.sh missing. All 4 new scripts bash -n syntax OK at iter-159 verification. Sync-gate (node packages/keel-invariants/dist/check.js) exit 0 green at iter-159 — 20 manifest entries valid; new INV-devbox-egress-contract entry contentHash aad16a51aa1dc7527c0312e6b99217966d7f3f3478fb677dd347792e9cb6889b locks consolidated invariant doc against drift per Story 2.2 iter-151 AR-2 lesson (contract-splitting grows asymmetry risk — SC-10 ONE consolidated invariant honoured). Per-AC runner-hosted coverage deferred to Story 2.3-test-runner-landing (Epic 13 scope) + backend-B operator-workstation live smokes (Task 12.1 – 12.8): resolv.conf pin probe + pgrep dnsmasq + SC-7 verbatim `nft list chain` parity + dual-layer positive curl registry.npmjs.org / negative curl example.com / atomic-reload preservation curl api.anthropic.com / JSONL schema round-trip via jq / log-rotation 51 MB synthesis or local-uncommitted threshold override.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.3 authors the fail-closed-egress contract substrate: 4 whitelist source files (baseline + npm + anthropic + github category fragments per SC-8) + dnsmasq/dnsmasq.conf template + nftables/egress.nft template + 4 new scripts (start-egress.sh entrypoint bootstrap + reload-egress.sh atomic-reload primitive + egress-log-tailer.sh JSONL emitter + monitor.sh operator tail per SC-9 shape) + entrypoint.sh single new fail-hard block per SC-11 + docker-compose.yml cap_add [NET_ADMIN, NET_RAW] per SC-6 + stale TODO-comment replacement per Task 9.1 + Dockerfile apt-append (dnsmasq + nftables single layer) + .envrc.example KEEL_DEVBOX_DNS_UPSTREAM knob per SC-14 + README § Egress policy section (overview + 8-file list + verification + reload + known upstream bugs fixed) + VERSIONS.md § Egress policy subsection (placeholder source-table; concrete versions deferred to operator-workstation re-bake per backend-B constraint) + docs/invariants/devbox-egress.md consolidated contract (ONE invariant per SC-10 vs three split) + manifest entry + INVARIANTS.md anchor + sprint-status row flip + timestamp. Downstream consumers: Story 2.4 scripts/whitelist.sh user-facing CLI invokes reload-egress.sh; Story 2.5 hardening adds cap_drop: [ALL] + user: dev + tmpfs stanzas; Story 2.6 host-side pnpm devbox:* lifecycle CLI; Story 2.13 compose healthcheck; Epic 4 FR37 security-evidence consumer hard-references SC-2 path + SC-3 schema + SC-4 rotation contract. Any silent edit to docs/invariants/devbox-egress.md triggers sync-gate FAIL at pre-commit per Story 1.9 drift detection.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.3 test-runner landing (Epic 13 scope) will unlock per-AC runner-hosted probes: AC 1 runtime smoke (docker exec devbox cat /etc/resolv.conf | grep -q '^nameserver 127\\.0\\.0\\.1$' + pgrep -x dnsmasq + dnsmasq --test --conf-file=packages/devbox/dnsmasq/dnsmasq.conf); AC 2 parity smoke (SC-7 verbatim nft list chain inet keel_egress output_v4/output_v6 | grep -q 'policy drop' + nft -c -f packages/devbox/nftables/egress.nft); AC 3 JSONL schema smoke (tail /workspace/logs/egress-queries.jsonl | jq -c . + SC-3 6-field contract assertion + SC-4 rotation smoke with 51 MB synthesized writes or local-uncommitted 1 MB threshold override for single-invocation verification); AC 4 atomic-reload preservation smoke (long-running curl --keepalive-time 60 https://api.anthropic.com/ + reload-egress.sh invocation → curl completion exit 0 + reload exit 0 within 2s + timing assertions); AC 5 fail-closed dual-layer smoke (positive curl -m 5 -sSf https://registry.npmjs.org/ exits 0 via allow-list + negative curl -m 3 -sSf https://example.com/ 2>&1 | grep -Ei 'could not resolve|refused|timed out' exits 0 via fail-closed). Plus Task 1.2 `nft --version` + `dnsmasq --version` baked-image version probe (concrete versions captured in VERSIONS.md § Egress policy) + Task 11.4 docker compose config parse check after cap_add + .envrc.example changes. None of these block Story 2.3 `review → done` transition under the WAIVED precedent — substrate evidence at iter-159 is complete for the in-iteration-executable portion of the story.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

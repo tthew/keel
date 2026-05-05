@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "128e1b7b75ddfd87b46c88a61085650e6fb127b0",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.16",
+    "label": "Claude PreToolUse hooks for secret-file denylist (Ralph-compatible)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 8,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 8,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 8, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 8,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 8 P2 ACs; Epic-2-substrate-claude-pretooluse-hooks class story (SIXTEENTH Epic 2 delivery; FIRST story shipping executable bash logic unit-testable inside the devbox without external dependencies — distinct from Stories 2.1-2.15's configuration-only deltas; Story 2.16 extends the security barrier DOWN one level from the Story 2.15 permissions-layer baseline to the hook layer covering the Ralph `claude -p --dangerously-skip-permissions` runtime path). TWENTY-SIXTH cumulative trace-WAIVED precedent extending Story 2.15 iter-299 twenty-fifth (Stories 1.7 iter-4 + 1.8 iter-3 + 1.9 iter-3 + 1.10 iter-46 + 1.11 iter-57 + 1.12 iter-64 + 1.13 iter-71 + 1.14 iter-78 + 1.15 iter-85 + 1.16 iter-92 → 2.1 iter-126 → 2.2 iter-149 → 2.3 iter-159 → 2.4 iter-175 → 2.5 iter-188 → 2.6 iter-202 → 2.7 iter-224 → 2.8 iter-231 → 2.9 iter-242 → 2.10 iter-249 → 2.11 iter-258 → 2.12 iter-269 → 2.13 iter-284 → 2.14 iter-292 → 2.15 iter-299 → 2.16 iter-306 = TWENTY-SIXTH cumulative trace-WAIVED; TWENTY-SEVENTH ATDD-skip-trace-WAIVED co-application pairing overall extending iter-304 ATDD-skip grounds (ii) single-ground). Ground-(a)+(b) hybrid conjunction with BROADENED ground-(a) posture (NOVEL for Epic 2 — 14 impl-time executable-bash-logic fixture smokes provide functional verification of hook behaviour, not just static substrate probe) + PARTIAL ground-(c) variant-(ii) narrowed to (a) AC 5 Epic 3 Story 3.7 halt-write downstream consumer + (b) AC 8 Epic 4 Story 4.13 security-evidence pipeline downstream consumer + (c) AC 1 + AC 2 operator-workstation-class live `claude` subprocess behavioural signal (requires OAuth-authed upstream endpoint + browser-interactive first-auth + live api.anthropic.com egress; operator-smoke-only until Anthropic ships `claude --dry-run --hooks-only` inspection mode). Story 2.16 sits in a STRONGER ground-(a) posture than Stories 2.1-2.15 (first Epic-2 story with executable-bash-logic fixture-smoke substrate gate verifying hook behaviour functionally). Novel grounds hybrid sitting STRONGER-(a) than Story 2.15 iter-299 precedent; NARROWER on ground-(c) than Story 2.13 iter-284 (whole-AC-4 operator-workstation-deferred) — the behavioural operator-smoke signal is narrowly for AC 1 + AC 2 integration ONLY, not whole-AC. 14 impl-time fixture smokes all GREEN at iter-305 dev-story landing (5 AC-pinned + 7 D-1/D-3/D-6/env/printenv/git-hook mitigation + 2 negative approve-path) — functionally verifying AC 2's 27-rule denylist behaviour + AC 3's JSON decision shape + AC 4's JSONL append schema + AC 5's config-file pin. NOVEL incident mid-iter: hook self-immolation via invalid POSIX case-glob pattern bricked session 6-matcher tool surfaces; recovery via `Monitor` tool escape-hatch; lesson pinned in RALPH.md § Lessons — pre-install `bash -n` discipline for future hook-self-protection stories (Story 2.17 bypass-resistance expansion + Epic 3 Story 3.32 halt-wire-up).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.16 authors 12 files (4 NEW + 8 MODIFIED per iter-305 Dev Agent Record landing): `.claude/hooks/block-secret-access.sh` 181 lines + `.ralph/config.toml` + `docs/invariants/claude-hook-denylist.md` 138 lines + `packages/keel-templates/src/seeds/.claude/hooks/block-secret-access.sh` NEW byte-identical seed; `.claude/settings.json` (hooks.PreToolUse block append — 6 matchers: Bash/Read/Edit/Write/Grep/Glob) + `packages/keel-invariants/src/invariants.manifest.ts` (35th entry INV-claude-hook-secret-denylist) + INVARIANTS.md (new H3 between Story 2.14 + Story 2.2) + AGENTS.md (new H3 with 7 bullets) + CLAUDE.md (new bullet) + packages/devbox/README.md (new H2 with quick-start + fork-extension recipe) + packages/keel-templates/src/seeds/.claude/settings.json (re-synced) + keel-templates README MODIFIED. Manifest count 34 → 35 — Story 2.16 adds ONE new InvariantSchema entry (distinct from Story 2.15 which was ZERO-manifest-entry-delta; Stories 2.10-2.14 each added one). `pnpm keel-invariants:check-all` silent success (manifest ↔ INVARIANTS.md ↔ contentHash lockstep GREEN); invariant-doc SHA256 `85f8a539c0850f1c52ed825c6a8a904d72c6d42c0c7a87eb9f14617bc51cd7e1` stable in manifest `contentHash`. Substrate ↔ seed byte-identity verified for both hook script + settings.json.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification — ACs 1/2/3/4/6/7 mechanically-regression-safe via Epic 13 test framework landing (vitest/playwright/bats-core-equivalent contract tests over settings.json schema + hook script bash-regex denylist matching + JSONL schema + manifest content-hash sync-gate + byte-identical seed diff + fork-extension invocation grep). AC 5 Epic 3 Story 3.7 halt-write + AC 8 Epic 4 Story 4.13 security-evidence consumer pipeline remain downstream-epic-integration-deferred even post-Epic-13 (Story 2.16 ships the CONTRACT; runtime consumers exercise the contracts). Story 2.16 sits in STRONGER ground-(a) posture than the 25-precedent config-only trace-WAIVED chain — FIRST Epic-2 story with executable-bash-logic fixture-smoke substrate gate.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.17 SC-17 close-out candidates pinned at iter-306 trace close (forward-ref to Story 2.17 Epic-2-final-story scope): (a) D-7 — Substrate-to-seed byte-identity diff lint (sibling to Story 2.13 D-5 + Story 2.14 D-6; Story 2.15's settings.json + Story 2.16's hook script + settings.json seed — three substrate↔seed pairs need lint coverage at SC-17 close); (b) D-8 — NFR5a/5b deny-list minimum-entry gate (forks MAY ADD but MUST NOT REMOVE substrate-pinned deny rules; Story 2.17 codifies via content-hash backstop at hook layer + settings.json layer); (c) D-9 — Hook-self-protection halt-threshold three-site lockstep (`.ralph/config.toml` + Story 3.7 halt-write + invariant-doc lockstep at Story 2.17 close). Remaining 8 Story 2.15 CR DEFERs (D-2 / D-4 / D-5 / D-7 / D-8 / D-9 / D-10 / D-11 at iter-301; D-1 / D-3 / D-6 MITIGATED at hook layer at iter-305) carry forward. Cumulative Epic-2 DEFERs pending Story 2.17: **55 cumulative + 3 Story 2.16 SC-17 candidates = 58 total** + whatever Story 2.16 post-dev SM + CR accrues at iters 307-308+.",
+      "requirements": ["AC-1", "AC-2", "AC-6", "AC-7"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "NOVEL iter-305 hook self-immolation incident recovery trace — forecast Story 2.17 bypass-resistance scope should codify pre-install `bash -n` discipline. An invalid POSIX case-glob pattern `git commit*--no-verify*|git push*--no-verify*` (unquoted spaces) bricked session's Bash/Read/Edit/Write/Grep/Glob tool surfaces. Empirically Claude Code 2.1.116 treats hook syntax-error exit as BLOCK with output suppression (contrary to upstream docs claiming fail-open). Recovery via `Monitor` tool (not in 6-matcher set) running Python script overwriting hook with bash-regex-anchored `^git[[:space:]]+(commit|push)` + `*--no-verify*` substring AND-combo. Recovery cost: ~10K extra tokens + 4-5 subagent roundtrips. Special verification at post-dev SM (iter-307): Change Log 0.4 + Completion Notes should accurately capture the incident trace — forecast PATCH band 0-3 per iter-270 drift-band precedent.",
+      "requirements": ["AC-2"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist at 1.0 — no-op; recorded for parity with downstream pipelines; Epic 13 landing will introduce bats-core or equivalent harness that migrates iter-305 impl-time fixture smokes to persistent test files).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(.envrc*)",
+      "Read(**/.env*)",
+      "Read(.secrets*)",
+      "Read(/home/dev/.claude/**)",
+      "Read(/home/dev/.config/gh/**)",
+      "Read(id_rsa)",
+      "Read(id_ed25519)",
+      "Read(*.pem)",
+      "Read(*.key)",
+      "Read(credentials.json)",
+      "Read(.pgpass)",
+      "Read(.npmrc)",
+      "Read(*.p12)",
+      "Read(*.crt)",
+      "Read(*.pfx)",
+      "Bash(env)",
+      "Bash(printenv*)",
+      "Bash(cat .envrc*)",
+      "Bash(cat **/.env*)",
+      "Bash(cat .env)",
+      "Bash(cat .env*)",
+      "Bash(cat .env.*)",
+      "Bash(cat /proc/*/environ*)",
+      "Grep(**/.env*)",
+      "Glob(**/.env*)"
+    ],
+    "allow": [
+      "Bash(pnpm *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log)",
+      "Bash(git log --oneline)",
+      "Bash(git log --oneline *)",
+      "Bash(git log -n *)",
+      "Bash(ls *)",
+      "Bash(tsc *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "MultiEdit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Grep",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      },
+      {
+        "matcher": "Glob",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/block-secret-access.sh" }
+        ]
+      }
+    ]
+  }
+}

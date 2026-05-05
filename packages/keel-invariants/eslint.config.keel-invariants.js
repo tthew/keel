@@ -83,7 +83,7 @@ const sharedBase = [
     // allowed to contain the bypass-token string literally. File-scoped rule
     // override (not blanket `ignores:`) preserves tseslint + no-restricted-imports
     // coverage on the rule source.
-    files: ['**/eslint-rules/**', '**/keel-invariants/test/**'],
+    files: ['**/eslint-rules/**', '**/keel-invariants/test/**', '**/prompt-injection-rules/**'],
     rules: {
       'keel-invariants/no-verify-bypass': 'off',
     },
@@ -140,7 +140,7 @@ export function forPackage(ownName) {
       },
     },
     {
-      files: ['**/eslint-rules/**', '**/keel-invariants/test/**'],
+      files: ['**/eslint-rules/**', '**/keel-invariants/test/**', '**/prompt-injection-rules/**'],
       rules: {
         'keel-invariants/no-verify-bypass': 'off',
       },

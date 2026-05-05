@@ -1,5 +1,88 @@
 # generated: 2026-04-19 17:43 UTC
-# last_updated: 2026-04-21 Epic-1-done UTC
+# last_updated: 2026-04-26 Epic-1-reclosed-iter-435-issue-233-SCP-REOPEN-ARC-complete-Stories-1-17-to-1-21-done UTC
+# last_updated: 2026-04-26 Story-1-21-done-CR-pass-5-iter-434-0-PATCH-0-DEFER-33-DISMISS UTC
+# last_updated: 2026-04-26 Story-1-21-review UTC
+# last_updated: 2026-04-21 Story-2-1-fixes-pending-AR-1-landed UTC
+# last_updated: 2026-04-21 Story-2-1-fixes-pending UTC
+# last_updated: 2026-04-21 Story-2-1-done UTC
+# last_updated: 2026-04-21 Story-2-2-ready-for-dev UTC
+# last_updated: 2026-04-21 Story-2-2-in-progress UTC
+# last_updated: 2026-04-21 Story-2-2-review UTC
+# last_updated: 2026-04-21 Story-2-2-fixes-pending UTC
+# last_updated: 2026-04-21 Story-2-2-done UTC
+# last_updated: 2026-04-21 Story-2-3-ready-for-dev UTC
+# last_updated: 2026-04-21 Story-2-3-review UTC
+# last_updated: 2026-04-21 Story-2-3-fixes-pending UTC
+# last_updated: 2026-04-21 Story-2-3-done UTC
+# last_updated: 2026-04-22 Story-2-4-ready-for-dev UTC
+# last_updated: 2026-04-22 Story-2-4-review UTC
+# last_updated: 2026-04-22 Story-2-4-fixes-pending UTC
+# last_updated: 2026-04-22 Story-2-4-done UTC
+# last_updated: 2026-04-22 Story-2-5-ready-for-dev UTC
+# last_updated: 2026-04-22 Story-2-5-in-progress UTC
+# last_updated: 2026-04-22 Story-2-5-review UTC
+# last_updated: 2026-04-22 Story-2-5-done UTC
+# last_updated: 2026-04-22 Story-2-6-ready-for-dev UTC
+# last_updated: 2026-04-22 Story-2-6-review UTC
+# last_updated: 2026-04-22 Story-2-6-in-progress UTC
+# last_updated: 2026-04-22 Story-2-6-CR-closure-NOT-ZERO-PATCH-iter-216 UTC
+# last_updated: 2026-04-22 Story-2-6-done-CR-closure-ZERO-PATCH-iter-219 UTC
+# last_updated: 2026-04-22 Story-2-7-ready-for-dev-iter-220 UTC
+# last_updated: 2026-04-22 Story-2-7-in-progress-iter-223 UTC
+# last_updated: 2026-04-22 Story-2-7-review-iter-223 UTC
+# last_updated: 2026-04-22 Story-2-7-done-CR-closure-ZERO-PATCH-one-pass-iter-226 UTC
+# last_updated: 2026-04-22 Story-2-8-ready-for-dev-iter-227 UTC
+# last_updated: 2026-04-22 Story-2-8-in-progress-iter-230 UTC
+# last_updated: 2026-04-22 Story-2-8-review-iter-230 UTC
+# last_updated: 2026-04-22 Story-2-8-done-CR-closure-ZERO-PATCH-one-pass-iter-233 UTC
+# last_updated: 2026-04-22 Story-2-9-ready-for-dev-iter-234 UTC
+# last_updated: 2026-04-22 Story-2-9-in-progress-iter-237 UTC
+# last_updated: 2026-04-22 Story-2-9-review-iter-237 UTC
+# last_updated: 2026-04-23 Story-2-9-done-CR-closure-ZERO-PATCH-one-pass-iter-244 UTC
+# last_updated: 2026-04-23 Story-2-10-ready-for-dev-iter-245 UTC
+# last_updated: 2026-04-23 Story-2-10-in-progress-iter-248 UTC
+# last_updated: 2026-04-23 Story-2-10-review-iter-248 UTC
+# last_updated: 2026-04-23 Story-2-10-done-CR-closure-PATCH-1-iter-253 UTC
+# last_updated: 2026-04-23 Story-2-11-ready-for-dev-iter-254 UTC
+# last_updated: 2026-04-24 Story-2-11-in-progress-iter-257 UTC
+# last_updated: 2026-04-24 Story-2-11-review-iter-257 UTC
+# last_updated: 2026-04-24 Story-2-11-done-CR-closure-ZERO-PATCH-PATCH-1-iter-264 UTC
+# last_updated: 2026-04-24 Story-2-12-ready-for-dev-iter-265 UTC
+# last_updated: 2026-04-24 Story-2-12-in-progress-iter-268 UTC
+# last_updated: 2026-04-24 Story-2-12-review-iter-268 UTC
+# last_updated: 2026-04-24 Story-2-12-done-CR-closure-re-run-2-ZERO-PATCH-iter-279 UTC
+# last_updated: 2026-04-24 Story-2-13-ready-for-dev-iter-280 UTC
+# last_updated: 2026-04-24 Story-2-13-in-progress-iter-283 UTC
+# last_updated: 2026-04-24 Story-2-13-review-iter-283 UTC
+# last_updated: 2026-04-24 Story-2-13-done-CR-ZERO-PATCH-iter-286 UTC
+# last_updated: 2026-04-24 Story-2-14-ready-for-dev-iter-287 UTC
+# last_updated: 2026-04-24 Story-2-14-in-progress-iter-290-partial-Task-1-deferred-github-com-outage UTC
+# last_updated: 2026-04-24 Story-2-14-review-iter-291-Task-1-retry-landed-all-ACs-satisfied UTC
+# last_updated: 2026-04-24 Story-2-14-done-CR-PATCH-2-bundled-close-iter-294 UTC
+# last_updated: 2026-04-24 Story-2-15-ready-for-dev-iter-295 UTC
+# last_updated: 2026-04-24 Story-2-15-in-progress-iter-298 UTC
+# last_updated: 2026-04-24 Story-2-15-review-iter-298 UTC
+# last_updated: 2026-04-24 Story-2-15-done-CR-PATCH-4-bundled-close-iter-301 UTC
+# last_updated: 2026-04-24 Story-2-16-ready-for-dev-iter-302 UTC
+# last_updated: 2026-04-24 Story-2-16-in-progress-iter-305 UTC
+# last_updated: 2026-04-24 Story-2-16-review-iter-305 UTC
+# last_updated: 2026-04-24 Story-2-16-done-CR-PATCH-2-bundled-close-iter-308 UTC
+# last_updated: 2026-04-24 Story-2-17-review-iter-339 UTC
+# last_updated: 2026-04-25 Story-2-17-done-CR-PATCH-3-bundled-close-iter-342 UTC
+# last_updated: 2026-04-25 Epic-2-done-PR-230-Draft-to-Open-final-CI-gate-iter-343 UTC
+# last_updated: 2026-04-25 Epic-3-Story-3-34-appended-doc-budget-correct-course-issue-231 UTC
+# last_updated: 2026-04-25 Epic-2-Story-2-18-appended-backlog-correct-course-issue-232 UTC
+# last_updated: 2026-04-25 Story-2-18-ready-for-dev-iter-347 UTC
+# last_updated: 2026-04-25 Epic-2-done-to-in-progress-Story-2-18-active-iter-347 UTC
+# last_updated: 2026-04-25 Story-2-18-in-progress-iter-350 UTC
+# last_updated: 2026-04-25 Story-2-18-review-iter-350 UTC
+# last_updated: 2026-04-25 Story-2-18-done-iter-353 UTC
+# last_updated: 2026-04-25 Epic-2-in-progress-to-done-Story-2-18-closed-iter-353 UTC
+# last_updated: 2026-04-25 Epic-1-reopened-stories-1-17-to-1-21-appended-correct-course-issue-233 UTC
+# last_updated: 2026-04-25 Story-1-17-create-story-drafted-iter-1 UTC
+# last_updated: 2026-04-25 Story-1-17-ready-for-dev-to-review-iter-359 UTC
+# last_updated: 2026-04-25 Story-1-17-review-to-done-iter-362 UTC
+# last_updated: 2026-04-25 Story-1-18-create-story-drafted-iter-363 UTC
 # project: ralph-bmad
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,14 +118,24 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-19 17:43 UTC
-last_updated: 2026-04-21 Epic-1-done UTC
+last_updated: 2026-04-26 Story-1-18-done-cr-iter-369 UTC
+last_updated: 2026-04-26 Story-1-19-create-story-drafted-iter-370 UTC
+last_updated: 2026-04-26 Story-1-19-in-progress-iter-374 UTC
+last_updated: 2026-04-26 Story-1-19-review-iter-374 UTC
+last_updated: 2026-04-26 Story-1-19-fixes-pending-CR-iter-377-8-PATCH-7-DEFER UTC
+last_updated: 2026-04-26 Story-1-19-done-CR-iter-386-1-PATCH-housekeeping-6-DEFER UTC
+last_updated: 2026-04-26 Story-1-20-create-story-drafted-iter-387 UTC
+last_updated: 2026-04-26 Story-1-20-in-progress-iter-390 UTC
+last_updated: 2026-04-26 Story-1-20-review-iter-390 UTC
+last_updated: 2026-04-26 Story-1-20-done-CR-pass-1-iter-397-0-PATCH-3-DEFER-16-DISMISS UTC
+last_updated: 2026-04-26 Story-1-21-create-story-drafted-iter-398 UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
 story_location: "{project-root}/_bmad-output/implementation-artifacts"
 
 development_status:
-  epic-1: done
+  epic-1: done  # reclosed iter-435 after Story 1.21 done at iter-434 CR-pass-5 PASS — issue #233 SCP REOPEN-ARC complete
   1-1-monorepo-scaffold-typescript-project-references: done
   1-2-packages-keel-invariants-bootstrap-shared-eslint-prettier-commitlint-configs: done
   1-3-eslint-no-restricted-imports-import-boundary-rules: done
@@ -59,26 +152,32 @@ development_status:
   1-14-release-please-monorepo-config-single-bundled-mode: done
   1-15-renovate-config-with-version-pinning-rules-i7: done
   1-16-fork-extension-config-pattern-growth-tier-invariants-fork-md-scaffold: done
+  1-17-bootstrap-typescript-test-runner-vitest-minimal-ci: done
+  1-18-bootstrap-python-test-runner-pytest-under-uv: done
+  1-19-backfill-keel-invariants-test-coverage: done
+  1-20-activate-fr14i-for-real-end-vacuous-pass: done
+  1-21-sweep-prior-atdd-deferred-stories-into-test-debt-followups: done
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access: backlog
-  2-2-envrc-parameterisation-contract: backlog
-  2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: backlog
-  2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: backlog
-  2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: backlog
-  2-6-host-side-pnpm-devbox-cli-surface: backlog
-  2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan: backlog
-  2-8-claude-code-oauth-via-pnpm-claude: backlog
-  2-9-gh-cli-oauth-via-pnpm-gh-auth: backlog
-  2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors: backlog
-  2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared: backlog
-  2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: backlog
-  2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: backlog
-  2-14-legacy-devbox-branch-retention-policy: backlog
-  2-15-committed-claude-settings-json-with-deny-allow-permission-policies: backlog
-  2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: backlog
-  2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt: backlog
+  epic-2: done
+  2-1-packages-devbox-absorb-from-cc-devbox-image-compose-substrate-tooling-access: done
+  2-2-envrc-parameterisation-contract: done
+  2-3-egress-policy-dnsmasq-nftables-fail-closed-ipv4-ipv6-parity-atomic-reload: done
+  2-4-whitelist-source-of-truth-pnpm-devbox-whitelist-atomic-reload-cli: done
+  2-5-container-hardening-non-root-user-capabilities-tmpfs-noexec-named-volume: done
+  2-6-host-side-pnpm-devbox-cli-surface: done
+  2-7-ralph-auto-start-tui-attach-detach-via-pnpm-ralph-build-pnpm-ralph-plan: done
+  2-8-claude-code-oauth-via-pnpm-claude: done
+  2-9-gh-cli-oauth-via-pnpm-gh-auth: done
+  2-10-prerequisite-check-docker-runtime-claude-auth-gh-auth-with-pointer-errors: done
+  2-11-per-fork-vs-shared-devbox-mode-keel-devbox-shared: done
+  2-12-loopback-bound-port-publication-opt-in-keel-devbox-ssh-sshd: done
+  2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck: done
+  2-14-legacy-devbox-branch-retention-policy: done
+  2-15-committed-claude-settings-json-with-deny-allow-permission-policies: done
+  2-16-claude-pretooluse-hooks-for-secret-file-denylist-ralph-compatible: done
+  2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt: done
+  2-18-devbox-network-whitelist-dnsmasq-nftset-rotating-ip-fix: done
   epic-2-retrospective: optional
 
   epic-3: backlog
@@ -115,6 +214,7 @@ development_status:
   3-31-llm-as-judge-pattern-contract-lib-llm-review-ts-growth-tier-default: backlog
   3-32-hook-self-protection-halt-threshold-wire-up: backlog
   3-33-default-textual-tui-chrome-epic-7-re-theme-seam: backlog
+  3-34-ralph-doc-budget-orient-gate-pre-commit-gate: done
   epic-3-retrospective: optional
 
   epic-4: backlog

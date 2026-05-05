@@ -1,0 +1,13 @@
+# packages/devbox/whitelist/python.txt — Story 2.3 (Task 2.2)
+#
+# Python package allow-list fragment. Required for `uv run ralph.py`
+# (Ralph TUI dependency resolution: textual + transitive packages) and
+# any in-container `uv` / `pip` install at iteration time.
+#
+# `pypi.org` — PyPI Simple API (`/simple/<pkg>/` index lookups).
+# `files.pythonhosted.org` — actual sdist/wheel downloads (PyPI's CDN).
+# Both are required: index responses point at files.pythonhosted.org URLs
+# which fail-closed in nft if not separately whitelisted.
+
+files.pythonhosted.org
+pypi.org

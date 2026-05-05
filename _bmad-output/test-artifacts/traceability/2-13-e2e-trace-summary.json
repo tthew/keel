@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "1fb2fdee90f9cab51f4923bc445b6c6ab287a991",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.13",
+    "label": "Healthcheck on dnsmasq + sshd (replaces upstream's broken curl :3000 healthcheck)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 5,
+    "fully_covered": 0,
+    "partially_covered": 0,
+    "uncovered": 5,
+    "overall_coverage_pct": 0,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 5, "covered": 0, "pct": 0 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 0, "criteria_covered": 0 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 0,
+    "cases": 0,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 5,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "not_applicable",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 5 P2 ACs; Epic-2-substrate-healthcheck-compose-probe class story (THIRTEENTH Epic 2 delivery; FIRST POSIX-sh-probe-composition-inside-YAML-folded-scalar + Docker-HEALTHCHECK-state-machine-consumer + multi-clause-conditional-probe-on-env-var class); TWENTY-THIRD cumulative trace-WAIVED precedent (TWELFTH Epic 2; extends Story 2.12 iter-269 twenty-second); TWENTY-FOURTH ATDD-skip-trace-WAIVED co-application pairing (extends iter-282 ATDD-skip grounds (c)+(ii)+(iii)). Ground-(a)+(b)+(c) hybrid conjunction applied with substrate-verification + no-test-runner + operator-workstation-deferred-AC-completion variant-(ii) for AC 4.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.13 authors 1 NEW file (docs/invariants/devbox-healthcheck.md contentHash 665174a3592106eabbb9f6b5dd39ce813839b3c61a89f1709d81e90524d18623) + 7 modified files per iter-283 Dev Agent Record recovery landing. 33rd manifest entry (INV-devbox-healthcheck) lands with sync-gate GREEN after pnpm --filter @keel/keel-invariants build rebuild (iter-257 NOVEL LESSON reaffirmed: manifest rebuild MUST precede sync-gate verification after adding a new InvariantSchema entry).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC live fresh-fork verification unlocks at M4-Pro operator workstation backend-A. ACs 1-3 + AC 5 substrate-verified at iter-283 dev-story recovery via impl-time smokes. AC 4 operator-workstation-deferred by AC contract (live SIGKILL + retry-accumulator + State.Health.Status transition) — hybrid variant-(ii) applies per § Testing Standards Dev Notes line 149 story-file-declared posture.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality (no tests exist — no-op; recorded for parity with downstream pipelines).",
+      "requirements": []
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-13-healthcheck-on-dnsmasq-sshd-replaces-upstream-s-broken-curl-3000-healthcheck.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "0%",
+    "overall_status": "NOT_MET"
+  }
+}

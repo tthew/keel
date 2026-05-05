@@ -1,5 +1,37 @@
 import { z } from 'zod';
 
+// hashScope variants (Story 2.17 Task 1.1):
+//   absent            → whole-file sha256 (back-compat with all 35 pre-existing entries).
+//   jq-subtree        → pipe file through `jq -c <filter>` then sha256 the canonical output.
+//   anchor-range      → extract content between startMarker + endMarker (inclusive), sha256.
+//   names-and-shebangs→ walk directory (derived from enumeratorPath's EXPECTED_HOOKS export) and
+//                       hash sort(name + "\t" + first-line) over the enumerated hook files.
+//                       sourcePath === enumeratorPath by convention; the entry anchors on the
+//                       enumerator file, not on the walked directory (which is not git-tracked).
+export const HashScopeSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('jq-subtree'),
+    filter: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('anchor-range'),
+    startMarker: z.string().min(1),
+    endMarker: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal('names-and-shebangs'),
+    enumeratorPath: z
+      .string()
+      .min(1)
+      .refine(
+        (p) => !p.startsWith('/') && !p.startsWith('\\') && !p.includes('..') && !p.includes('\\'),
+        { message: 'enumeratorPath must be a repo-relative forward-slash path without traversal' },
+      ),
+  }),
+]);
+
+export type HashScope = z.infer<typeof HashScopeSchema>;
+
 export const InvariantSchema = z.object({
   id: z.string().regex(/^INV-[a-z0-9]+(-[a-z0-9]+)+$/),
   description: z.string().min(1),
@@ -12,6 +44,7 @@ export const InvariantSchema = z.object({
     ),
   contentHash: z.string().regex(/^[0-9a-f]{64}$/),
   anchors: z.array(z.string().min(1)).min(1),
+  hashScope: HashScopeSchema.optional(),
 });
 
 export type Invariant = z.infer<typeof InvariantSchema>;
@@ -28,18 +61,26 @@ export const InvariantsSchema = z
     }
   })
   .superRefine((arr, ctx) => {
-    const hashesBySource = new Map<string, Set<string>>();
+    // Entries with the same (sourcePath, hashScope canonical-form) MUST share contentHash.
+    // Entries with the same sourcePath but different hashScopes are legitimate (e.g.
+    // INV-git-hooks-preservation-enumeration uses whole-file sha256 while
+    // INV-git-hooks-preservation uses names-and-shebangs derived from the same anchor file).
+    const hashesByScopedSource = new Map<string, Set<string>>();
     for (const entry of arr) {
-      if (!hashesBySource.has(entry.sourcePath)) {
-        hashesBySource.set(entry.sourcePath, new Set());
+      const scopeKey = entry.hashScope ? JSON.stringify(entry.hashScope) : '';
+      const key = `${entry.sourcePath}|${scopeKey}`;
+      if (!hashesByScopedSource.has(key)) {
+        hashesByScopedSource.set(key, new Set());
       }
-      hashesBySource.get(entry.sourcePath)!.add(entry.contentHash);
+      hashesByScopedSource.get(key)!.add(entry.contentHash);
     }
-    for (const [sourcePath, hashes] of hashesBySource) {
+    for (const [key, hashes] of hashesByScopedSource) {
       if (hashes.size > 1) {
+        const [sourcePath, scopeKey] = key.split('|', 2);
+        const scopeLabel = scopeKey ? ` (hashScope ${scopeKey})` : '';
         ctx.addIssue({
           code: 'custom',
-          message: `contentHash mismatch across entries sharing sourcePath ${sourcePath}: ${[...hashes].join(', ')}`,
+          message: `contentHash mismatch across entries sharing sourcePath ${sourcePath}${scopeLabel}: ${[...hashes].join(', ')}`,
         });
       }
     }
@@ -58,7 +99,7 @@ const raw: Invariant[] = [
     description:
       'Shared ESLint flat-config baseline: global ignores + js.configs.recommended + tseslint.configs.recommended (spread) + languageOptions.globals (node + browser).',
     sourcePath: 'packages/keel-invariants/eslint.config.keel-invariants.js',
-    contentHash: '10ac60e693c32566971eecd52341d6f5b9b42047843812fd8f8153310112afe2',
+    contentHash: '83b2228f1c13e9eed83b1c73197577957b9650bf0f7759857a49f67bfa1a0330',
     anchors: ['INV-eslint-shared'],
   },
   {
@@ -82,15 +123,15 @@ const raw: Invariant[] = [
     description:
       'no-restricted-imports denies cross-package relative imports (AC 1), @keel/*/internal/* deep imports (AC 2), and per-package self-import via alias (AC 3 via forPackage(ownName) overlay).',
     sourcePath: 'packages/keel-invariants/eslint.config.keel-invariants.js',
-    contentHash: '10ac60e693c32566971eecd52341d6f5b9b42047843812fd8f8153310112afe2',
+    contentHash: '83b2228f1c13e9eed83b1c73197577957b9650bf0f7759857a49f67bfa1a0330',
     anchors: ['INV-eslint-import-boundary'],
   },
   {
     id: 'INV-prek-pre-commit-config',
     description:
-      '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs.',
+      '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs. Post-Story-2.17 the file also hosts the claude-hook-syntax source-scoped gate (pass_filenames: false, files: ^\\.claude/hooks/.*\\.sh$); that carries its own invariant ID.',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: 'e321cba9260dd85d985826be85b587214f62230ccc66fdfa892dbf70aaa68ad0',
+    contentHash: 'b113ded4264a70d63f824e530b91aca8602d4ee2d00922aae2319c5c26598ddb',
     anchors: ['INV-prek-pre-commit-config'],
   },
   {
@@ -98,7 +139,7 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: 'b8c4e777e8c36f002d3b886131d44839b5362ffc7e3285f1d67b10eb00fec022',
+    contentHash: '9d490e2188d39b06389faee84af84dd81185f9a455a04bac291a1155a7556c5b',
     anchors: ['INV-prek-prepare-lifecycle'],
   },
   {
@@ -106,7 +147,7 @@ const raw: Invariant[] = [
     description:
       'Hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional. Lives in the commit-msg stage block of .pre-commit-config.yaml (position-independent — the block is identified by stages: [commit-msg], not by row index).',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: 'e321cba9260dd85d985826be85b587214f62230ccc66fdfa892dbf70aaa68ad0',
+    contentHash: 'b113ded4264a70d63f824e530b91aca8602d4ee2d00922aae2319c5c26598ddb',
     anchors: ['INV-prek-commit-msg-config'],
   },
   {
@@ -122,7 +163,7 @@ const raw: Invariant[] = [
     description:
       'ralph.py resolves .ralph/{halt,@plan.md,PROMPT_*.md,logs/} against the worktree path when --worktree X is set (else cwd-relative .ralph/); absolute path exported as RALPH_BASE_DIR. Normative spec in docs/invariants/ralph-execute.md § Path Resolution (FR14k + NFR33a).',
     sourcePath: 'docs/invariants/ralph-execute.md',
-    contentHash: '78fb480a754d56d3eb0d1fd21fa6e932ce665cd5d894f5e1bfd04888c57809a4',
+    contentHash: 'd98601865892ef73cf0413e1b81a054245ff0f675350ca14b6f1729546cc9a45',
     anchors: ['INV-ralph-halt-path-resolution'],
   },
   {
@@ -130,7 +171,7 @@ const raw: Invariant[] = [
     description:
       '.ralph/halt sentinel reason is a closed 7-reason enum at 1.0 (EPIC_DONE, ALL_EPICS_DONE, AWAIT_MERGE, BUDGET_EXHAUSTED, CI_BLOCKED, SECURITY_CRITICAL, RALPH_STAGE_REGRESSION). Autonomy constraint (non-toggle-able): every reason is bounded — self-resolving or triggered by a concrete external condition; no reason may block on open-ended human input; Ralph does not invoke AskUserQuestion from the runtime loop; inconsistent state falls back to EPIC_DONE with diagnostic note rather than introducing a new waiting reason. A hypothetical AWAITING_USER reason is rejected by design. Normative spec: docs/invariants/ralph-execute.md § Halt schema (FR14k + FR14n 2026-04-21 amendment adding ALL_EPICS_DONE and the autonomy guardrail).',
     sourcePath: 'docs/invariants/ralph-execute.md',
-    contentHash: '78fb480a754d56d3eb0d1fd21fa6e932ce665cd5d894f5e1bfd04888c57809a4',
+    contentHash: 'd98601865892ef73cf0413e1b81a054245ff0f675350ca14b6f1729546cc9a45',
     anchors: ['INV-ralph-halt-reason-enum'],
   },
   {
@@ -244,6 +285,176 @@ const raw: Invariant[] = [
     sourcePath: 'packages/keel-invariants/templates/INVARIANTS.fork.md',
     contentHash: '167ba6b2a8f1153df02f7e572b1d1e31415731493b0729415f6573cc1a696218',
     anchors: ['INV-fork-invariants-scaffold'],
+  },
+  {
+    id: 'INV-devbox-dind-available',
+    description:
+      "Devbox iteration-environment substrate requirement — docs/invariants/devbox-dind.md; asserts that every Ralph iteration environment (cc-devbox or equivalent) provides a FUNCTIONAL Docker runtime — daemon reachability alone is NOT sufficient. Functional criterion: `command -v docker` exits 0; `docker info` succeeds against a reachable daemon; `docker compose` subcommand available; `docker run --rm hello-world` exits 0 (image pull + layer registration + overlayfs mount all succeed). Fork-time requirement, not transitional — Ralph needs DinD to exercise full-stack vertical slices against services, architecture, and infrastructure inside a fork's devbox (Epic 2 Docker-gated tasks, Epic 6 RLS debugger, Epic 13 CI harness smokes). Backend contract: A = true DinD (isolated daemon, broad prune self-contained); B = host socket-passthrough (shares host daemon state, broad prune destroys unrelated host projects). Keel's 2026-04-21 reference environment is backend B (empirical discovery at Story 2.1 iter-122: `docker info` reports `docker-desktop`). Safety rule: broad-mutation scripts (`docker system prune`, `docker volume prune`, etc.) MUST detect backend B at runtime and REFUSE destructive ops unless an explicit override flag accepts the blast radius; scoped ops (`docker image rm keel-devbox:local`, `docker compose down --rmi local --volumes`) are safe under either backend. Canonical install path: docs.docker.com/engine/install/ubuntu/ against the cc-devbox `FROM ubuntu:24.04` base. Forks MAY substitute transports (remote socket, rootless Docker, Podman-compat) so long as daemon reachability + function hold; substitutions that break either pursue the AMEND path against this doc rather than the FORK path (substrate-wins precedence per docs/invariants/fork.md § Precedence). Does NOT change NFR2 authority — AC 4 scope clarification for Story 2.1 keeps M4-Pro native as authoritative; DinD benchmark runs land in packages/devbox/README.md § Benchmarks flagged `host: DinD (cc-devbox, backend=<A|B>) — modelled indicative baseline; AC 4 authoritative run still owed on M4-Pro per scope clarification`. Under backend B, only warm-only measurement is autonomously safe; cold measurement requires an explicit override or a native host. Spec-enforced at 1.0 (this doc is the source of truth); runtime check (hello-world smoke + backend detection) deferred to a dedicated packages/keel-invariants/ rule + unit test on a later Ralph iteration, wired into pnpm keel-invariants:check-all. Drift between manifest and doc detected by Story 1.9 pre-merge sync-gate (FR43).",
+    sourcePath: 'docs/invariants/devbox-dind.md',
+    contentHash: '8e382a5396b8d4d713cdc76caa3df77fb0d75fea34f1cf995ce868d14c92f723',
+    anchors: ['INV-devbox-dind-available'],
+  },
+  {
+    id: 'INV-devbox-egress-contract',
+    description:
+      'Fail-closed DNS (dnsmasq, default address=/#/ returns 0.0.0.0/::) + IPv4/IPv6 default-deny (nftables inet keel_egress table with output_v4 + output_v6 chains both `policy drop`) + atomic reload (flock + nft -f kernel transaction + dnsmasq SIGHUP). Closes upstream cc-devbox bugs: divergent whitelist tooling (single reload-egress.sh primitive), fail-open resolv.conf fallback to 8.8.8.8 (pinned to 127.0.0.1 only), IPv6 default-deny gap (both families covered). JSONL query log at /workspace/logs/egress-queries.jsonl with 6-field stable schema (timestamp/query/type/result/upstream/client) + 50 MB size-based rotation (5 gzip generations). Story 2.18 extension: rotating-IP services (`*-rotating.txt` whitelist fragments) drive `dnsmasq nftset=` directive emission populating named sets `gh_v4` / `gh_v6` (declared in egress.nft at table scope; `flags timeout; timeout 600s`); chain accept rules `ip daddr @gh_v4 accept` / `ip6 daddr @gh_v6 accept` short-circuit egress for any IP in the set; static GitHub CIDR fallback (`140.82.112.0/20` + `192.30.252.0/22` any-port; `143.55.64.0/20` port-scoped to TCP/22 SSH-only — closes the cache-hit-skips-nftset-add gap when dnsmasq serves a cached `github.com` answer in `143.55.64.0/20` after `flush table` per Issue #232 follow-up datapoint sequence) covers the boot-time-to-first-DNS-reply window, catastrophic dnsmasq failure modes, and the cache-hit-after-reload window (Option C combo A+B per Issue #232 course-correction § 4.4). Whitelist composers (`compose_whitelist()` / `compose_whitelist_into()`) emit a parallel `.classification` sidecar (domain<TAB>type, byte-identical across composers per SC-11). Source consolidation: one contentHash-bound doc gates the four sub-contracts together so drift surfaces at a single sync-gate target (rationale: Story 2.2 iter-151 AR-2 allow-list asymmetry lesson — splitting contracts across manifest entries grew asymmetry risk).',
+    sourcePath: 'docs/invariants/devbox-egress.md',
+    contentHash: 'cd755e53f15e2dccb88842131b6d4db332e4f2a040f3def0c046df9f28b38891',
+    anchors: ['INV-devbox-egress-contract'],
+  },
+  {
+    id: 'INV-devbox-homedev-named-volume',
+    description:
+      'Container hardening contract — non-root `dev` user (UID/GID 1000, image USER directive before ENTRYPOINT + runtime `user: 0:0` override with gosu drop to dev at end of entrypoint.sh) + capability bounding set (cap_drop: ALL; cap_add: NET_ADMIN, NET_RAW, NET_BIND_SERVICE, SETUID, SETGID, KILL per Story 2.5 SC-4 — nftables netlink + dnsmasq :53 bind + raw-socket probes + gosu setuid(2)/setgid(2) for root→dev drop in entrypoint.sh + reload-egress.sh kill -HUP delivery to the dropped-to-nobody dnsmasq for SIGHUP-driven config reload; SETUID + SETGID added iter-238 when ambient-cap propagation across the image-USER boundary under no-new-privileges=1 was empirically falsified on Docker 29.2 + linux/arm64; KILL added iter-N when the post-iter-238 dnsmasq-as-root-drops-to-nobody posture was reconciled with the reload-egress.sh cross-UID SIGHUP requirement (signaling a different-UID process needs CAP_KILL per capabilities(7))) + security_opt: no-new-privileges:true + tmpfs posture (/tmp + /var/tmp with noexec,nosuid; sizes parameterised via NFR8a at KEEL_DEVBOX_TMPFS_{TMP,VARTMP}_MB per Story 2.2 .envrc.example) + /home/dev named volume (keel_home_dev, non-toggle under any KEEL_DEVBOX_* setting — never a host bind-mount). Runtime compose-shape check deferred to Story 2.17 / dedicated packages/keel-invariants/src/check-devbox-compose-shape.ts; Story 2.5 registers the substrate-invariant surface. Companion to INV-devbox-dind-available (fork-time Docker runtime) + INV-devbox-egress-contract (fail-closed egress) — the Epic-2 substrate-security trio.',
+    sourcePath: 'docs/invariants/devbox-hardening.md',
+    contentHash: 'aac19aa74d61904d97a87a0d4ace593c0840eac8f3f925afe796fbf9d437d9f9',
+    anchors: ['INV-devbox-homedev-named-volume'],
+  },
+  {
+    id: 'INV-devbox-mode',
+    description:
+      'Per-fork vs shared devbox mode contract — KEEL_DEVBOX_SHARED flag branches compose project name, container name, bind source, and named volume between keel-devbox (per-fork, default) and keel-devbox-shared (shared) with orphaned-container warning on mid-use flip (Story 2.11). Resolution lives in packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_mode_specific_state(); every host-side shim sources it after resolve_main_repo_and_workdir. Shared mode is opinionated — operator KEEL_DEVBOX_CONTAINER_NAME override is intentionally ignored (AC 2 requires both forks to attach to the SAME container). Two modes = two separate named volumes (keel-devbox_keel_home_dev vs keel-devbox-shared_keel_home_dev); OAuth tokens do not cross modes. Mid-use flip emits a three-site-lockstep stderr warning via env-check.sh (warning-only posture — exit code unchanged). Concurrency posture: shared mode is single-operator-at-a-time by convention (docker attach concurrent-client I/O corruption), NOT by Docker enforcement; operators needing true-parallel Ralph revert to per-fork mode. Fork-level Growth-tier INVARIANTS.fork.md rules MAY add fork-specific mode constraints but MAY NOT weaken substrate defaults (per-fork default preservation).',
+    sourcePath: 'docs/invariants/devbox-mode.md',
+    contentHash: '0647445551c8a5ab0d84cc71dca25f96536f5d19f5d3ccaa1350176689e5728a',
+    anchors: ['INV-devbox-mode'],
+  },
+  {
+    id: 'INV-devbox-prereq-check',
+    description:
+      'Prerequisite check for Docker runtime + Claude Code auth + gh auth runs on every host-side shim invocation (pnpm devbox:* + pnpm ralph:* + pnpm claude + pnpm gh:auth) at pre-flight and as a standalone verb (pnpm devbox:prereq:check) per FR5 (Story 2.10). Three-check contract (Docker / Claude token / gh token) with tiered dispatch: Tier 1 (Docker only) gates every auth-capable or pre-auth shim (15 shims); Tier 2 (all three) gates ralph-build-host.sh + ralph-plan-host.sh + standalone invocation. Docker probe uses docker info --format {{.ServerVersion}}; token probes use docker run --rm -v <keel-devbox_keel_home_dev>:/vol:ro alpine:3.19 test -e </vol/.claude/.credentials.json|/.config/gh/hosts.yml> — existence only, not validity. Fresh-fork first-run (volume absent) treated as both tokens missing; no auto-create side-effect. Exit-code schema extends Story 2.6 uniform: 0 pass / 2 tokens missing (composite pointer list, Claude before gh, no partial bypass per AC 5) / 8 docker unreachable (install-URL pointer https://docs.docker.com/desktop/install/ verbatim per AC 1) / 12 other docker-daemon error. Alpine probe image (alpine:3.19) is pinned at 1.0 with manual Renovate tracking (docker regex-manager deferred to FR44 AMEND). No --skip-claude / --force / KEEL_PREREQ_BYPASS escape at 1.0 — fork-level relaxation requires AMEND against this doc. Epic 3 Story 3.7 consumes the contract for in-loop pre-push gate CI_BLOCKED halt writes (per INV-ralph-halt-reason-enum closed enum). Runtime source: packages/devbox/scripts/prereq-check.sh. Sync-gate-drift-detected (Story 1.9).',
+    sourcePath: 'docs/invariants/devbox-prereq-check.md',
+    contentHash: 'eb5b9db25e0afc77c4caf38c8bf60b37921a76df2ea030c91f66e848b0d8fe40',
+    anchors: ['INV-devbox-prereq-check'],
+  },
+  {
+    id: 'INV-devbox-ssh',
+    description:
+      'Opt-in sshd via KEEL_DEVBOX_SSH=true — pubkey-only, root-disabled, loopback-bound 127.0.0.1:2222, host keys + authorized_keys persisted in keel_home_dev named volume; loopback-bound port publication invariant for ALL ports (no 0.0.0.0 / no bare-port bindings) (Story 2.12). Resolution via packages/devbox/scripts/lib/main-repo-resolver.sh § resolve_ssh_state(); compose override at packages/devbox/docker-compose.ssh.yml is the single site that publishes port 2222; entrypoint.sh first-boot atomic host-key-gen (ed25519 + rsa 4096) into the named volume. Single-layer host-side-publish confinement — container-side ListenAddress INTENTIONALLY unset because container-loopback is disjoint from host-loopback under both Docker userland-proxy modes. Strict true-only normalisation; forks MAY NOT extend the accepted-signal set or weaken pubkey-only / root-disabled / loopback-bound substrate defaults.',
+    sourcePath: 'docs/invariants/devbox-ssh.md',
+    contentHash: '946f1ac1b04bdde424df7ef46b1450b72481396cdeb8ab4038d85ae694907029',
+    anchors: ['INV-devbox-ssh'],
+  },
+  {
+    id: 'INV-devbox-healthcheck',
+    description:
+      'Compose healthcheck probes dnsmasq liveness (always) + nftables egress chain presence + base policy-drop verification on both output_v4 and output_v6 (always; root-gated, PR #230 review FIX-5 → FIX-10) + sshd liveness (when KEEL_DEVBOX_SSH=true); never curl :3000; timing parameters interval 10s / timeout 5s / retries 3 / start_period 30s documented with rationale (Story 2.13). Probe contract: clause 1 = dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com (dnsmasq liveness; NXDOMAIN counts as success); clause 2 (always; root-gated) = [ "$(id -u)" -ne 0 ] || ( nft list chain inet keel_egress output_v4 2>/dev/null | grep -q \'policy drop\' && nft list chain inet keel_egress output_v6 2>/dev/null | grep -q \'policy drop\' ) (egress-chain presence + base policy-drop verification on both chains; PR #230 review FIX-5 → FIX-10; gated on root because nft list netlink call requires CAP_NET_ADMIN and Dockerfile:293 setcap is masked under no-new-privileges; HEALTHCHECK runs as container.Config.User = 0:0 from compose:237 so substrate probe runs as root); clause 3 (iff KEEL_DEVBOX_SSH=true) = nc -z -w 2 127.0.0.1 2222 (-w 2 per-probe cap added in PR #230 review iter-9; D-9 closure) (sshd TCP listener liveness; does not exercise pubkey auth). POSIX sh safe (Ubuntu 24.04 /bin/sh is dash, not bash): [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] + [ "$(id -u)" -ne 0 ] + && / || + { ... ; } grouping. Probe tooling baked at image build: dnsutils (dig) + nftables (nft) + netcat-openbsd (nc, -z load-bearing — netcat-traditional does NOT support -z). HEALTHCHECK probes execute under container.Config.User; substrate compose pins user 0:0 so probes run as root with cap_add CAP_NET_ADMIN in effective set (chain probe operates); forks overriding user: to non-root identity short-circuit clause 2 via the id-u gate, preserving dnsmasq + sshd liveness signal but losing chain probe and MUST add equivalent compose-override per Fork extension contract. api.github.com probe domain is three-site lockstep (compose healthcheck.test + this invariant doc + README § Healthcheck) — removing from whitelist/github.txt breaks the probe. KEEL_DEVBOX_SSH env var is case-folded by Story 2.12 resolver (KEEL_DEVBOX_SSH_RESOLVED — iter-273 PATCH-2); no raw variant reaches the container. Docker HEALTHCHECK exit-code semantics: 0 = healthy, any non-zero = unhealthy (no coercion; exit 2 reserved for Docker internal errors). Chain probe verifies presence + base policy-drop on both v4 and v6 chains (does NOT detect failed pnpm devbox:whitelist reload — previous ruleset stays active per reload-egress.sh:289-293; rule-content drift inside an otherwise-intact policy-drop chain remains uncovered per PR #230 review A7 threat-model caveat — deferred to a future healthcheck-egress.sh smoke-script extraction). Fork extension: compose-override additive merge permitted; fork MAY NOT weaken substrate (no removing dnsmasq clause; no removing chain-presence + policy-drop clause for root-running probes; no removing sshd clause under KEEL_DEVBOX_SSH=true; no interval >30s; no timeout >10s; no retries=0).',
+    sourcePath: 'docs/invariants/devbox-healthcheck.md',
+    contentHash: '40afc877d12058d79bca445d15d0172332e3f4cfb93b2f970d42a72712113986',
+    anchors: ['INV-devbox-healthcheck'],
+  },
+  {
+    id: 'INV-devbox-legacy-branch-retention',
+    description:
+      'Legacy-devbox branch retains pre-absorption cc-devbox layout as fallback canary during M0.5 → M4 critical-path window per PRD § Technical Risks bootstrap-handoff mitigation (prd.md:617); retired by Story 15b.1 scripts/major-cut.sh at 1.0 cut ritual (epics.md:6293-6314). Four workflow contracts pinned: § Branch creation (git fetch https://github.com/tthew/cc-devbox.git main:legacy-devbox; scratch worktree; Story 2.14 retention banner prepended to upstream README.md; push origin legacy-devbox); § Cherry-pick (manual minimal-drift via git format-patch | sed path-rewrite | git am; scope restricted to CVE-class / fail-closed-egress / secret-leakage / network-exposure regressions — NOT feature parity, NOT dependency bumps); § Triage (canary-then-bisect — git worktree add the canary + reproduce + git bisect HEAD 5278738 -- packages/devbox/ if regression absent on canary, escalate upstream if present); § Retirement gate (git tag legacy-devbox-final + push tag + delete active branch + RALPH.md § Decisions entry referencing M4 checkpoint doc per FR33; AGENTS.md H3 pointer flip — Story 15b.1 owns execution, Story 2.14 owns recipe-contract). Documented-but-not-automated by design; FR44 AMEND required to script cherry-pick workflow. Forks MAY follow pattern with own upstream + retention naming OR skip retention entirely if no bootstrap-handoff risk; forks MAY NOT weaken no-feature-parity framing or automate cherry-picks without AMEND (substrate-wins precedence per docs/invariants/fork.md § Precedence). Upstream SHA captured at Story 2.14 landing is substrate-canonical; replacing or force-pushing origin/legacy-devbox requires AMEND against this invariant. Anchors: branch existence at origin/legacy-devbox + invariant doc + INVARIANTS.md H3 + packages/devbox/README.md H2 + AGENTS.md § Devbox iteration environment H3 + manifest entry + Story 15b.1 retirement-script binding.',
+    sourcePath: 'docs/invariants/devbox-legacy-branch-retention.md',
+    contentHash: '02f6048f78cf3c4e315ec6bc5c55bd52a7278d2cba99cc1f1e7b5a5b91d0c4ca',
+    anchors: ['INV-devbox-legacy-branch-retention'],
+  },
+  {
+    id: 'INV-gitignored-secret-commit-deny',
+    description:
+      'Pre-commit hook refuses additions of .envrc, .envrc.local, and .secrets at any path. ' +
+      'Committed schemas (.envrc.example, .secrets.example) are exempt via anchored regex end-match. ' +
+      'Implementation: packages/keel-invariants/src/check-no-committed-dotfiles.ts; ' +
+      'wiring: .pre-commit-config.yaml → pnpm keel-invariants:no-committed-dotfiles.',
+    sourcePath: 'docs/invariants/gitignored-secret-commit-deny.md',
+    contentHash: 'e0c70aa4882a9dcb9b58919a3735357e1c8dfac2a7e925b80ee1c200a07984f1',
+    anchors: ['INV-gitignored-secret-commit-deny'],
+  },
+  {
+    id: 'INV-claude-hook-secret-denylist',
+    description:
+      // eslint-disable-next-line keel-invariants/no-verify-bypass -- substrate description enumerates the token it blocks; this is a doc-reference, not an invocation
+      'Claude Code PreToolUse hook at .claude/hooks/block-secret-access.sh — substrate enforcement script (Story 2.16 landed; Story 2.17 Task 4 repoints this entry sourcePath from the invariant doc to the hook script itself, elevating the hook body to whole-file contentHash drift-protection at the git layer). Two denylists pinned inside the script: secret-access-denylist (Bash/Read/Grep/Glob patterns for .envrc*, **/.env*, .secrets*, /home/dev/.claude/**, /home/dev/.config/gh/**, /proc/*/environ + env-dump idioms) + hook-self-protection (Edit/Write on .claude/settings*.json, .claude/hooks/**, .git/hooks/** + Bash mutations against those paths + git --no-verify bypass). Hook decision-shape: stdout JSON {"decision":"block","reason":"<rule-id>","match":"<matched-pattern>"} where rule-id ∈ {secret-access-denylist, hook-self-protection}; exits 0 always (Claude Code PreToolUse contract — non-zero = hook error fails open). Each block appends to ${RALPH_BASE_DIR}/logs/<iter-id>/blocked-tool-calls.jsonl with schema {timestamp, iteration_id, tool, args_redacted, rule_id, match}; log skipped outside Ralph iteration. Halt-threshold N=3 hook-self-protection blocks per iteration pinned in .ralph/config.toml [hooks].self_protection_halt_threshold; Epic 3 Story 3.7 wires the SECURITY_CRITICAL halt-write per INV-ralph-halt-reason-enum closed enum. Invariant-doc drift protection now carried by sibling entry INV-claude-hook-secret-denylist-doc (Story 2.17 Task 4 split). Fork-extension path: .claude/hooks/block-secret-access.fork.sh invoked LAST after substrate denylist clears (forks MAY add additional patterns to block; MAY NOT unblock substrate-denied patterns). 7-site AMEND coordination documented at docs/invariants/claude-hook-denylist.md § Fork extension § AMEND path.',
+    sourcePath: '.claude/hooks/block-secret-access.sh',
+    contentHash: '35c5b4849eb1d87ffb636d072a62494e51defbdc920cd44a0547316b7cea0d77',
+    anchors: ['INV-claude-hook-secret-denylist'],
+  },
+  {
+    id: 'INV-claude-hook-secret-denylist-doc',
+    description:
+      'Invariant-doc drift protection for docs/invariants/claude-hook-denylist.md — the contract description carrying the hook-denylist narrative, decision-shape, JSONL schema, halt-threshold pin, source-files index, fork-extension path, limitations, and Story 2.17 git-layer backstop table. Story 2.17 Task 4 split: the former INV-claude-hook-secret-denylist sourcePath (this doc) is now covered here, while the ID INV-claude-hook-secret-denylist itself is repointed to the hook script per the Option B rationale at story Task 4.1 (preserves ID lineage; splits doc protection into a -doc sibling). Whole-file sha256; drift-detected by Story 1.9 pre-merge sync-gate.',
+    sourcePath: 'docs/invariants/claude-hook-denylist.md',
+    contentHash: '90812335f70c757c88984da2a9bfcde87b2a2146d4a207a8c0f814e89239ebac',
+    anchors: ['INV-claude-hook-secret-denylist-doc'],
+  },
+  {
+    id: 'INV-claude-settings-deny-rules',
+    description:
+      'Substrate-authoritative sub-tree of .claude/settings.json covering the NFR5a non-toggle-able deny rules (.permissions.deny[]; Story 2.15 baseline — 13 entries at Story 2.17 landing) + the Story 2.16 hook registration (.hooks.PreToolUse[] — 6 matchers at Story 2.17 landing). hashScope is jq-subtree with filter "{deny: (.permissions.deny // [] | sort), hooks: (.hooks.PreToolUse // [] | sort_by(.matcher))}" — canonicalises authoring-order drift via sort + sort_by(.matcher); // [] defaults preserve the hash contract if a fork accidentally removes either key entirely (sync-gate then sees a well-defined "empty sub-tree" hash and flags drift). Fork-additive edits to .permissions.allow[] (fork-specific allow rules) + .hooks.PostToolUse[] / .hooks.UserPromptSubmit[] (fork-extension slots) do NOT change this hash — the filter ignores them. Any mutation or removal inside the two substrate-authoritative sub-trees flips the content-hash-mismatch drift kind at Story 1.9 pre-merge sync-gate. Story 2.17 Task 2.',
+    sourcePath: '.claude/settings.json',
+    contentHash: '51cd4b26c208b390c7cfa30bcb1ee7b02e93ee6387455d641e104a26f32954ba',
+    anchors: ['INV-claude-settings-deny-rules'],
+    hashScope: {
+      kind: 'jq-subtree',
+      filter:
+        '{deny: (.permissions.deny // [] | sort), hooks: (.hooks.PreToolUse // [] | sort_by(.matcher))}',
+    },
+  },
+  {
+    id: 'INV-claude-settings-seed',
+    description:
+      'Whole-file sha256 drift protection for the seeded copy of .claude/settings.json at packages/keel-templates/src/seeds/.claude/settings.json. Story 2.17 Task 11.1 (substrate-to-seed byte-identity via manifest-entry approach per seed-sync discipline iter-315..325): any substrate edit to .claude/settings.json MUST be mirrored into the seed file in the SAME commit — Story 1.9 pre-merge sync-gate re-walks both entries and, because INV-claude-settings-deny-rules (jq-subtree at .claude/settings.json) and INV-claude-settings-seed (whole-file at the seed path) draw their hashes from distinct files, any drift between the substrate and the seed surfaces as a content-hash-mismatch failure pointing at whichever file lagged. contentHash here is whole-file (not sub-tree) because the seed is the full artifact create-keel-app (Epic 15a consumer) writes unchanged into a fresh fork — a sub-tree hash would miss fork-extension slot edits that must travel with the seed. Distinct sourcePath from INV-claude-settings-deny-rules (seed vs. substrate); the pairing is byte-identity-by-convention, not same-sourcePath sharing. Coordinated edits bump both entries in lockstep.',
+    sourcePath: 'packages/keel-templates/src/seeds/.claude/settings.json',
+    contentHash: '1d8bac6a1414e6fe0ce8cb48a85e51943bedd9617dff07086b93f7c056816b10',
+    anchors: ['INV-claude-settings-seed'],
+  },
+  {
+    id: 'INV-claude-hook-secret-denylist-seed',
+    description:
+      'Whole-file sha256 drift protection for the seeded copy of .claude/hooks/block-secret-access.sh at packages/keel-templates/src/seeds/.claude/hooks/block-secret-access.sh. Story 2.17 Task 11.1 (substrate-to-seed byte-identity via manifest-entry approach per seed-sync discipline iter-315..325): any substrate edit to .claude/hooks/block-secret-access.sh MUST be mirrored into the seed file in the SAME commit — the sibling INV-claude-hook-secret-denylist entry hashes the substrate file whole-file, this entry hashes the seed file whole-file; drift between the two pops at Story 1.9 pre-merge sync-gate pointing at whichever file lagged. Distinct sourcePath from INV-claude-hook-secret-denylist (seed vs. substrate); the pairing is byte-identity-by-convention, not same-sourcePath sharing. create-keel-app (Epic 15a consumer) MUST write this seed unchanged (--preserve-permissions preserving the exec-bit per D-36 fresh-fork seed contract landed iter-325 Task 13.5).',
+    sourcePath: 'packages/keel-templates/src/seeds/.claude/hooks/block-secret-access.sh',
+    contentHash: '35c5b4849eb1d87ffb636d072a62494e51defbdc920cd44a0547316b7cea0d77',
+    anchors: ['INV-claude-hook-secret-denylist-seed'],
+  },
+  {
+    id: 'INV-git-hooks-preservation-enumeration',
+    description:
+      'Enumeration of prek-installed hook names + shebang patterns at packages/keel-invariants/src/prek-hook-manifest.ts — exports "readonly ExpectedHook[]" consumed by the sync-gate names-and-shebangs walker. Whole-file sha256 catches out-of-band edits to the enumeration (e.g. a PR removing pre-commit from EXPECTED_HOOKS to relax the preservation contract). Sibling to INV-git-hooks-preservation which uses the SAME sourcePath but a names-and-shebangs hashScope that derives its content from walking .git/hooks/; the two entries share sourcePath legitimately because they have distinct hashScope canonical forms (the manifest schema superRefine permits this — see invariants.manifest.ts duplicate-sourcePath comment). Adding or removing an entry in prek-hook-manifest.ts is an AMEND-path change touching this manifest + INVARIANTS.md anchor + .pre-commit-config.yaml alignment in lockstep. Story 2.17 Task 3.3.',
+    sourcePath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
+    contentHash: 'e5ff4a32ae91a3322712889aa8bb3af1bc098ee0975cf8aef181d27afadfc35d',
+    anchors: ['INV-git-hooks-preservation-enumeration'],
+  },
+  {
+    id: 'INV-git-hooks-preservation',
+    description:
+      'Preservation contract for prek-installed .git/hooks/ — the EXPECTED_HOOKS set at packages/keel-invariants/src/prek-hook-manifest.ts (commit-msg + pre-commit at Story 2.17 landing) MUST exist on disk AND their shebang lines MUST match the conservative regex pinned in that file. hashScope is names-and-shebangs with enumeratorPath = sourcePath (by convention): the walker imports EXPECTED_HOOKS, walks .git/hooks/<name> for each, and hashes sort(name + "\\t" + first-line) joined by newlines. Missing files surface as git-hook-missing drift; shebang-pattern mismatches surface as git-hook-shebang-mismatch. sourcePath acts as the manifest-entry anchor ONLY under this hashScope.kind — the actual hashed content is derived from the walked .git/hooks/ directory (not sourcePath itself), because .git/hooks/ is not git-tracked and would fail readSourceFile on fresh clone pre-prek-install. Sibling to INV-git-hooks-preservation-enumeration which hashes sourcePath whole-file (distinct hashScope; legitimate sourcePath sharing). Story 2.17 Task 3.2.',
+    sourcePath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
+    contentHash: 'cb27263d10effe72e828e241223536eba0ea6a5c0866a39a05efeeeb41d6e829',
+    anchors: ['INV-git-hooks-preservation'],
+    hashScope: {
+      kind: 'names-and-shebangs',
+      enumeratorPath: 'packages/keel-invariants/src/prek-hook-manifest.ts',
+    },
+  },
+  {
+    id: 'INV-package-test-coverage-floor',
+    description:
+      'NFR1a substrate-side coverage-floor enforcer — walks packages/* workspace entries with a src/ subdir and reports coverage-floor-violation for any non-exempt package without >= 1 *.test.ts file under src/ (recursive). Pre-bootstrap exempt list per NFR1a (PRD line 1068): keel-templates, devbox (Story 1.21 lands their backfill follow-ups). Invocation: pnpm keel-invariants:package-test-coverage-floor. Standalone CLI; NOT invoked transitively by runSyncGate.',
+    sourcePath: 'packages/keel-invariants/src/check-package-test-coverage-floor.ts',
+    contentHash: '4d24479d7f1eaf1561966a807978f720a4ed59575896c55d8d60552044204459',
+    anchors: ['INV-package-test-coverage-floor'],
+  },
+  {
+    id: 'INV-fr14i-ci-workflow-presence',
+    description:
+      'FR14i pre-push CI gate activation invariant — pins existence + content of .github/workflows/ci.yml so the gate operates non-vacuously. Whole-file sha256 catches workflow deletion (removed-from-source-only) + content edits (content-hash-mismatch) at Story 1.9 pre-merge sync-gate. Trigger filter covers main + feat/epic-* PR bases (Story 1.20 expansion ending vacuous-pass mode per iter-371 gotcha). Pre-bootstrap degradation per PRD FR14i amendment (issue #233): when workflow absent, gate no-ops + orient surfaces vacuous-pass notice. Story 1.20 Task 4.',
+    sourcePath: '.github/workflows/ci.yml',
+    contentHash: '2195a8e19f723b279b60b9d040785fb531d35b35d007a54af94cfacdbf5c6a8a',
+    anchors: ['INV-fr14i-ci-workflow-presence'],
+  },
+  {
+    id: 'INV-keel-invariants-sync-gate-snapshots',
+    description:
+      'FIX-18 (PR #230 review-fix-arc Round-4 R4-A6) — anchor-range drift protection for the EXPECTED_INVARIANT_IDS (FIX-3 snapshot) and BYTE_PARITY_PAIRS (FIX-4 snapshot) blocks inside packages/keel-invariants/src/sync-gate.ts. Closes the bypass class where mutating either out-of-band snapshot in lockstep with a coordinated 3-leg removal (drop manifest entry + drop INVARIANTS.md anchor + drop EXPECTED_INVARIANT_IDS membership) silently passes the FIX-3/FIX-4 backstops if the snapshot bytes themselves are also rewritten. hashScope is anchor-range bracketing both snapshot blocks under a single :start/:end marker pair (single-entry preferred for marker-churn isolation per Round-4 cross-engine consensus); ANY content edit inside the bracketed region — addition, removal, or modification of an EXPECTED_INVARIANT_IDS member or a BYTE_PARITY_PAIRS pair — fires content-hash-mismatch at Story 1.9 pre-merge sync-gate. Recursive-by-design: this entry IS in EXPECTED_INVARIANT_IDS (membership self-check is sound because the sync-gate computes contentHash from the post-edit file, codex Q7 verdict). Pre-existing structural limit at the anchor-range hashScope layer — an out-of-session PR could retarget startMarker/endMarker to a no-op range with matching contentHash (R4-Inv-I07) — applies to every anchor-range entry today, not novel to this entry; mitigated by L1-protection of invariants.manifest.ts via the .claude/hooks/block-secret-access.sh l1_path_re (which denies in-session AI-agent edits to manifest.ts + sync-gate.ts) plus human PR review at the git layer. Inline WONTFIX comment block above the markers in sync-gate.ts records the residual.',
+    sourcePath: 'packages/keel-invariants/src/sync-gate.ts',
+    contentHash: 'ff2c95d9ba3069ab32605e4e37841f5575b87648ce7ea2f241e23b1ab8e5e283',
+    anchors: ['INV-keel-invariants-sync-gate-snapshots'],
+    hashScope: {
+      kind: 'anchor-range',
+      startMarker: '// INV-keel-invariants-sync-gate-snapshots:start',
+      endMarker: '// INV-keel-invariants-sync-gate-snapshots:end',
+    },
   },
 ];
 

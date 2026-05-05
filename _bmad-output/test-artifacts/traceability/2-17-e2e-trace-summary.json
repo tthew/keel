@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-04-24T00:00:00Z",
+  "workflow": "bmad-testarch-trace",
+  "repo": "ralph-bmad",
+  "collection_mode": "contract_static",
+  "collection_status": "COLLECTED",
+  "coverage_basis": "acceptance_criteria",
+  "source_sha": "f448f78f5232fa8dac571b6c0ada2af2aa9fdea3",
+  "gate_eligible": true,
+  "target": {
+    "type": "story",
+    "id": "2.17",
+    "label": "Hook + settings bypass-resistance (git-layer + manifest + S4 + halt)"
+  },
+  "decision_mode": "deterministic",
+  "evaluator": "Tthew",
+  "confidence": "high",
+  "oracle": {
+    "resolution_mode": "formal_requirements",
+    "confidence": "high",
+    "sources": [
+      "_bmad-output/implementation-artifacts/2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt.md#Acceptance Criteria"
+    ],
+    "external_pointer_status": "not_used",
+    "synthetic": false
+  },
+  "coverage_statistics": {
+    "total_requirements": 8,
+    "fully_covered": 1,
+    "partially_covered": 4,
+    "uncovered": 3,
+    "overall_coverage_pct": 13,
+    "priority_breakdown": {
+      "P0": { "total": 0, "covered": 0, "pct": 100 },
+      "P1": { "total": 0, "covered": 0, "pct": 100 },
+      "P2": { "total": 8, "covered": 1, "pct": 13 },
+      "P3": { "total": 0, "covered": 0, "pct": 100 }
+    },
+    "by_level": {
+      "e2e": { "tests": 0, "criteria_covered": 0 },
+      "api": { "tests": 0, "criteria_covered": 0 },
+      "component": { "tests": 0, "criteria_covered": 0 },
+      "unit": { "tests": 7, "criteria_covered": 1 },
+      "other": { "tests": 0, "criteria_covered": 0 }
+    }
+  },
+  "tests": {
+    "files": 1,
+    "cases": 7,
+    "skipped_cases": 0,
+    "fixme_cases": 0,
+    "pending_cases": 0
+  },
+  "gap_analysis": {
+    "critical_gaps": 0,
+    "high_gaps": 0,
+    "medium_gaps": 7,
+    "low_gaps": 0
+  },
+  "heuristics": {
+    "endpoint_gaps": 0,
+    "auth_negative_path_status": "present",
+    "error_path_status": "present",
+    "ui_journey_status": "not_applicable",
+    "ui_state_status": "not_applicable"
+  },
+  "blockers": [],
+  "recommendations": [
+    {
+      "priority": "MEDIUM",
+      "action": "Accept WAIVED posture — 8 P2 ACs; Epic-2-final-story bypass-resistance class (SEVENTEENTH Epic 2 delivery; STRONGEST ground-(a) posture in chain — FIRST repo story with WIRED node:test runner (7/7 GREEN at AC 3 — FIRST node:test in-repo) PLUS 74 persisted replay fixtures GREEN at iter-340 (FIRST persisted replay corpus in-repo at AC 6/7); Story 2.17 closes Epic 2 with the bypass-resistance backstop ensuring even if Story 2.16 in-session hook is somehow circumvented, the tampering cannot land in a commit or survive across iterations per NFR5b). TWENTY-SEVENTH cumulative trace-WAIVED precedent extending Story 2.16 iter-306 twenty-sixth (Stories 1.7 iter-4 + 1.8 iter-3 + 1.9 iter-3 + 1.10 iter-46 + 1.11 iter-57 + 1.12 iter-64 + 1.13 iter-71 + 1.14 iter-78 + 1.15 iter-85 + 1.16 iter-92 → 2.1 iter-126 → 2.2 iter-149 → 2.3 iter-159 → 2.4 iter-175 → 2.5 iter-188 → 2.6 iter-202 → 2.7 iter-224 → 2.8 iter-231 → 2.9 iter-242 → 2.10 iter-249 → 2.11 iter-258 → 2.12 iter-269 → 2.13 iter-284 → 2.14 iter-292 → 2.15 iter-299 → 2.16 iter-306 → 2.17 iter-340 = TWENTY-SEVENTH cumulative trace-WAIVED). Ground-(a)+(b) hybrid conjunction with FURTHER-HARDENED ground-(a) posture (NOVEL for Epic 2 — strongest yet): substrate verification across all 8 ACs via 41-entry manifest sync-gate (was 35 pre-Story-2.17; +6 entries with three new hashScope kinds: jq-subtree + anchor-range + names-and-shebangs) + 7 node:test unit tests (AC 3 FULL — three high-severity S4 rules with AST-tier fork-slot filter + 13-entry safe-path allow-list) + 74 replay fixtures (AC 6/7 PARTIAL — 55 positive + 19 negative; 7 install-boundary-protection fixtures + 3 hook-self-protection settings-file fixtures; iter-332 persisted corpus reproduces at iter-340 zero-drift) + iter-315 end-to-end runtime verification + 7-site AMEND coordination exercised at Tasks 13.1-13.5 + invariant doc CI visibility contract H3 at iter-331 + manifest contentHash pins refreshed via python3 atomic-replace route iter-315/316/325/326/327/329/331/336. PARTIAL ground-(c) variant-(ii) narrowed to (a) AC 4 Epic 3 Story 3.7 halt-write downstream consumer (in-loop pre-push gate consumes JSONL + writes SECURITY_CRITICAL halt sentinel at N=3 hook-self-protection blocks per closed halt-reason enum INV-ralph-halt-reason-enum) + (b) AC 5 operator-workstation-class fork-AMEND PR (live AMEND PR cannot be exercised in-iter; honour-system substrate-additive contract; 7-site AMEND coordination pattern documented + exercised in-iter) + (c) AC 8 Epic 14 dashboard pipeline (research corpus dashboard surfaces hook-denial event count trend with severity_max escalation at N ≥ 3 blocks). Story 2.17 sits in STRONGER ground-(a) posture than ALL prior precedents (Story 2.16 iter-306 had impl-time-only smokes that were not persistent test files; Story 2.17 has 7 persistent unit tests + 74 persistent replay fixtures that survive iterations and reproduce on every run). FIRST repo node:test use; FIRST persisted replay corpus.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Cross-epic transition forecast — Story 2.17 is Epic-2 final story; on Story 2.17 done, § Cross-epic transition fires EPIC_DONE halt. PR #230 baseline statusCheckRollup: [] unchanged iter-272..339 (no CI configured; final CI gate at PR transition Draft→Open will surface no checks). Forecast: Story 2.17 done at iter-342+ (post-dev SM iter-341 + CR iter-342) → PR #230 transitions Draft→Open → final CI gate trivial (no checks) → merge → halt re-evaluation auto-advances to Epic 3 Story 3.1 per § Cross-epic transition.",
+      "requirements": []
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Per-AC mechanical-regression-safe coverage — ACs 1/2/6/7 mechanically-regression-safe via Epic 13 test framework landing (vitest/playwright/bats-core or equivalent contract tests over manifest schema + sync-gate walker + L1 hook rule + dotfile lint). AC 3 ALREADY covered by 7 node:test unit tests at substrate stage. AC 4 (Epic 3 Story 3.7 halt-write) + AC 5 (operator-class AMEND path) + AC 8 (Epic 14 dashboard) remain downstream-class even post-Epic-13.",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8"]
+    },
+    {
+      "priority": "MEDIUM",
+      "action": "Story 2.17 SC-17 CLOSE-OUT — Epic-2 final story; Task 16 absorbed 45 substrate+polish DEFERs (36 substrate via Tasks 1-13 + 9 polish via Task 16 (a)-(g)) at iter-333..338; ~173 entries carry forward to Epic 3+ across 14 destination clusters (Story 1.10+ schema-hardening, Story 1.13+ contrast / Epic 7 advanced color pipeline, Story 1.16/Epic 3 reliability content-hash provenance, Story 13.5 release-please workflow, Epic 4 supply-chain hardening Story 4.10 OWASP ASVS L1 baseline, Epic 4 Story 4.13 FR37 security-evidence consumer, Epic 13 CI harness, Epic 14 dashboard, Epic 15a/fork variants, Story 2.17 follow-up _lib.sh refactor post-Epic-2, Story 2.6+ host-side CLI hardening, Story 2.11+ shared-mode multi-backend, Story 2.12+ ports + ssh + KEEL_DEVBOX_BIND_IP, Story 2.13 healthcheck future-guards / Story 2.17 internal Task 13, Story 2.14 retention story / Story 15b.1 retirement, Stories 1.7/1.8/1.10 follow-ups). Epic-2 DEFER queue at close = 38 (8 above story-spec target < 30 — residual Story 2.7+ _lib.sh refactor cluster routed to a single post-Epic-2 follow-up story but counted individually here per per-entry preservation discipline).",
+      "requirements": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-7", "AC-8"]
+    },
+    {
+      "priority": "LOW",
+      "action": "Run /bmad-testarch-test-review to assess test quality — 7 node:test unit tests at packages/keel-invariants/src/prompt-injection-rules/hook-settings-tamper.test.ts could be reviewed for mutation coverage / negative-path strength / safe-path allow-list completeness; recorded for parity with downstream pipelines.",
+      "requirements": ["AC-3"]
+    }
+  ],
+  "links": {
+    "trace_report_path": "_bmad-output/test-artifacts/traceability/2-17-hook-settings-bypass-resistance-git-layer-manifest-s4-halt.md",
+    "trace_report_url": "",
+    "artifact_url": ""
+  },
+  "gate_status": "WAIVED",
+  "gate_criteria": {
+    "p0_coverage_required": "100%",
+    "p0_coverage_actual": "100%",
+    "p0_status": "MET",
+    "p1_coverage_target": "90%",
+    "p1_coverage_minimum": "80%",
+    "p1_coverage_actual": "100%",
+    "p1_status": "MET",
+    "overall_coverage_minimum": "80%",
+    "overall_coverage_actual": "13%",
+    "overall_status": "NOT_MET"
+  }
+}

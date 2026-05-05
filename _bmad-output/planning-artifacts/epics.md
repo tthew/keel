@@ -1137,6 +1137,166 @@ So that forks can layer rules on top of substrate without touching `packages/kee
 **Then** `INVARIANTS.fork.md` is NOT auto-created
 **And** the pattern + template are documented for fork operators to opt into manually.
 
+##### Story 1.17: Bootstrap TypeScript test runner (Vitest) + minimal CI workflow
+
+As a substrate operator who needs Ralph's pre-push CI gate (FR14i) to be non-vacuous and `Required tests:` (FR14a) to reference real files,
+I want Vitest installed at the workspace root, pinned per I7, with one smoke test wiring `packages/keel-invariants/` and a `.github/workflows/ci.yml` running `pnpm turbo run test lint typecheck`,
+So that every subsequent Ralph iteration can validate behaviour against running tests rather than against vacuous "no checks reported" CI passes (FR14o; closes the architecture.md:154 deferral; resolves issue #233 for the TS runtime).
+
+**Acceptance Criteria:**
+
+**Given** a fresh devbox checkout of `feat/epic-2-packaged-devbox` post-Story 1.17,
+**When** I run `pnpm install --frozen-lockfile && pnpm test`,
+**Then** Vitest discovers and runs `packages/keel-invariants/src/__tests__/smoke.test.ts`
+**And** the smoke test passes
+**And** the exit code is 0.
+
+**Given** the Vitest pin in `packages/config/package.json` and `pnpm.overrides` in root `package.json`,
+**When** Story 1.9's sync-gate runs (`pnpm keel-invariants:check`),
+**Then** the manifest's `INV-deps-version-pinning` row remains green (Vitest + transitive deps version-pinned per I7 exact-version policy).
+
+**Given** the `.github/workflows/ci.yml` workflow,
+**When** a PR is opened against `main`,
+**Then** the `node` job runs `pnpm install --frozen-lockfile && pnpm turbo run test lint typecheck`
+**And** the workflow is marked as a required check on `main`.
+
+**Given** the `turbo.json` `test` task,
+**When** `pnpm test` runs,
+**Then** the task uses `dependsOn: ["^build"]` (build prerequisites resolve first)
+**And** declares `outputs: ["coverage/**"]` for Turbo cache fidelity.
+
+**Given** the AGENTS.md + CLAUDE.md common-commands tables,
+**When** I run `pnpm test` from the repo root,
+**Then** the table row exists documenting the command.
+
+##### Story 1.18: Bootstrap Python test runner (pytest under uv) + project shape
+
+As a substrate operator with Python tooling (`ralph.py`, `scripts/`, `packages/devbox/tui/`) currently bootstrapped only via PEP 723 inline-script metadata,
+I want a root `pyproject.toml` + `uv.lock` declaring shared dev deps (pytest, pytest-asyncio, ruff, mypy) and pytest test scaffolds for each Python module,
+So that Python code has the same test-validation discipline as TypeScript code (FR14o; new architectural decision per architecture.md § M0 substrate developer-productivity floor; resolves issue #233 for the Python runtime).
+
+**Acceptance Criteria:**
+
+**Given** the root `pyproject.toml` declaring `[tool.pytest.ini_options]` testpaths,
+**When** I run `uv sync && uv run pytest`,
+**Then** pytest discovers and runs the test scaffolds (`tests/test_ralph.py` + `scripts/tests/test_bootstrap_bmad_agents.py` + `packages/devbox/tui/tests/test_theme.py`)
+**And** all scaffolds pass
+**And** the exit code is 0.
+
+**Given** the `.github/workflows/ci.yml` workflow extension,
+**When** a PR is opened against `main`,
+**Then** a `python` job runs `uv sync && uv run pytest`
+**And** the job is marked as a required check on `main` alongside the `node` job from Story 1.17.
+
+**Given** the `uv.lock` pinning,
+**When** `uv sync` runs,
+**Then** the lockfile resolves deterministically (identical versions across CI runs)
+**And** Story 1.9's sync-gate (extended in Story 1.20 to cover Python deps if applicable) does not flag drift.
+
+**Given** the AGENTS.md + CLAUDE.md common-commands tables,
+**When** I run `uv run pytest` from the repo root,
+**Then** the table row exists documenting the command.
+
+**Given** existing PEP 723 inline-metadata in `ralph.py` (declaring `textual>=1.0.0` etc.),
+**When** root `pyproject.toml` declares overlapping deps,
+**Then** the test scaffolds run successfully under both invocation paths
+**And** the migration plan (single source vs dual source) is recorded in the story's Dev Agent Record.
+
+##### Story 1.19: Backfill `keel-invariants` test coverage
+
+As a substrate operator who relies on `packages/keel-invariants/` to gate merges via FR42 / FR43 / FR43a,
+I want test coverage for every ESLint rule, every per-rule `check-*.ts` enforcer, the sync-gate CLI, and the `invariants.manifest.ts` Zod-shape contract,
+So that the highest-priority untested code in the repo is no longer untested before Epic 4 (per-iteration security verification) starts extending it (NFR1a; closes issue #233 D2 sequencing decision).
+
+**Acceptance Criteria:**
+
+**Given** each ESLint rule in `packages/keel-invariants/src/`,
+**When** Story 1.19 lands,
+**Then** there exists at least one positive test (rule fires on offending input) AND one negative test (rule does NOT fire on compliant input) per rule
+**And** all tests pass via `pnpm --filter @keel/keel-invariants test`.
+
+**Given** each per-rule `check-*.ts` enforcer (`check-claude-hook-syntax.ts`, `check-nfr5a-minimum.ts`, `check-no-committed-dotfiles.ts`),
+**When** Story 1.19 lands,
+**Then** there exists at least one integration test invoking the enforcer's CLI entry point against a fixture directory tree
+**And** the test asserts both the green-path exit-code-0 and the red-path exit-code-1 + structured JSON drift report.
+
+**Given** the sync-gate CLI (`packages/keel-invariants/src/check.ts` + `manifest-reader.ts` + `sync-gate.ts`),
+**When** Story 1.19 lands,
+**Then** there exists at least one integration test exercising each of the four drift classes (added-to-source-only / removed-from-source-only / removed-from-docs-only / content-hash-mismatch)
+**And** each drift class produces the expected exit-code-1 + DriftReport JSON shape.
+
+**Given** the `invariants.manifest.ts` Zod schema,
+**When** Story 1.19 lands,
+**Then** there exists at least one schema-rejection test per malformed-input class (bad ID format, missing required field, content-hash regex violation, empty anchors, non-existent sourcePath)
+**And** each malformed input produces a Zod parse error.
+
+**Given** the new invariant `INV-package-test-coverage-floor`,
+**When** Story 1.19 registers it in `invariants.manifest.ts` + `INVARIANTS.md` index,
+**Then** Story 1.9's sync-gate passes against the registered manifest entry
+**And** the invariant's check-*.ts enforcer (or sync-gate built-in check) walks workspace packages and reports `coverage-floor-violation` for any `src/`-bearing package without ≥ 1 passing test.
+
+**Given** Story 1.19's CR pass,
+**When** `/bmad-code-review (args: "2")` runs,
+**Then** all action items are addressed in QUEUE fix iterations OR explicitly deferred with `defer:` rationale
+**And** Story 1.19 transitions `sm-verified → done` with no un-addressed CR findings.
+
+##### Story 1.20: Activate FR14i for real (end vacuous-pass mode)
+
+As a Ralph operator whose pre-push CI gate (FR14i) has been passing vacuously across every Story 1.x and 2.x iteration,
+I want the gate to operate as specified once `.github/workflows/ci.yml` exists, with explicit substrate-side verification that the workflow file is registered in the invariants manifest,
+So that future Ralph iterations cannot regress the gate to vacuous-pass mode by accidentally deleting or renaming the workflow file (FR14i amendment per issue #233; new invariant `INV-fr14i-ci-workflow-presence`).
+
+**Acceptance Criteria:**
+
+**Given** Story 1.17 + 1.18 have landed (`.github/workflows/ci.yml` exists),
+**When** Story 1.20 registers `INV-fr14i-ci-workflow-presence` in `packages/keel-invariants/src/invariants.manifest.ts`,
+**Then** the manifest entry's `sourcePath` is `.github/workflows/ci.yml`
+**And** the entry's `contentHash` matches the file's sha256
+**And** Story 1.9's sync-gate passes.
+
+**Given** the workflow file is deleted or moved,
+**When** the sync-gate runs,
+**Then** the gate fails with `content-hash-mismatch` OR `source-not-found` per the manifest semantics
+**And** the failure blocks pre-merge-fast.
+
+**Given** RALPH.md's execute-spine documentation (orient step 0h, execute step 5),
+**When** Story 1.20 amends the doc,
+**Then** the orient step explicitly references "FR14i operates non-vacuously when `INV-fr14i-ci-workflow-presence` is green"
+**And** the execute step references the activation as in-effect post-Story 1.20.
+
+**Given** the `INVARIANTS.md` index entry for `INV-fr14i-ci-workflow-presence`,
+**When** Story 1.20 lands,
+**Then** the entry references the manifest row + the docs/invariants/fr14i.md note (or inline anchor in docs/invariants/ralph-execute.md if no dedicated doc exists)
+**And** Story 1.9's sync-gate's anchor-walker resolves the entry.
+
+##### Story 1.21: Sweep prior `ATDD deferred` stories into `test-debt:` follow-ups
+
+As a substrate operator who has accumulated 10+ ATDD-skip precedents across Stories 1.7–1.16 (RALPH.md § ATDD-skip-precedents) plus an unmeasured count across Stories 2.1–2.18,
+I want a single audit pass producing `test-debt:` follow-up entries cataloguing each pre-bootstrap story's coverage gap with the ground (a/b/c) it cited at skip time,
+So that the test-debt is visible (not invisible accumulating drift), prioritisable (we can rank by risk), and bounded (no further ATDD-skip ground (b) accrues post-bootstrap per FR14n amendment per issue #233).
+
+**Acceptance Criteria:**
+
+**Given** the audit walks Stories 1.1–1.16 + 2.1–2.18,
+**When** Story 1.21 lands,
+**Then** there exists `_bmad-output/implementation-artifacts/test-debt.md` with one entry per story carrying an ATDD-skip
+**And** each entry records (a) the skip ground cited (a/b/c per FR14n matrix row 3); (b) the AC class skipped (functional / RLS / security / contract / docs); (c) the back-fill estimated effort (S / M / L); (d) the risk class (P0 highest-risk substrate enforcement code / P1 / P2).
+
+**Given** post-bootstrap stories,
+**When** any future story drafts an ATDD-skip with bare ground (b),
+**Then** the FR14n amendment per issue #233 makes this insufficient (must cite ground (a) or (c))
+**And** the `bmad-create-story (args: "review")` pre-dev gate flags the violation per its existing AC-coverage check.
+
+**Given** Story 1.21 catalogues each pre-bootstrap story's gap,
+**When** the test-debt file is committed,
+**Then** each entry is referenced from the originating story file's § Deferred Work section (cross-link to `test-debt.md` anchor)
+**And** Story 1.21's CR pass verifies the cross-links.
+
+**Given** the test-debt file's intended consumer,
+**When** future epic-planning iterations (Epic 4 prep, Epic 13 prep) read the file,
+**Then** they can prioritise backfill alongside their own scope
+**And** the file is not retroactively re-opened mid-epic (pre-bootstrap skips are grandfathered; only NEW skips post-Story 1.21 are subject to the FR14n amendment).
+
 ---
 
 ### Epic 2: Sandboxed Execution Environment (devbox)
@@ -1772,6 +1932,46 @@ So that even if the in-session hook self-protection is somehow circumvented (nov
 **Then** a dedicated dashboard panel (or nightly report — Epic 14 research corpus terrain) surfaces the event count trend
 **And** an unusually high bypass-attempt rate is a leading signal of Claude-prompt-injection attack or Ralph regression worth investigating.
 
+##### Story 2.18: Devbox network whitelist DNS-rotation fix (dnsmasq nftset= + GitHub CIDR fallback)
+
+_Appended via `/bmad-correct-course` for issue [#232](https://github.com/tthew/ralph-bmad/issues/232) on 2026-04-25 — see [`sprint-change-proposal-issue-232.md`](./sprint-change-proposal-issue-232.md)._
+
+As a fork operator running Ralph inside the devbox,
+I want whitelisted multi-A DNS rotating-IP services (`github.com`, `api.github.com`) to remain reachable across DNS rotation,
+So that `gh` / `git fetch` / `git push` / `curl` to GitHub do not intermittently time out at the firewall layer mid-iteration.
+
+**Acceptance Criteria:**
+
+**Given** the `dnsmasq.conf` template + rotating-flagged whitelist entries,
+**When** `reload-egress.sh` renders the dnsmasq config,
+**Then** one `nftset=` directive is emitted per rotating-flagged domain (IPv4: `nftset=/<domain>/4#inet#keel_egress#gh_v4`; IPv6: `nftset=/<domain>/6#inet#keel_egress#gh_v6`)
+**And** non-rotating domains keep the existing static-pin path (no behavioural regression for stable-IP services).
+
+**Given** `egress.nft` on a clean container,
+**When** `start-egress.sh` applies the rendered nft ruleset,
+**Then** named sets `gh_v4` and `gh_v6` exist with `flags timeout` and a sane default TTL (proposed 600s),
+**And** the `output_v4` chain contains `ip daddr @gh_v4 accept` BEFORE the existing static-pin marker block,
+**And** the `output_v6` chain contains `ip6 daddr @gh_v6 accept` BEFORE the existing static-pin marker block,
+**And** the chain `policy drop` rule remains the final fall-through.
+
+**Given** a clean container with `github.com` resolving to N rotating IPs,
+**When** N+1 distinct `curl https://github.com/` probes complete over a short window,
+**Then** `nft list set inet keel_egress gh_v4` shows N+1 distinct IPs accumulated in the set,
+**And** no static `ip daddr <addr> accept` rule is added to the chain for `github.com` (set replaces snapshot),
+**And** the set self-prunes via `flags timeout` (default 600s).
+
+**Given** GitHub's published public IP ranges (per `https://api.github.com/meta`),
+**When** `start-egress.sh` applies the rendered nft ruleset,
+**Then** the `output_v4` chain contains static fallback rules `ip daddr 140.82.112.0/20 accept` and `ip daddr 192.30.252.0/22 accept` with comments citing this story
+**And** these rules apply BEFORE the marker block to short-circuit any in-flight requests during the dnsmasq-to-nftset propagation window.
+
+**Given** the operator-workstation smoke recipe (or replay-fixture suite when one lands at Epic 13),
+**When** a fixture / smoke simulates multiple `getent` returns over time + sequential `curl` probes against `github.com`,
+**Then** the named set fills correctly across multiple rotation rounds,
+**And** the accept rule short-circuits the would-be drop,
+**And** no static IP is added to the chain for those domains (set replaces snapshot),
+**And** an iteration-env config-render-only smoke verifies `nftset=` directives are emitted by `reload-egress.sh` (full kernel-state verification deferred to operator workstation per Story 2.3 backend-B precedent).
+
 ---
 
 ### Epic 3: Autonomous Agent Loop (Ralph harness)
@@ -2368,6 +2568,17 @@ So that 40–60% smart-zone targeting (NFR4a) is observable and >80% utilisation
 **When** Story 1.8 tracks it,
 **Then** `INV-ralph-context-meter-schema` is registered.
 
+**Given** `$RALPH_BASE_DIR/logs/sizes.jsonl` is the doc-budget telemetry sibling of `context-meter.json` (issue #231 / Story 3.34 Phase 0),
+**When** the iteration footer runs,
+**Then** `sizes.jsonl` is appended with one JSON line per iteration matching the schema `{iter, ts, ralph_md_bytes, ralph_md_lines, plan_md_bytes, plan_md_lines, signpost_word_counts[], done_entry_word_counts[], orient_phase_tokens, line_delta_from_prev}`
+**And** the file is gitignored
+**And** `orient_phase_tokens` + `line_delta_from_prev` are leading + lagging indicators for the threshold-tuning logic in Story 3.34
+**And** the writer is the SAME footer that emits `context-meter.json` — no separate write site.
+
+**Given** the schema is invariant,
+**When** Story 1.8 tracks it,
+**Then** `INV-ralph-sizes-log-schema` is registered alongside `INV-ralph-context-meter-schema`.
+
 ##### Story 3.16: Execution budget headroom (25K push-buffer; XL decomposition; exhaustion signals)
 
 As Ralph,
@@ -2579,6 +2790,11 @@ So that knowledge-file upkeep is prompted but not blocked — preserves agent ve
 **When** documented in `AGENTS.md`,
 **Then** `Knowledge-files-no-change: <reason>` appears as the canonical form (e.g., `Knowledge-files-no-change: trivial refactor`, `Knowledge-files-no-change: test fix`).
 
+**Given** Story 3.34 ships the orient-gate + pre-commit hook for size enforcement (issue #231),
+**When** I read the upkeep contract,
+**Then** Story 3.22 (warn-on-no-update) and Story 3.34 (warn-on-bloat) are acknowledged as complementary — upkeep ensures *something* is written; budget ensures *not too much*
+**And** both hooks share the `.githooks/` directory (single hooksPath registration in `ralph.py`).
+
 ##### Story 3.23: L3 lint guardrails (`tools/lint-knowledge-files.ts`)
 
 As a substrate maintainer,
@@ -2617,6 +2833,12 @@ So that L3 knowledge-file drift cannot poison the Ralph context window (RS6).
 **Given** `.ralph/@plan.md` entries,
 **When** a commit modifies existing entries (not just appends new ones),
 **Then** the linter rejects the commit — entries are append-only per FR14a2 pattern.
+
+**Given** Story 3.34 introduces a single threshold-constants block (issue #231),
+**When** `tools/lint-knowledge-files.ts` enforces RALPH.md size,
+**Then** the linter reads the SAME constants as Story 3.34's `_build_doc_budget_block` and `.githooks/pre-commit-ralph-budget` (no parallel byte/line definitions)
+**And** the existing 500-line cap migrates to the threshold constants with the new byte/per-bullet dimensions
+**And** the linter's "RALPH.md exceeds 500 lines" message is rephrased to "RALPH.md exceeds the doc-budget threshold" pointing to issue #231 / Story 3.34's rationale.
 
 ##### Story 3.24: `.ralph-safe-set.yaml` manifest + `tools/check-safe-set.ts` + orient self-awareness
 
@@ -2963,6 +3185,90 @@ So that Ralph is operable before Epic 7 lands and Epic 7 re-theming is cosmetic-
 **When** `.ralph/halt` exists,
 **Then** it renders the halt reason + context prominently
 **And** clears when the halt sentinel is cleared.
+
+##### Story 3.34: Ralph doc-budget enforcement (orient-gate + pre-commit gate)
+
+As a substrate maintainer,
+I want a single-source-of-truth doc-budget enforcement chain — Phase 1 soft orient-gate (PRIMARY defense; injected into PROMPT_build.md by ralph.py) and Phase 2 pre-commit hook (belt-and-braces; numeric double-bound) — both consuming the same threshold constants and selectable via `RALPH_DOC_BUDGET_ENFORCE`, with an emergency `RALPH_DOC_BUDGET_OVERRIDE` escape hatch,
+So that `RALPH.md` and `.ralph/@plan.md` cannot silently inflate past the per-iteration orient budget — preserving Ralph loop reliability monotonically (FR14j amendment per issue #231).
+
+**Acceptance Criteria:**
+
+**Given** `ralph.py` has the `_build_issue_tracking_block()` pattern at `:1622`,
+**When** I read the harness,
+**Then** a parallel `_build_doc_budget_block(env)` function exists, invoked from the same env-injection site (`:1639,1761`)
+**And** it reads `RALPH.md`, `.ralph/@plan.md`, `.ralph/PROMPT_build.md`, `.ralph/PROMPT_plan.md` sizes (bytes + lines + per-bullet words)
+**And** trips when ANY of the threshold tuple is exceeded.
+
+**Given** `RALPH_DOC_BUDGET_ENFORCE=warn-in-prompt` (default),
+**When** the threshold is tripped,
+**Then** a `## PRUNE-FIRST (advisory)` block is injected into the loaded `PROMPT_build.md` before the agent invocation
+**And** the block names the offending file + which dimension(s) tripped + the target reduction.
+
+**Given** `RALPH_DOC_BUDGET_ENFORCE=halt-in-prompt` AND Phase 2 preconditions met,
+**When** the threshold is tripped,
+**Then** the block converts to a halt directive
+**And** the pre-commit hook is active.
+
+**Given** `RALPH_DOC_BUDGET_ENFORCE=off`,
+**When** the function runs,
+**Then** no injection; pre-commit hook is bypassed.
+
+**Given** `.githooks/pre-commit-ralph-budget` exists,
+**When** the orchestrator starts,
+**Then** `git config core.hooksPath .githooks` is registered alongside the `RALPH_BASE_DIR` export near `ralph.py:141`
+**And** the registration emits a one-line confirmation to the session log
+**And** missing registration is a loud failure, not a silent no-op (`uv run ralph.py` exits non-zero if registration fails).
+
+**Given** the pre-commit hook fires,
+**When** byte AND line counts are read,
+**Then** the hook reads the SAME threshold constants as `_build_doc_budget_block` (no parallel implementation)
+**And** the hook is ungameable by prose density (numeric double-bound).
+
+**Given** `RALPH_DOC_BUDGET_OVERRIDE=<bytes>` is set,
+**When** the pre-commit hook runs,
+**Then** the override is honoured for the current commit only
+**And** the override usage is logged to `$RALPH_BASE_DIR/logs/budget-overrides.jsonl` with the commit SHA, ISO8601 timestamp, and the override value.
+
+**Given** the rubric-by-example replaces prose rules in `PROMPT_build.md` step 3a,
+**When** I read the prompt,
+**Then** three exemplar entries (1 Lesson / 1 Gotcha / 1 Decision, ≤ 12 words before commit-SHA / PR pointer) demonstrate the target shape
+**And** the IP DONE template tightens to `- [iter-N] <verb> <object> — <sha7> (PR #N)` with a 12-word hard cap before the pointer
+**And** Guardrail 8 in `PROMPT_build.md` extends to name `RALPH.md` (currently mentions `AGENTS.md` only).
+
+**Given** `RALPH.md` bullets carry `<!-- iter:N -->` decay markers,
+**When** the pruner runs,
+**Then** bullets where `current_iter − N > 30` are deletable per pure age rule
+**And** per-section FIFO caps (§ Signposts ≤ 20, § Lessons ≤ 15, § Gotchas ≤ 10) are documented as structural caps (not LLM-judged).
+
+**Given** Phase 2 ship preconditions,
+**When** the operator promotes `RALPH_DOC_BUDGET_ENFORCE` from `warn-in-prompt` to `halt-in-prompt`,
+**Then** ALL THREE preconditions MUST hold:
+- ≥ 20 HEALTHY iterations recorded in `$RALPH_BASE_DIR/logs/sizes.jsonl`
+- P90 of recorded sizes ≥ 30% below the proposed hard cap
+- Phase-1 soft-gate false-positive rate < 5% on healthy-baseline replay
+
+**And** the promotion PR records all three values inline; missing any → Phase 2 stays off.
+
+**Given** Phase 2 has been active for ≥ 10 consecutive iterations with zero hook fires,
+**When** the operator opens the manifest registration PR,
+**Then** `INV-ralph-doc-budget` is added to `packages/keel-invariants/src/invariants.manifest.ts`
+**And** a new `### Ralph loop hygiene` section + anchor bullet are added to `INVARIANTS.md`
+**And** Story 1.9's sync-gate validates the manifest ↔ INVARIANTS.md drift on the same PR
+**And** Day-1 registration is explicitly REJECTED (would flap the sync-gate during calibration; precedent: Story 3.14 / FR14a3 contract-at-1.0-enforcement-at-1.x).
+
+**Given** a one-shot RALPH.md prune is the precondition for Phase 2 to ship in `warn-in-prompt` mode without firing on every commit,
+**When** the prune iteration runs,
+**Then** `RALPH.md` is reduced to under the proposed hard cap before `RALPH_DOC_BUDGET_ENFORCE=warn-in-prompt` defaults are merged
+**And** the pruned content is NOT archived to a new file (per Paige's roundtable rejection: archives become the next bloat vector; git log is the archive).
+
+**Given** the implementation rejects alternatives explicitly,
+**When** I read the story,
+**Then** the rejected-alternatives list (archive files, YAML frontmatter scoring, LLM-as-judge filtering, in-prompt forbidden-words lists, periodic retro mode, separate `PRUNE_RUBRIC.md` file) is recorded in the story body for future re-readers — explicit rejection prevents zombie-resurrection.
+
+**Implementation refs:** `ralph.py:141` (hooksPath registration site), `ralph.py:1622` (injection-block pattern to mirror), `ralph.py:1639,1669,1761,1763` (env-var injection sites), `packages/keel-invariants/src/invariants.manifest.ts` (deferred manifest entry), `INVARIANTS.md` (deferred anchor bullet).
+
+**Out of scope:** Phase 0 telemetry instrumentation (`sizes.jsonl` schema + writer) is absorbed by Story 3.15 — same JSON-on-disk site, same per-iteration write cadence. Cross-references in Story 3.22 (FR14j upkeep) and Story 3.23 (L3 lint guardrails) acknowledge this story but do not duplicate implementation.
 
 ---
 
