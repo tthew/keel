@@ -157,12 +157,20 @@ resolve_main_repo_and_workdir() {
 	# values containing `..` would attempt path-traversal out of /workspace/ (Docker normalises
 	# but the attempt evades intent), and shell-meta in REPO_NAME would break the docker
 	# inspect format string at check-mount-source.sh, causing the mount-check to silently
-	# return wrong data and miss stale-bind races. POSIX-portable shape: alphanumeric +
-	# `.` `_` `-` only (matches `basename` output for any reasonable repo name).
-	if ! [[ "$REPO_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
-		printf 'main-repo-resolver: FATAL: invalid REPO_NAME (KEEL_DEVBOX_REPO_NAME=%q); expected ^[A-Za-z0-9._-]+$\n' "$REPO_NAME" >&2
-		return 1
-	fi
+	# return wrong data and miss stale-bind races. PR #230 Round-2 A8 — original regex
+	# `^[A-Za-z0-9._-]+$` admitted `.`, `..`, and `foo..bar` (dot is in the allowed class
+	# so any all-dot sequence passes). Case-pattern rejects empty / dot / dotdot / any
+	# `..` substring before the invalid-char gate; POSIX-portable.
+	case "$REPO_NAME" in
+		""|.|..|*..*)
+			printf 'main-repo-resolver: FATAL: invalid REPO_NAME (KEEL_DEVBOX_REPO_NAME=%q); empty or path-traversal pattern\n' "$REPO_NAME" >&2
+			return 1
+			;;
+		*[!A-Za-z0-9._-]*)
+			printf 'main-repo-resolver: FATAL: invalid REPO_NAME (KEEL_DEVBOX_REPO_NAME=%q); expected [A-Za-z0-9._-]+\n' "$REPO_NAME" >&2
+			return 1
+			;;
+	esac
 	export REPO_NAME
 
 	local pwd_real
@@ -216,11 +224,18 @@ resolve_mode_specific_state() {
 	# above). Defense-in-depth: shared_parent_name is derived from `dirname "$MAIN_REPO"`
 	# so basename(dirname) — under unusual filesystems (`..` in path, NFS quirks) the
 	# resulting name could carry shell-meta that breaks the docker inspect format string
-	# at check-mount-source.sh.
-	if ! [[ "$REPO_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
-		printf 'main-repo-resolver: FATAL: shared-mode REPO_NAME invalid (basename of parent dir %q); expected ^[A-Za-z0-9._-]+$\n' "$shared_parent" >&2
-		return 1
-	fi
+	# at check-mount-source.sh. PR #230 Round-2 A8 — case-pattern (mirror of per-fork arm)
+	# rejects empty / dot / dotdot / any `..` substring before the invalid-char gate.
+	case "$REPO_NAME" in
+		""|.|..|*..*)
+			printf 'main-repo-resolver: FATAL: shared-mode REPO_NAME invalid (basename of parent dir %q); empty or path-traversal pattern\n' "$shared_parent" >&2
+			return 1
+			;;
+		*[!A-Za-z0-9._-]*)
+			printf 'main-repo-resolver: FATAL: shared-mode REPO_NAME invalid (basename of parent dir %q); expected [A-Za-z0-9._-]+\n' "$shared_parent" >&2
+			return 1
+			;;
+	esac
 	export MAIN_REPO WORKTREE_ROOT REPO_NAME
 
 	# Re-derive CONTAINER_WORKDIR against the NEW WORKTREE_ROOT. Do NOT
