@@ -95,8 +95,12 @@ if [ "$tool_name" = "Bash" ]; then
       normalized="${BASH_REMATCH[2]}"
     elif [[ "$normalized" =~ ^xargs([[:space:]]+-[a-zA-Z]+)*[[:space:]]+(.*)$ ]]; then
       normalized="${BASH_REMATCH[2]}"
-    elif [[ "$normalized" =~ ^eval[[:space:]]+[\"\']?(.*)$ ]]; then
-      normalized="${BASH_REMATCH[1]}"
+    elif [[ "$normalized" =~ ^(eval|builtin|command|exec)[[:space:]]+[\"\']?(.*)$ ]]; then
+      # FIX-13 v2 (PR #230 R3-Hook-B sub-agent C4) — extended `eval` arm with `builtin`,
+      # `command`, `exec` to close literal `.` form bypass via non-stripped prefix. Each
+      # is a bash control-builtin that prefixes any command and shell-evaluates the rest;
+      # stripping mirrors eval semantics.
+      normalized="${BASH_REMATCH[2]}"
     elif [[ "$normalized" =~ ^env([[:space:]]+[A-Z_][A-Za-z0-9_]*=[^[:space:]]+)+[[:space:]]+(.*)$ ]]; then
       normalized="${BASH_REMATCH[2]}"
     elif [[ "$normalized" =~ ^\\(.*)$ ]]; then
@@ -143,7 +147,7 @@ case "$tool_name" in
   Bash)
     # Reader-verb (D-12 readers + interp-stdin) against *.example companion files — approve,
     # but D-22 guards against a symlink-in-example-suffix pointing into a secret directory.
-    example_read_re='^(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd|node|python|python3|perl|ruby|php)([[:space:]]+-[ec])?([[:space:]]+[^[:space:]]+)*[[:space:]]+([^[:space:]]*\.(envrc|secrets|env)\.example)([[:space:]]|$)'
+    example_read_re='^(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd|node|python|python3|perl|ruby|php|wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget|source|\.|paste|cmp|comm|diff|fmt|fold|expand|unexpand|pr|rev|md5sum|sha256sum|sha1sum|b3sum|cksum|zcat|bzcat|xzcat|lzcat|zless|zgrep|bzgrep|xzgrep)([[:space:]]+-[ec])?([[:space:]]+[^[:space:]]+)*[[:space:]]+([^[:space:]]*\.(envrc|secrets|env)\.example)([[:space:]]|$)'
     if [[ "$normalized" =~ $example_read_re ]]; then
       example_arg="${BASH_REMATCH[4]}"
       example_resolved="$(readlink -f "$example_arg" 2>/dev/null || printf '%s' "$example_arg")"
@@ -238,7 +242,7 @@ esac
 # D-13 — env|export|set word-boundary (regex replaces exact-match case). Catches `env`, `env `,
 # `env | sort`, `env -0`, `export`, `export -p`, `set`, `set -o posix`. Avoids false-positives on
 # `envsubst`, `envvar=x cmd`, `exportfs`, `setup.sh` (no word-boundary break after verb).
-# D-12 — reader verb expansion (14 readers × 5 path classes + interp-stdin with -[ec]).
+# D-12 — reader verb expansion (50 readers × 5 path classes + interp-stdin with -[ec]; FIX-13 added wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget plus sub-agent C1/C2/C3 residuals (paste|cmp|comm|diff|fmt|fold|expand|unexpand|pr|rev|md5sum|sha256sum|sha1sum|b3sum|cksum|zcat|bzcat|xzcat|lzcat|zless|zgrep|bzgrep|xzgrep); dotsource_re covers source/. with C4 builtin|command|exec wrapper-strip).
 # D-28 — tilde-form (~/.claude, ~/.config/gh, ~/.ssh) + /home/dev/.ssh parallel patterns; hook sees
 # pre-expansion text, so tilde-form is an active bypass surface in agent paths.
 # D-31 — /proc surface narrow: /proc/PID/(cmdline|environ|mem|status|auxv|maps), /proc/self/*,
@@ -250,13 +254,22 @@ case "$tool_name" in
     fi
     # D-31 — /proc reader detection via regex (word-boundary verb + expanded secret-bearing paths).
     # Replaces prior 19-alternative `cat*/proc/*/environ*|...` case-glob; far more maintainable.
-    reader_verb_re="${verb_left_re}(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd)[[:space:]]"
+    reader_verb_re="${verb_left_re}(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd|wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget|paste|cmp|comm|diff|fmt|fold|expand|unexpand|pr|rev|md5sum|sha256sum|sha1sum|b3sum|cksum|zcat|bzcat|xzcat|lzcat|zless|zgrep|bzgrep|xzgrep)[[:space:]]"
     # D-38 (PR #230 review-fix-arc, FIX-1) — flag-class widened to alphanumeric so digit
     # chars in interpreter flags (e.g. `perl -0ne …`) participate in verb-match. Prior
     # `[a-zA-Z]*[ec]` rejected `0` and let `perl -0ne … .env` slip past the gate.
     interp_verb_re="${verb_left_re}(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z0-9]*[ec]"
+    # FIX-13 (PR #230 review-fix-arc, R3-Hook-B) — dot-sourcing detection. `source <file>`
+    # and `. <file>` shell-EVALUATE the file contents (more dangerous than reader-verb leak:
+    # env vars from a sourced secret leak into every subsequent command). Literal `.` form
+    # uses the stricter subshell_left_re boundary (no whitespace-only left context) to avoid
+    # FP on `find . -name .env` / `cd ./foo` legitimate-period-arg cases. WONTFIX (string-
+    # literal FP class, sibling of D2/D3): `echo "source .env"` blocks if `.env` follows;
+    # same residual class — operators should reach for the Read tool. ⊗ Do NOT add a quote-
+    # stripping pre-pass.
+    dotsource_re="(${verb_left_re}source[[:space:]]|${subshell_left_re}\.[[:space:]])"
     proc_secret_re='/proc/([0-9]+|self)/(cmdline|environ|mem|status|auxv|maps|stack|syscall|io)|/proc/(kcore|kmem|kallsyms)'
-    if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re ]]; then
+    if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re || "$normalized" =~ $dotsource_re ]]; then
       if [[ "$normalized" =~ $proc_secret_re ]]; then
         block "secret-access-denylist" "cat-proc-environ"
       fi
@@ -290,7 +303,7 @@ case "$tool_name" in
     fi
     # Verb gate — reader-verb OR interp-stdin must be present. printenv handled above
     # because it is its own verb (no separate target file).
-    if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re ]]; then
+    if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re || "$normalized" =~ $dotsource_re ]]; then
       oauth_dir_re="${secret_left_re}(/home/dev/\.claude/|/home/dev/\.config/gh/|~/\.claude/|~/\.config/gh/)"
       ssh_dir_re="${secret_left_re}(/home/dev/\.ssh/|~/\.ssh/)"
       # WONTFIX (PR #230 D3) — interpreter string-literal FP: `python3 -c 'print(".env")'`
