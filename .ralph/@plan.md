@@ -1,32 +1,28 @@
-# Implementation Plan — PR #230 Round-3 review-fix-arc
+# Implementation Plan — PR #230 Round-4 review-fix-arc
 
-Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.md`). The IP holds NOW + QUEUE + DONE + Context only.
+Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.md`; Round-2 at `.ralph/round2-fix-arc.md`). The IP holds NOW + QUEUE + DONE + Context only. Round-3 closeout (EPIC_DONE halt) reversed by user 2026-05-05 directing A5+A6 land in PR #230 with cross-engine adversarial validation.
 
 ## NOW
 
-- [x] **EPIC_DONE halt written** — `.ralph/halt = {"reason":"EPIC_DONE","epic":2,"pr":230}`. PR #230 OPEN/MERGEABLE/UNSTABLE; pull_request CI run for HEAD `03eb497` GREEN; push CI run has 1 stuck-queued node job (runner availability, not code). § Cross-epic transition: Epic 2 done, Epic 3 backlog → next invocation after human merge auto-advances via `/bmad-create-story`.
+- [x] **Round-4 decompose** — Claude×2 + Codex×1 parallel adversarial validation of A5+A6 fix designs landed at `.ralph/round4-fix-arc.md`. Halt sentinel cleared. Trajectory: FIX-17 → FIX-18 → R4-WONTFIX-doc → sweep+EPIC_DONE.
 
-## QUEUE (none — closeout iter)
+## QUEUE (Round-4 fix-arc)
 
-## DONE (Round-3 only — Round-1+2 archived in git log + RALPH.md `iter:pr-230-fix-1..11` + `iter:pr-230-wontfix-d1d2d3` + `iter:pr-230-thread-resolve-sweep` + `iter:pr-230-epic2-halt`)
+- [ ] **FIX-17 (A5)** — interpreter string-literal symlink + literal-path scan in `.claude/hooks/block-secret-access.sh` Bash-arm; substrate↔seed byte-parity + manifest contentHash lockstep (L370 + L407); empirical 13-payload + R1+R2+R3 regression + codex sparring. Detail § FIX-17 of `.ralph/round4-fix-arc.md`.
+- [ ] **FIX-18 (A6)** — `sync-gate.ts` self-protection via NEW manifest entry `INV-keel-invariants-sync-gate-snapshots` (anchor-range scope around `EXPECTED_INVARIANT_IDS` + `BYTE_PARITY_PAIRS`); recursive ID add; INVARIANTS.md anchor; inline WONTFIX-comment for R4-Inv-I07 (manifest pointer-mutation). Detail § FIX-18.
+- [ ] **R4-WONTFIX-doc** — inline comment R4-H50 (heredoc interp form) at hook L294 region; substrate↔seed byte-parity + manifest lockstep. Detail § R4-WONTFIX-doc.
+- [ ] **Thread-resolve sweep + EPIC_DONE** — self-summary comment mapping FIX-17/FIX-18/WONTFIX → closing commits; resolve A5+A6 GraphQL threads; final CI gate; EPIC_DONE halt with R4-complete note. Detail § Halt criterion.
 
-- [iter-pr230-round3-decompose] decompose Round-3 review fan-out — `69341fa` (PR #230)
-- [iter-pr230-fix-12] close R3-Hook-A subshell-form bypass — `4420c3f` (PR #230)
-- [iter-pr230-fix-13] close R3-Hook-B verb-list + dot-source bypass — `d3c127a` (PR #230)
-- [iter-pr230-fix-14] wire keel-invariants drift gate to pre-commit + CI — `8115bb2` (PR #230)
-- [iter-pr230-fix-15] close awk-injection class via shape gates — `e4bf2d5` (PR #230)
-- [iter-pr230-fix-16] replace stale literal line refs with section refs — `4a8642b` (PR #230)
-- [iter-pr230-wontfix-r3] inline WONTFIX-doc R3-H48/H49/D03/D04 — `b1ee46d` (PR #230)
-- [iter-pr230-ci-watch-cb0894c] monitor PR CI on cb0894c — CI GREEN 4/4 (PR #230)
-- [iter-pr230-r3-self-summary] R3 closeout self-summary comment posted (issuecomment-4380346184) — FIX-12..16 + WONTFIX-doc map + DEFER A5/A6 + NOFIX (PR #230)
-- [iter-pr230-epic2-done-halt] EPIC_DONE halt written — PR #230 OPEN/MERGEABLE; PR-trigger CI GREEN at HEAD `03eb497`; push-trigger run had stuck-queued node (runner availability, not code); local commit only — NOT pushed (pre-push CI gate blocks while node-queue pending)
+## DONE (Round-4 only — Round-1+2+3 archived in git log + RALPH.md `iter:pr-230-fix-1..16` + `iter:pr-230-wontfix-d1d2d3` + `iter:pr-230-wontfix-r3` + `iter:pr-230-thread-resolve-sweep` + `iter:pr-230-epic2-done-halt`)
+
+- [iter-pr230-round4-decompose] Round-4 decompose — Claude×2 + Codex×1 parallel adversarial validation; A5+A6 designs verified SOUND (codex Q7 chicken-and-egg → false alarm; claude-A sync-gate.ts:227 confabulation disproven by direct read). R4-H50 (heredoc) → WONTFIX-doc; R4-H51 (`file`/`stat` metadata-readers) → NOFIX (not content-readers); R4-Inv-I07 (manifest pointer-mutation) → inline WONTFIX (pre-existing structural limit at anchor-range layer). Halt sentinel cleared. Audit transcripts `/tmp/codex_round4_audit_out.md` + Claude-A/B agent outputs.
 
 ## Context
 
-- **Phase:** 4-implementation — PR #230 Round-3 review-fix-arc closeout complete (FIX-12..16 + WONTFIX-doc landed; self-summary posted). Remaining: EPIC_DONE halt.
-- **Epic:** 2 — Sandboxed Execution Environment. All 18 stories `done`; PR #230 OPEN/CLEAN/MERGEABLE awaiting closeout.
+- **Phase:** 4-implementation — PR #230 Round-4 review-fix-arc IN-PROGRESS. User reversed Round-3 EPIC_DONE 2026-05-05 directing A5+A6 land in PR #230 with cross-engine adversarial validation (Claude+Codex consensus before commit).
+- **Epic:** 2 — Sandboxed Execution Environment. All 18 stories `done`; PR #230 OPEN/CLEAN/MERGEABLE awaiting Round-4 closeout.
 - **Epic Branch:** `feat/epic-2-packaged-devbox`.
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false; HEAD `288e676`; CI GREEN 4/4 (2 node + 2 python; runs 25382951041 + 25382953573). Live unresolved-thread count: 2 (A5+A6 DEFER-by-design). R3 closeout self-summary at issuecomment-4380346184.
+- **PR:** #230 OPEN, isDraft=false; HEAD `288e676` (PR-trigger CI 4/4 GREEN; 1 push-trigger node CANCELLED at 15min — runner timeout, not code). 1 unpushed local commit `cbc07aa` (prior Round-3 closeout intent IP — superseded by this Round-4 commit). Live unresolved-thread count: 2 (A5+A6 — to be resolved post-FIX-17+FIX-18). Pre-existing R3 closeout self-summary at issuecomment-4380346184.
