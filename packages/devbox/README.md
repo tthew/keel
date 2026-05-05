@@ -926,7 +926,7 @@ Container-side sshd `ListenAddress` is INTENTIONALLY unset. Container-loopback i
 
 ## Healthcheck (Story 2.13)
 
-Upstream cc-devbox shipped a `healthcheck.test: ["CMD", "curl", "-f", "http://localhost:3000"]` block whose target service does not exist at substrate scope — the container was permanently `unhealthy`, so `pnpm devbox:status` (Story 2.6 `status.sh:54`) and `pnpm devbox:start`'s healthcheck poll (Story 2.6 AC 2.6.4; `start.sh:92-120`) reported meaningless state. Story 2.13 replaces the broken probe with real service-liveness checks: dnsmasq via `dig @127.0.0.1 -p 53` (always), the egress nftables chain via `nft list chain` (always; root-gated — PR #230 review FIX-5), and sshd via `nc -z -w 2 127.0.0.1 2222` (when `KEEL_DEVBOX_SSH=true`).
+Upstream cc-devbox shipped a `healthcheck.test: ["CMD", "curl", "-f", "http://localhost:3000"]` block whose target service does not exist at substrate scope — the container was permanently `unhealthy`, so `pnpm devbox:status` (Story 2.6 `status.sh:54`) and `pnpm devbox:start`'s healthcheck poll (Story 2.6 AC 2.6.4; `start.sh:92-120`) reported meaningless state. Story 2.13 replaces the broken probe with real service-liveness checks: dnsmasq via `dig @127.0.0.1 -p 53` (always), the egress nftables `output_v4` + `output_v6` chains' presence + `policy drop` base disposition via `nft list chain ... | grep -q 'policy drop'` (always; root-gated — PR #230 review FIX-5 → FIX-10), and sshd via `nc -z -w 2 127.0.0.1 2222` (when `KEEL_DEVBOX_SSH=true`).
 
 ### Probe shape
 
@@ -936,7 +936,7 @@ healthcheck:
     - CMD-SHELL
     - >-
       dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
-      && { [ "$(id -u)" -ne 0 ] || nft list chain inet keel_egress output_v4 >/dev/null 2>&1; }
+      && { [ "$(id -u)" -ne 0 ] || ( nft list chain inet keel_egress output_v4 2>/dev/null | grep -q 'policy drop' && nft list chain inet keel_egress output_v6 2>/dev/null | grep -q 'policy drop' ); }
       && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z -w 2 127.0.0.1 2222; }
   interval: 10s
   timeout: 5s
@@ -945,7 +945,7 @@ healthcheck:
 ```
 
 - **Clause 1 (AC 2):** `dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com` — DNS query against the in-container dnsmasq (Story 2.3); exit 0 on any response (including `NXDOMAIN`), exit 9 on timeout / connection refused. Probes dnsmasq RESPONSIVENESS, not whitelist membership.
-- **Clause 2 (PR #230 review FIX-5):** `nft list chain inet keel_egress output_v4` — kernel netfilter chain-presence probe; exit 0 when the egress chain is present, non-zero on missing chain or `EPERM`. Gated on `[ "$(id -u)" -ne 0 ]` short-circuit: only root-running probes execute the chain query (`nft list` requires `CAP_NET_ADMIN` and the substrate compose pins `user: '0:0'` so HEALTHCHECK runs as root). Catches the manual-flush / runtime-tamper failure mode where the chain disappears mid-run; complements `start-egress.sh`'s boot-time fail-closed posture. Chain query verifies presence only — does NOT detect a failed `pnpm devbox:whitelist` reload (the previous ruleset stays active per `reload-egress.sh:289-293`).
+- **Clause 2 (PR #230 review FIX-5 → FIX-10):** `nft list chain inet keel_egress output_v4 2>/dev/null | grep -q 'policy drop' && nft list chain inet keel_egress output_v6 2>/dev/null | grep -q 'policy drop'` — kernel netfilter chain-presence + base-policy probe; exit 0 when BOTH the v4 AND v6 egress chains are present AND each carries `policy drop` as base disposition. Gated on `[ "$(id -u)" -ne 0 ]` short-circuit: only root-running probes execute the chain queries (`nft list` requires `CAP_NET_ADMIN` and the substrate compose pins `user: '0:0'` so HEALTHCHECK runs as root). FIX-5 verified `output_v4` presence only; FIX-10 (review A7) extends to v6 (egress.nft:84-149 ships v6 rules so v6 chain deletion was previously invisible) and policy-drop verification on both chains, matching the verification recipe at `nftables/egress.nft:27-28`. Catches the manual-flush / runtime-tamper failure mode AND the policy-flip case where a `CAP_NET_ADMIN`-holding caller replaces `policy drop` with `policy accept`. Complements `start-egress.sh`'s boot-time fail-closed posture. Chain query does NOT detect a failed `pnpm devbox:whitelist` reload (the previous ruleset stays active per `reload-egress.sh:289-293`); rule-content drift inside an otherwise-intact policy-drop chain remains uncovered (deferred to a future `healthcheck-egress.sh` smoke-script extraction per A7 threat-model caveat).
 - **Clause 3 (AC 3):** `nc -z -w 2 127.0.0.1 2222` — TCP three-way-handshake against sshd (Story 2.12); exit 0 on handshake, non-zero on refused / timeout. Gated on `[ "${KEEL_DEVBOX_SSH:-false}" != "true" ]` short-circuit: in default (`KEEL_DEVBOX_SSH=false`) mode, only clauses 1 + 2 run.
 
 ### Timing parameters

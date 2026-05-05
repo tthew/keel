@@ -293,27 +293,36 @@ services:
     # whitelist membership); dig exits non-zero only on timeout / connection
     # refused — the signal we care about.
     #
-    # Clause 2 (PR #230 review FIX-5; `nft list chain inet keel_egress
-    # output_v4`) verifies the egress chain is present in the kernel netfilter
-    # state. Catches the manual-flush / image-runtime-tamper failure mode where
-    # the chain disappears mid-run; complements start-egress.sh's boot-time
-    # fail-closed posture (entrypoint exits if init fails). The chain query
-    # requires CAP_NET_ADMIN from the calling thread; under no-new-privileges
-    # the file-cap on /usr/sbin/nft (Dockerfile:293) is masked on exec, so dev
-    # cannot list rules even with file caps. Docker HEALTHCHECK runs probes
-    # using container.Config.User (set to '0:0' by `user: "0:0"` above), so
-    # the probe runs as root with CAP_NET_ADMIN in the effective set. Belt-and-
-    # braces `[ "$(id -u)" -ne 0 ]` short-circuit makes the probe a no-op for
-    # forks that override `user:` to a non-root identity, preserving the
-    # dnsmasq + sshd liveness signal even when the chain probe is unavailable;
-    # such forks are responsible for surfacing nft-chain drift via a fork-
-    # specific compose-override probe per § Fork extension contract.
+    # Clause 2 (PR #230 review FIX-5 → FIX-10; `nft list chain inet keel_egress
+    # output_v4` + `output_v6` piped through `grep -q 'policy drop'`) verifies
+    # BOTH egress chains are present in the kernel netfilter state AND each
+    # carries `policy drop` as its base disposition. FIX-5 (presence-only on
+    # output_v4) closed the manual-flush / image-runtime-tamper case; FIX-10
+    # extends to (a) v6 chain coverage — egress.nft:84-149 ships v6 rules so a
+    # v6 chain deletion was previously invisible — and (b) policy-drop
+    # verification, which catches mid-run firewall corruption (e.g. partial
+    # `nft -f` failure during a whitelist reload that landed v4 but failed v6,
+    # or a CAP_NET_ADMIN-holding caller flipping `policy drop` to `policy
+    # accept`). Chain-content drift (rule deletion under CAP_NET_ADMIN against
+    # an existing policy-drop chain) remains uncovered by the inline probe per
+    # PR #230 review A7 threat-model caveat — defer to a future smoke-script
+    # extraction. The chain query requires CAP_NET_ADMIN from the calling
+    # thread; under no-new-privileges the file-cap on /usr/sbin/nft
+    # (Dockerfile:293) is masked on exec, so dev cannot list rules even with
+    # file caps. Docker HEALTHCHECK runs probes using container.Config.User
+    # (set to '0:0' by `user: "0:0"` above), so the probe runs as root with
+    # CAP_NET_ADMIN in the effective set. Belt-and-braces `[ "$(id -u)" -ne 0 ]`
+    # short-circuit makes the probe a no-op for forks that override `user:` to
+    # a non-root identity, preserving the dnsmasq + sshd liveness signal even
+    # when the chain probe is unavailable; such forks are responsible for
+    # surfacing nft-chain drift via a fork-specific compose-override probe per
+    # § Fork extension contract.
     healthcheck:
       test:
         - CMD-SHELL
         - >-
           dig @127.0.0.1 -p 53 +short +time=3 +tries=1 api.github.com >/dev/null
-          && { [ "$(id -u)" -ne 0 ] || nft list chain inet keel_egress output_v4 >/dev/null 2>&1; }
+          && { [ "$(id -u)" -ne 0 ] || ( nft list chain inet keel_egress output_v4 2>/dev/null | grep -q 'policy drop' && nft list chain inet keel_egress output_v6 2>/dev/null | grep -q 'policy drop' ); }
           && { [ "${KEEL_DEVBOX_SSH:-false}" != "true" ] || nc -z -w 2 127.0.0.1 2222; }
       interval: 10s
       timeout: 5s
