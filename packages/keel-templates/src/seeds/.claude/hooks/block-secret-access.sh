@@ -113,6 +113,19 @@ fi
 # Story 2.17 Task 7 — L1 install-boundary protection regex (shared by Edit|Write + Bash arms).
 l1_path_re='packages/keel-invariants/src/(invariants\.manifest\.ts|sync-gate\.ts|manifest-reader\.ts|prek-hook-manifest\.ts|prompt-injection-rules/)'
 
+# FIX-12 (PR #230 review-fix-arc R3-Hook-A) — verb-gate left-boundary char class
+# widened to admit ( ` $ so subshell forms ((rm .env), $(cat .env), `cat .env`)
+# cannot escape the verb gate. Stored in a variable so bash does not interpret
+# backtick + $ as command-substitution / parameter-expansion in inline =~
+# patterns (the inline arms below previously had to use [;&|] only because
+# inline backtick/$ would have triggered shell expansion before regex match).
+verb_left_re='(^|[[:space:]]|[`$();&|]+[[:space:]]*)'
+# Narrower variant for verbs that only fire at command position (e.g. env
+# dump). Excludes the bare [[:space:]] arm so substring matches in argument
+# text (`echo "Important env vars: PATH"`) do not falsely flag.
+subshell_left_re='(^|[`$();&|]+[[:space:]]*)'
+
+
 # D-17 — Read/Bash reader exemption for *.envrc.example / *.secrets.example / *.env.example
 # (schema-companion files, intentional documentation samples).
 # D-22 — guard: if the example path resolves through a symlink into a secret directory, DENY.
@@ -179,17 +192,17 @@ case "$tool_name" in
     # this — the FP cost is by design.
     protected_paths_re='(\.claude/settings|\.claude/hooks/|\.git/hooks/)'
     if [[ "$normalized" =~ $protected_paths_re ]]; then
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)rm([[:space:]]|>|$) ]]; then block "hook-self-protection" "rm-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)mv([[:space:]]|>|$) ]]; then block "hook-self-protection" "mv-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)chmod([[:space:]]|>|$) ]]; then block "hook-self-protection" "chmod-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)tee([[:space:]]|>|$) ]]; then block "hook-self-protection" "tee-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]])sed[[:space:]]+(-[a-zA-Z]*[iI]|--in-place) ]]; then block "hook-self-protection" "sed-i-against-protected"; fi
-      if [[ "$normalized" =~ ^echo[[:space:]] ]] && [[ "$normalized" =~ \> ]]; then block "hook-self-protection" "echo-redirect-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)cp([[:space:]]|>|$) ]]; then block "hook-self-protection" "cp-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)truncate([[:space:]]|>|$) ]]; then block "hook-self-protection" "truncate-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)dd([[:space:]]|>|$) ]]; then block "hook-self-protection" "dd-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}rm([[:space:]]|>|$) ]]; then block "hook-self-protection" "rm-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}mv([[:space:]]|>|$) ]]; then block "hook-self-protection" "mv-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}chmod([[:space:]]|>|$) ]]; then block "hook-self-protection" "chmod-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}tee([[:space:]]|>|$) ]]; then block "hook-self-protection" "tee-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}sed[[:space:]]+(-[a-zA-Z]*[iI]|--in-place) ]]; then block "hook-self-protection" "sed-i-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}echo[[:space:]] ]] && [[ "$normalized" =~ \> ]]; then block "hook-self-protection" "echo-redirect-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}cp([[:space:]]|>|$) ]]; then block "hook-self-protection" "cp-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}truncate([[:space:]]|>|$) ]]; then block "hook-self-protection" "truncate-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}dd([[:space:]]|>|$) ]]; then block "hook-self-protection" "dd-against-protected"; fi
       # D-37 — newly-covered verbs (install/ln/sponge) under unified match-name.
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)(install|ln|sponge)([[:space:]]|>|$) ]]; then block "hook-self-protection" "mutation-verb-against-protected"; fi
+      if [[ "$normalized" =~ ${verb_left_re}(install|ln|sponge)([[:space:]]|>|$) ]]; then block "hook-self-protection" "mutation-verb-against-protected"; fi
       # D-37 / FIX-9 (PR #230) — catch ANY redirect into a protected path with an optional
       # path prefix (`/workspace/.../.claude/settings.json`, `./.claude/...`, etc.). The
       # `[^[:space:]\"\']*` arm absorbs any non-whitespace/non-quote bytes between the redirect
@@ -197,26 +210,26 @@ case "$tool_name" in
       if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?[^[:space:]\"\']*(\.claude/settings|\.claude/hooks/|\.git/hooks/) ]]; then block "hook-self-protection" "redirect-against-protected"; fi
     fi
     # find -delete / find -exec rm against protected paths (regex — free-form find args).
-    if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*(\.claude/settings|\.claude/hooks/?|\.git/hooks/?).*(-delete|-exec[[:space:]]+rm) ]]; then
+    if [[ "$normalized" =~ ${verb_left_re}find[[:space:]].*(\.claude/settings|\.claude/hooks/?|\.git/hooks/?).*(-delete|-exec[[:space:]]+rm) ]]; then
       block "hook-self-protection" "find-delete-against-protected"
     fi
     # Task 7 — L1 install-boundary Bash mutation denial. Path-presence gate short-circuits non-L1.
     # D-37 (PR #230) — alternation widened with install/ln/sponge to mirror the protected-paths
     # block above. word-boundary semantics already match pipe-form via prior alternation.
     if [[ "$bash_command" =~ $l1_path_re || "$normalized" =~ $l1_path_re ]]; then
-      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)(rm|mv|chmod|tee|cp|truncate|dd|install|ln|sponge)([[:space:]]|>|$) ]]; then
+      if [[ "$normalized" =~ ${verb_left_re}(rm|mv|chmod|tee|cp|truncate|dd|install|ln|sponge)([[:space:]]|>|$) ]]; then
         block "install-boundary-protection" "mutation-verb-against-l1"
       fi
-      if [[ "$normalized" =~ (^|[[:space:]])sed[[:space:]]+-i ]]; then
+      if [[ "$normalized" =~ ${verb_left_re}sed[[:space:]]+-i ]]; then
         block "install-boundary-protection" "sed-i-against-l1"
       fi
-      if [[ "$normalized" =~ (^|[[:space:]])echo.*\> ]]; then
+      if [[ "$normalized" =~ ${verb_left_re}echo.*\> ]]; then
         block "install-boundary-protection" "echo-redirect-against-l1"
       fi
       if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?[^[:space:]\"\']*packages/keel-invariants/src/ ]]; then
         block "install-boundary-protection" "redirect-against-l1"
       fi
-      if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*-delete ]]; then
+      if [[ "$normalized" =~ ${verb_left_re}find[[:space:]].*-delete ]]; then
         block "install-boundary-protection" "find-delete-against-l1"
       fi
     fi ;;
@@ -232,16 +245,16 @@ esac
 # /proc/k{core,mem,allsyms}. Regex form replaces the prior /proc/*/environ-only case-glob chain.
 case "$tool_name" in
   Bash)
-    if [[ "$normalized" =~ ^(env|export|set)([[:space:]]|$) ]]; then
+    if [[ "$normalized" =~ ${subshell_left_re}(env|export|set)([[:space:]]|\`|$) ]]; then
       block "secret-access-denylist" "env-dump-bare"
     fi
     # D-31 — /proc reader detection via regex (word-boundary verb + expanded secret-bearing paths).
     # Replaces prior 19-alternative `cat*/proc/*/environ*|...` case-glob; far more maintainable.
-    reader_verb_re='(^|[[:space:]]|[;&|]+[[:space:]]*)(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd)[[:space:]]'
+    reader_verb_re="${verb_left_re}(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd)[[:space:]]"
     # D-38 (PR #230 review-fix-arc, FIX-1) — flag-class widened to alphanumeric so digit
     # chars in interpreter flags (e.g. `perl -0ne …`) participate in verb-match. Prior
     # `[a-zA-Z]*[ec]` rejected `0` and let `perl -0ne … .env` slip past the gate.
-    interp_verb_re='(^|[[:space:]]|[;&|]+[[:space:]]*)(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z0-9]*[ec]'
+    interp_verb_re="${verb_left_re}(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z0-9]*[ec]"
     proc_secret_re='/proc/([0-9]+|self)/(cmdline|environ|mem|status|auxv|maps|stack|syscall|io)|/proc/(kcore|kmem|kallsyms)'
     if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re ]]; then
       if [[ "$normalized" =~ $proc_secret_re ]]; then
@@ -262,8 +275,8 @@ case "$tool_name" in
     # (`perl -0ne "...\".env\"..."`) treat the surrounding `\` as a token boundary.
     # `.envrc` / `.secrets` / oauth-dir / ssh-dir keep left-boundary only (preserves prior
     # trailing-`*` permissive semantics — they already tolerated quote/pipe trailing).
-    secret_left_re='(^|[[:space:]"'\''(/|&;<>:=\])'
-    secret_right_re='([[:space:]"'\''()|&;<>:=\]|$)'
+    secret_left_re='(^|[[:space:]"'\''`$(/|&;<>:=\])'
+    secret_right_re='([[:space:]"'\''()|&;<>:=`$\]|$)'
     # WONTFIX (PR #230 D2) — quoted-literal FP: `echo "docs mention printenv"` blocks
     # because the regex sees the raw command string without parsing shell quoting. A
     # quote-stripping pre-pass (`sed -E 's/"[^"]*"//g'`) re-introduces the leading-

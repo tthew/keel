@@ -4,12 +4,10 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 
 ## NOW
 
-- [x] Round-3 adversarial review fan-out (4 parallel Claude personas: Hook / Invariants / Devbox / Mergeability) → consensus reached: 4 HIGH-severity new bypass classes + 1 LOW housekeeping. Decomposed into FIX-12..16 + WONTFIX/DEFER. Detail: `.ralph/round3-fix-arc.md`. Per-finding empirical evidence: `/tmp/r3_{hook,invariants,devbox,mergeability}_findings.md`. Independent verification of top 3 high-impact claims via direct code read (hook L240+L244, `.pre-commit-config.yaml`, `reload-egress.sh:44+260+321`).
+- [ ] **FIX-13** (R3-Hook-B) — extend `reader_verb_re` with `wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget`; add separate dot-sourcing detection for `source` + `.`. Substrate↔seed + manifest lockstep. Adversarial: 24 R3-Hook-B payloads + dot-sourcing + curl-file-uri must flip APPROVE→BLOCK. ~medium.
 
 ## QUEUE (Round-3 fix-arc; pull from `.ralph/round3-fix-arc.md`)
 
-- [ ] **FIX-12** (R3-Hook-A) — widen verb-gate left-boundary char class to include `(`, `` ` ``, `$` at all ~13 sites in `.claude/hooks/block-secret-access.sh`. Substrate↔seed byte-parity + manifest contentHash lockstep. Adversarial: 23 R3-Hook-A payloads must flip APPROVE→BLOCK; Round-1+2 regression must stay BLOCK; FP-scan against legitimate `cat $(echo notes.txt)` style. ~medium.
-- [ ] **FIX-13** (R3-Hook-B) — extend `reader_verb_re` with `wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget`; add separate dot-sourcing detection for `source` + `.`. Substrate↔seed + manifest lockstep. Adversarial: 24 R3-Hook-B payloads + dot-sourcing + curl-file-uri must flip APPROVE→BLOCK. ~medium.
 - [ ] **FIX-14** (R3-Inv-I01) — wire `pnpm keel-invariants:check` to BOTH `.pre-commit-config.yaml` (operator-side, ~0.77s) AND `.github/workflows/ci.yml` (CI backstop). Adversarial: drop one ID from `EXPECTED_INVARIANT_IDS` → must fail; mutate `BYTE_PARITY_PAIRS` substrate file → must fail. No L1, no manifest bump. ~small.
 - [ ] **FIX-15** (R3-Devbox-D01) — three-leg awk-injection shape gates: (a) case-pattern shape gate on `KEEL_DEVBOX_DNS_UPSTREAM` (mirror FIX-6 REPO_NAME); (b) post-mapfile domain shape gate (closes supply-chain leg); (c) doc note in `docs/invariants/devbox-egress.md` § Threat-model. Adversarial: end-to-end `KEEL_DEVBOX_DNS_UPSTREAM='1.1.1.1\nip daddr 0.0.0.0/0 accept'` injection → FATAL exit. ~medium.
 - [ ] **FIX-16** (R3-D02 — OPTIONAL) — doc-drift housekeeping at 4 cross-reference sites in `reload-egress.sh` + `Dockerfile`; replace literal line numbers with file/function-name refs. ~small. Land if budget permits; else defer.
@@ -19,7 +17,8 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 
 ## DONE (Round-3 only — Round-1+2 archived in git log, RALPH.md `iter:pr-230-fix-1..11` + `iter:pr-230-wontfix-d1d2d3` + `iter:pr-230-thread-resolve-sweep` + `iter:pr-230-epic2-halt`)
 
-- [iter-pr230-round3-decompose] Round-3 (4 HIGH new bypass classes + 1 LOW housekeeping) decomposed FIX-12..16 + WONTFIX + DEFER-continue — pending commit
+- [iter-pr230-round3-decompose] Round-3 (4 HIGH + 1 LOW) decomposed FIX-12..16 + WONTFIX + DEFER-continue
+- [iter-pr230-fix-12] FIX-12 (R3-Hook-A) verb-gate left-boundary widening landed via `verb_left_re`/`subshell_left_re` shared vars; +secret_left/right_re backtick admit; +env-dump-bare subshell-narrowed; 23/23 R3-Hook-A flip; 82/82 hook fixtures + 56/56 vitest preserved
 
 ## Context
 
