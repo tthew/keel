@@ -74,8 +74,17 @@ block() {
 if [ "$tool_name" = "Bash" ]; then
   normalized="$bash_command"
   for _ in 1 2 3; do
-    if [[ "$normalized" =~ ^(bash|sh)[[:space:]]+-c[[:space:]]+[\"\']?(.*)$ ]]; then
-      normalized="${BASH_REMATCH[2]}"
+    # FIX-19 (PR #230 R5-A1) — alternate-shell wrapper coverage. Original `(bash|sh)`
+    # alternation missed zsh|dash|ksh|mksh|ash|fish|csh|tcsh|busybox sh, allowing trivial
+    # bypass of secret-access-denylist + hook-self-protection + --no-verify gates via
+    # `<shell> -c '<inner>'` forms (verb_left_re excludes `'`/`"` so the quoted inner verb
+    # routes around the gate). Path-prefix forms (/usr/bin/zsh), flag-bundle forms (-ic,
+    # -lc), separate-flag forms (-i -c), long-flag forms (--no-rcs), and busybox-sh form
+    # all covered. Multi-wrap (zsh wraps bash wraps inner) closes via the existing 3-round
+    # normalization loop. ${BASH_REMATCH[8]} = inner command; capture-group count:
+    # (path1)(usr2)(local3)(shell4)(flagArm5)(flagAlt6)(flagEq7)(inner8) = 8.
+    if [[ "$normalized" =~ ^(/(usr/(local/)?)?bin/)?(busybox[[:space:]]+sh|bash|sh|zsh|dash|ksh|mksh|ash|fish|csh|tcsh)([[:space:]]+(-[a-zA-Z]+|--[a-zA-Z][a-zA-Z-]*(=[^[:space:]]+)?))*[[:space:]]+-[a-zA-Z]*c[a-zA-Z]*[[:space:]]+[\"\']?(.*)$ ]]; then
+      normalized="${BASH_REMATCH[8]}"
     elif [[ "$normalized" =~ ^\$\'(.*)\'$ ]]; then
       # D-37 — ANSI-C `$'...'` strip. Common after a bash -c arm consumes the outer wrapper.
       # Both the leading `$'` and trailing `'` are required so the greedy (.*) leaves the trailing
