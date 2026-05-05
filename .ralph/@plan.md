@@ -4,10 +4,11 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 
 ## NOW
 
-- [ ] **FIX-13** (R3-Hook-B) — extend `reader_verb_re` with `wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget`; add separate dot-sourcing detection for `source` + `.`. Substrate↔seed + manifest lockstep. Adversarial: 24 R3-Hook-B payloads + dot-sourcing + curl-file-uri must flip APPROVE→BLOCK. ~medium.
+- [ ] **Monitor PR CI — queue fix tasks for any failures** (FIX-12 push at `4420c3f`; § Pre-push CI gate § step-0h next iter). After GREEN, drop FIX-13 into NOW.
 
 ## QUEUE (Round-3 fix-arc; pull from `.ralph/round3-fix-arc.md`)
 
+- [ ] **FIX-13** (R3-Hook-B) — extend `reader_verb_re` with `wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget`; add separate dot-sourcing detection for `source` + `.`. Substrate↔seed + manifest lockstep. Adversarial: 24 R3-Hook-B payloads + dot-sourcing + curl-file-uri must flip APPROVE→BLOCK. ~medium.
 - [ ] **FIX-14** (R3-Inv-I01) — wire `pnpm keel-invariants:check` to BOTH `.pre-commit-config.yaml` (operator-side, ~0.77s) AND `.github/workflows/ci.yml` (CI backstop). Adversarial: drop one ID from `EXPECTED_INVARIANT_IDS` → must fail; mutate `BYTE_PARITY_PAIRS` substrate file → must fail. No L1, no manifest bump. ~small.
 - [ ] **FIX-15** (R3-Devbox-D01) — three-leg awk-injection shape gates: (a) case-pattern shape gate on `KEEL_DEVBOX_DNS_UPSTREAM` (mirror FIX-6 REPO_NAME); (b) post-mapfile domain shape gate (closes supply-chain leg); (c) doc note in `docs/invariants/devbox-egress.md` § Threat-model. Adversarial: end-to-end `KEEL_DEVBOX_DNS_UPSTREAM='1.1.1.1\nip daddr 0.0.0.0/0 accept'` injection → FATAL exit. ~medium.
 - [ ] **FIX-16** (R3-D02 — OPTIONAL) — doc-drift housekeeping at 4 cross-reference sites in `reload-egress.sh` + `Dockerfile`; replace literal line numbers with file/function-name refs. ~small. Land if budget permits; else defer.
