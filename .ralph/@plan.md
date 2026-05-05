@@ -20,6 +20,7 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 - [iter-pr230-fix-12-ci] FIX-12 push `4420c3f` CI monitored GREEN (4/4 checks pass — node × 2, python × 2)
 - [iter-pr230-fix-13] FIX-13 (R3-Hook-B + sub-agent C1/C2/C3/C4 broadening) landed; reader_verb_re widened 14→50 verbs, dotsource_re added (asymmetric verb_left_re/subshell_left_re for FP avoidance), wrapper-strip extended `eval` arm to also strip `builtin|command|exec`. example_read_re lockstep extension. substrate↔seed byte-parity + manifest contentHash lockstep substrate L370 + seed L407 (`27cfc8a9…` → `d6b5c6be…`). 77/77 adversarial pass + 82/82 hook fixtures + 56/56 vitest + typecheck + lint green
 - [iter-pr230-fix-13-ci] FIX-13 push `d3c127a` CI monitored GREEN (4/4 checks pass — node × 2, python × 2 against HEAD `d3c127a`). FIX-14 promoted to NOW.
+- [iter-pr230-fix-14-precheck] Chore IP commit `d1e6c4c` (NOW=FIX-14) CI monitored GREEN (4/4 checks pass — 2× node + 2× python at HEAD `d1e6c4c`). Pre-push gate clear; next iter commences FIX-14 (R3-Inv-I01 — wire `pnpm keel-invariants:check` to `.pre-commit-config.yaml` + `.github/workflows/ci.yml`).
 
 ## Context
 
