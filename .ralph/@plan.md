@@ -21,6 +21,7 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 - [iter-pr230-r4-wontfix-doc-ci-watch] CI 4/4 GREEN @ `55b7208` (R4-WONTFIX-doc push-trigger). Workflow runs 25388959321 + 25388962686 both node+python pass. Pre-thread-resolve-sweep push-clean state confirmed. (One transient `gh pr checks --watch` 504 mid-poll re-run cleanly on retry; not a CI signal.)
 - [iter-pr230-r4-self-summary] Round-4 landing-summary comment posted on PR #230 (`https://github.com/tthew/keel/pull/230#issuecomment-4381196818`). Comment maps FIX-17 → `5ea5a7c` / FIX-18 → `857fe00` / R4-H50 → `55b7208`, includes adversarial-5+1 evidence + Codex sparring B1 disprove + next-iter thread-resolve preview. PR-metadata-only — no repo file changes. IP update on this iter triggers next CI run on push.
 - [iter-pr230-r4-self-summary-ci-watch] CI 4/4 GREEN @ `6eb58b2` (self-summary IP-bookkeeping push-trigger). Two concurrent workflow runs (`25389428079` + `25389430712`) both node+python pass. Pre-thread-resolve-sweep push-clean state confirmed.
+- [iter-pr230-r4-pre-thread-resolve-ci-watch] CI 4/4 GREEN @ `7498dbb` (prior IP-bookkeeping push-trigger). Workflow runs `25389563279` + `25389566319` both node+python pass. Iter started with CI in-flight (per § 0h); blocked on `gh pr checks --watch --fail-fast` to GREEN before starting next work. Pre-thread-resolve-sweep push-clean state confirmed.
 
 ## Context
 
@@ -30,4 +31,4 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false, MERGEABLE/CLEAN; HEAD `3d5ea16` (prior IP-bookkeeping commit; CI 4/4 GREEN on workflow runs `25389191490` + `25389193596`). FIX-17 + FIX-18 + R4-H50 WONTFIX-doc all landed; landing-summary comment posted (`#issuecomment-4381196818`). Live unresolved-thread count: 2 (A5+A6 — pending GraphQL `resolveReviewThread` sweep next iter after CI-watch).
+- **PR:** #230 OPEN, isDraft=false, MERGEABLE/CLEAN (mergeStateStatus=UNSTABLE pre-watch flips to CLEAN once CI settles in API); HEAD `7498dbb` (prior IP-bookkeeping commit; CI 4/4 GREEN on workflow runs `25389563279` + `25389566319`). FIX-17 + FIX-18 + R4-H50 WONTFIX-doc all landed; landing-summary comment posted (`#issuecomment-4381196818`). Live unresolved-thread count: 2 (A5+A6 — pending GraphQL `resolveReviewThread` sweep next iter; CI now CLEAN, push-safe).
