@@ -51,8 +51,9 @@ log() { printf 'reload-egress: %s\n' "$*" >&2; }
 # --- Shape gate: KEEL_DEVBOX_DNS_UPSTREAM (PR #230 Round-3 R3-Devbox-D01) -
 # UPSTREAM_RESOLVER flows unvalidated into `awk -v ipv4_rules=...` /
 # `awk -v server_block=...` and into the per-domain `server=/<d>/<resolver>`
-# render at line ~307. An operator (or compromised env) supplying a value
-# containing whitespace, newline, or shell-meta would inject directives into
+# render in § "Render dnsmasq config (SC-5 step 4)". An operator (or
+# compromised env) supplying a value containing whitespace, newline, or
+# shell-meta would inject directives into
 # the rendered dnsmasq.conf or break the awk -v assignment shape. Reject any
 # value that contains a character outside the IPv4 / IPv6 literal class
 # (`[0-9a-fA-F:.]`) BEFORE first use — fails exit 6 with the offending value
@@ -146,9 +147,10 @@ trap cleanup EXIT
 mapfile -t domains < <(awk 'NF { print }' "${whitelist_path}")
 
 # --- Per-domain shape gate (PR #230 Round-3 R3-Devbox-D01 supply-chain leg)
-# Each domain entry flows into `server=/<domain>/<resolver>` (line ~307) and
-# `nftset=/<domain>/...` (lines ~316-317), both rendered into `dnsmasq.conf`
-# via `awk -v server_block=...`. A compromised whitelist fragment (malicious
+# Each domain entry flows into `server=/<domain>/<resolver>` and
+# `nftset=/<domain>/...` (both rendered into `dnsmasq.conf` by
+# § "Render dnsmasq config (SC-5 step 4)" via `awk -v server_block=...`).
+# A compromised whitelist fragment (malicious
 # upstream PR adding `foo.com<NL>address=/x.example/2.2.2.2` to a category
 # file, or a single-line entry with embedded shell-meta) would inject
 # arbitrary dnsmasq directives — multi-line via the post-awk-NF residual,
@@ -197,8 +199,9 @@ fi
 # regardless of whether dnsmasq is currently running. Two reasons:
 #
 # (1) Correctness — newly-added whitelist domain. The script renders
-#     dnsmasq's new `server=` directives for the new domain LATER (line ~330)
-#     and SIGHUPs LATER (line ~370). At resolution time, the still-running
+#     dnsmasq's new `server=` directives for the new domain LATER (in
+#     § "Render dnsmasq config (SC-5 step 4)") and SIGHUPs LATER (in
+#     § "Reload or start dnsmasq (SC-5 step 5)"). At resolution time, the still-running
 #     dnsmasq has no `server=` for the new domain, so it serves it from the
 #     `address=/#/0.0.0.0` / `address=/#/::` fail-closed default and we
 #     would otherwise emit `ip daddr 0.0.0.0 accept` / `ip6 daddr :: accept`
@@ -216,7 +219,8 @@ fi
 # domains by construction (callsite reads the composed-whitelist file
 # directly), so dnsmasq's per-name allow check is redundant here. The
 # upstream resolver IP is itself already whitelisted by the script's own
-# `nft_ipv4_rules` / `nft_ipv6_rules` injection at line ~225, so dig's
+# `nft_ipv4_rules` / `nft_ipv6_rules` injection (§ "Resolve domains →
+# IPv4/IPv6 allow-rules"), so dig's
 # outbound query reaches the upstream regardless of nft state.
 #
 # `dnsutils` (bind9-dnsutils) is in the base Dockerfile apt install set; no
@@ -226,7 +230,7 @@ resolve_ipv4() {
 	# Defensive sentinel-skip: if `${UPSTREAM_RESOLVER}` is a loopback
 	# (e.g. operator points at 127.0.0.1 to chain through dnsmasq), the
 	# response for an unwhitelisted-by-dnsmasq domain is `address=/#/0.0.0.0`
-	# (per dnsmasq.conf:59 fail-closed default) — without the explicit `!=
+	# (per dnsmasq.conf § "Fail-closed default (SC-12)") — without the explicit `!=
 	# "0.0.0.0"` filter we would emit `ip daddr 0.0.0.0 accept`, a meaningless
 	# rule that creates allow-noise without actually allowing the intended
 	# upstream IP. Same guard for the link-local-broadcast sentinel
@@ -237,7 +241,7 @@ resolve_ipv4() {
 resolve_ipv6() {
 	local d="$1"
 	# Defensive sentinel-skip: see resolve_ipv4 — `::` is dnsmasq's IPv6
-	# fail-closed fallback (address=/#/:: per dnsmasq.conf:60). Adding
+	# fail-closed fallback (address=/#/:: per dnsmasq.conf § "Fail-closed default (SC-12)"). Adding
 	# `ip6 daddr :: accept` to the chain would be a meaningless allow-noise
 	# rule. `::1` (loopback) is also excluded as a defensive belt-and-braces
 	# against malformed AAAA replies.

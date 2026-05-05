@@ -369,7 +369,7 @@ RUN userdel -r ubuntu 2>/dev/null || true \
 RUN install -m 0644 -o root -g root /dev/null /var/log/dnsmasq.log
 
 # Story 2.13 Task 5 — Story 2.12 iter-279 D-1 absorption.
-# Pre-create sshd.log with root:root 0644. The entrypoint.sh:235 launch
+# Pre-create sshd.log with root:root 0644. The entrypoint.sh launch
 # `gosu dev /usr/sbin/sshd -D -e 2>>/var/log/sshd.log &` opens the stderr
 # fd in the PARENT SHELL (running as root pre-gosu), so the DAC check
 # at open() is "root opens root:root 0644 for append" — owner-rw bit
