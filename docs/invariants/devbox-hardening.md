@@ -171,6 +171,23 @@ docker exec keel-devbox sh -c 'ss -tlnp | grep :53'
 
 Both DinD-A (true Docker-in-Docker, isolated daemon) and DinD-B (host socket-passthrough via `/var/run/docker.sock` bind-mount) preserve the hardening posture — the Docker daemon applies `cap_drop` / `cap_add` / `security_opt` / `tmpfs` / `volumes` at container-start regardless of which backend fronts the daemon. Live smokes that exercise `docker exec` against cap-dropped containers are operator-workstation-deferred under DinD-B per Story 2.4 SC-17 precedent — the DinD-B environment cannot safely exercise the full `docker exec` sequence without risk of poisoning the host's docker state. The M4-Pro native-Docker-Desktop run is authoritative for AC 5 + AC 2 bounding-set verification.
 
+## Defense-in-depth gaps (accepted-residual; fork-time hardening guidance)
+
+The PR #230 Round-3 adversarial review (2026-05-05) surfaced an enumeration of `sshd_config` (Story 2.12) directives that fall back to upstream OpenSSH defaults rather than being explicitly tightened, plus one capability-set residual. None constitutes a privilege escalation against the substrate hardening contract above; all reduce blast radius incrementally and are appropriate fork-time hardening additions for operators with stricter postures (e.g. shared multi-tenant devbox deployments).
+
+**R3-D03 — sshd implicit-default residuals.** The substrate `sshd_config` correctly sets `PermitRootLogin no`, `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `UsePAM no`, `AllowUsers dev`, `PubkeyAuthentication yes`. Implicit-default directives that fork operators with stricter postures may want to override:
+
+- `AllowTcpForwarding no` (default `yes`) — `-L` / `-D` tunnels remain available to a session whose dev key was leaked. The Story 2.3 egress firewall still confines tunnel destinations to the dnsmasq + nftables allowlist, so this is not a privilege escalation; setting `no` reduces blast radius and removes a forwarding form that is harder to detect than direct egress.
+- `AllowAgentForwarding no` (default `yes`) — same defense-in-depth posture as TCP forwarding.
+- `MaxAuthTries 3` (default `6`), `LoginGraceTime 30` (default `120`), `MaxStartups 3:30:10` (default `10:30:100`) — auth-rate / connection-rate DoS limiters.
+- `PermitUserRC no` (default `yes`) — `~/.ssh/rc` bash escape hatch on session startup.
+
+**R3-D04 — `cap_add: NET_RAW` may be unused.** The `docker-compose.yml` `cap_add` list re-adds `NET_RAW` with the inline rationale that dnsmasq may issue raw-socket health probes. The current `dnsmasq.conf` does not enable any feature documented to require AF_PACKET (`--enable-tftp`, `--ptr-record`, server-script integrations); standard DNS forwarding uses SOCK_DGRAM / SOCK_STREAM. The `start-egress.sh` `/dev/tcp` healthcheck also uses standard SOCK_STREAM, not raw. Removing `NET_RAW` would tighten the bounding set with no anticipated functional regression; empirical confirmation is operator-workstation-deferred (cf. Story 2.4 SC-17 precedent) and tracked as a posture-tightening follow-up. The substrate retains `NET_RAW` until that confirmation lands.
+
+**Load-bearing layers.** The Story 2.3 fail-closed **egress firewall** (`docs/invariants/devbox-egress.md` — dnsmasq + nftables IPv4/IPv6 default-deny) and the Story 2.8 / 2.9 OAuth named-volume isolation are the load-bearing layers against the residual classes above. The `sshd` directives + capability set are defense-in-depth; their residuals are bounded by the egress firewall's enforcement.
+
+**Substrate stance.** R3-D03 and R3-D04 are filed as **INFO / accepted-residual** within Round-3 substrate-attack-surface scope. Forks that need to tighten any of these directives extend `sshd_config` or narrow the `cap_add` list via the AMEND path (source-level PR against this doc + `invariants.manifest.ts` + `INVARIANTS.md` anchor) or via `INVARIANTS.fork.md` (per `docs/invariants/fork.md` § Precedence — fork-additive only, substrate-wins). ⊗ Do NOT relax any directive currently set by the substrate.
+
 ## Companion invariants
 
 This contract composes with two peer Epic-2 substrate-security invariants to form the fork-time posture:

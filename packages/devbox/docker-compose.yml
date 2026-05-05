@@ -182,6 +182,16 @@ services:
     #                         cap-bounding-set × port-bind interaction was
     #                         surfaced; documented in docs/invariants/devbox-
     #                         hardening.md § Capability bounding set).
+    # WONTFIX (PR #230 R3-D04) — NET_RAW may be unused by the current dnsmasq
+    # config (no `--enable-tftp` / `--ptr-record` / server-script features
+    # require AF_PACKET; `/dev/tcp` healthcheck at start-egress.sh uses
+    # SOCK_STREAM, not raw). Removing it would tighten the bounding set with
+    # no functional regression — empirical confirmation requires running the
+    # container without the cap and observing dnsmasq + healthcheck pass on
+    # the operator workstation (deferred to a follow-up posture-tightening
+    # PR; landing this acknowledgement preserves auditability of the open
+    # question). Accepted-residual class — see docs/invariants/devbox-
+    # hardening.md § Defense-in-depth gaps.
     # `security_opt: [no-new-privileges:true]` sets PR_SET_NO_NEW_PRIVS=1 on
     # PID 1 — kernel masks file-cap F(effective) on exec + disables setuid
     # bit elevation. Capability propagation under USER dev uses Docker ≥19.03

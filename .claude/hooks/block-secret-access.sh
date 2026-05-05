@@ -255,10 +255,28 @@ case "$tool_name" in
     # D-31 — /proc reader detection via regex (word-boundary verb + expanded secret-bearing paths).
     # Replaces prior 19-alternative `cat*/proc/*/environ*|...` case-glob; far more maintainable.
     reader_verb_re="${verb_left_re}(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd|wc|nl|hexdump|tac|pv|column|jq|yq|tr|read|mapfile|curl|wget|paste|cmp|comm|diff|fmt|fold|expand|unexpand|pr|rev|md5sum|sha256sum|sha1sum|b3sum|cksum|zcat|bzcat|xzcat|lzcat|zless|zgrep|bzgrep|xzgrep)[[:space:]]"
+    # WONTFIX (PR #230 R3-H48) - verb-trailing `[[:space:]]` class accepts
+    # whitespace only; no-space verb-trailing forms (`cat<.env`, `cat>.env`,
+    # `cat;.env`) bypass the gate. Do NOT loosen the trailing class to
+    # admit `<` / `>` / `;` / `|` without a quote/heredoc-aware pre-pass:
+    # would FP on `cat<<HEREDOC`, `cat<<EOF`, and similar legitimate forms.
+    # Operators reaching for no-space-trailing readers against secret paths
+    # is itself a workflow-anti-pattern (the Read tool exists for this);
+    # accepted-residual class.
     # D-38 (PR #230 review-fix-arc, FIX-1) — flag-class widened to alphanumeric so digit
     # chars in interpreter flags (e.g. `perl -0ne …`) participate in verb-match. Prior
     # `[a-zA-Z]*[ec]` rejected `0` and let `perl -0ne … .env` slip past the gate.
     interp_verb_re="${verb_left_re}(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z0-9]*[ec]"
+    # WONTFIX (PR #230 R3-H49) - static-vs-dynamic analysis limit. The hook
+    # regex-matches the raw command string; it does NOT shell-evaluate sub-
+    # expressions before matching. Constructs concealing a reader-verb
+    # behind a runtime decode (`bash -c "$(echo Y2F0IC5lbnY= | base64 -d)"`,
+    # `eval "$(...)"`) evade detection because the post-decode `cat .env`
+    # exists only after bash spawns a child shell. Adding runtime evaluation
+    # would require a sandboxed shell evaluator (out of scope for a regex-
+    # based gate); the egress firewall (Story 2.3) + OAuth named-volume
+    # isolation (Stories 2.8 / 2.9) are the load-bearing layers against
+    # this class. Accepted-residual class. Do NOT add runtime analysis.
     # FIX-13 (PR #230 review-fix-arc, R3-Hook-B) — dot-sourcing detection. `source <file>`
     # and `. <file>` shell-EVALUATE the file contents (more dangerous than reader-verb leak:
     # env vars from a sourced secret leak into every subsequent command). Literal `.` form
