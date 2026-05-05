@@ -4,11 +4,11 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 
 ## NOW
 
-- [ ] **Resolve A5+A6 GraphQL review threads** — fetch live unresolved-thread IDs via `gh api graphql` querying `pullRequest.reviewThreads(first:100)`, filter `isResolved=false`, identify A5 (interp string-literal) + A6 (sync-gate snapshot) threads by anchor commit/path, then issue `mutation { resolveReviewThread(input:{threadId:...}) }` for each. Verify post-resolve unresolved count = 0.
+- [ ] **Final CI gate + EPIC_DONE halt** — Step-0h CI watch on the IP-update commit; once GREEN, `gh pr checks 230 --fail-fast` confirms 4/4 GREEN on HEAD. Write `{"reason":"EPIC_DONE","epic":2,"pr":230,"note":"R4-complete: FIX-17 (A5) + FIX-18 (A6) + R4-H50 WONTFIX-doc landed; A5+A6 threads resolved (post-resolve count = 0); awaiting human merge"}` to `$RALPH_BASE_DIR/halt`. **Monitor-bookkeeping-loop-break clause** (RALPH.md `iter:pr-review-4` + `iter:pr-230-epic2-halt`): combine watch + halt-write in same iter — halt-write is `~small`. If red, queue per-failure fix tasks per § CI Monitoring.
 
 ## QUEUE (Round-4 fix-arc)
 
-- [ ] **Final CI gate + EPIC_DONE halt** — `gh pr checks 230 --fail-fast` confirms 4/4 GREEN on HEAD. If green, write `{"reason":"EPIC_DONE","epic":2,"pr":230,"note":"R4-complete: FIX-17 (A5) + FIX-18 (A6) + R4-H50 WONTFIX-doc landed; threads resolved; awaiting human merge"}` to `$RALPH_BASE_DIR/halt`. If red, queue per-failure fix tasks per protocol § CI Monitoring.
+_(empty — final-gate-halt is terminal for Epic 2 fix-arc; PR #230 awaits human merge → § Cross-epic transition picks up Epic 3 Story 3.1.)_
 
 ## DONE (Round-4 only — Round-1+2+3 archived in git log + RALPH.md `iter:pr-230-fix-1..16` + `iter:pr-230-wontfix-d1d2d3` + `iter:pr-230-wontfix-r3` + `iter:pr-230-thread-resolve-sweep` + `iter:pr-230-epic2-done-halt`)
 
@@ -22,6 +22,7 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 - [iter-pr230-r4-self-summary] Round-4 landing-summary comment posted on PR #230 (`https://github.com/tthew/keel/pull/230#issuecomment-4381196818`). Comment maps FIX-17 → `5ea5a7c` / FIX-18 → `857fe00` / R4-H50 → `55b7208`, includes adversarial-5+1 evidence + Codex sparring B1 disprove + next-iter thread-resolve preview. PR-metadata-only — no repo file changes. IP update on this iter triggers next CI run on push.
 - [iter-pr230-r4-self-summary-ci-watch] CI 4/4 GREEN @ `6eb58b2` (self-summary IP-bookkeeping push-trigger). Two concurrent workflow runs (`25389428079` + `25389430712`) both node+python pass. Pre-thread-resolve-sweep push-clean state confirmed.
 - [iter-pr230-r4-pre-thread-resolve-ci-watch] CI 4/4 GREEN @ `7498dbb` (prior IP-bookkeeping push-trigger). Workflow runs `25389563279` + `25389566319` both node+python pass. Iter started with CI in-flight (per § 0h); blocked on `gh pr checks --watch --fail-fast` to GREEN before starting next work. Pre-thread-resolve-sweep push-clean state confirmed.
+- [iter-pr230-r4-thread-resolve-sweep] Round-4 thread-resolve sweep complete (A5 + A6 → 0 unresolved). GraphQL `mutation { resolveReviewThread(input:{threadId:...}) }` on `PRRT_kwDOSAH0485_k8GF` (A5, hook L376, FIX-17 `5ea5a7c`) + `PRRT_kwDOSAH0485_k8HH` (A6, sync-gate.ts L138, FIX-18 `857fe00`); pre-resolve count 2 → post-resolve 0 (verified `gh api graphql ... reviewThreads | jq '[...|select(.isResolved==false)]' = []`). Pre-iter CI 4/4 GREEN @ `5c928a8` (workflow runs `25389657053` + `25389658881`); iter started with CI in-flight (per § 0h), blocked on watch-to-green before resolve. **No per-thread reply posted** — landing-summary `#issuecomment-4381196818` already maps FIX-17 → `5ea5a7c` + FIX-18 → `857fe00` at PR-conversation level (per `iter:pr-230-r3-self-summary` carry-rule extended to small inline-thread sweeps). Detail § Signposts `iter:pr-230-r4-thread-resolve-sweep`.
 
 ## Context
 
@@ -31,4 +32,4 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false, MERGEABLE/CLEAN (mergeStateStatus=UNSTABLE pre-watch flips to CLEAN once CI settles in API); HEAD `7498dbb` (prior IP-bookkeeping commit; CI 4/4 GREEN on workflow runs `25389563279` + `25389566319`). FIX-17 + FIX-18 + R4-H50 WONTFIX-doc all landed; landing-summary comment posted (`#issuecomment-4381196818`). Live unresolved-thread count: 2 (A5+A6 — pending GraphQL `resolveReviewThread` sweep next iter; CI now CLEAN, push-safe).
+- **PR:** #230 OPEN, isDraft=false, MERGEABLE/CLEAN; HEAD `5c928a8` pre-this-iter-push (CI 4/4 GREEN on workflow runs `25389657053` + `25389658881`); post-this-iter-push HEAD will be the IP-update commit pending fresh CI. FIX-17 + FIX-18 + R4-H50 WONTFIX-doc all landed; landing-summary comment posted (`#issuecomment-4381196818`). Live unresolved-thread count: **0** (A5 `PRRT_kwDOSAH0485_k8GF` + A6 `PRRT_kwDOSAH0485_k8HH` resolved this iter via GraphQL mutation). Next iter writes EPIC_DONE halt after final CI gate.
