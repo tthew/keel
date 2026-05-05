@@ -364,6 +364,44 @@ case "$tool_name" in
           *.secrets|*.secrets.*|*/.secrets|*/.secrets.*) block "secret-access-denylist" "bash-resolved-to-secrets-file" ;;
         esac
       done
+      # FIX-17 (PR #230 R4-A5) — interpreter string-literal path coverage. The FIX-2
+      # token loop above sees whitespace-tokenized + outer-quote-stripped tokens;
+      # symlinks/secret-paths embedded inside interp string literals (e.g.
+      # python3 -c 'open("/tmp/symlink").read()') are ONE token (the source string)
+      # and never resolve. Scan each token's INTERIOR for path-like substrings;
+      # apply readlink-resolve + secret-target case-glob to each. Defense-in-depth
+      # literal-path coverage; encoded forms (\x2f, base64, chr()) and heredoc-
+      # stdin invocations are accepted-residuals (R3-H49 sibling class — runtime-
+      # decode out of scope for regex-based gate; load-bearing layers are egress
+      # firewall + OAuth named-volume isolation).
+      if [[ "$normalized" =~ $interp_verb_re ]]; then
+        for _fix17_tok in "${_fix2_tokens[@]}"; do
+          [ -z "$_fix17_tok" ] && continue
+          _fix17_re='(/[^[:space:]"'\''`)]+|~/[^[:space:]"'\''`)]+|\./[^[:space:]"'\''`)]+)'
+          while [[ "$_fix17_tok" =~ $_fix17_re ]]; do
+            _fix17_path="${BASH_REMATCH[1]}"
+            _fix17_tok="${_fix17_tok//${BASH_REMATCH[1]}/}"
+            case "$_fix17_path" in
+              /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "interp-string-literal-oauth" ;;
+              /home/dev/.ssh/*) block "secret-access-denylist" "interp-string-literal-ssh" ;;
+              *.env|*.env.*|*/.env|*/.env.*) block "secret-access-denylist" "interp-string-literal-env" ;;
+              *.envrc|*.envrc.*|*/.envrc|*/.envrc.*) block "secret-access-denylist" "interp-string-literal-envrc" ;;
+              *.secrets|*.secrets.*|*/.secrets|*/.secrets.*) block "secret-access-denylist" "interp-string-literal-secrets" ;;
+            esac
+            [ -L "$_fix17_path" ] || continue
+            _fix17_resolved="$(readlink -f "$_fix17_path" 2>/dev/null || printf '')"
+            case "$_fix17_resolved" in
+              /home/dev/.claude/*|/home/dev/.config/gh/*) block "secret-access-denylist" "interp-resolved-to-oauth" ;;
+              /home/dev/.ssh/*) block "secret-access-denylist" "interp-resolved-to-ssh" ;;
+            esac
+            case "$_fix17_resolved" in
+              *.env|*.env.*|*/.env|*/.env.*) block "secret-access-denylist" "interp-resolved-to-env" ;;
+              *.envrc|*.envrc.*|*/.envrc|*/.envrc.*) block "secret-access-denylist" "interp-resolved-to-envrc" ;;
+              *.secrets|*.secrets.*|*/.secrets|*/.secrets.*) block "secret-access-denylist" "interp-resolved-to-secrets" ;;
+            esac
+          done
+        done
+      fi
     fi ;;
   Read)
     # D-22 — evaluate resolved path against secret-dir denies first (catches symlink-to-oauth-token
