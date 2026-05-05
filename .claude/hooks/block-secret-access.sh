@@ -286,6 +286,16 @@ case "$tool_name" in
     # same residual class — operators should reach for the Read tool. ⊗ Do NOT add a quote-
     # stripping pre-pass.
     dotsource_re="(${verb_left_re}source[[:space:]]|${subshell_left_re}\.[[:space:]])"
+    # WONTFIX (PR #230 R4-H50) — heredoc/stdin interp form. interp_verb_re requires
+    # `-[a-zA-Z0-9]*[ec]` flag pattern; constructs like `python3 <<'EOF' ... EOF`,
+    # `node <<'EOF' ... EOF`, and `python3 -` (stdin without `-c`/`-e`) do NOT
+    # match interp_verb_re and bypass the FIX-17 substring scan. Sibling of R3-H49
+    # (dynamic-decode runtime-evaluator class). Adding heredoc/stdin detection
+    # would require shell-AST parsing — out of scope for a regex-based gate. Load-
+    # bearing layers against this class: egress firewall (Story 2.3) + OAuth named-
+    # volume isolation (Stories 2.8 / 2.9) + sshd shape (Story 2.6). Operators
+    # reaching for heredoc-stdin against secret paths is workflow anti-pattern (the
+    # Read tool exists). Accepted-residual class. ⊗ Do NOT add heredoc detection.
     proc_secret_re='/proc/([0-9]+|self)/(cmdline|environ|mem|status|auxv|maps|stack|syscall|io)|/proc/(kcore|kmem|kallsyms)'
     if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re || "$normalized" =~ $dotsource_re ]]; then
       if [[ "$normalized" =~ $proc_secret_re ]]; then
