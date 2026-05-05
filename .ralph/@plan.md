@@ -4,12 +4,11 @@ Detail: `.ralph/round2-fix-arc.md` (inventory, recipes, sparring discipline, hal
 
 ## NOW
 
-- [ ] DEFER A5 + A6 — append follow-up tracker note to RALPH.md § Open questions ~small (per `iter:pr-review-4` Monitor-bookkeeping-loop-break: this iter's IP-only push retriggers CI; if step-0h CI watch is clean at next-iter start, execute the RALPH.md edit directly in the SAME iter — treat monitor-resolution as precondition gate, not separate task)
+- [ ] Thread-resolve sweep — Node-script reply + `resolveReviewThread` per Round-2 thread (A1/A2/A3/A4/A7/A8/C1 fix-citing + D1/D2/D3 WONTFIX-rationale; 10 threads — A5+A6 stay unresolved as DEFER tracker carries them) ~medium (per `iter:pr-230-closeout` Node-script recipe — `execFileSync('gh', ['api', 'graphql', ...])` no-shell so hook L1 verb-substring + protected-path-substring co-occurrence FP class is bypassed)
 
 ## QUEUE (Round-2 fix-arc — order minimises merge conflict + maximises per-fix isolation)
 
-- [ ] Thread-resolve sweep — Node-script reply + `resolveReviewThread` per Round-2 thread (incl. A1/A2/A3/A4/A7/A8/C1 + D1/D2/D3 with WONTFIX rationale)
-- [ ] Transition PR — final CI gate → EPIC_DONE halt for cross-epic next-Ralph
+- [ ] Transition PR — final CI gate → EPIC_DONE halt with diagnostic `note` per `.ralph/round2-fix-arc.md § Halt criterion`
 
 ## DONE
 
@@ -22,6 +21,7 @@ Detail: `.ralph/round2-fix-arc.md` (inventory, recipes, sparring discipline, hal
 - [iter-pr230-fix-11] FIX-11 closes C1 — `packages/devbox/dnsmasq/dnsmasq.conf` items (2)+(3) and the closing block reframed: item (2) now acknowledges CAP_SETUID/CAP_SETGID ARE in the bounding set today (cap_add per docker-compose.yml L205-206 for gosu's drop-from-root) and re-anchors the timing argument (dnsmasq's setuid happens during its own startup, before any external policy reduction would apply); item (3) replaces the obsolete EPERM-fail-close framing with the silent-divergence hazard ("`user=<other>` would now SUCCEED but silently change the drop target away from `nobody`"), citing the README + docker-compose + start-egress cross-references that document `nobody`. Closing block updated in lockstep ("override silently moves the drop target … without any signal at startup"). No L1, no manifest bump. Quality gates green: typecheck 16/16, lint 16/16, vitest 56/56.
 - [iter-pr230-wontfix-d1d2d3] WONTFIX-doc closes D1/D2/D3 — three inline `# WONTFIX (PR #230 D<n>)` comment blocks anchored at the substrate hook above (a) `protected_paths_re=` (D1, mutation-verb co-occurrence FP), (b) `printenv_re=` (D2, quoted-literal FP), (c) `env_file_re=` (D3, interpreter string-literal FP). Each block documents the FP class + cites why the "obvious fix" re-introduces a bypass (verb-target binding requires shell-arg parsing; quote-stripping pre-pass admits embedded-quote ambiguity; read-API allowlist defeated by `__import__('builtins').open` / `eval('o' + 'pen')`). 19-line additive insertion mirrored byte-identical to seed; manifest contentHash `ef8d1a05…` → `9a8cfc27…` lockstep on `INV-claude-hook-secret-denylist` + `-seed`. Pure comment edits — zero semantic regex change. Gates: 16/16 typecheck + 16/16 lint + 56/56 vitest + 82/82 hook fixtures + sync-gate green.
 - [iter-pr230-ci-watch-clean] Step-0h pivot — CI watch on PR #230 post-`d98398d` (D1/D2/D3 WONTFIX push). All 4 checks GREEN (node ×2 + python ×2). PR state: OPEN / isDraft=false / MERGEABLE / mergeStateStatus=CLEAN / reviewDecision=""; live unresolved-thread count holds at 12 (A1/A2/A3/A4/A5/A6/A7/A8/C1/D1/D2/D3). 13 threads already resolved (Round-1 carry). Round-2 fix-arc CI gate cleanly closed — next iter resumes original NOW (DEFER A5+A6 RALPH.md tracker note).
+- [iter-pr230-defer-a5a6] DEFER tracker landed — RALPH.md § Open questions appended with the A5 + A6 follow-up entry (recipe sketches + carry-rule + follow-up PR branch plan: `fix/epic-2-round2-defer-a5a6` off `main` post-merge). Detail stanzas in `.ralph/round2-fix-arc.md § DEFER` (lines 77-82) carry the L1 + manifest-bump shape per fix. Step-0h CI gate on `b1d811b` IP-only push: 4/4 GREEN (node ×2 + python ×2 SUCCESS); precondition gate cleared synchronously per Monitor-bookkeeping-loop-break clause, so RALPH.md edit executed in same iter (no monitor-iter / execute-iter split).
 
 ## Context
 
@@ -31,4 +31,4 @@ Detail: `.ralph/round2-fix-arc.md` (inventory, recipes, sparring discipline, hal
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent)._
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 Open, isDraft=false, MERGEABLE, CLEAN, all 4 checks SUCCESS (re-verified at iter-pr230-ci-watch-clean post-`d98398d` push). Live unresolved-thread count: 12 (A1, A2, A3, A4, A5, A6, A7, A8, C1, D1, D2, D3). Of those: 10 are CODE-closed pending sweep-iter resolveReviewThread (A1/A2/A3/A4/A7/A8/C1 closed by FIX-7/9/8/7/10/6/11; D1/D2/D3 closed by WONTFIX-doc anchors at iter-pr230-wontfix-d1d2d3); 2 remain on the work list (A5/A6 DEFER → next-iter follow-up tracker note in RALPH.md § Open questions).
+- **PR:** #230 Open, isDraft=false, MERGEABLE, mergeStateStatus=UNSTABLE→CLEAN-pending (CI re-running on `b1d811b` push — 4/4 SUCCESS at this iter's step-0h watch). Live unresolved-thread count: 12 (A1, A2, A3, A4, A5, A6, A7, A8, C1, D1, D2, D3). Of those: 10 are CODE-closed pending sweep-iter resolveReviewThread (A1/A2/A3/A4/A7/A8/C1 closed by FIX-7/9/8/7/10/6/11; D1/D2/D3 closed by WONTFIX-doc anchors at iter-pr230-wontfix-d1d2d3); 2 remain DEFER-tracked in RALPH.md § Open questions `iter:pr-230-defer-a5a6` (A5/A6 carry to follow-up PR `fix/epic-2-round2-defer-a5a6` post-merge — they STAY unresolved through PR #230's transition since they ARE follow-up commitments).
