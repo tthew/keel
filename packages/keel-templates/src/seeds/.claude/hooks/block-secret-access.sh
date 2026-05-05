@@ -81,7 +81,14 @@ if [ "$tool_name" = "Bash" ]; then
       # Both the leading `$'` and trailing `'` are required so the greedy (.*) leaves the trailing
       # apostrophe to the anchor — without the mandatory trailing `'` the (.*) gobbles the trailing
       # quote and downstream case-globs (anchored on `.env` end) miss the resulting `cat .env'`.
+      # D-38 (PR #230 review-fix-arc, FIX-8 / A3) — decode ANSI-C backslash escapes after strip;
+      # printf %b matches bash ANSI-C decoding for all viable bypass vectors (\xNN hex, \t \n \r
+      # \f \v escapes, \NNN / \0NNN octal, \\). Without this pass `bash -c $'cat\x20.env'` slips
+      # downstream regex (hook saw the literal source text, not the decoded `cat .env`).
       normalized="${BASH_REMATCH[1]}"
+      if decoded="$(printf '%b' "$normalized" 2>/dev/null)"; then
+        normalized="$decoded"
+      fi
     elif [[ "$normalized" =~ ^sudo[[:space:]]+(.*)$ ]]; then
       normalized="${BASH_REMATCH[1]}"
     elif [[ "$normalized" =~ ^(/usr/bin/|/bin/)(.*)$ ]]; then
