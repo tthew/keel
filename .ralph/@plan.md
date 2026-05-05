@@ -4,9 +4,10 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 
 ## NOW
 
-- [ ] **FIX-14** (R3-Inv-I01) — wire `pnpm keel-invariants:check` to BOTH `.pre-commit-config.yaml` (operator-side, ~0.77s) AND `.github/workflows/ci.yml` (CI backstop). Adversarial: drop one ID from `EXPECTED_INVARIANT_IDS` → must fail; mutate `BYTE_PARITY_PAIRS` substrate file → must fail. No L1, no manifest bump. ~small.
+- [ ] **Monitor PR CI** — queue fix tasks for any failures. FIX-13 push `d3c127a` triggered fresh CI run; gate must clear before FIX-14 starts.
 
 ## QUEUE (Round-3 fix-arc; pull from `.ralph/round3-fix-arc.md`)
+- [ ] **FIX-14** (R3-Inv-I01) — wire `pnpm keel-invariants:check` to BOTH `.pre-commit-config.yaml` (operator-side, ~0.77s) AND `.github/workflows/ci.yml` (CI backstop). Adversarial: drop one ID from `EXPECTED_INVARIANT_IDS` → must fail; mutate `BYTE_PARITY_PAIRS` substrate file → must fail. No L1, no manifest bump. ~small.
 - [ ] **FIX-15** (R3-Devbox-D01) — three-leg awk-injection shape gates: (a) case-pattern shape gate on `KEEL_DEVBOX_DNS_UPSTREAM` (mirror FIX-6 REPO_NAME); (b) post-mapfile domain shape gate (closes supply-chain leg); (c) doc note in `docs/invariants/devbox-egress.md` § Threat-model. Adversarial: end-to-end `KEEL_DEVBOX_DNS_UPSTREAM='1.1.1.1\nip daddr 0.0.0.0/0 accept'` injection → FATAL exit. ~medium.
 - [ ] **FIX-16** (R3-D02 — OPTIONAL) — doc-drift housekeeping at 4 cross-reference sites in `reload-egress.sh` + `Dockerfile`; replace literal line numbers with file/function-name refs. ~small. Land if budget permits; else defer.
 - [ ] **WONTFIX-doc** (R3-H48, R3-H49, R3-D03, R3-D04) — 4 inline `# WONTFIX (PR #230 R3-<id>)` comment blocks acknowledging accepted-residual classes (verb-trailing no-space, base64-decode dynamic analysis limit, sshd defense-in-depth gaps, NET_RAW unused). Substrate↔seed + manifest lockstep on hook anchors. ~small.
