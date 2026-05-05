@@ -183,8 +183,11 @@ case "$tool_name" in
       if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)dd([[:space:]]|>|$) ]]; then block "hook-self-protection" "dd-against-protected"; fi
       # D-37 — newly-covered verbs (install/ln/sponge) under unified match-name.
       if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)(install|ln|sponge)([[:space:]]|>|$) ]]; then block "hook-self-protection" "mutation-verb-against-protected"; fi
-      # D-37 — catch ANY redirect into a protected path; defends against unknown future writers.
-      if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?(\.claude/settings|\.claude/hooks/|\.git/hooks/) ]]; then block "hook-self-protection" "redirect-against-protected"; fi
+      # D-37 / FIX-9 (PR #230) — catch ANY redirect into a protected path with an optional
+      # path prefix (`/workspace/.../.claude/settings.json`, `./.claude/...`, etc.). The
+      # `[^[:space:]\"\']*` arm absorbs any non-whitespace/non-quote bytes between the redirect
+      # operator and the protected token. Defends against unknown future writers.
+      if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?[^[:space:]\"\']*(\.claude/settings|\.claude/hooks/|\.git/hooks/) ]]; then block "hook-self-protection" "redirect-against-protected"; fi
     fi
     # find -delete / find -exec rm against protected paths (regex — free-form find args).
     if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*(\.claude/settings|\.claude/hooks/?|\.git/hooks/?).*(-delete|-exec[[:space:]]+rm) ]]; then
@@ -203,7 +206,7 @@ case "$tool_name" in
       if [[ "$normalized" =~ (^|[[:space:]])echo.*\> ]]; then
         block "install-boundary-protection" "echo-redirect-against-l1"
       fi
-      if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?packages/keel-invariants/src/ ]]; then
+      if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?[^[:space:]\"\']*packages/keel-invariants/src/ ]]; then
         block "install-boundary-protection" "redirect-against-l1"
       fi
       if [[ "$normalized" =~ (^|[[:space:]])find[[:space:]].*-delete ]]; then
