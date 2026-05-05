@@ -4,7 +4,7 @@ Detail: `.ralph/round2-fix-arc.md` (inventory, recipes, sparring discipline, hal
 
 ## NOW
 
-- [ ] DEFER A5 + A6 — append follow-up tracker note to RALPH.md § Open questions ~small
+- [ ] DEFER A5 + A6 — append follow-up tracker note to RALPH.md § Open questions ~small (per `iter:pr-review-4` Monitor-bookkeeping-loop-break: this iter's IP-only push retriggers CI; if step-0h CI watch is clean at next-iter start, execute the RALPH.md edit directly in the SAME iter — treat monitor-resolution as precondition gate, not separate task)
 
 ## QUEUE (Round-2 fix-arc — order minimises merge conflict + maximises per-fix isolation)
 
