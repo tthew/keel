@@ -8,6 +8,7 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 
 ## QUEUE (Round-4 fix-arc)
 
+- [ ] **Monitor PR CI — queue fix tasks for any failures** — `gh pr checks 230 --watch --fail-fast` against the FIX-18 push-trigger run on HEAD `857fe00`. Pass → mark done + advance NOW = R4-WONTFIX-doc + exit. Fail → investigate via `gh run view --log <run-id>`, add per-failure fix task to TOP of QUEUE with root-cause + fix approach, mark monitor done, move first fix to NOW + exit.
 - [ ] **Thread-resolve sweep + EPIC_DONE** — self-summary comment mapping FIX-17/FIX-18/WONTFIX → closing commits; resolve A5+A6 GraphQL threads; final CI gate; EPIC_DONE halt with R4-complete note. Detail § Halt criterion.
 
 ## DONE (Round-4 only — Round-1+2+3 archived in git log + RALPH.md `iter:pr-230-fix-1..16` + `iter:pr-230-wontfix-d1d2d3` + `iter:pr-230-wontfix-r3` + `iter:pr-230-thread-resolve-sweep` + `iter:pr-230-epic2-done-halt`)
