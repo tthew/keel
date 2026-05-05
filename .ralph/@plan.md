@@ -7,7 +7,6 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 - [ ] **WONTFIX-doc** (R3-H48, R3-H49, R3-D03, R3-D04) — 4 inline `# WONTFIX (PR #230 R3-<id>)` comment blocks acknowledging accepted-residual classes (verb-trailing no-space, base64-decode dynamic analysis limit, sshd defense-in-depth gaps, NET_RAW unused). Substrate↔seed + manifest lockstep on hook anchors. ~small.
 
 ## QUEUE (Round-3 fix-arc; pull from `.ralph/round3-fix-arc.md`)
-- [ ] **Monitor PR CI — queue fix tasks for any failures** (FIX-16 push CI watch).
 - [ ] **Round-3 thread-resolve sweep** — for each Round-3 PR review thread (TBD count post next-tthew-review), reply-with-commit-ref + `resolveReviewThread` mutation via Node-script pattern (RALPH.md `iter:pr-230-closeout` recipe).
 - [ ] **Final CI watch + EPIC_DONE halt** — step-0h CI gate clear → write `EPIC_DONE` per `.ralph/round3-fix-arc.md § Halt criterion`.
 
@@ -24,6 +23,7 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 - [iter-pr230-fix-15-ci] FIX-15 push `e4bf2d5` CI monitored GREEN (4/4 checks pass at HEAD `e4bf2d5`). FIX-16 promoted to NOW.
 - [iter-pr230-fix-16-precheck] Chore IP commit `26d8309` (NOW=FIX-16) CI monitored GREEN (4/4 checks pass — 2× node + 2× python at HEAD `26d8309`). Combined CI-monitor + FIX-16 work in same iter per `iter:pr-review-4` Monitor-bookkeeping-loop-break carry-rule.
 - [iter-pr230-fix-16] FIX-16 (R3-D02) doc-drift housekeeping landed. Replaced 9 stale literal line-number cross-refs with stable section/SC-step refs across 2 files. **reload-egress.sh** (8 sites, 7 Edit calls): L54 `line ~307` → `§ "Render dnsmasq config (SC-5 step 4)"`; L149-150 `line ~307` + `lines ~316-317` → same section; L200-201 `line ~330` + `line ~370` → `§ "Render dnsmasq config (SC-5 step 4)"` + `§ "Reload or start dnsmasq (SC-5 step 5)"`; L219 `line ~225` → `§ "Resolve domains → IPv4/IPv6 allow-rules"`; L229+L240 `dnsmasq.conf:59` + `:60` → `dnsmasq.conf § "Fail-closed default (SC-12)"`. **Dockerfile** (1 site): L372 `entrypoint.sh:235 launch` → `entrypoint.sh launch` (next-line literal `gosu dev /usr/sbin/sshd …` command is its own stable anchor). Two reflow follow-ups for awkward line breaks. Sweep extended beyond IP-cited 4 audit sites to all same-class same-file siblings per Sweep-completion + IP-planner-trust-calibration carry-rules; out-of-scope cross-file refs in `dnsmasq.conf:33,48`, `reload-egress.sh:425`, `lib/main-repo-resolver.sh:164,229` left untouched (not currently drifted; preventive cleanup deferred). **No L1, no manifest bump** — affected files (`reload-egress.sh`, `Dockerfile`) are not in `BYTE_PARITY_PAIRS` and not sourcePath'd in `invariants.manifest.ts` (only `docs/invariants/*.md` are). Regression GREEN: typecheck (16/16 turbo cached), lint (16/16 turbo cached), vitest 56/56, format:check, keel-invariants:check.
+- [iter-pr230-fix-16-ci] FIX-16 push `4a8642b` CI monitored GREEN (4/4 checks pass — 2× node + 2× python at HEAD `4a8642b`). WONTFIX-doc promoted to NOW.
 
 ## Context
 
@@ -33,4 +33,4 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false; HEAD will advance to FIX-16 commit after this iter's push; CI 4/4 GREEN at `26d8309` precheck. Live unresolved-thread count: 2 at decompose time (A5, A6 DEFER-by-design); Round-3 NEW threads will land when next reviewer pass posts (or could be self-posted as R3-self-review summary comment per Round-2 pattern at `iter:pr-230-round2-decompose`).
+- **PR:** #230 OPEN, isDraft=false; HEAD `4a8642b` (FIX-16); CI 4/4 GREEN at `4a8642b`. Live unresolved-thread count: 2 at decompose time (A5, A6 DEFER-by-design); Round-3 NEW threads will land when next reviewer pass posts (or could be self-posted as R3-self-review summary comment per Round-2 pattern at `iter:pr-230-round2-decompose`).
