@@ -50,6 +50,18 @@ const ANCHOR_REGEX = /^-\s+\*\*`(INV-[a-z0-9]+(?:-[a-z0-9]+)+)`\*\*/gm;
 // file is denied to in-session AI agents by the L1 install-boundary hook
 // (.claude/hooks/block-secret-access.sh — see l1_path_re), so any change
 // to this snapshot must transit human review.
+
+// WONTFIX (PR #230 R4-Inv-I07) — anchor-range pointer-mutation residual.
+// An out-of-session PR could retarget the :start/:end marker pair below to
+// a no-op range with matching contentHash and bypass this check. Pre-
+// existing structural limit of the anchor-range hashScope layer (applies to
+// every anchor-range entry, not novel to this entry). Mitigated by L1-
+// protection of invariants.manifest.ts (in-session AI agent edits denied
+// per .claude/hooks/block-secret-access.sh l1_path_re) plus human PR
+// review at the git layer. Do NOT attempt schema-level shape-pin; would
+// require AST parsing of TS source declarations and would reject every
+// legitimate marker-rename during evolution.
+// INV-keel-invariants-sync-gate-snapshots:start — see invariants.manifest.ts entry
 export const EXPECTED_INVARIANT_IDS: readonly string[] = [
   'INV-tsconfig-base',
   'INV-eslint-shared',
@@ -94,6 +106,7 @@ export const EXPECTED_INVARIANT_IDS: readonly string[] = [
   'INV-git-hooks-preservation',
   'INV-package-test-coverage-floor',
   'INV-fr14i-ci-workflow-presence',
+  'INV-keel-invariants-sync-gate-snapshots',
 ] as const;
 
 // FIX-4 (PR #230 review-fix-arc) — out-of-band fail-closed snapshot of
@@ -123,6 +136,7 @@ export const BYTE_PARITY_PAIRS: readonly {
       'INV-claude-hook-secret-denylist substrate ↔ INV-claude-hook-secret-denylist-seed must be byte-identical (Story 2.16 substrate, fork-seed parity).',
   },
 ] as const;
+// INV-keel-invariants-sync-gate-snapshots:end
 
 export async function readAnchors(repoRoot: string): Promise<Set<string>> {
   const content = await readSourceFile(resolve(repoRoot, 'INVARIANTS.md'));

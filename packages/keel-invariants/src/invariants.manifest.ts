@@ -443,6 +443,19 @@ const raw: Invariant[] = [
     contentHash: '2195a8e19f723b279b60b9d040785fb531d35b35d007a54af94cfacdbf5c6a8a',
     anchors: ['INV-fr14i-ci-workflow-presence'],
   },
+  {
+    id: 'INV-keel-invariants-sync-gate-snapshots',
+    description:
+      'FIX-18 (PR #230 review-fix-arc Round-4 R4-A6) — anchor-range drift protection for the EXPECTED_INVARIANT_IDS (FIX-3 snapshot) and BYTE_PARITY_PAIRS (FIX-4 snapshot) blocks inside packages/keel-invariants/src/sync-gate.ts. Closes the bypass class where mutating either out-of-band snapshot in lockstep with a coordinated 3-leg removal (drop manifest entry + drop INVARIANTS.md anchor + drop EXPECTED_INVARIANT_IDS membership) silently passes the FIX-3/FIX-4 backstops if the snapshot bytes themselves are also rewritten. hashScope is anchor-range bracketing both snapshot blocks under a single :start/:end marker pair (single-entry preferred for marker-churn isolation per Round-4 cross-engine consensus); ANY content edit inside the bracketed region — addition, removal, or modification of an EXPECTED_INVARIANT_IDS member or a BYTE_PARITY_PAIRS pair — fires content-hash-mismatch at Story 1.9 pre-merge sync-gate. Recursive-by-design: this entry IS in EXPECTED_INVARIANT_IDS (membership self-check is sound because the sync-gate computes contentHash from the post-edit file, codex Q7 verdict). Pre-existing structural limit at the anchor-range hashScope layer — an out-of-session PR could retarget startMarker/endMarker to a no-op range with matching contentHash (R4-Inv-I07) — applies to every anchor-range entry today, not novel to this entry; mitigated by L1-protection of invariants.manifest.ts via the .claude/hooks/block-secret-access.sh l1_path_re (which denies in-session AI-agent edits to manifest.ts + sync-gate.ts) plus human PR review at the git layer. Inline WONTFIX comment block above the markers in sync-gate.ts records the residual.',
+    sourcePath: 'packages/keel-invariants/src/sync-gate.ts',
+    contentHash: 'ff2c95d9ba3069ab32605e4e37841f5575b87648ce7ea2f241e23b1ab8e5e283',
+    anchors: ['INV-keel-invariants-sync-gate-snapshots'],
+    hashScope: {
+      kind: 'anchor-range',
+      startMarker: '// INV-keel-invariants-sync-gate-snapshots:start',
+      endMarker: '// INV-keel-invariants-sync-gate-snapshots:end',
+    },
+  },
 ];
 
 export const invariants: readonly Invariant[] = Object.freeze(InvariantsSchema.parse(raw));
