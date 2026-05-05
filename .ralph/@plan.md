@@ -4,11 +4,10 @@ Detail: `.ralph/round2-fix-arc.md` (inventory, recipes, sparring discipline, hal
 
 ## NOW
 
-- [ ] FIX-11 — close C1 via dnsmasq.conf comment items 2/3 reframe ~small
+- [ ] WONTFIX-D1/D2/D3 — anchor inline `# WONTFIX` comments at hook L171, L251, L257 ~small
 
 ## QUEUE (Round-2 fix-arc — order minimises merge conflict + maximises per-fix isolation)
 
-- [ ] WONTFIX-D1/D2/D3 — anchor inline `# WONTFIX` comments at hook L171, L251, L257 ~small
 - [ ] DEFER A5 + A6 — append follow-up tracker note to RALPH.md § Open questions
 - [ ] Thread-resolve sweep — Node-script reply + `resolveReviewThread` per Round-2 thread (incl. A1/A2/A3/A4/A7/A8)
 - [ ] Monitor PR CI — `gh pr checks --watch --fail-fast` after final fix-arc push
@@ -22,6 +21,7 @@ Detail: `.ralph/round2-fix-arc.md` (inventory, recipes, sparring discipline, hal
 - [iter-pr230-fix-8] FIX-8 closes A3 — ANSI-C `$'…'` strip arm now runs `printf '%b'` decode pass over the captured inner string before downstream regex matching. `printf '%b'` matches bash ANSI-C decoding for all viable bypass vectors (`\xNN` hex, `\t`/`\n`/`\r`/`\f`/`\v` escapes, `\NNN`/`\0NNN` octal, `\\`); residual diff for `\'`/`\"` not viable bypass class (resulting bash command would be syntactically invalid). Substrate↔seed byte-parity preserved; manifest contentHash `5f3986…` → `c24fd6…` lockstep. Adversarial: 25/25 post-fix (A3 hex/tab/newline/octal × secret-access + hook-self + L1 + negative + Round-1/6/7 regression); 82/82 hook fixtures; 22/22 Round-1 regression carry; 56/56 vitest.
 - [iter-pr230-fix-9] FIX-9 closes A2 — redirect-against-protected (substrate hook L190) AND redirect-against-l1 (L209) widened with `[^[:space:]\"\']*` arm between optional quote and protected token, admitting absolute (`/workspace/.../.claude/settings.json`), relative (`./`, `../`), tilde-form, double-`>>` append, and quoted-path redirects regardless of writing verb. Substrate↔seed byte-parity preserved; manifest contentHash `c24fd6…` → `ef8d1a…` lockstep on both `INV-claude-hook-secret-denylist` and `-seed`. Pre-fix: 7/7 absolute/relative/tilde/quoted-path payloads approve; post-fix: 18/18 A2 bypasses block + 8/8 negative controls approve; 82/82 hook fixtures + 22/22 Round-1+6/7/8 regression + 56/56 vitest preserved.
 - [iter-pr230-fix-10] FIX-10 closes A7 — compose healthcheck clause-2 widened from `nft list chain inet keel_egress output_v4 >/dev/null 2>&1` to `( nft list chain ... output_v4 2>/dev/null | grep -q 'policy drop' && nft list chain ... output_v6 2>/dev/null | grep -q 'policy drop' )` (subshell + dual-chain + base-policy gate). Three-site lockstep update: docker-compose.yml + docs/invariants/devbox-healthcheck.md + packages/devbox/README.md; manifest contentHash `f4574871…` → `40afc877d…` lockstep on `INV-devbox-healthcheck`. Adversarial 9/9 (HEALTHY + 3 missing-v4/v6 + 3 policy-flip + 2 chain-no-policy edge); 82/82 hook fixtures + 22/22 Round-1 hook regression + 56/56 vitest preserved. Rule-content drift inside intact policy-drop chain remains uncovered (A7 caveat — deferred to a future healthcheck-egress.sh smoke-script).
+- [iter-pr230-fix-11] FIX-11 closes C1 — `packages/devbox/dnsmasq/dnsmasq.conf` items (2)+(3) and the closing block reframed: item (2) now acknowledges CAP_SETUID/CAP_SETGID ARE in the bounding set today (cap_add per docker-compose.yml L205-206 for gosu's drop-from-root) and re-anchors the timing argument (dnsmasq's setuid happens during its own startup, before any external policy reduction would apply); item (3) replaces the obsolete EPERM-fail-close framing with the silent-divergence hazard ("`user=<other>` would now SUCCEED but silently change the drop target away from `nobody`"), citing the README + docker-compose + start-egress cross-references that document `nobody`. Closing block updated in lockstep ("override silently moves the drop target … without any signal at startup"). No L1, no manifest bump. Quality gates green: typecheck 16/16, lint 16/16, vitest 56/56.
 
 ## Context
 
@@ -31,4 +31,4 @@ Detail: `.ralph/round2-fix-arc.md` (inventory, recipes, sparring discipline, hal
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent)._
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 Open, isDraft=false, MERGEABLE. Live unresolved-thread count: 12 (A1, A2, A3, A4, A5, A6, A7, A8, C1, D1, D2, D3). Of those: 6 are CODE-closed pending sweep-iter resolveReviewThread (A1/A2/A3/A4/A7/A8 — closed by FIX-7/9/8/7/10/6); 6 remain on the work list (A5/A6 DEFER, C1 → FIX-11, D1/D2/D3 → WONTFIX-doc anchors).
+- **PR:** #230 Open, isDraft=false, MERGEABLE, CLEAN, all 4 checks SUCCESS. Live unresolved-thread count: 12 (A1, A2, A3, A4, A5, A6, A7, A8, C1, D1, D2, D3). Of those: 7 are CODE-closed pending sweep-iter resolveReviewThread (A1/A2/A3/A4/A7/A8/C1 — closed by FIX-7/9/8/7/10/6/11); 5 remain on the work list (A5/A6 DEFER, D1/D2/D3 → WONTFIX-doc anchors).
