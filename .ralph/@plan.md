@@ -4,7 +4,7 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 
 ## NOW
 
-- [ ] **Self-summary comment on PR #230** — post a single `gh pr comment 230 --body-file <tmpfile>` mapping FIX-17 → `5ea5a7c` (interp string-literal scan), FIX-18 → `857fe00` (sync-gate snapshot drift), R4-H50 WONTFIX-doc → `55b7208` (heredoc-form coverage-gap inline-comment). Comment also previews the next-iter thread-resolve sweep so reviewers see the closing arc. No repo file changes (PR-metadata-only) — IP update commit triggers CI which the next iter monitors.
+- [ ] **Monitor PR CI — queue fix tasks for any failures** — IP-bookkeeping commit on top of `3d5ea16` will trigger fresh node+python workflow run on push; `gh pr checks 230 --watch --fail-fast` blocks until completion. Pass → mark done, promote next QUEUE (thread-resolve sweep) to NOW. Fail → investigate via `gh run view --log <run-id>`, queue per-failure fix tasks per protocol § CI Monitoring.
 
 ## QUEUE (Round-4 fix-arc)
 
@@ -20,6 +20,7 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 - [iter-pr230-r4-fix18-ci-watch] CI 4/4 GREEN @ `857fe00` (FIX-18 push-trigger). Pre-WONTFIX-doc push-clean state confirmed.
 - [iter-pr230-fix-18] FIX-18 (A6) — sync-gate.ts self-protection landed. Single anchor-range marker pair `// INV-keel-invariants-sync-gate-snapshots:start/:end` brackets both `EXPECTED_INVARIANT_IDS` (FIX-3 snapshot) + `BYTE_PARITY_PAIRS` (FIX-4 snapshot). New manifest entry `INV-keel-invariants-sync-gate-snapshots` (anchor-range hashScope, contentHash `ff2c95d9…`); recursive ID-add to `EXPECTED_INVARIANT_IDS`; INVARIANTS.md anchor under H3 `Hook + settings bypass-resistance (Story 2.17)`. Inline WONTFIX-comment block above markers documents R4-Inv-I07 (anchor-range pointer-mutation residual). L1-bypass via `node /tmp/fix18_apply.js` + `node /tmp/fix18_manifest.js`. **Adversarial 5+1**: drop ID from EXPECTED → content-hash-mismatch ✓; drop manifest entry → expected-id-missing ✓; add fake ID → content-hash-mismatch ✓; add fake byte-parity pair → content-hash-mismatch ✓; coord drop manifest+anchor (forget EXPECTED) → expected-id-missing ✓; negative control clean ✓. **Codex sparring B1 (script-nullification) DISPROVEN empirically** — root `package.json` whole-file-locked by `INV-prek-prepare-lifecycle`; mutating `scripts.keel-invariants:check` fires content-hash-mismatch. Gates: typecheck 16/16 + lint 16/16 + vitest 56/56 + hook fixtures 82/82 + sync-gate clean. Detail § Lessons learned `iter:pr-230-fix-18`.
 - [iter-pr230-r4-wontfix-doc-ci-watch] CI 4/4 GREEN @ `55b7208` (R4-WONTFIX-doc push-trigger). Workflow runs 25388959321 + 25388962686 both node+python pass. Pre-thread-resolve-sweep push-clean state confirmed. (One transient `gh pr checks --watch` 504 mid-poll re-run cleanly on retry; not a CI signal.)
+- [iter-pr230-r4-self-summary] Round-4 landing-summary comment posted on PR #230 (`https://github.com/tthew/keel/pull/230#issuecomment-4381196818`). Comment maps FIX-17 → `5ea5a7c` / FIX-18 → `857fe00` / R4-H50 → `55b7208`, includes adversarial-5+1 evidence + Codex sparring B1 disprove + next-iter thread-resolve preview. PR-metadata-only — no repo file changes. IP update on this iter triggers next CI run on push.
 
 ## Context
 
@@ -29,4 +30,4 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false; HEAD `55b7208` (R4-WONTFIX-doc landing; CI 4/4 GREEN). FIX-17 + FIX-18 + R4-H50 WONTFIX-doc all landed and CI-cleared. Live unresolved-thread count: 2 (A5+A6 — to resolve at next-iter-after-self-summary thread-resolve task once self-summary comment lands).
+- **PR:** #230 OPEN, isDraft=false, MERGEABLE/CLEAN; HEAD `3d5ea16` (prior IP-bookkeeping commit; CI 4/4 GREEN on workflow runs `25389191490` + `25389193596`). FIX-17 + FIX-18 + R4-H50 WONTFIX-doc all landed; landing-summary comment posted (`#issuecomment-4381196818`). Live unresolved-thread count: 2 (A5+A6 — pending GraphQL `resolveReviewThread` sweep next iter after CI-watch).
