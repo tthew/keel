@@ -20,6 +20,7 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 - [iter-pr230-fix-16] replace stale literal line refs with section refs — `4a8642b` (PR #230)
 - [iter-pr230-wontfix-r3] inline WONTFIX-doc R3-H48/H49/D03/D04 — `b1ee46d` (PR #230)
 - [iter-pr230-prune] prune IP back under 8K doc-budget cap (PR #230)
+- [iter-pr230-ci-watch-cb0894c] monitor PR CI on cb0894c — CI GREEN (4/4 pass: 2 node + 2 python; runs 25382806556 + 25382809693)
 
 ## Context
 
@@ -29,4 +30,4 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false, mergeStateStatus=CLEAN, mergeable=MERGEABLE; HEAD `9879725`; CI GREEN (4/4 pass: 2 python + 2 node, both runs 25382603714+25382606917). Live unresolved-thread count: 2 (A5+A6 DEFER-by-design); no R3 reviewer threads posted.
+- **PR:** #230 OPEN, isDraft=false; HEAD `cb0894c`; CI GREEN (4/4 pass: 2 node + 2 python, runs 25382806556 + 25382809693). Live unresolved-thread count: 2 (A5+A6 DEFER-by-design); no R3 reviewer threads posted.
