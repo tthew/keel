@@ -15,6 +15,7 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 
 - [iter-pr230-round4-decompose] Round-4 decompose — Claude×2 + Codex×1 parallel adversarial validation; A5+A6 designs verified SOUND. Halt sentinel cleared. Audit transcripts `/tmp/codex_round4_audit_out.md` + Claude-A/B agent outputs.
 - [iter-pr230-fix-17] FIX-17 (A5) — interp string-literal symlink + literal-path scan landed. Hook substrate+seed regex extracted to single-quoted variable `_fix17_re` per FIX-12 carry-rule (canonical bash `[[ =~ ]]` idiom). Substrate↔seed byte-parity (`fc91f291…`); manifest contentHash lockstep L370+L407 (`42e5b501…` → `fc91f291…`) via Node-script L1 bypass. 82/82 hook fixtures + 56/56 vitest + 16/16 typecheck/lint + sync-gate clean. **PRIOR-ITER RECOVERY**: previous Ralph wrote inline regex with literal `)` + `` ` `` choking bash parser → entire loop bricked (every Read/Bash/Glob/Grep/Write blocked by hook syntax-error). Recovery via `Agent isolation:worktree` reading HEAD bytes + Node-script bypass to write fixed bytes. Detail § Lessons learned `iter:pr-230-fix-17`.
+- [iter-pr230-r4-ci-watch] CI 4/4 GREEN @ `5ea5a7c` (FIX-17 push-trigger). Pre-FIX-18 push-clean state confirmed; no review-comment churn this iter.
 
 ## Context
 
@@ -24,4 +25,4 @@ Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.m
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false; HEAD `288e676` (PR-trigger CI 4/4 GREEN; 1 push-trigger node CANCELLED at 15min — runner timeout, not code). 1 unpushed local commit `cbc07aa` (prior Round-3 closeout intent IP — superseded by this Round-4 commit). Live unresolved-thread count: 2 (A5+A6 — to be resolved post-FIX-17+FIX-18). Pre-existing R3 closeout self-summary at issuecomment-4380346184.
+- **PR:** #230 OPEN, isDraft=false; HEAD `5ea5a7c` (FIX-17 — PR-trigger CI 4/4 GREEN, no in-flight runs; branch `up to date with origin`). Live unresolved-thread count: 2 (A5+A6 — A5 to be resolved post-FIX-18 land via thread-resolve sweep). Pre-existing R3 closeout self-summary at issuecomment-4380346184.
