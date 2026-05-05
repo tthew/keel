@@ -4,11 +4,10 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 
 ## NOW
 
-- [ ] **Monitor PR #230 CI** — `gh pr checks 230 --watch --fail-fast` (1 node job pending at HEAD `b1ee46d`; 3/4 already pass). On pass: promote next QUEUE → NOW. On fail: queue fix tasks per failure to TOP of QUEUE. ~small.
+- [ ] **Round-3 thread-resolve sweep** — live unresolved=2 (A5+A6 DEFER-by-design); no R3 reviewer threads posted. Self-post R3-self-review summary comment per Round-2 pattern (`iter:pr-230-round2-decompose`) listing FIX-12..16 + WONTFIX-doc landings + DEFER A5/A6 + NOFIX R3-I03..I06. Mark sweep done. ~small.
 
 ## QUEUE (Round-3 fix-arc; pull from `.ralph/round3-fix-arc.md`)
 
-- [ ] **Round-3 thread-resolve sweep** — live unresolved=2 (A5+A6 DEFER-by-design); no R3 reviewer threads posted. Self-post R3-self-review summary comment per Round-2 pattern (`iter:pr-230-round2-decompose`) listing FIX-12..16 + WONTFIX-doc landings + DEFER A5/A6 + NOFIX R3-I03..I06. Mark sweep done.
 - [ ] **Final CI watch + EPIC_DONE halt** — re-check CI clean → write `EPIC_DONE` per `.ralph/round3-fix-arc.md § Halt criterion`.
 
 ## DONE (Round-3 only — Round-1+2 archived in git log + RALPH.md `iter:pr-230-fix-1..11` + `iter:pr-230-wontfix-d1d2d3` + `iter:pr-230-thread-resolve-sweep` + `iter:pr-230-epic2-halt`)
@@ -30,4 +29,4 @@ Detail: `.ralph/round3-fix-arc.md` (Round-2 closeout at `.ralph/round2-fix-arc.m
 - **Story:** _(none — PR-fix-arc bypasses § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false; HEAD `b1ee46d`; CI in-flight (1 node pending, 3/4 already pass). Live unresolved-thread count: 2 (A5+A6 DEFER-by-design); no R3 reviewer threads posted.
+- **PR:** #230 OPEN, isDraft=false, mergeStateStatus=CLEAN, mergeable=MERGEABLE; HEAD `9879725`; CI GREEN (4/4 pass: 2 python + 2 node, both runs 25382603714+25382606917). Live unresolved-thread count: 2 (A5+A6 DEFER-by-design); no R3 reviewer threads posted.
