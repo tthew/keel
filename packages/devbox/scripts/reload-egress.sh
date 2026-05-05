@@ -16,7 +16,10 @@
 #   4  flock unavailable within 10s (concurrent reload in flight)
 #   5  `nft -f` transaction failed — previous ruleset stays active (kernel
 #      rollback); dnsmasq config is NOT reloaded (atomicity preserved).
-#   6  dnsmasq config render failed before apply
+#   6  dnsmasq config render failed before apply (template missing /
+#      marker imbalance / shape-gate violation on KEEL_DEVBOX_DNS_UPSTREAM
+#      or whitelist domain — see § Shape gates below; closes the awk-
+#      injection bypass class identified by PR #230 Round-3 R3-Devbox-D01).
 #   7  dnsmasq SIGHUP failed (fallible seam per SC-5 residual risk — new
 #      nftables active, dnsmasq on old config; operator may manually restart).
 #
@@ -44,6 +47,27 @@ DNSMASQ_RUNDIR="/var/run/dnsmasq"
 UPSTREAM_RESOLVER="${KEEL_DEVBOX_DNS_UPSTREAM:-1.1.1.1}"
 
 log() { printf 'reload-egress: %s\n' "$*" >&2; }
+
+# --- Shape gate: KEEL_DEVBOX_DNS_UPSTREAM (PR #230 Round-3 R3-Devbox-D01) -
+# UPSTREAM_RESOLVER flows unvalidated into `awk -v ipv4_rules=...` /
+# `awk -v server_block=...` and into the per-domain `server=/<d>/<resolver>`
+# render at line ~307. An operator (or compromised env) supplying a value
+# containing whitespace, newline, or shell-meta would inject directives into
+# the rendered dnsmasq.conf or break the awk -v assignment shape. Reject any
+# value that contains a character outside the IPv4 / IPv6 literal class
+# (`[0-9a-fA-F:.]`) BEFORE first use — fails exit 6 with the offending value
+# `%q`-quoted (printf %q renders newlines / control bytes safely). Mirrors the
+# FIX-6 REPO_NAME case-pattern shape (lib/main-repo-resolver.sh:164,229) and
+# composes with env-check.sh's SHAPE_IP_LITERAL pre-flight; defense-in-depth
+# because reload-egress.sh runs from contexts other than env-check (compose
+# entrypoint chain, whitelist.sh sync subprocess) where env-check has not
+# necessarily run for this exact value.
+case "$UPSTREAM_RESOLVER" in
+	*[!0-9a-fA-F:.]*|"")
+		printf 'reload-egress: FATAL: invalid KEEL_DEVBOX_DNS_UPSTREAM (=%q); expected IPv4 / IPv6 literal\n' "$UPSTREAM_RESOLVER" >&2
+		exit 6
+		;;
+esac
 
 # --- Marker-validation preflight (AR-6 + AR-7 guardrail) ------------------
 # Assert each template's awk-substitution marker block is present with the
@@ -120,6 +144,32 @@ trap cleanup EXIT
 
 # --- Load whitelist domains -----------------------------------------------
 mapfile -t domains < <(awk 'NF { print }' "${whitelist_path}")
+
+# --- Per-domain shape gate (PR #230 Round-3 R3-Devbox-D01 supply-chain leg)
+# Each domain entry flows into `server=/<domain>/<resolver>` (line ~307) and
+# `nftset=/<domain>/...` (lines ~316-317), both rendered into `dnsmasq.conf`
+# via `awk -v server_block=...`. A compromised whitelist fragment (malicious
+# upstream PR adding `foo.com<NL>address=/x.example/2.2.2.2` to a category
+# file, or a single-line entry with embedded shell-meta) would inject
+# arbitrary dnsmasq directives — multi-line via the post-awk-NF residual,
+# single-line via embedded `=`/`/`/whitespace breaking server= shape. Reject
+# any domain entry containing chars outside the LDH class `[A-Za-z0-9.-]`
+# (matches `whitelist.default.txt` § Syntax: "no wildcards at 1.0 (explicit
+# domains only)"). Empty entries are also rejected (already filtered by
+# `awk 'NF'` upstream, but defense-in-depth against future composer
+# refactors). Failure exits 6 (render-precondition violation) with %q-quoted
+# offender for safe rendering of control bytes. Forks supporting wildcards
+# pursue the AMEND path (extend the class to `[A-Za-z0-9.*-]+` here AND in
+# the matching invariants doc § Threat-model bullet).
+for domain in "${domains[@]}"; do
+	case "$domain" in
+		""|*[!A-Za-z0-9.-]*)
+			printf 'reload-egress: FATAL: invalid domain in whitelist (=%q); expected [A-Za-z0-9.-]+ only\n' "$domain" >&2
+			exit 6
+			;;
+	esac
+done
+
 domain_count="${#domains[@]}"
 log "composing rules for ${domain_count} domain(s); upstream=${UPSTREAM_RESOLVER}"
 

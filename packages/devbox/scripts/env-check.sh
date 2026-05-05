@@ -85,6 +85,18 @@ SHAPE_POSITIVE_INT=(
 	KEEL_DEVBOX_TMPFS_LOGS_MB
 )
 
+# Vars requiring IPv4 / IPv6 literal shape (PR #230 Round-3 R3-Devbox-D01).
+# Mirrors the case-pattern gate enforced in reload-egress.sh § Shape gate
+# (defense-in-depth — env-check is the operator-side fail-fast; reload-
+# egress.sh is the runtime fail-closed). Class `[0-9a-fA-F:.]` admits IPv4
+# (digits + dots), IPv6 (hex digits + colons), and zero-compressed IPv6
+# (`::1`). Excludes whitespace, newline, `=`, `/`, `#`, brackets, ports —
+# any of which would inject awk-meta into reload-egress.sh's per-domain
+# `server=/<d>/<resolver>` render OR break the awk -v assignment shape.
+SHAPE_IP_LITERAL=(
+	KEEL_DEVBOX_DNS_UPSTREAM
+)
+
 if [[ ! -r "${ENVRC_PATH}" ]]; then
 	log ".envrc not found at ${ENVRC_PATH} — run 'direnv allow' or copy 'packages/devbox/.envrc.example' to '.envrc' at the repo root (override auto-detected root via KEEL_DEVBOX_REPO_ROOT if resolved path is wrong for your layout)"
 	exit 3
@@ -169,6 +181,19 @@ for v in "${SHAPE_POSITIVE_INT[@]}"; do
 		if ! [[ "${val}" =~ ^[1-9][0-9]*$ ]]; then
 			shape_violations+=("${v}='${val}' — expected positive integer MB count (no units)")
 		fi
+	fi
+done
+
+for v in "${SHAPE_IP_LITERAL[@]}"; do
+	if [[ -n "${parsed[${v}]+x}" ]]; then
+		val="${parsed[${v}]}"
+		case "${val}" in
+			""|*[!0-9a-fA-F:.]*)
+				# Use printf %q to render newlines / control bytes safely.
+				safe_val="$(printf '%q' "${val}")"
+				shape_violations+=("${v}=${safe_val} — expected IPv4 / IPv6 literal (digits, hex, '.', ':' only)")
+				;;
+		esac
 	fi
 done
 
