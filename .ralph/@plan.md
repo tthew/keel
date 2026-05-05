@@ -1,26 +1,31 @@
-# Implementation Plan — PR #230 Round-4 review-fix-arc
+# Implementation Plan — PR #230 Round-5 final-merge-gate review
 
-Detail: `.ralph/round4-fix-arc.md` (Round-3 closeout at `.ralph/round3-fix-arc.md`; Round-2 at `.ralph/round2-fix-arc.md`). The IP holds NOW + QUEUE + DONE + Context only. Round-3 closeout (EPIC_DONE halt) reversed by user 2026-05-05 directing A5+A6 land in PR #230 with cross-engine adversarial validation. **Round-4 fix-arc COMPLETE 2026-05-05 (this iter): EPIC_DONE halt written, PR #230 awaits human merge.**
+Detail in `.ralph/round5-fix-arc.md`. Previous rounds: `round4-fix-arc.md`, `round3-fix-arc.md`, `round2-fix-arc.md`. Round-4 EPIC_DONE halt reversed by user 2026-05-05 directing **Round-5: independent adversarial sweep + codex sparring** on HEAD `799c877`. Final pre-halt gate is +1/-1 on whether PR #230 should be merged. **Round-5 dispatch+synthesis COMPLETE this iter → 1 CRITICAL finding R5-A1 → FIX-19 in QUEUE.**
 
 ## NOW
 
-- [x] **Final CI gate + EPIC_DONE halt** — CI 4/4 GREEN @ `799c877` (workflow runs `25390012510` + `25390014431` both node+python pass). PR state verified OPEN/CLEAN/MERGEABLE; unresolved-thread count = 0 (GraphQL post-resolve). EPIC_DONE halt written to `$RALPH_BASE_DIR/halt`.
+- [x] **Round-5 dispatch + synthesis** — Agent A (hook bypass) returned 1 finding (R5-A1 alternate-shell wrapper); empirically verified by 27 payload runs (11 confirmed bypasses across zsh/dash/ksh/mksh/ash/fish/csh/tcsh/busybox+sh + path-prefix + flag-bundle + multi-wrap forms; covers secret-access + hook-self-protection + --no-verify). Agent B (sync-gate/manifest) verdict CLEAR. Agent C (spec-compliance) verdict COMPLIANT. Codex run pending. Synthesis → FIX-19 design captured in `.ralph/round5-fix-arc.md`.
 
-## QUEUE (Round-4 fix-arc)
+## QUEUE (Round-5 fix-arc)
 
-_(empty — terminal for Epic 2 fix-arc; PR #230 awaits human merge → § Cross-epic transition picks up Epic 3 Story 3.1 on next invocation.)_
+- [ ] **FIX-19 (R5-A1) — extend wrapper-shell alternation** at hook substrate L77; mirror to seed; bump manifest contentHashes for `INV-claude-hook-secret-denylist` (substrate) + `INV-claude-hook-secret-denylist-seed`; design captured in `.ralph/round5-fix-arc.md` § FIX-19. ~medium
+- [ ] **FIX-19 empirical-validation + regression** — re-run all 27 R5 payloads (must flip 11 BYPASS → BLOCK; rest stay correct); re-run R1-R4 hook-fixture regression (≥ 82/82 GREEN); run typecheck + lint + test; codex sparring confirmation. ~small
+- [ ] **Final +1 merge gate** — post-FIX-19 CI watch; if 4/4 GREEN + zero findings on follow-up codex audit, write EPIC_DONE halt with `r5-merge-+1` note. ~small
 
-## DONE (Round-4 only — full audit trail in `.ralph/round4-fix-arc.md` + git log `iter-pr230-r4-*` + RALPH.md `iter:pr-230-fix-17`/`iter:pr-230-fix-18`/`iter:pr-230-r4-wontfix-doc`/`iter:pr-230-thread-resolve-sweep`)
+## BLOCKED
 
-- [iter-pr230-r4-arc-summary] Round-4 fix-arc landed: FIX-17 (A5 interp string-literal symlink + literal-path scan) `5ea5a7c`, FIX-18 (A6 sync-gate.ts self-protection via anchor-range markers) `857fe00`, R4-H50 WONTFIX-doc (heredoc/stdin coverage-gap inline-comment) `55b7208`, landing-summary comment `#issuecomment-4381196818`, A5+A6 thread-resolve sweep `799c877` (post-resolve count = 0). Cross-engine adversarial validation: Claude×2 + Codex×1 design SOUND; Codex sparring B1 (script-nullification) DISPROVEN empirically; FIX-18 5+1 mutation suite all expected denials. Manifest contentHashes lockstep; substrate↔seed byte-parity throughout. CI 4/4 GREEN at every push-trigger.
-- [iter-pr230-r4-final-ci-gate-halt] CI 4/4 GREEN @ `799c877` (thread-resolve-sweep push-trigger). EPIC_DONE halt written: `{"reason":"EPIC_DONE","epic":2,"pr":230,"note":"R4-complete: FIX-17 (A5) + FIX-18 (A6) + R4-H50 WONTFIX-doc landed; A5+A6 threads resolved (post-resolve count = 0); awaiting human merge"}`. Round-4 fix-arc terminal — PR #230 awaits human merge → § Cross-epic transition picks up Epic 3 Story 3.1 on next invocation.
+_(none)_
+
+## DONE (Round-5 only — full audit trail in `.ralph/round5-fix-arc.md`)
+
+- [iter-pr230-r5-dispatch-synthesis] Round-5 adversarial dispatch (Claude×3 in parallel + codex sparring) + 27-payload empirical bypass map; CRITICAL finding R5-A1 (alternate-shell wrapper bypasses 11+ shells/forms across 3 protection classes); FIX-19 design captured. Round-5 fix-arc opened.
 
 ## Context
 
-- **Phase:** 4-implementation — Epic 2 Round-4 review-fix-arc COMPLETE. EPIC_DONE halt written; loop terminates pending human merge of PR #230.
-- **Epic:** 2 — Sandboxed Execution Environment. All 18 stories `done`; PR #230 OPEN/CLEAN/MERGEABLE awaiting human merge.
+- **Phase:** 4-implementation — Round-5 final-merge-gate adversarial review.
+- **Epic:** 2 — Sandboxed Execution Environment. All 18 stories `done`; PR #230 OPEN/CLEAN/MERGEABLE awaiting Round-5 verdict.
 - **Epic Branch:** `feat/epic-2-packaged-devbox`.
 - **Story:** _(none — PR-fix-arc bypassed § Story Lifecycle per landing-summary intent.)_
 - **Story File:** _(n/a)._
 - **Story State:** _(no story)._
-- **PR:** #230 OPEN, isDraft=false, MERGEABLE/CLEAN; HEAD `799c877` (CI 4/4 GREEN on workflow runs `25390012510` + `25390014431`). FIX-17 + FIX-18 + R4-H50 WONTFIX-doc all landed; landing-summary comment posted (`#issuecomment-4381196818`); A5+A6 threads resolved (live unresolved count = 0). EPIC_DONE halt written this iter; awaiting human merge → § Cross-epic transition next invocation.
+- **PR:** #230 OPEN, isDraft=false, MERGEABLE/CLEAN; HEAD `799c877` (CI 4/4 GREEN). Round-5 dispatch complete this iter; FIX-19 (CRITICAL R5-A1 alternate-shell wrapper bypass) queued for next iter; +1 merge gate gated on FIX-19 land + codex confirmation.
