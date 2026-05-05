@@ -53,6 +53,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^packages/ui/tokens\.json$
+      - id: keel-invariants-check
+        name: Keel invariants drift gate (@keel/keel-invariants; PR #230 R3-Inv-I01 + Story 1.9 wiring)
+        entry: bash -c 'pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check'
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: ralph-doc-budget
         name: Ralph doc-budget gate (issue #231 / FR14j amendment; warn-only at 1.0)
         entry: tools/check-ralph-doc-budget.sh

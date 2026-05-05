@@ -131,7 +131,7 @@ const raw: Invariant[] = [
     description:
       '3 repo-wide local hooks (typecheck / lint / format-check) wired at repo root; each language: system, pass_filenames: false, always_run: true. Post-Story-1.13 the file also hosts the 2 source-scoped token gates (tokens-schema / tokens-contrast) + commitlint; those carry separate invariant IDs. Post-Story-2.17 the file also hosts the claude-hook-syntax source-scoped gate (pass_filenames: false, files: ^\\.claude/hooks/.*\\.sh$); that carries its own invariant ID.',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: 'ba264ac9f4376509c5e72ebf6f617c0226accfc27b9a9ad2af1c5b0d0efb0fee',
+    contentHash: 'b113ded4264a70d63f824e530b91aca8602d4ee2d00922aae2319c5c26598ddb',
     anchors: ['INV-prek-pre-commit-config'],
   },
   {
@@ -147,7 +147,7 @@ const raw: Invariant[] = [
     description:
       'Hook entry id: commitlint, stages: [commit-msg], entry: pnpm exec commitlint --edit, language: system; prek passes <COMMIT_EDITMSG> as trailing positional. Lives in the commit-msg stage block of .pre-commit-config.yaml (position-independent — the block is identified by stages: [commit-msg], not by row index).',
     sourcePath: '.pre-commit-config.yaml',
-    contentHash: 'ba264ac9f4376509c5e72ebf6f617c0226accfc27b9a9ad2af1c5b0d0efb0fee',
+    contentHash: 'b113ded4264a70d63f824e530b91aca8602d4ee2d00922aae2319c5c26598ddb',
     anchors: ['INV-prek-commit-msg-config'],
   },
   {
@@ -440,7 +440,7 @@ const raw: Invariant[] = [
     description:
       'FR14i pre-push CI gate activation invariant — pins existence + content of .github/workflows/ci.yml so the gate operates non-vacuously. Whole-file sha256 catches workflow deletion (removed-from-source-only) + content edits (content-hash-mismatch) at Story 1.9 pre-merge sync-gate. Trigger filter covers main + feat/epic-* PR bases (Story 1.20 expansion ending vacuous-pass mode per iter-371 gotcha). Pre-bootstrap degradation per PRD FR14i amendment (issue #233): when workflow absent, gate no-ops + orient surfaces vacuous-pass notice. Story 1.20 Task 4.',
     sourcePath: '.github/workflows/ci.yml',
-    contentHash: '5754ab12462ea9073d5642e158d753815d3cdb52e4f682c984127ebffd5a8d86',
+    contentHash: '2195a8e19f723b279b60b9d040785fb531d35b35d007a54af94cfacdbf5c6a8a',
     anchors: ['INV-fr14i-ci-workflow-presence'],
   },
 ];

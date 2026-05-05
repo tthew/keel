@@ -26,6 +26,8 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Keel invariants drift gate (PR #230 R3-Inv-I01 + Story 1.9 wiring)
+        run: pnpm --filter @keel/keel-invariants build && pnpm keel-invariants:check
       - run: pnpm turbo run test lint typecheck
   python:
     runs-on: ubuntu-latest
