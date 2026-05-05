@@ -165,17 +165,17 @@ case "$tool_name" in
     # Per-verb sub-match names retained for fixture/JSONL back-compat.
     protected_paths_re='(\.claude/settings|\.claude/hooks/|\.git/hooks/)'
     if [[ "$normalized" =~ $protected_paths_re ]]; then
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)rm([[:space:]]|>|$) ]]; then block "hook-self-protection" "rm-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)mv([[:space:]]|>|$) ]]; then block "hook-self-protection" "mv-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)chmod([[:space:]]|>|$) ]]; then block "hook-self-protection" "chmod-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)tee([[:space:]]|>|$) ]]; then block "hook-self-protection" "tee-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)rm([[:space:]]|>|$) ]]; then block "hook-self-protection" "rm-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)mv([[:space:]]|>|$) ]]; then block "hook-self-protection" "mv-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)chmod([[:space:]]|>|$) ]]; then block "hook-self-protection" "chmod-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)tee([[:space:]]|>|$) ]]; then block "hook-self-protection" "tee-against-protected"; fi
       if [[ "$normalized" =~ (^|[[:space:]])sed[[:space:]]+(-[a-zA-Z]*[iI]|--in-place) ]]; then block "hook-self-protection" "sed-i-against-protected"; fi
       if [[ "$normalized" =~ ^echo[[:space:]] ]] && [[ "$normalized" =~ \> ]]; then block "hook-self-protection" "echo-redirect-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)cp([[:space:]]|>|$) ]]; then block "hook-self-protection" "cp-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)truncate([[:space:]]|>|$) ]]; then block "hook-self-protection" "truncate-against-protected"; fi
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)dd([[:space:]]|>|$) ]]; then block "hook-self-protection" "dd-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)cp([[:space:]]|>|$) ]]; then block "hook-self-protection" "cp-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)truncate([[:space:]]|>|$) ]]; then block "hook-self-protection" "truncate-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)dd([[:space:]]|>|$) ]]; then block "hook-self-protection" "dd-against-protected"; fi
       # D-37 — newly-covered verbs (install/ln/sponge) under unified match-name.
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)(install|ln|sponge)([[:space:]]|>|$) ]]; then block "hook-self-protection" "mutation-verb-against-protected"; fi
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)(install|ln|sponge)([[:space:]]|>|$) ]]; then block "hook-self-protection" "mutation-verb-against-protected"; fi
       # D-37 — catch ANY redirect into a protected path; defends against unknown future writers.
       if [[ "$normalized" =~ \>+[[:space:]]*[\"\']?(\.claude/settings|\.claude/hooks/|\.git/hooks/) ]]; then block "hook-self-protection" "redirect-against-protected"; fi
     fi
@@ -187,7 +187,7 @@ case "$tool_name" in
     # D-37 (PR #230) — alternation widened with install/ln/sponge to mirror the protected-paths
     # block above. word-boundary semantics already match pipe-form via prior alternation.
     if [[ "$bash_command" =~ $l1_path_re || "$normalized" =~ $l1_path_re ]]; then
-      if [[ "$normalized" =~ (^|[[:space:]]|\|[[:space:]]*)(rm|mv|chmod|tee|cp|truncate|dd|install|ln|sponge)([[:space:]]|>|$) ]]; then
+      if [[ "$normalized" =~ (^|[[:space:]]|[;&|]+[[:space:]]*)(rm|mv|chmod|tee|cp|truncate|dd|install|ln|sponge)([[:space:]]|>|$) ]]; then
         block "install-boundary-protection" "mutation-verb-against-l1"
       fi
       if [[ "$normalized" =~ (^|[[:space:]])sed[[:space:]]+-i ]]; then
@@ -220,11 +220,11 @@ case "$tool_name" in
     fi
     # D-31 — /proc reader detection via regex (word-boundary verb + expanded secret-bearing paths).
     # Replaces prior 19-alternative `cat*/proc/*/environ*|...` case-glob; far more maintainable.
-    reader_verb_re='(^|[[:space:]])(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd)[[:space:]]'
+    reader_verb_re='(^|[[:space:]]|[;&|]+[[:space:]]*)(cat|less|tail|head|bat|xxd|od|strings|more|grep|awk|sed|cp|dd)[[:space:]]'
     # D-38 (PR #230 review-fix-arc, FIX-1) — flag-class widened to alphanumeric so digit
     # chars in interpreter flags (e.g. `perl -0ne …`) participate in verb-match. Prior
     # `[a-zA-Z]*[ec]` rejected `0` and let `perl -0ne … .env` slip past the gate.
-    interp_verb_re='(^|[[:space:]])(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z0-9]*[ec]'
+    interp_verb_re='(^|[[:space:]]|[;&|]+[[:space:]]*)(node|python|python3|perl|ruby|php)[[:space:]]+-[a-zA-Z0-9]*[ec]'
     proc_secret_re='/proc/([0-9]+|self)/(cmdline|environ|mem|status|auxv|maps|stack|syscall|io)|/proc/(kcore|kmem|kallsyms)'
     if [[ "$normalized" =~ $reader_verb_re || "$normalized" =~ $interp_verb_re ]]; then
       if [[ "$normalized" =~ $proc_secret_re ]]; then
