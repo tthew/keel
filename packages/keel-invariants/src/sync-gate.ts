@@ -11,11 +11,15 @@ import {
   loadExpectedHooks,
 } from './manifest-reader.js';
 
-let cachedHooksDir: { repoRoot: string; hooksDir: string } | null = null;
+// Map keyed by repoRoot so callers passing distinct roots in sequence (test
+// fixtures, multi-worktree tooling) all hit cache on repeat lookups, instead
+// of the second root evicting the first under a single-slot memoizer.
+const cachedHooksDirByRoot = new Map<string, string>();
 
 export function resolveCommonHooksDir(repoRoot: string): string {
-  if (cachedHooksDir && cachedHooksDir.repoRoot === repoRoot) {
-    return cachedHooksDir.hooksDir;
+  const cached = cachedHooksDirByRoot.get(repoRoot);
+  if (cached !== undefined) {
+    return cached;
   }
   // Strip git-discovery env vars so a wrapper exporting them cannot redirect
   // git rev-parse --git-common-dir to a different repository identity.
@@ -47,7 +51,7 @@ export function resolveCommonHooksDir(repoRoot: string): string {
     }
     hooksDir = resolve(repoRoot, '.git/hooks');
   }
-  cachedHooksDir = { repoRoot, hooksDir };
+  cachedHooksDirByRoot.set(repoRoot, hooksDir);
   return hooksDir;
 }
 

@@ -13,7 +13,7 @@
 // contentHash + INVARIANTS.md anchor in the same PR.
 
 import { execFileSync, spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
 
 // Strip git-discovery env vars so a wrapper that exports them cannot redirect
 // `git rev-parse --git-common-dir` to a different repository identity.
@@ -37,8 +37,24 @@ try {
   process.exit(0);
 }
 
-const resolvedCommon = resolve(commonDir);
-const mainCommon = resolve('.git');
+// Canonicalize both sides via realpath so a symlinked working tree (macOS
+// /var → /private/var, or any operator-introduced symlink) does not produce
+// two distinct spellings of the same directory that compare unequal under a
+// plain path.resolve(). realpath operates on files just as well as directories
+// (a worktree's .git is a regular gitlink file, not a directory).
+let resolvedCommon, mainCommon;
+try {
+  resolvedCommon = realpathSync(commonDir);
+  mainCommon = realpathSync('.git');
+} catch (err) {
+  // git rev-parse just succeeded so .git should exist; if either side cannot
+  // be canonicalized we are in indeterminate state. Fail closed (skip) rather
+  // than risk overwriting shared hook bodies with worktree-local paths.
+  console.log(
+    `[prepare-prek] skipping: cannot canonicalize git paths (${err.code ?? err.message}).`,
+  );
+  process.exit(0);
+}
 
 if (resolvedCommon !== mainCommon) {
   // Worktree (or non-standard layout). Skip — the main checkout owns the hook bodies.

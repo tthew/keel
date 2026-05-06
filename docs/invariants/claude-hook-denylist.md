@@ -278,9 +278,20 @@ The `.git/hooks/` directory lives in `<commondir>` (the main repo's `.git/`), **
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
+// Strip git-discovery env vars so a wrapper exporting them cannot redirect
+// the resolver to a different repository identity. GIT_DIR/GIT_COMMON_DIR/
+// GIT_WORK_TREE override repo discovery directly; GIT_CEILING_DIRECTORIES
+// halts upward discovery.
+const gitEnv = { ...process.env };
+delete gitEnv.GIT_DIR;
+delete gitEnv.GIT_COMMON_DIR;
+delete gitEnv.GIT_WORK_TREE;
+delete gitEnv.GIT_CEILING_DIRECTORIES;
+
 const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
   cwd: repoRoot,
   encoding: 'utf8',
+  env: gitEnv,
 }).trim();
 const hooksDir = resolve(repoRoot, commonDir, 'hooks');
 ```

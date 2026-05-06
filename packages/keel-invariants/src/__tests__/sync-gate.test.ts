@@ -348,4 +348,59 @@ describe('resolveCommonHooksDir worktree portability (issue #240)', () => {
       await rm(root, { recursive: true, force: true });
     }
   });
+
+  it('caches per repoRoot using a Map (regression — single-slot evicted A on B-then-A pattern)', async () => {
+    // PR #241 review iter — was: `let cachedHooksDir: { repoRoot, hooksDir } | null`.
+    // A→B→A invocation pattern caused the second A call to re-execute git
+    // rev-parse because B's entry had evicted A's. Now: Map<string, string>
+    // keyed by repoRoot — both entries coexist; second A call hits cache.
+    const realChildProcess =
+      await vi.importActual<typeof import('node:child_process')>('node:child_process');
+    const rootA = await mkdtemp(join(tmpdir(), 'keel-cache-a-'));
+    const rootB = await mkdtemp(join(tmpdir(), 'keel-cache-b-'));
+    try {
+      for (const r of [rootA, rootB]) {
+        realChildProcess.execFileSync('git', ['init', '-q'], { cwd: r });
+        realChildProcess.execFileSync('git', ['symbolic-ref', 'HEAD', 'refs/heads/main'], {
+          cwd: r,
+        });
+      }
+
+      let revParseCount = 0;
+      vi.doMock('node:child_process', async () => {
+        const real =
+          await vi.importActual<typeof import('node:child_process')>('node:child_process');
+        return {
+          ...real,
+          execFileSync: ((
+            cmd: string,
+            args: readonly string[],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            opts: any,
+          ) => {
+            if (cmd === 'git' && args[0] === 'rev-parse' && args[1] === '--git-common-dir') {
+              revParseCount += 1;
+            }
+            return real.execFileSync(cmd, args, opts);
+          }) as typeof real.execFileSync,
+        };
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { resolveCommonHooksDir } = (await import('../sync-gate.js')) as any;
+
+      resolveCommonHooksDir(rootA);
+      resolveCommonHooksDir(rootB);
+      resolveCommonHooksDir(rootA);
+
+      // Map cache: 2 git invocations (A miss, B miss, A hit).
+      // Single-slot cache (regression): 3 (A miss → cache=A; B miss → cache=B
+      // evicts A; second A miss → cache=A). The two-call assertion fails the
+      // single-slot variant by exactly 1.
+      expect(revParseCount).toBe(2);
+    } finally {
+      await rm(rootA, { recursive: true, force: true });
+      await rm(rootB, { recursive: true, force: true });
+    }
+  });
 });

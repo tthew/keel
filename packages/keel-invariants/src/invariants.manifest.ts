@@ -147,7 +147,7 @@ const raw: Invariant[] = [
     description:
       'Root npm `prepare` lifecycle is delegated to scripts/prepare-prek.mjs which runs `prek install -t pre-commit -t commit-msg` ONLY when `git rev-parse --git-common-dir` resolves to <cwd>/.git (the main checkout). From a worktree the script no-ops, preventing worktree-local PREK absolute-path bake-ins from corrupting the shared <commondir>/.git/hooks/ bodies. Whole-file SHA-256 of scripts/prepare-prek.mjs pins the contract; legitimate edits are AMEND-path. Issue #240.',
     sourcePath: 'scripts/prepare-prek.mjs',
-    contentHash: '39c2419a92519390dab7e29245d8a62ef9e559b1975bb127befc1d70ecd7184e',
+    contentHash: 'c633e85abc56d6d2eb6ce6226eb8f1cea3c5457cb99819b6be5f6e415f9eb754',
     anchors: ['INV-prek-prepare-worktree-guard'],
   },
   {
@@ -383,7 +383,7 @@ const raw: Invariant[] = [
     description:
       'Invariant-doc drift protection for docs/invariants/claude-hook-denylist.md — the contract description carrying the hook-denylist narrative, decision-shape, JSONL schema, halt-threshold pin, source-files index, fork-extension path, limitations, and Story 2.17 git-layer backstop table. Story 2.17 Task 4 split: the former INV-claude-hook-secret-denylist sourcePath (this doc) is now covered here, while the ID INV-claude-hook-secret-denylist itself is repointed to the hook script per the Option B rationale at story Task 4.1 (preserves ID lineage; splits doc protection into a -doc sibling). Whole-file sha256; drift-detected by Story 1.9 pre-merge sync-gate.',
     sourcePath: 'docs/invariants/claude-hook-denylist.md',
-    contentHash: '731fa4ee42d852bce6e286c8174ea27c0b27a5350d06f9b87b794889d3087370',
+    contentHash: '4258f7e67acdd0e1b0b663c102f0676b028fac1652a51e067da05d6305dccde1',
     anchors: ['INV-claude-hook-secret-denylist-doc'],
   },
   {
