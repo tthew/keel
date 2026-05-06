@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import type { Invariant } from './invariants.manifest.js';
 import {
   invariants,
@@ -9,6 +10,50 @@ import {
   computeNamesAndShebangsHash,
   loadExpectedHooks,
 } from './manifest-reader.js';
+
+// Map keyed by repoRoot so callers passing distinct roots in sequence (test
+// fixtures, multi-worktree tooling) all hit cache on repeat lookups, instead
+// of the second root evicting the first under a single-slot memoizer.
+const cachedHooksDirByRoot = new Map<string, string>();
+
+export function resolveCommonHooksDir(repoRoot: string): string {
+  const cached = cachedHooksDirByRoot.get(repoRoot);
+  if (cached !== undefined) {
+    return cached;
+  }
+  // Strip git-discovery env vars so a wrapper exporting them cannot redirect
+  // git rev-parse --git-common-dir to a different repository identity.
+  // GIT_DIR/GIT_COMMON_DIR/GIT_WORK_TREE override repo discovery directly;
+  // GIT_CEILING_DIRECTORIES halts upward discovery.
+  const gitEnv = { ...process.env };
+  delete gitEnv.GIT_DIR;
+  delete gitEnv.GIT_COMMON_DIR;
+  delete gitEnv.GIT_WORK_TREE;
+  delete gitEnv.GIT_CEILING_DIRECTORIES;
+  let hooksDir: string;
+  try {
+    const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      env: gitEnv,
+    }).trim();
+    // commonDir may be relative ('.git') from main or absolute from a worktree.
+    hooksDir = resolve(repoRoot, commonDir, 'hooks');
+  } catch (error) {
+    // git rev-parse exits 128 when cwd is not in a git repo (test fixtures,
+    // fresh-clone pre-init). Any other failure — ENOENT for missing git on
+    // PATH, EACCES on .git/ — indicates a broken environment that should
+    // surface as a real error, not silently fall back to a stale path.
+    const err = error as NodeJS.ErrnoException & { status?: number };
+    if (err.status !== 128) {
+      throw err;
+    }
+    hooksDir = resolve(repoRoot, '.git/hooks');
+  }
+  cachedHooksDirByRoot.set(repoRoot, hooksDir);
+  return hooksDir;
+}
 
 export type DriftKind =
   | 'added-to-source-only'
@@ -70,6 +115,7 @@ export const EXPECTED_INVARIANT_IDS: readonly string[] = [
   'INV-eslint-import-boundary',
   'INV-prek-pre-commit-config',
   'INV-prek-prepare-lifecycle',
+  'INV-prek-prepare-worktree-guard',
   'INV-prek-commit-msg-config',
   'INV-no-verify-bypass',
   'INV-ralph-halt-path-resolution',
@@ -185,7 +231,7 @@ async function computeEntryHash(repoRoot: string, entry: Invariant): Promise<Ent
     // names-and-shebangs: enumerator file read; hook directory (.git/hooks/) walked.
     const enumeratorAbs = resolve(repoRoot, scope.enumeratorPath);
     const expected = await loadExpectedHooks(enumeratorAbs);
-    const hooksDir = resolve(repoRoot, '.git/hooks');
+    const hooksDir = resolveCommonHooksDir(repoRoot);
     const { hash, missing, shebangMismatches } = await computeNamesAndShebangsHash(
       hooksDir,
       expected,

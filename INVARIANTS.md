@@ -32,6 +32,7 @@ Each entry: stable ID + one-line description + source-file pointer.
 
 - **`INV-prek-pre-commit-config`** — 3 local hooks (`typecheck` / `lint` / `format-check`) wired at repo root; each `language: system`, `pass_filenames: false`, `always_run: true`. Source: `{repo-root}/.pre-commit-config.yaml` (rows 1–3).
 - **`INV-prek-prepare-lifecycle`** — root `package.json` `prepare` script installs `prek` shims for both `pre-commit` and `commit-msg` stages via `prek install -t pre-commit -t commit-msg`. Source: `{repo-root}/package.json` (`scripts.prepare`).
+- **`INV-prek-prepare-worktree-guard`** — `scripts/prepare-prek.mjs` gates `prek install` to the main checkout only; from a worktree the prepare script no-ops to prevent shared-hook-body corruption (issue #240). Source: `scripts/prepare-prek.mjs`.
 
 ### prek commit-msg config (Story 1.5)
 

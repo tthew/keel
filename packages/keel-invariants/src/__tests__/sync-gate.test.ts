@@ -297,3 +297,110 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     await rm(root, { recursive: true, force: true });
   });
 });
+
+describe('resolveCommonHooksDir worktree portability (issue #240)', () => {
+  it('resolves to <commondir>/hooks when invoked from a worktree off a real git repo', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const { resolve: resolvePath } = await import('node:path');
+
+    const root = await mkdtemp(join(tmpdir(), 'keel-syncgate-wt-'));
+    try {
+      execFileSync('git', ['init', '-q'], { cwd: root });
+      // Git 2.28+ supports `--initial-branch=main` directly. Use the
+      // 2.5-compatible two-step form so the test floor matches the runtime
+      // floor (sync-gate only requires `--git-common-dir` from Git 2.5+).
+      execFileSync('git', ['symbolic-ref', 'HEAD', 'refs/heads/main'], { cwd: root });
+      execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
+      execFileSync('git', ['config', 'user.name', 'test'], { cwd: root });
+      execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: root });
+      await writeFile(join(root, 'README.md'), '# fixture\n');
+      execFileSync('git', ['add', 'README.md'], { cwd: root });
+      execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: root });
+
+      const wtRoot = join(root, 'wt');
+      execFileSync('git', ['worktree', 'add', '-q', '-b', 'test/worktree', wtRoot], {
+        cwd: root,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { resolveCommonHooksDir } = (await import('../sync-gate.js')) as any;
+
+      // From main checkout: <root>/.git/hooks.
+      expect(resolveCommonHooksDir(root)).toBe(resolvePath(root, '.git', 'hooks'));
+      // From worktree: STILL <root>/.git/hooks (NOT <wtRoot>/.git/hooks which is
+      // a non-existent path under the gitlink file).
+      expect(resolveCommonHooksDir(wtRoot)).toBe(resolvePath(root, '.git', 'hooks'));
+
+      execFileSync('git', ['worktree', 'remove', '--force', wtRoot], { cwd: root });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to <repoRoot>/.git/hooks when not in a git repo (test fixture safety)', async () => {
+    const { resolve: resolvePath } = await import('node:path');
+    const root = await mkdtemp(join(tmpdir(), 'keel-syncgate-nogit-'));
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { resolveCommonHooksDir } = (await import('../sync-gate.js')) as any;
+      expect(resolveCommonHooksDir(root)).toBe(resolvePath(root, '.git', 'hooks'));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('caches per repoRoot using a Map (regression — single-slot evicted A on B-then-A pattern)', async () => {
+    // PR #241 review iter — was: `let cachedHooksDir: { repoRoot, hooksDir } | null`.
+    // A→B→A invocation pattern caused the second A call to re-execute git
+    // rev-parse because B's entry had evicted A's. Now: Map<string, string>
+    // keyed by repoRoot — both entries coexist; second A call hits cache.
+    const realChildProcess =
+      await vi.importActual<typeof import('node:child_process')>('node:child_process');
+    const rootA = await mkdtemp(join(tmpdir(), 'keel-cache-a-'));
+    const rootB = await mkdtemp(join(tmpdir(), 'keel-cache-b-'));
+    try {
+      for (const r of [rootA, rootB]) {
+        realChildProcess.execFileSync('git', ['init', '-q'], { cwd: r });
+        realChildProcess.execFileSync('git', ['symbolic-ref', 'HEAD', 'refs/heads/main'], {
+          cwd: r,
+        });
+      }
+
+      let revParseCount = 0;
+      vi.doMock('node:child_process', async () => {
+        const real =
+          await vi.importActual<typeof import('node:child_process')>('node:child_process');
+        return {
+          ...real,
+          execFileSync: ((
+            cmd: string,
+            args: readonly string[],
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            opts: any,
+          ) => {
+            if (cmd === 'git' && args[0] === 'rev-parse' && args[1] === '--git-common-dir') {
+              revParseCount += 1;
+            }
+            return real.execFileSync(cmd, args, opts);
+          }) as typeof real.execFileSync,
+        };
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { resolveCommonHooksDir } = (await import('../sync-gate.js')) as any;
+
+      resolveCommonHooksDir(rootA);
+      resolveCommonHooksDir(rootB);
+      resolveCommonHooksDir(rootA);
+
+      // Map cache: 2 git invocations (A miss, B miss, A hit).
+      // Single-slot cache (regression): 3 (A miss → cache=A; B miss → cache=B
+      // evicts A; second A miss → cache=A). The two-call assertion fails the
+      // single-slot variant by exactly 1.
+      expect(revParseCount).toBe(2);
+    } finally {
+      await rm(rootA, { recursive: true, force: true });
+      await rm(rootB, { recursive: true, force: true });
+    }
+  });
+});

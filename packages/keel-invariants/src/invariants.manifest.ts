@@ -139,8 +139,16 @@ const raw: Invariant[] = [
     description:
       'Root package.json prepare script installs prek shims for both pre-commit and commit-msg stages via prek install -t pre-commit -t commit-msg.',
     sourcePath: 'package.json',
-    contentHash: '9d490e2188d39b06389faee84af84dd81185f9a455a04bac291a1155a7556c5b',
+    contentHash: '42c5fa58e48e34425e214ace6ceb173c4e99ffc42e06c72200d45eb9ee666ae3',
     anchors: ['INV-prek-prepare-lifecycle'],
+  },
+  {
+    id: 'INV-prek-prepare-worktree-guard',
+    description:
+      'Root npm `prepare` lifecycle is delegated to scripts/prepare-prek.mjs which runs `prek install -t pre-commit -t commit-msg` ONLY when `git rev-parse --git-common-dir` resolves to <cwd>/.git (the main checkout). From a worktree the script no-ops, preventing worktree-local PREK absolute-path bake-ins from corrupting the shared <commondir>/.git/hooks/ bodies. Whole-file SHA-256 of scripts/prepare-prek.mjs pins the contract; legitimate edits are AMEND-path. Issue #240.',
+    sourcePath: 'scripts/prepare-prek.mjs',
+    contentHash: 'c633e85abc56d6d2eb6ce6226eb8f1cea3c5457cb99819b6be5f6e415f9eb754',
+    anchors: ['INV-prek-prepare-worktree-guard'],
   },
   {
     id: 'INV-prek-commit-msg-config',
@@ -375,7 +383,7 @@ const raw: Invariant[] = [
     description:
       'Invariant-doc drift protection for docs/invariants/claude-hook-denylist.md — the contract description carrying the hook-denylist narrative, decision-shape, JSONL schema, halt-threshold pin, source-files index, fork-extension path, limitations, and Story 2.17 git-layer backstop table. Story 2.17 Task 4 split: the former INV-claude-hook-secret-denylist sourcePath (this doc) is now covered here, while the ID INV-claude-hook-secret-denylist itself is repointed to the hook script per the Option B rationale at story Task 4.1 (preserves ID lineage; splits doc protection into a -doc sibling). Whole-file sha256; drift-detected by Story 1.9 pre-merge sync-gate.',
     sourcePath: 'docs/invariants/claude-hook-denylist.md',
-    contentHash: '90812335f70c757c88984da2a9bfcde87b2a2146d4a207a8c0f814e89239ebac',
+    contentHash: '4258f7e67acdd0e1b0b663c102f0676b028fac1652a51e067da05d6305dccde1',
     anchors: ['INV-claude-hook-secret-denylist-doc'],
   },
   {
@@ -448,7 +456,7 @@ const raw: Invariant[] = [
     description:
       'FIX-18 (PR #230 review-fix-arc Round-4 R4-A6) — anchor-range drift protection for the EXPECTED_INVARIANT_IDS (FIX-3 snapshot) and BYTE_PARITY_PAIRS (FIX-4 snapshot) blocks inside packages/keel-invariants/src/sync-gate.ts. Closes the bypass class where mutating either out-of-band snapshot in lockstep with a coordinated 3-leg removal (drop manifest entry + drop INVARIANTS.md anchor + drop EXPECTED_INVARIANT_IDS membership) silently passes the FIX-3/FIX-4 backstops if the snapshot bytes themselves are also rewritten. hashScope is anchor-range bracketing both snapshot blocks under a single :start/:end marker pair (single-entry preferred for marker-churn isolation per Round-4 cross-engine consensus); ANY content edit inside the bracketed region — addition, removal, or modification of an EXPECTED_INVARIANT_IDS member or a BYTE_PARITY_PAIRS pair — fires content-hash-mismatch at Story 1.9 pre-merge sync-gate. Recursive-by-design: this entry IS in EXPECTED_INVARIANT_IDS (membership self-check is sound because the sync-gate computes contentHash from the post-edit file, codex Q7 verdict). Pre-existing structural limit at the anchor-range hashScope layer — an out-of-session PR could retarget startMarker/endMarker to a no-op range with matching contentHash (R4-Inv-I07) — applies to every anchor-range entry today, not novel to this entry; mitigated by L1-protection of invariants.manifest.ts via the .claude/hooks/block-secret-access.sh l1_path_re (which denies in-session AI-agent edits to manifest.ts + sync-gate.ts) plus human PR review at the git layer. Inline WONTFIX comment block above the markers in sync-gate.ts records the residual.',
     sourcePath: 'packages/keel-invariants/src/sync-gate.ts',
-    contentHash: 'ff2c95d9ba3069ab32605e4e37841f5575b87648ce7ea2f241e23b1ab8e5e283',
+    contentHash: '35b513303a3df5ee3b73336b2f0cfb39bcfd729e893b458d67ba85ed34f3d178',
     anchors: ['INV-keel-invariants-sync-gate-snapshots'],
     hashScope: {
       kind: 'anchor-range',
