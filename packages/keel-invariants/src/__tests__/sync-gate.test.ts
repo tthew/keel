@@ -297,3 +297,51 @@ describe('runSyncGate four drift classes (Story 1.19 AC3 RED-phase)', () => {
     await rm(root, { recursive: true, force: true });
   });
 });
+
+describe('resolveCommonHooksDir worktree portability (issue #240)', () => {
+  it('resolves to <commondir>/hooks when invoked from a worktree off a real git repo', async () => {
+    const { execFileSync } = await import('node:child_process');
+    const { resolve: resolvePath } = await import('node:path');
+
+    const root = await mkdtemp(join(tmpdir(), 'keel-syncgate-wt-'));
+    try {
+      execFileSync('git', ['init', '-q', '--initial-branch=main'], { cwd: root });
+      execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
+      execFileSync('git', ['config', 'user.name', 'test'], { cwd: root });
+      execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: root });
+      await writeFile(join(root, 'README.md'), '# fixture\n');
+      execFileSync('git', ['add', 'README.md'], { cwd: root });
+      execFileSync('git', ['commit', '-q', '-m', 'init'], { cwd: root });
+
+      const wtRoot = join(root, 'wt');
+      execFileSync('git', ['worktree', 'add', '-q', '-b', 'test/worktree', wtRoot], {
+        cwd: root,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { resolveCommonHooksDir } = (await import('../sync-gate.js')) as any;
+
+      // From main checkout: <root>/.git/hooks.
+      expect(resolveCommonHooksDir(root)).toBe(resolvePath(root, '.git', 'hooks'));
+      // From worktree: STILL <root>/.git/hooks (NOT <wtRoot>/.git/hooks which is
+      // a non-existent path under the gitlink file).
+      expect(resolveCommonHooksDir(wtRoot)).toBe(resolvePath(root, '.git', 'hooks'));
+
+      execFileSync('git', ['worktree', 'remove', '--force', wtRoot], { cwd: root });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to <repoRoot>/.git/hooks when not in a git repo (test fixture safety)', async () => {
+    const { resolve: resolvePath } = await import('node:path');
+    const root = await mkdtemp(join(tmpdir(), 'keel-syncgate-nogit-'));
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { resolveCommonHooksDir } = (await import('../sync-gate.js')) as any;
+      expect(resolveCommonHooksDir(root)).toBe(resolvePath(root, '.git', 'hooks'));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
