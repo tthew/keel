@@ -147,7 +147,7 @@ const raw: Invariant[] = [
     description:
       'Root npm `prepare` lifecycle is delegated to scripts/prepare-prek.mjs which runs `prek install -t pre-commit -t commit-msg` ONLY when `git rev-parse --git-common-dir` resolves to <cwd>/.git (the main checkout). From a worktree the script no-ops, preventing worktree-local PREK absolute-path bake-ins from corrupting the shared <commondir>/.git/hooks/ bodies. Whole-file SHA-256 of scripts/prepare-prek.mjs pins the contract; legitimate edits are AMEND-path. Issue #240.',
     sourcePath: 'scripts/prepare-prek.mjs',
-    contentHash: 'f949d55a660c2f9eec189d3f6e468049e362fa2dedf42d9729a66e2128c2abd2',
+    contentHash: '39c2419a92519390dab7e29245d8a62ef9e559b1975bb127befc1d70ecd7184e',
     anchors: ['INV-prek-prepare-worktree-guard'],
   },
   {

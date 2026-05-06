@@ -305,7 +305,11 @@ describe('resolveCommonHooksDir worktree portability (issue #240)', () => {
 
     const root = await mkdtemp(join(tmpdir(), 'keel-syncgate-wt-'));
     try {
-      execFileSync('git', ['init', '-q', '--initial-branch=main'], { cwd: root });
+      execFileSync('git', ['init', '-q'], { cwd: root });
+      // Git 2.28+ supports `--initial-branch=main` directly. Use the
+      // 2.5-compatible two-step form so the test floor matches the runtime
+      // floor (sync-gate only requires `--git-common-dir` from Git 2.5+).
+      execFileSync('git', ['symbolic-ref', 'HEAD', 'refs/heads/main'], { cwd: root });
       execFileSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
       execFileSync('git', ['config', 'user.name', 'test'], { cwd: root });
       execFileSync('git', ['config', 'commit.gpgsign', 'false'], { cwd: root });

@@ -17,19 +17,34 @@ export function resolveCommonHooksDir(repoRoot: string): string {
   if (cachedHooksDir && cachedHooksDir.repoRoot === repoRoot) {
     return cachedHooksDir.hooksDir;
   }
+  // Strip git-discovery env vars so a wrapper exporting them cannot redirect
+  // git rev-parse --git-common-dir to a different repository identity.
+  // GIT_DIR/GIT_COMMON_DIR/GIT_WORK_TREE override repo discovery directly;
+  // GIT_CEILING_DIRECTORIES halts upward discovery.
+  const gitEnv = { ...process.env };
+  delete gitEnv.GIT_DIR;
+  delete gitEnv.GIT_COMMON_DIR;
+  delete gitEnv.GIT_WORK_TREE;
+  delete gitEnv.GIT_CEILING_DIRECTORIES;
   let hooksDir: string;
   try {
     const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      env: gitEnv,
     }).trim();
     // commonDir may be relative ('.git') from main or absolute from a worktree.
     hooksDir = resolve(repoRoot, commonDir, 'hooks');
-  } catch {
-    // Not a git repo (test fixtures, fresh-clone pre-init). Fall back to the
-    // pre-fix path so existing test fixtures that mock-mkdir <root>/.git/hooks
-    // continue to work.
+  } catch (error) {
+    // git rev-parse exits 128 when cwd is not in a git repo (test fixtures,
+    // fresh-clone pre-init). Any other failure — ENOENT for missing git on
+    // PATH, EACCES on .git/ — indicates a broken environment that should
+    // surface as a real error, not silently fall back to a stale path.
+    const err = error as NodeJS.ErrnoException & { status?: number };
+    if (err.status !== 128) {
+      throw err;
+    }
     hooksDir = resolve(repoRoot, '.git/hooks');
   }
   cachedHooksDir = { repoRoot, hooksDir };
