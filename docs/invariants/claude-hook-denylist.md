@@ -269,3 +269,22 @@ Epic 14's CI dashboard panel (forthcoming; or nightly report — research-corpus
 - `INV-ralph-halt-reason-enum` at `INVARIANTS.md § Ralph loop contracts` — the closed halt-reason enum the Story 3.7 halt-write participates in.
 - `INV-gitignored-secret-commit-deny` at `INVARIANTS.md` — the schema-companion EXEMPT convention (`.envrc.example`, `.secrets.example`, `.env.example`).
 - `INV-no-verify-bypass` at `INVARIANTS.md` — the source-checked-in `--no-verify` / `--dangerously-skip-permissions` lint composing with the hook's in-session runtime block.
+
+### Worktree-portability resolver pattern (issue #240)
+
+The `.git/hooks/` directory lives in `<commondir>` (the main repo's `.git/`), **not** in `<worktree>/.git/` (which is a gitlink file pointing at `<commondir>/worktrees/<name>/`, not a directory). Future invariant authors writing hook-walking checks must resolve the hooks path via:
+
+```ts
+import { execFileSync } from 'node:child_process';
+import { resolve } from 'node:path';
+
+const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+  cwd: repoRoot,
+  encoding: 'utf8',
+}).trim();
+const hooksDir = resolve(repoRoot, commonDir, 'hooks');
+```
+
+**Do NOT** write `resolve(repoRoot, '.git/hooks')` — that path is a non-existent file when `repoRoot` is a worktree. Pre-fix, this caused `INV-git-hooks-preservation` to false-positive `git-hook-missing` for every enumerated hook in `EXPECTED_HOOKS` from any worktree commit, training operators to bypass the SECURITY-CRITICAL gate.
+
+The canonical implementation is `resolveCommonHooksDir` in `packages/keel-invariants/src/sync-gate.ts`. The fallback to `<repoRoot>/.git/hooks` (when `git rev-parse` throws — e.g. test fixtures with `mkdtemp` but no `git init`) is intentional: it preserves the behavior existing test fixtures rely on.

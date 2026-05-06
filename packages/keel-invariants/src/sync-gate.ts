@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import type { Invariant } from './invariants.manifest.js';
 import {
   invariants,
@@ -9,6 +10,31 @@ import {
   computeNamesAndShebangsHash,
   loadExpectedHooks,
 } from './manifest-reader.js';
+
+let cachedHooksDir: { repoRoot: string; hooksDir: string } | null = null;
+
+export function resolveCommonHooksDir(repoRoot: string): string {
+  if (cachedHooksDir && cachedHooksDir.repoRoot === repoRoot) {
+    return cachedHooksDir.hooksDir;
+  }
+  let hooksDir: string;
+  try {
+    const commonDir = execFileSync('git', ['rev-parse', '--git-common-dir'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    // commonDir may be relative ('.git') from main or absolute from a worktree.
+    hooksDir = resolve(repoRoot, commonDir, 'hooks');
+  } catch {
+    // Not a git repo (test fixtures, fresh-clone pre-init). Fall back to the
+    // pre-fix path so existing test fixtures that mock-mkdir <root>/.git/hooks
+    // continue to work.
+    hooksDir = resolve(repoRoot, '.git/hooks');
+  }
+  cachedHooksDir = { repoRoot, hooksDir };
+  return hooksDir;
+}
 
 export type DriftKind =
   | 'added-to-source-only'
@@ -70,6 +96,7 @@ export const EXPECTED_INVARIANT_IDS: readonly string[] = [
   'INV-eslint-import-boundary',
   'INV-prek-pre-commit-config',
   'INV-prek-prepare-lifecycle',
+  'INV-prek-prepare-worktree-guard',
   'INV-prek-commit-msg-config',
   'INV-no-verify-bypass',
   'INV-ralph-halt-path-resolution',
@@ -185,7 +212,7 @@ async function computeEntryHash(repoRoot: string, entry: Invariant): Promise<Ent
     // names-and-shebangs: enumerator file read; hook directory (.git/hooks/) walked.
     const enumeratorAbs = resolve(repoRoot, scope.enumeratorPath);
     const expected = await loadExpectedHooks(enumeratorAbs);
-    const hooksDir = resolve(repoRoot, '.git/hooks');
+    const hooksDir = resolveCommonHooksDir(repoRoot);
     const { hash, missing, shebangMismatches } = await computeNamesAndShebangsHash(
       hooksDir,
       expected,
