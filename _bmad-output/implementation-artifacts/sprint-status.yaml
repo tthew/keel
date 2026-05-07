@@ -129,6 +129,7 @@ last_updated: 2026-04-26 Story-1-20-in-progress-iter-390 UTC
 last_updated: 2026-04-26 Story-1-20-review-iter-390 UTC
 last_updated: 2026-04-26 Story-1-20-done-CR-pass-1-iter-397-0-PATCH-3-DEFER-16-DISMISS UTC
 last_updated: 2026-04-26 Story-1-21-create-story-drafted-iter-398 UTC
+last_updated: 2026-05-07 Sprint-Change-Proposal-B-approved-PR-238-section-6-resolved UTC
 project: ralph-bmad
 project_key: NOKEY
 tracking_system: file-system
@@ -183,14 +184,14 @@ development_status:
   epic-3: backlog
   3-1-packages-ralph-package-install-boundary-via-uv-tool-install: backlog
   3-2-ralph-multi-iteration-loop-with-claude-p-effort-settings: backlog
-  3-3-prompt-template-seeds-prompt-build-template-md-prompt-plan-template-md: backlog
+  3-3-prompt-template-seeds-prompt-build-template-md-prompt-plan-template-md: backlog  # SCP-B amendment 2026-05-07: scope-narrowed at 1.0 — re-seed live .ralph/PROMPT_*.md only; package-templated seeding deferred to Epic 12 (no rename, no AC structure change)
   3-4-orient-phase-contract-8-pinned-steps: backlog
   3-5-execute-phase-contract-one-task-per-iteration-spine-compound-now-rejection-xl-decomposition: backlog
   3-6-pr-lifecycle-state-machine-ralph-lib-pr-state-ts-3-anti-constraints: backlog
   3-7-pre-push-ci-gate-gh-pr-checks-before-push-in-progress-queue-monitor-pr-ci: backlog
   3-8-ralph-plan-md-schema-now-queue-blocked-done-context: backlog
   3-9-ralph-halt-pinned-json-schema-closed-reason-enum: backlog
-  3-10-native-claude-code-task-list-as-crash-journal: backlog
+  3-10-native-claude-code-task-list-as-crash-journal: backlog  # SCP-B amendment 2026-05-07: wording-only reframe to cross-CLI crash-journal contract; codex session-resume defer-to-Growth caveat owned by Proposal A (no rename, no AC change)
   3-11-required-tests-manifest-content-hashed-append-only-stable-test-id-in-plan-md: backlog
   3-12-authorship-separation-expand-countersignature: backlog
   3-13-pre-merge-fast-manifest-integrity-gate: backlog
